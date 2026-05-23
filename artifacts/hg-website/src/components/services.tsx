@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 import { useLang } from "@/lib/language";
+import { servicesContent } from "@/lib/services-content";
 
 import finance3 from "@assets/finance3.jpg";
 import finance4 from "@assets/finance4.jpg";
@@ -9,12 +10,13 @@ import finance2 from "@assets/finance2-min.jpg";
 import corporate from "@assets/corporate.jpg";
 import tech from "@assets/tech.jpg";
 
-const images = [finance3, finance4, taxes, finance2, corporate, tech];
+const images = [finance3, finance2, taxes, finance4, corporate, tech];
 
 export default function Services() {
   const { t, lang } = useLang();
   const s = t.services;
   const ArrowIcon = lang === "ar" ? ArrowLeft : ArrowRight;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   return (
     <section id="services" className="py-20 md:py-32 bg-white dark:bg-background">
@@ -45,10 +47,11 @@ export default function Services() {
               <div className="p-8 flex-grow flex flex-col justify-between">
                 <p className="text-muted-foreground text-lg mb-6 leading-relaxed">{service.desc}</p>
                 <div className="flex justify-end">
-                  <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/5 p-0 h-auto gap-2">
+                  <Link href={`${base}/services/${servicesContent[index].slug}`}
+                    className="inline-flex items-center gap-2 text-primary hover:text-primary/80 font-semibold text-sm transition-colors group/btn">
                     <span>{s.more}</span>
-                    <ArrowIcon className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform" />
-                  </Button>
+                    <ArrowIcon className="w-4 h-4 transition-transform group-hover/btn:translate-x-[-3px]" />
+                  </Link>
                 </div>
               </div>
             </div>

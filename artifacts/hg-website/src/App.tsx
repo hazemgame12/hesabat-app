@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Articles from "@/pages/articles";
 import ArticleDetail from "@/pages/article-detail";
+import ServiceDetail from "@/pages/service-detail";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminArticles from "@/pages/admin/articles";
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/articles" component={Articles} />
       <Route path="/articles/:slug" component={ArticleDetail} />
+      <Route path="/services/:slug" component={ServiceDetail} />
 
       {/* Admin */}
       <Route path="/admin" component={AdminLogin} />
