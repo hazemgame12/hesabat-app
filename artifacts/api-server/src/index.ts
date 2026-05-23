@@ -2,30 +2,37 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { seedArticles, seedServices, seedPackages, seedSettings } from "./seed";
 
-const rawPort = process.env["PORT"];
-
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
-}
-
+const rawPort = process.env["PORT"] ?? "3000";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  console.error(`Invalid PORT value: "${rawPort}"`);
+  process.exit(1);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
-  }
-  logger.info({ port }, "Server listening");
+console.log(`[startup] Booting server on port ${port}...`);
+
+const host = "0.0.0.0";
+
+app.listen(port, host, () => {
+  console.log(`[startup] ✓ Server listening on ${host}:${port}`);
+  logger.info({ port, host }, "Server listening");
   Promise.all([
     seedArticles(),
     seedServices(),
     seedPackages(),
     seedSettings(),
-  ]).catch((e) => logger.error({ e }, "Seed error"));
+  ])
+    .then(() => console.log("[startup] ✓ Seed completed"))
+    .catch((e) => {
+      console.error("[startup] Seed error:", e);
+      logger.error({ e }, "Seed error");
+    });
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("[fatal] uncaughtException:", err);
+});
+process.on("unhandledRejection", (err) => {
+  console.error("[fatal] unhandledRejection:", err);
 });
