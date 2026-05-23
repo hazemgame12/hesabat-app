@@ -1,0 +1,11 @@
+{
+  "name": "hg-website",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node dist/index.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -6,3 +6,9 @@ id = "NiYNFsxraB4aRZndsaSQh"
 uri = "file://hg-website-build.zip"
 type = "unspecified"
 title = "hg-website-build.zip — ملفات الموقع الجاهزة للرفع"
+
+[[outputs]]
+id = "AB9o-LALCYZ_6Gr1Zsl0W"
+uri = "file://hostinger-deploy.tar.gz"
+type = "unspecified"
+title = "HG Website — Hostinger Deployment Package"
