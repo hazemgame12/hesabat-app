@@ -7,8 +7,13 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Articles from "@/pages/articles";
 import ArticleDetail from "@/pages/article-detail";
+import AdminLogin from "@/pages/admin/login";
+import AdminArticles from "@/pages/admin/articles";
+import ArticleForm from "@/pages/admin/article-form";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 1000 * 60 * 5, retry: 1 } },
+});
 
 function Router() {
   return (
@@ -16,6 +21,10 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/articles" component={Articles} />
       <Route path="/articles/:slug" component={ArticleDetail} />
+      <Route path="/admin" component={AdminLogin} />
+      <Route path="/admin/articles" component={AdminArticles} />
+      <Route path="/admin/articles/new" component={ArticleForm} />
+      <Route path="/admin/articles/:id/edit" component={ArticleForm} />
       <Route component={NotFound} />
     </Switch>
   );
