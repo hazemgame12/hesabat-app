@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useLang } from "@/lib/language";
 
 function Counter({ end, suffix, title }: { end: number; suffix: string; title: string }) {
   const [count, setCount] = useState(0);
@@ -25,11 +26,7 @@ function Counter({ end, suffix, title }: { end: number; suffix: string; title: s
       },
       { threshold: 0.1 }
     );
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
+    if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, [end]);
 
@@ -44,14 +41,17 @@ function Counter({ end, suffix, title }: { end: number; suffix: string; title: s
 }
 
 export default function Stats() {
+  const { t } = useLang();
+  const s = t.stats;
+
   return (
     <section className="py-20 bg-[#001d56]">
       <div className="container mx-auto px-4 md:px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-x-reverse divide-white/10">
-          <Counter end={20} suffix="+" title="سنة خبرة" />
-          <Counter end={7000} suffix="+" title="مشاريع مكتملة" />
-          <Counter end={10} suffix="+" title="الموظفين الماهرون" />
-          <Counter end={1000} suffix="+" title="العملاء النشطين" />
+          <Counter end={20} suffix="+" title={s.years} />
+          <Counter end={7000} suffix="+" title={s.projects} />
+          <Counter end={10} suffix="+" title={s.employees} />
+          <Counter end={1000} suffix="+" title={s.clients} />
         </div>
       </div>
     </section>
