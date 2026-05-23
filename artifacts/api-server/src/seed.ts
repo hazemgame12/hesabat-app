@@ -2,7 +2,7 @@ import { db, articlesTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./lib/logger";
 
-const seedArticles = [
+const seedData = [
   {
     slug: "vat-in-egypt",
     categoryAr: "الضرائب", categoryEn: "Taxation",
@@ -96,8 +96,8 @@ export async function seedArticles() {
       logger.info({ count }, "Articles already seeded, skipping");
       return;
     }
-    await db.insert(articlesTable).values(seedArticles);
-    logger.info({ count: seedArticles.length }, "Seeded articles");
+    await db.insert(articlesTable).values(seedData);
+    logger.info({ count: seedData.length }, "Seeded articles");
   } catch (err) {
     logger.error({ err }, "Seed failed");
   }
