@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "NiYNFsxraB4aRZndsaSQh"
+uri = "file://hg-website-build.zip"
+type = "unspecified"
+title = "hg-website-build.zip — ملفات الموقع الجاهزة للرفع"
