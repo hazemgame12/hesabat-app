@@ -5,6 +5,8 @@ import settingsRouter from "./settings";
 import servicesRouter from "./services";
 import packagesRouter from "./packages";
 import leadsRouter from "./leads";
+import caseStudiesRouter from "./case-studies";
+import uploadsRouter from "./uploads";
 
 const router: IRouter = Router();
 
@@ -14,5 +16,7 @@ router.use(settingsRouter);
 router.use(servicesRouter);
 router.use(packagesRouter);
 router.use(leadsRouter);
+router.use(caseStudiesRouter);
+router.use(uploadsRouter);
 
 export default router;

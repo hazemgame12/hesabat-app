@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import AdminLayout from "@/components/admin-layout";
+import ImageUpload from "@/components/image-upload";
 import {
   adminFetchArticles, adminCreateArticle, adminUpdateArticle,
   getAdminToken, clearAdminToken, type InsertArticle, type ArticleRecord,
@@ -115,10 +116,7 @@ export default function ArticleForm() {
               <Field label="وقت القراءة (إنجليزي)">
                 <Input value={form.readTimeEn} onChange={e => set("readTimeEn", e.target.value)} placeholder="5 min read" className="h-10" dir="ltr" />
               </Field>
-              <Field label="رابط الصورة">
-                <Input value={form.image} onChange={e => set("image", e.target.value)} placeholder="https://..." className="h-10" dir="ltr" />
-              </Field>
-              {form.image && <img src={form.image} alt="preview" className="w-full h-32 object-cover rounded-lg" onError={e => (e.currentTarget.style.display = "none")} />}
+              <ImageUpload label="صورة المقال" value={form.image} onChange={(url) => set("image", url)} />
             </div>
 
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">

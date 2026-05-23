@@ -4,6 +4,8 @@ import pinoHttp from "pino-http";
 import path from "path";
 import { fileURLToPath } from "url";
 import router from "./routes";
+import seoRouter from "./routes/seo";
+import { uploadsDir } from "./routes/uploads";
 import { logger } from "./lib/logger";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,6 +36,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+app.use(seoRouter);
+
+app.use("/uploads", express.static(uploadsDir, { maxAge: "30d" }));
 
 const publicPath = path.join(__dirname, "public");
 app.use(express.static(publicPath));

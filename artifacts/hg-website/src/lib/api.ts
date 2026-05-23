@@ -67,6 +67,31 @@ export interface LeadRecord {
 }
 export type InsertLead = Omit<LeadRecord, "id" | "createdAt">;
 
+/* ─── Case Study types ──────────────────────────────────────── */
+export interface CaseStudyRecord {
+  id: number;
+  slug: string;
+  titleAr: string;
+  titleEn: string;
+  clientName: string;
+  industryAr: string;
+  industryEn: string;
+  summaryAr: string;
+  summaryEn: string;
+  challengeAr: string;
+  challengeEn: string;
+  solutionAr: string;
+  solutionEn: string;
+  resultsAr: string;
+  resultsEn: string;
+  image: string;
+  order: number;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+export type InsertCaseStudy = Omit<CaseStudyRecord, "id" | "createdAt" | "updatedAt">;
+
 /* ─── Settings type ─────────────────────────────────────────── */
 export type SiteSettings = Record<string, string>;
 
@@ -101,6 +126,18 @@ export async function fetchServices(): Promise<ServiceRecord[]> {
 export async function fetchPackages(): Promise<PackageRecord[]> {
   const res = await fetch("/api/packages");
   if (!res.ok) throw new Error("Failed to fetch packages");
+  return res.json();
+}
+
+export async function fetchCaseStudies(): Promise<CaseStudyRecord[]> {
+  const res = await fetch("/api/case-studies");
+  if (!res.ok) throw new Error("Failed to fetch case studies");
+  return res.json();
+}
+
+export async function fetchCaseStudyBySlug(slug: string): Promise<CaseStudyRecord> {
+  const res = await fetch(`/api/case-studies/${slug}`);
+  if (!res.ok) throw new Error("Case study not found");
   return res.json();
 }
 

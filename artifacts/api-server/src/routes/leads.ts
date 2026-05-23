@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, leadsTable, insertLeadSchema, updateLeadSchema } from "@workspace/db";
 import { adminAuth } from "../middleware/auth";
+import { sendLeadNotification } from "../lib/mailer";
 
 const router = Router();
 
@@ -10,6 +11,15 @@ router.post("/leads", async (req, res) => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.issues }); return; }
   try {
     const [row] = await db.insert(leadsTable).values(parsed.data).returning();
+    if (row) {
+      sendLeadNotification({
+        name: row.name,
+        phone: row.phone,
+        email: row.email,
+        message: row.message,
+        service: row.service,
+      }).catch((err) => req.log.error({ err }, "Email send error"));
+    }
     res.status(201).json(row);
   } catch (err) {
     req.log.error({ err }, "Failed to save lead");

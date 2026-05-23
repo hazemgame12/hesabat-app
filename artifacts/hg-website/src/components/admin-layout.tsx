@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LogOut, Globe, FileText, Briefcase, Package, Users, Settings, LayoutDashboard } from "lucide-react";
+import { LogOut, Globe, FileText, Briefcase, Package, Users, Settings, LayoutDashboard, BookOpen } from "lucide-react";
 import { clearAdminToken } from "@/lib/api";
 import logo from "@assets/hg-logo.png";
 
@@ -8,6 +8,7 @@ const navItems = [
   { href: "/admin/articles", icon: FileText, label: "المقالات" },
   { href: "/admin/services", icon: Briefcase, label: "الخدمات" },
   { href: "/admin/packages", icon: Package, label: "الباقات" },
+  { href: "/admin/case-studies", icon: BookOpen, label: "دراسات الحالة" },
   { href: "/admin/leads", icon: Users, label: "العملاء المحتملون" },
   { href: "/admin/settings", icon: Settings, label: "إعدادات الموقع" },
 ];

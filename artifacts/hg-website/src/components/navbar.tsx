@@ -6,7 +6,7 @@ import { useLang } from "@/lib/language";
 import logo from "@assets/hg-logo.png";
 
 export default function Navbar() {
-  const { t, toggle } = useLang();
+  const { t, toggle, lang } = useLang();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [location] = useLocation();
@@ -55,6 +55,12 @@ export default function Navbar() {
               </button>
             ))}
             <Link
+              href={`${base}/case-studies`}
+              className="text-foreground hover:text-primary font-medium transition-colors text-base"
+            >
+              {lang === "ar" ? "دراسات الحالة" : "Case Studies"}
+            </Link>
+            <Link
               href={`${base}/articles`}
               className="text-foreground hover:text-primary font-medium transition-colors text-base"
             >
@@ -90,6 +96,13 @@ export default function Navbar() {
               {link.name}
             </button>
           ))}
+          <Link
+            href={`${base}/case-studies`}
+            onClick={() => setMobileMenuOpen(false)}
+            className="text-foreground hover:text-primary font-medium text-lg py-2 border-b border-gray-50"
+          >
+            {lang === "ar" ? "دراسات الحالة" : "Case Studies"}
+          </Link>
           <Link
             href={`${base}/articles`}
             onClick={() => setMobileMenuOpen(false)}

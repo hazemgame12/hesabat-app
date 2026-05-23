@@ -5,6 +5,7 @@ import AdminLayout from "@/components/admin-layout";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import ImageUpload from "@/components/image-upload";
 import { getAdminToken, clearAdminToken, type InsertService, type ServiceRecord } from "@/lib/api";
 
 const empty: InsertService = { titleAr: "", titleEn: "", descriptionAr: "", descriptionEn: "", image: "", order: 0, published: true };
@@ -78,11 +79,7 @@ export default function ServiceForm() {
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Short Description (English)</label>
             <Textarea value={form.descriptionEn} onChange={e => set("descriptionEn", e.target.value)} rows={3} dir="ltr" />
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">رابط الصورة</label>
-            <Input value={form.image} onChange={e => set("image", e.target.value)} dir="ltr" className="h-11" />
-          </div>
-          {form.image && <img src={form.image} alt="" className="w-full h-40 object-cover rounded-xl" onError={e => (e.currentTarget.style.display = "none")} />}
+          <ImageUpload label="صورة الخدمة" value={form.image} onChange={(url) => set("image", url)} />
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">الترتيب</label>
