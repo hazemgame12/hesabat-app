@@ -7,9 +7,9 @@ import Packages from "@/components/packages";
 import Partners from "@/components/partners";
 import Contact from "@/components/contact";
 import Footer from "@/components/footer";
-import { LanguageProvider, useLang } from "@/lib/language";
+import { useLang } from "@/lib/language";
 
-function PageContent() {
+export default function Home() {
   const { t } = useLang();
   return (
     <div className="min-h-screen bg-background font-sans overflow-x-hidden" dir={t.dir}>
@@ -25,13 +25,5 @@ function PageContent() {
       </main>
       <Footer />
     </div>
-  );
-}
-
-export default function Home() {
-  return (
-    <LanguageProvider>
-      <PageContent />
-    </LanguageProvider>
   );
 }

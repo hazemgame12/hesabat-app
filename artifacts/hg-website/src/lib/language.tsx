@@ -10,6 +10,7 @@ interface Translations {
     packages: string;
     about: string;
     contact: string;
+    articles: string;
     switchLang: string;
   };
   hero: {
@@ -96,6 +97,7 @@ const ar: Translations = {
     packages: "الباقات",
     about: "من نحن",
     contact: "تواصل معنا",
+    articles: "المقالات",
     switchLang: "English",
   },
   hero: {
@@ -217,6 +219,7 @@ const en: Translations = {
     packages: "Packages",
     about: "About Us",
     contact: "Contact",
+    articles: "Articles",
     switchLang: "عربي",
   },
   hero: {
