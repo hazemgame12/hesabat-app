@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedArticles } from "./seed";
+import { seedArticles, seedServices, seedPackages, seedSettings } from "./seed";
 
 const rawPort = process.env["PORT"];
 
@@ -22,5 +22,10 @@ app.listen(port, (err) => {
     process.exit(1);
   }
   logger.info({ port }, "Server listening");
-  seedArticles().catch((e) => logger.error({ e }, "Seed error"));
+  Promise.all([
+    seedArticles(),
+    seedServices(),
+    seedPackages(),
+    seedSettings(),
+  ]).catch((e) => logger.error({ e }, "Seed error"));
 });

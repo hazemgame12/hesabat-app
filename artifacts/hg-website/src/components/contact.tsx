@@ -1,24 +1,43 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Phone, Mail, MapPin, Send, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useLang } from "@/lib/language";
+import { submitLead } from "@/lib/api";
 
 export default function Contact() {
   const { t } = useLang();
   const c = t.contact;
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError("");
+    const fd = new FormData(e.currentTarget);
+    try {
+      await submitLead({
+        name: fd.get("name") as string,
+        phone: fd.get("phone") as string,
+        email: fd.get("email") as string,
+        message: fd.get("message") as string,
+        service: "",
+        source: "website",
+        status: "new",
+        notes: "",
+      });
       setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    }, 1500);
+      formRef.current?.reset();
+      setTimeout(() => setSuccess(false), 5000);
+    } catch {
+      setError("حدث خطأ، يرجى المحاولة مرة أخرى أو التواصل عبر واتساب.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,12 +85,8 @@ export default function Contact() {
                 </div>
               </div>
               <div className="mt-10">
-                <a
-                  href="https://wa.me/201025812666"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 rounded-xl font-bold text-lg transition-colors"
-                >
+                <a href="https://wa.me/201025812666" target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-4 rounded-xl font-bold text-lg transition-colors">
                   <MessageCircle className="w-6 h-6" />
                   {c.whatsapp}
                 </a>
@@ -81,31 +96,31 @@ export default function Contact() {
 
           <div className="bg-white dark:bg-card shadow-xl rounded-3xl p-8 border border-gray-100 dark:border-gray-800">
             <h3 className="text-2xl font-bold mb-6 text-foreground">{c.formTitle}</h3>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2 text-foreground">{c.name}</label>
-                <Input required placeholder={c.namePlaceholder} className="h-12" />
+                <Input name="name" required placeholder={c.namePlaceholder} className="h-12" />
               </div>
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium mb-2 text-foreground">{c.phone}</label>
-                  <Input required type="tel" placeholder={c.phonePlaceholder} className="h-12" />
+                  <Input name="phone" required type="tel" placeholder={c.phonePlaceholder} className="h-12" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2 text-foreground">{c.email}</label>
-                  <Input required type="email" placeholder={c.emailPlaceholder} className="h-12" />
+                  <Input name="email" type="email" placeholder={c.emailPlaceholder} className="h-12" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2 text-foreground">{c.message}</label>
-                <Textarea required placeholder={c.messagePlaceholder} className="min-h-[150px] resize-none" />
+                <Textarea name="message" placeholder={c.messagePlaceholder} className="min-h-[150px] resize-none" />
               </div>
+
+              {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+
               <Button type="submit" size="lg" className="w-full h-14 text-lg gap-2" disabled={loading || success}>
-                {success ? c.sent : (
-                  <>
-                    {loading ? c.sending : c.send}
-                    {!loading && <Send className="w-5 h-5" />}
-                  </>
+                {success ? "✓ " + c.sent : (
+                  <>{loading ? c.sending : c.send}{!loading && <Send className="w-5 h-5" />}</>
                 )}
               </Button>
             </form>

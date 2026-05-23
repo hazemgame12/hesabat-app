@@ -1,4 +1,4 @@
-import { db, articlesTable } from "@workspace/db";
+import { db, articlesTable, servicesTable, packagesTable, siteSettingsTable, DEFAULT_SETTINGS } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "./lib/logger";
 
@@ -68,7 +68,7 @@ const seedData = [
     titleEn: "Best Bookkeeping Practices for Business Owners",
     excerptAr: "امساك الدفاتر المحاسبية بشكل صحيح يحمي شركتك ويمنحك رؤية واضحة لأداء أعمالك.",
     excerptEn: "Proper bookkeeping protects your business and gives you a clear picture of your performance.",
-    contentAr: `## لماذا يهم امساك الدفاتر؟\n\nهو الأساس الذي تقوم عليه إدارة أي عمل تجاري ناجح.\n\n## أهم الممارسات\n\n### 1. الفصل بين الحسابات\nلا تخلط أموالك الشخصية بأموال شركتك.\n\n### 2. التسجيل الفوري\nسجّل كل عملية مالية فور حدوثها.\n\n### 3. حفظ الفواتير\nاحتفظ بنسخة من كل فاتورة.\n\n### 4. المطابقة الشهرية\nقارن سجلاتك مع كشف حساب البنك شهرياً.\n\n## نحن في اتش جي نتولى امساك دفاترك باحترافية تامة.`,
+    contentAr: `## لماذا يهم امساك الدفاتر؟\n\nهو الأساس الذي تقوم عليه إدارة أي عمل تجاري ناجح.\n\n## أهم الممارسات\n\n### 1. الفصل بين الحسابات\nلا تخلط أموالك الشخصية بأموال شركتك.\n\n### 2. التسجيل الفوري\nسجّل كل عملية مالية فور حدوثها.\n\n### 3. حفظ الفواتير\naحتفظ بنسخة من كل فاتورة.\n\n### 4. المطابقة الشهرية\nقارن سجلاتك مع كشف حساب البنك شهرياً.\n\n## نحن في اتش جي نتولى امساك دفاترك باحترافية تامة.`,
     contentEn: `## Why Does Bookkeeping Matter?\n\nIt's the foundation of any successful business.\n\n## Best Practices\n\n### 1. Separate Accounts\nNever mix personal funds with business money.\n\n### 2. Record Immediately\nRecord every transaction as soon as it occurs.\n\n### 3. Keep Invoices\nKeep a copy of every invoice.\n\n### 4. Monthly Reconciliation\nCompare records with bank statement monthly.\n\n## At HG, we handle your bookkeeping with complete professionalism.`,
     image: "https://hg-audit.com/wp-content/uploads/2024/10/finance2-min.jpg",
     published: true,
@@ -89,16 +89,98 @@ const seedData = [
   },
 ];
 
+const servicesData = [
+  { titleAr: "المراجعة والتدقيق المالي", titleEn: "Financial Auditing", descriptionAr: "مراجعة شاملة للقوائم المالية وفق أعلى المعايير الدولية لضمان الدقة والشفافية", descriptionEn: "Comprehensive review of financial statements according to international standards", image: "https://hg-audit.com/wp-content/uploads/2024/10/finance3.jpg", order: 1, published: true },
+  { titleAr: "الاستشارات الضريبية", titleEn: "Tax Consulting", descriptionAr: "حلول ضريبية متكاملة تشمل التخطيط الضريبي وإعداد الإقرارات والتمثيل أمام الجهات الضريبية", descriptionEn: "Comprehensive tax solutions including planning, returns preparation, and tax authority representation", image: "https://hg-audit.com/wp-content/uploads/2024/10/taxes.jpg", order: 2, published: true },
+  { titleAr: "تأسيس الشركات", titleEn: "Company Formation", descriptionAr: "نتولى كامل إجراءات تأسيس شركتك من اختيار الشكل القانوني حتى استخراج جميع التراخيص", descriptionEn: "We handle all company formation procedures from legal structure selection to licensing", image: "https://hg-audit.com/wp-content/uploads/2024/10/corporate.jpg", order: 3, published: true },
+  { titleAr: "الخدمات المحاسبية", titleEn: "Accounting Services", descriptionAr: "إمساك الدفاتر وإعداد القوائم المالية وفق المعايير المحلية والدولية بدقة واحترافية", descriptionEn: "Bookkeeping and financial statement preparation according to local and international standards", image: "https://hg-audit.com/wp-content/uploads/2024/10/finance2-min.jpg", order: 4, published: true },
+  { titleAr: "دراسات الجدوى الاقتصادية", titleEn: "Feasibility Studies", descriptionAr: "دراسات جدوى شاملة ومعتمدة تغطي الجوانب التسويقية والمالية والفنية لمشروعك", descriptionEn: "Comprehensive certified feasibility studies covering marketing, financial and technical aspects", image: "https://hg-audit.com/wp-content/uploads/2024/10/finance4.jpg", order: 5, published: true },
+  { titleAr: "التحول الرقمي المالي", titleEn: "Financial Digital Transformation", descriptionAr: "مساعدتك في الانضمام لمنظومة الفاتورة الإلكترونية واختيار أفضل برامج المحاسبة", descriptionEn: "Helping you join the e-invoicing system and select the best accounting software", image: "https://hg-audit.com/wp-content/uploads/2024/10/tech.jpg", order: 6, published: true },
+];
+
+const features = [
+  { ar: "تأسيس شركة واحدة", en: "1 Company Formation" },
+  { ar: "مراجعة مالية سنوية", en: "Annual Financial Audit" },
+  { ar: "إقرار ضريبي سنوي", en: "Annual Tax Return" },
+  { ar: "إمساك الدفاتر الشهري", en: "Monthly Bookkeeping" },
+  { ar: "إعداد القوائم المالية", en: "Financial Statements Preparation" },
+  { ar: "استشارة ضريبية (ساعتان/شهر)", en: "Tax Consulting (2 hrs/month)" },
+  { ar: "تمثيل أمام الجهات الضريبية", en: "Tax Authority Representation" },
+  { ar: "تقرير مالي شهري", en: "Monthly Financial Report" },
+  { ar: "دراسة جدوى اقتصادية", en: "Economic Feasibility Study" },
+  { ar: "استشارات غير محدودة", en: "Unlimited Consulting" },
+  { ar: "مدير حساب مخصص", en: "Dedicated Account Manager" },
+];
+
+const packagesData = [
+  {
+    titleAr: "الشركات الناشئة",
+    titleEn: "Startups",
+    descriptionAr: "مثالي للشركات الصغيرة والناشئة",
+    descriptionEn: "Ideal for small and startup companies",
+    featuresAr: features.slice(0, 4).map(f => f.ar),
+    featuresEn: features.slice(0, 4).map(f => f.en),
+    highlighted: false,
+    order: 1,
+    published: true,
+  },
+  {
+    titleAr: "الشركات المتوسطة",
+    titleEn: "Growing Companies",
+    descriptionAr: "مناسب للشركات في مرحلة النمو",
+    descriptionEn: "Suitable for companies in the growth phase",
+    featuresAr: features.slice(0, 8).map(f => f.ar),
+    featuresEn: features.slice(0, 8).map(f => f.en),
+    highlighted: true,
+    order: 2,
+    published: true,
+  },
+  {
+    titleAr: "الشركات الكبيرة",
+    titleEn: "Large Companies",
+    descriptionAr: "حل متكامل للشركات الكبيرة والمتعددة الفروع",
+    descriptionEn: "Comprehensive solution for large and multi-branch companies",
+    featuresAr: features.map(f => f.ar),
+    featuresEn: features.map(f => f.en),
+    highlighted: false,
+    order: 3,
+    published: true,
+  },
+];
+
 export async function seedArticles() {
   try {
     const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(articlesTable);
-    if (count > 0) {
-      logger.info({ count }, "Articles already seeded, skipping");
-      return;
-    }
+    if (count > 0) { logger.info({ count }, "Articles already seeded, skipping"); return; }
     await db.insert(articlesTable).values(seedData);
     logger.info({ count: seedData.length }, "Seeded articles");
-  } catch (err) {
-    logger.error({ err }, "Seed failed");
-  }
+  } catch (err) { logger.error({ err }, "Article seed failed"); }
+}
+
+export async function seedServices() {
+  try {
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(servicesTable);
+    if (count > 0) { logger.info({ count }, "Services already seeded, skipping"); return; }
+    await db.insert(servicesTable).values(servicesData);
+    logger.info({ count: servicesData.length }, "Seeded services");
+  } catch (err) { logger.error({ err }, "Services seed failed"); }
+}
+
+export async function seedPackages() {
+  try {
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(packagesTable);
+    if (count > 0) { logger.info({ count }, "Packages already seeded, skipping"); return; }
+    await db.insert(packagesTable).values(packagesData);
+    logger.info({ count: packagesData.length }, "Seeded packages");
+  } catch (err) { logger.error({ err }, "Packages seed failed"); }
+}
+
+export async function seedSettings() {
+  try {
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(siteSettingsTable);
+    if (count > 0) { logger.info({ count }, "Settings already seeded, skipping"); return; }
+    const entries = Object.entries(DEFAULT_SETTINGS).map(([key, value]) => ({ key, value }));
+    await db.insert(siteSettingsTable).values(entries);
+    logger.info({ count: entries.length }, "Seeded settings");
+  } catch (err) { logger.error({ err }, "Settings seed failed"); }
 }
