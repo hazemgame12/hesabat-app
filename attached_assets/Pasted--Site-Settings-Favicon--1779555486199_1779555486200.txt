@@ -1,0 +1,238 @@
+. Site Settings (إعدادات الموقع)
+
+دي أهم صفحة.
+
+لازم تحتوي:
+
+اللوجو
+Favicon
+اسم الموقع عربي/إنجليزي
+وصف الموقع
+ألوان الموقع الأساسية
+Font
+Header
+Footer
+روابط السوشيال
+WhatsApp
+Email
+Phone
+Google Maps
+SEO عام
+Google Analytics
+Meta Pixel
+Scripts Header/Footer
+2. Pages Manager (إدارة الصفحات)
+
+تقدر تعمل:
+
+Add Page
+Edit Page
+Delete Page
+ترتيب الصفحات
+Hide/Show
+
+كل صفحة يكون فيها:
+
+عنوان عربي
+عنوان إنجليزي
+Slug
+SEO
+صورة Cover
+Sections
+3. Dynamic Sections Builder
+
+وده أهم جزء في المشروع كله.
+
+يعني تقدر تضيف Sections زي:
+
+Hero Section
+About Section
+Services Grid
+Counters
+Testimonials
+CTA
+Image + Text
+Video
+FAQ
+Partners
+Team
+Timeline
+Pricing
+Blog Slider
+
+وكل Section:
+
+Title AR/EN
+Description AR/EN
+Button text
+Button link
+Background
+Animation
+ترتيب
+Hide/Show
+
+يعني تبني الصفحة بالسحب والإضافة تقريبًا.
+
+4. Services CMS
+
+كل خدمة يكون فيها:
+
+اسم عربي/إنجليزي
+وصف مختصر
+وصف كامل
+صورة رئيسية
+Gallery
+SEO
+FAQ
+CTA
+أيقونة
+Related services
+
+وتظهر:
+
+في الرئيسية
+وصفحة الخدمات
+وصفحة الخدمة نفسها
+
+أوتوماتيك.
+
+5. Packages CMS
+
+الباقات:
+
+السعر
+المميزات
+زر CTA
+Highlighted package
+شهري/سنوي
+مقارنة باقات
+6. Blog CMS
+
+المقالات:
+
+Cover image
+الكاتب
+التصنيف
+Tags
+SEO
+Related articles
+Scheduled publish
+7. Media Manager
+
+مكتبة ملفات كاملة:
+
+صور
+فيديو
+PDF
+Logos
+Icons
+
+مع:
+
+Compress
+Rename
+Search
+Folder system
+8. Multi Language System
+
+لازم كل عنصر يدعم:
+
+عربي
+إنجليزي
+
+مش ترجمة جوجل…
+بل محتوى منفصل.
+
+9. Menu Builder
+
+تعدل:
+
+الهيدر
+الفوتر
+Mega menu
+ترتيب الروابط
+Dropdowns
+10. SEO Manager
+
+مهم جدًا.
+
+يشمل:
+
+Meta title
+Meta description
+Keywords
+OpenGraph
+Twitter cards
+Sitemap
+Robots.txt
+Canonical URLs
+11. Leads CRM
+
+أي Lead يدخل:
+
+الاسم
+الرقم
+الخدمة
+المصدر
+الحالة
+Notes
+Assigned employee
+12. Analytics Dashboard
+
+تشوف:
+
+عدد الزيارات
+الصفحات الأكثر زيارة
+التحويلات
+مصادر الترافيك
+Leads
+13. Theme Customizer
+
+زي WordPress Customizer لكن أحسن:
+
+الألوان
+الزرار
+الخطوط
+المسافات
+الـ radius
+shadows
+
+بدون كود.
+
+14. Permissions & Users
+Admin
+Editor
+SEO
+Sales
+Content manager
+15. Backup System
+
+Backup تلقائي:
+
+Database
+Media
+Settings
+16. Performance
+
+لازم:
+
+Lazy load
+Image optimization
+CDN ready
+Caching
+Minify
+17. مستقبلًا
+
+نقدر نضيف:
+
+Booking system
+Client portal
+Payment integration
+Odoo integration
+Zoho integration
+WhatsApp API
+AI content assistant
+
+وده الفرق الحقيقي بين:
+“موقع معمول”
+و
