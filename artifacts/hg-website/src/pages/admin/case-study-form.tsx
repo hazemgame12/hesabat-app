@@ -43,12 +43,14 @@ export default function CaseStudyForm() {
     if (!isEdit) return;
     setLoading(true);
     fetch("/api/admin/case-studies", { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then((items: CaseStudyRecord[]) => {
+      .then(async r => {
+        if (r.status === 401) { clearAdminToken(); navigate(`${base}/admin`); return; }
+        const data = await r.json().catch(() => null);
+        const items: CaseStudyRecord[] = Array.isArray(data) ? data : [];
         const found = items.find(x => x.id === parseInt(id!));
         if (found) { const { id: _i, createdAt: _c, updatedAt: _u, ...rest } = found; setForm(rest); }
       })
-      .catch(() => { clearAdminToken(); navigate(`${base}/admin`); })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
 

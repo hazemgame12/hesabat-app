@@ -15,8 +15,12 @@ export default function AdminCaseStudies() {
   useEffect(() => {
     if (!token) { navigate(`${base}/admin`); return; }
     fetch("/api/admin/case-studies", { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(setItems)
-      .catch(() => { clearAdminToken(); navigate(`${base}/admin`); })
+      .then(async r => {
+        if (r.status === 401) { clearAdminToken(); navigate(`${base}/admin`); return; }
+        const data = await r.json().catch(() => null);
+        setItems(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, []);
 
