@@ -262,6 +262,7 @@ async function exchangeLinkedIn(
   });
   const token = (await tokenRes.json()) as {
     access_token?: string;
+    expires_in?: number;
     error_description?: string;
   };
   if (!tokenRes.ok || !token.access_token) {
@@ -276,8 +277,16 @@ async function exchangeLinkedIn(
   if (!infoRes.ok || !info.sub) {
     throw new Error("تعذّر تحديد معرّف الناشر (Author URN) من LinkedIn.");
   }
-  return {
+  const fields: Record<string, string> = {
     accessToken: token.access_token,
     authorUrn: `urn:li:person:${info.sub}`,
   };
+  // LinkedIn access tokens expire (~60 days); record an absolute expiry so the
+  // dashboard can nudge a reconnect before auto-publishing silently fails.
+  if (typeof token.expires_in === "number" && token.expires_in > 0) {
+    fields["tokenExpiresAt"] = new Date(
+      Date.now() + token.expires_in * 1000,
+    ).toISOString();
+  }
+  return fields;
 }

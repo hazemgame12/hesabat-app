@@ -30,6 +30,10 @@ vi.mock("./social/dispatch", () => ({
   attemptExternalPublish: vi.fn(),
 }));
 
+vi.mock("./social/config", () => ({
+  getTokenExpiry: vi.fn(async () => ({ expiresAt: null, status: "unknown" })),
+}));
+
 import { attemptExternalPublish } from "./social/dispatch";
 import { startScheduler, stopScheduler } from "./scheduler";
 

@@ -69,6 +69,11 @@ function ConnectionCard({
 
   const hasStored = conn.source === "stored";
 
+  const daysUntil = (iso: string): number => {
+    const ms = Date.parse(iso) - Date.now();
+    return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
       <div className="flex items-center justify-between mb-3">
@@ -99,6 +104,21 @@ function ConnectionCard({
       )}
       {conn.error && (
         <p className="text-sm text-red-600 mb-2 break-words" dir="ltr">{conn.error}</p>
+      )}
+
+      {conn.expiryStatus === "expired" && (
+        <div className="mb-2 flex items-start gap-2 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <XCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>انتهت صلاحية رمز الوصول — أعد الربط لاستئناف النشر التلقائي.</span>
+        </div>
+      )}
+      {conn.expiryStatus === "expiring_soon" && conn.tokenExpiresAt && (
+        <div className="mb-2 flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>
+            تنتهي صلاحية الربط خلال {daysUntil(conn.tokenExpiresAt)} يوم — يُفضّل إعادة الربط لتفادي توقف النشر.
+          </span>
+        </div>
       )}
 
       {conn.oauthAvailable && (

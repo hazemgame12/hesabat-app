@@ -6,6 +6,8 @@ import {
   getInstagramCreds,
   getLinkedInCreds,
   getPlatformSource,
+  getTokenExpiry,
+  type ExpiryStatus,
   type FieldSource,
   type SocialPlatform,
 } from "./config";
@@ -39,6 +41,10 @@ export interface ConnectionStatus {
   requiredEnv: string[];
   /** Whether one-click in-app OAuth ("Connect" button) is available. */
   oauthAvailable: boolean;
+  /** ISO timestamp when the active access token expires, or null when unknown. */
+  tokenExpiresAt: string | null;
+  /** Token expiry bucket used to render a "reconnect" nudge. */
+  expiryStatus: ExpiryStatus;
 }
 
 async function base(
@@ -46,6 +52,7 @@ async function base(
   configured: boolean,
 ): Promise<ConnectionStatus> {
   const fields = await getFieldStatuses(platform);
+  const expiry = await getTokenExpiry(platform);
   return {
     platform,
     configured,
@@ -58,6 +65,8 @@ async function base(
       .filter((f) => f.required)
       .map((f) => f.envVar),
     oauthAvailable: isOAuthConfigured(platform),
+    tokenExpiresAt: expiry.expiresAt,
+    expiryStatus: expiry.status,
   };
 }
 

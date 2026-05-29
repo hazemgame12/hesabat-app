@@ -73,6 +73,8 @@ export interface SocialConnectionStatus {
   fields: SocialConnectionField[];
   requiredEnv: string[];
   oauthAvailable: boolean;
+  tokenExpiresAt: string | null;
+  expiryStatus: "ok" | "expiring_soon" | "expired" | "unknown";
 }
 
 /* ─── AI generation types ───────────────────────────────────── */

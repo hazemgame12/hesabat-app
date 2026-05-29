@@ -225,6 +225,12 @@ router.post("/admin/social-connections/:platform", adminAuth, async (req, res) =
         merged[field.key] = value.trim();
       }
     }
+    // A manually-entered access token has no known expiry; drop any stale
+    // expiry captured from a prior OAuth connection so we don't mislead.
+    const newToken = incoming["accessToken"];
+    if (typeof newToken === "string" && newToken.trim()) {
+      delete merged["tokenExpiresAt"];
+    }
     await setStoredCreds(platform, merged);
     const status = await getConnectionStatus(platform);
     res.json(status);

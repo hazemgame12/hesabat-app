@@ -158,6 +158,41 @@ export async function getLinkedInCreds(): Promise<LinkedInCreds | null> {
   return { accessToken, authorUrn };
 }
 
+/** Number of days before expiry at which a token is flagged "expiring soon". */
+export const EXPIRY_WARNING_DAYS = 7;
+
+export type ExpiryStatus = "ok" | "expiring_soon" | "expired" | "unknown";
+
+export interface TokenExpiry {
+  /** ISO timestamp when the active token expires, or null when unknown. */
+  expiresAt: string | null;
+  status: ExpiryStatus;
+}
+
+/**
+ * Resolve the access-token expiry for a platform.
+ *
+ * Only credentials captured via the in-app OAuth flow carry an expiry, stored
+ * as `tokenExpiresAt` inside the encrypted credential blob. Meta Page tokens
+ * (used for Facebook/Instagram) do not expire, and manually-entered or
+ * env-supplied tokens have no known expiry — all of these report "unknown".
+ */
+export async function getTokenExpiry(
+  platform: SocialPlatform,
+): Promise<TokenExpiry> {
+  const stored = await getStoredCreds(platform);
+  const raw = (stored?.["tokenExpiresAt"] || "").trim();
+  if (!raw) return { expiresAt: null, status: "unknown" };
+  const ts = Date.parse(raw);
+  if (Number.isNaN(ts)) return { expiresAt: null, status: "unknown" };
+  const msLeft = ts - Date.now();
+  if (msLeft <= 0) return { expiresAt: raw, status: "expired" };
+  if (msLeft <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000) {
+    return { expiresAt: raw, status: "expiring_soon" };
+  }
+  return { expiresAt: raw, status: "ok" };
+}
+
 export async function isPlatformConfigured(
   platform: SocialPlatform,
 ): Promise<boolean> {

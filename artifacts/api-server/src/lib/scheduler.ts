@@ -2,6 +2,7 @@ import { and, eq, lte, isNotNull } from "drizzle-orm";
 import { db, articlesTable, socialPostsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { attemptExternalPublish } from "./social/dispatch";
+import { getTokenExpiry, type SocialPlatform } from "./social/config";
 
 const POLL_INTERVAL_MS = Number(process.env["SCHEDULER_INTERVAL_MS"] || 60_000);
 
@@ -41,6 +42,27 @@ async function tick(): Promise<void> {
         ),
       )
       .returning();
+
+    // Warn (once per tick) when a platform we're about to publish to has a
+    // token that's expired or expiring soon, so it shows up in server logs
+    // before auto-publishing silently starts failing. Best-effort: a failure
+    // here must never block the actual dispatch below.
+    try {
+      const duePlatforms = new Set(
+        releasedPosts.map((p) => p.platform as SocialPlatform),
+      );
+      for (const platform of duePlatforms) {
+        const { status, expiresAt } = await getTokenExpiry(platform);
+        if (status === "expired" || status === "expiring_soon") {
+          logger.warn(
+            { platform, expiryStatus: status, expiresAt },
+            "Social access token expired or expiring soon — reconnect to keep auto-publishing",
+          );
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, "Token expiry check failed");
+    }
 
     // Dispatch each just-released post to its connected external platform and
     // record success/failure. Done sequentially to keep load predictable.
