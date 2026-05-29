@@ -5,6 +5,7 @@ import Services from "@/components/services";
 import Stats from "@/components/stats";
 import Packages from "@/components/packages";
 import Partners from "@/components/partners";
+import Updates from "@/components/updates";
 import Contact from "@/components/contact";
 import Footer from "@/components/footer";
 import { useLang } from "@/lib/language";
@@ -20,6 +21,7 @@ export default function Home() {
         <Services />
         <Stats />
         <Packages />
+        <Updates />
         <Partners />
         <Contact />
       </main>

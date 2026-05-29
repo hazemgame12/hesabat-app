@@ -56,6 +56,13 @@ interface Translations {
     title: string;
     body: string;
   };
+  updates: {
+    badge: string;
+    title: string;
+    body: string;
+    readArticle: string;
+    empty: string;
+  };
   contact: {
     badge: string;
     title: string;
@@ -165,6 +172,13 @@ const ar: Translations = {
     badge: "شركاؤنا",
     title: "شركاؤنا",
     body: "تعرف على بعض من عملائنا وشركاء نجاحنا",
+  },
+  updates: {
+    badge: "آخر الأخبار",
+    title: "آخر الأخبار والتحديثات",
+    body: "تابع أحدث المقالات والنصائح المالية والضريبية من فريق اتش جي",
+    readArticle: "اقرأ المقال",
+    empty: "لا توجد تحديثات حالياً",
   },
   contact: {
     badge: "تواصل معنا",
@@ -287,6 +301,13 @@ const en: Translations = {
     badge: "Our Partners",
     title: "Our Partners",
     body: "Meet some of our clients and success partners",
+  },
+  updates: {
+    badge: "Updates",
+    title: "Latest News & Updates",
+    body: "Follow the latest articles and financial & tax tips from the HG team",
+    readArticle: "Read Article",
+    empty: "No updates yet",
   },
   contact: {
     badge: "Contact Us",

@@ -25,6 +25,9 @@ import AdminCaseStudies from "@/pages/admin/case-studies";
 import CaseStudyForm from "@/pages/admin/case-study-form";
 import AdminLeads from "@/pages/admin/leads";
 import AdminSettings from "@/pages/admin/settings";
+import ContentStudio from "@/pages/admin/studio";
+import ContentCalendar from "@/pages/admin/content-calendar";
+import AdminSocialPosts from "@/pages/admin/social-posts";
 import { useLocation } from "wouter";
 
 const queryClient = new QueryClient({
@@ -45,6 +48,9 @@ function Router() {
       {/* Admin */}
       <Route path="/admin" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/studio" component={ContentStudio} />
+      <Route path="/admin/content-calendar" component={ContentCalendar} />
+      <Route path="/admin/social-posts" component={AdminSocialPosts} />
       <Route path="/admin/articles" component={AdminArticles} />
       <Route path="/admin/articles/new" component={ArticleForm} />
       <Route path="/admin/articles/:id/edit" component={ArticleForm} />

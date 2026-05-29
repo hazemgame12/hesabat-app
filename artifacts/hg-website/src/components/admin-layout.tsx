@@ -1,10 +1,13 @@
 import { Link, useLocation } from "wouter";
-import { LogOut, Globe, FileText, Briefcase, Package, Users, Settings, LayoutDashboard, BookOpen } from "lucide-react";
+import { LogOut, Globe, FileText, Briefcase, Package, Users, Settings, LayoutDashboard, BookOpen, Sparkles, CalendarDays, Share2 } from "lucide-react";
 import { clearAdminToken } from "@/lib/api";
 import logo from "@assets/hg-logo.png";
 
 const navItems = [
   { href: "/admin/dashboard", icon: LayoutDashboard, label: "الرئيسية" },
+  { href: "/admin/studio", icon: Sparkles, label: "استوديو المحتوى" },
+  { href: "/admin/content-calendar", icon: CalendarDays, label: "تقويم المحتوى" },
+  { href: "/admin/social-posts", icon: Share2, label: "السوشيال ميديا" },
   { href: "/admin/articles", icon: FileText, label: "المقالات" },
   { href: "/admin/services", icon: Briefcase, label: "الخدمات" },
   { href: "/admin/packages", icon: Package, label: "الباقات" },

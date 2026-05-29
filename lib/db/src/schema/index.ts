@@ -23,3 +23,4 @@ export * from "./services";
 export * from "./packages";
 export * from "./leads";
 export * from "./case-studies";
+export * from "./social-posts";

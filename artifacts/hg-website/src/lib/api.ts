@@ -15,10 +15,57 @@ export interface ArticleRecord {
   contentEn: string;
   image: string;
   published: boolean;
+  status: string;
+  scheduledAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
 export type InsertArticle = Omit<ArticleRecord, "id" | "createdAt" | "updatedAt">;
+
+/* ─── Social Post types ─────────────────────────────────────── */
+export type SocialPlatform = "facebook" | "instagram" | "linkedin";
+export interface SocialPostRecord {
+  id: number;
+  platform: SocialPlatform;
+  captionAr: string;
+  captionEn: string;
+  image: string;
+  link: string;
+  status: string;
+  scheduledAt: string | null;
+  releasedAt: string | null;
+  articleId: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export type InsertSocialPost = Omit<
+  SocialPostRecord,
+  "id" | "createdAt" | "updatedAt"
+>;
+
+/* ─── AI generation types ───────────────────────────────────── */
+export interface AIGeneratedArticle {
+  slug: string;
+  categoryAr: string;
+  categoryEn: string;
+  readTimeAr: string;
+  readTimeEn: string;
+  titleAr: string;
+  titleEn: string;
+  excerptAr: string;
+  excerptEn: string;
+  contentAr: string;
+  contentEn: string;
+}
+export interface AIGeneratedSocial {
+  platform: SocialPlatform;
+  captionAr: string;
+  captionEn: string;
+}
+export interface AIGeneratedContent {
+  article: AIGeneratedArticle;
+  social: AIGeneratedSocial[];
+}
 
 /* ─── Service types ─────────────────────────────────────────── */
 export interface ServiceRecord {
@@ -147,6 +194,12 @@ export async function fetchSettings(): Promise<SiteSettings> {
   return res.json();
 }
 
+export async function fetchSocialPosts(): Promise<SocialPostRecord[]> {
+  const res = await fetch("/api/social-posts");
+  if (!res.ok) throw new Error("Failed to fetch updates");
+  return res.json();
+}
+
 export async function submitLead(data: InsertLead): Promise<LeadRecord> {
   const res = await fetch("/api/leads", {
     method: "POST",
@@ -196,5 +249,53 @@ export async function adminDeleteArticle(token: string, id: number): Promise<voi
 export async function adminUpdateSettings(token: string, settings: SiteSettings): Promise<SiteSettings> {
   const res = await fetch("/api/admin/settings", { method: "PUT", headers: authHeaders(token), body: JSON.stringify(settings) });
   if (!res.ok) throw new Error("Failed to update settings");
+  return res.json();
+}
+
+/* ─── Admin: AI Content Studio ──────────────────────────────── */
+export async function adminGenerateContent(
+  token: string,
+  body: { topic: string; platforms?: SocialPlatform[] },
+): Promise<AIGeneratedContent> {
+  const res = await fetch("/api/admin/ai/generate-content", {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let msg = "فشل توليد المحتوى";
+    try { const d = await res.json(); msg = d.error || msg; } catch { /* ignore */ }
+    throw new Error(typeof msg === "string" ? msg : "فشل توليد المحتوى");
+  }
+  return res.json();
+}
+
+/* ─── Admin: Social Posts ───────────────────────────────────── */
+export async function adminFetchSocialPosts(token: string): Promise<SocialPostRecord[]> {
+  const res = await fetch("/api/admin/social-posts", { headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Unauthorized");
+  return res.json();
+}
+
+export async function adminCreateSocialPost(token: string, data: InsertSocialPost): Promise<SocialPostRecord> {
+  const res = await fetch("/api/admin/social-posts", { method: "POST", headers: authHeaders(token), body: JSON.stringify(data) });
+  if (!res.ok) throw new Error("Failed to create social post");
+  return res.json();
+}
+
+export async function adminUpdateSocialPost(token: string, id: number, data: Partial<InsertSocialPost>): Promise<SocialPostRecord> {
+  const res = await fetch(`/api/admin/social-posts/${id}`, { method: "PUT", headers: authHeaders(token), body: JSON.stringify(data) });
+  if (!res.ok) throw new Error("Failed to update social post");
+  return res.json();
+}
+
+export async function adminDeleteSocialPost(token: string, id: number): Promise<void> {
+  const res = await fetch(`/api/admin/social-posts/${id}`, { method: "DELETE", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Failed to delete social post");
+}
+
+export async function adminReleaseSocialPost(token: string, id: number): Promise<SocialPostRecord> {
+  const res = await fetch(`/api/admin/social-posts/${id}/release`, { method: "POST", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Failed to release social post");
   return res.json();
 }

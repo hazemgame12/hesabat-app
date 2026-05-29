@@ -25,6 +25,9 @@ cp -r "$ROOT/artifacts/api-server/dist" "$OUT/dist"
 mkdir -p "$OUT/dist/public"
 cp -r "$ROOT/artifacts/hg-website/dist/public/." "$OUT/dist/public/"
 
+# Database migrations / seed SQL (run manually on Neon)
+cp "$ROOT/hostinger-deploy-sql/migrate-ai-content-studio.sql" "$OUT/" 2>/dev/null || true
+
 cat > "$OUT/package.json" << 'EOF'
 {
   "name": "hg-website",
@@ -51,6 +54,14 @@ SESSION_SECRET=your_random_session_secret_here
 
 # Port السيرفر (Hostinger بتحدده تلقائياً)
 PORT=3000
+
+# ── استوديو المحتوى بالذكاء الاصطناعي (AI Content Studio) ──
+# مفتاح Gemini المجاني من Google AI Studio (https://aistudio.google.com/apikey)
+GEMINI_API_KEY=your_gemini_api_key_here
+# (اختياري) بديل: مفتاح OpenAI لو حابب تستخدمه بدل Gemini
+# OPENAI_API_KEY=sk-...
+# (اختياري) تغيير الموديل الافتراضي
+# AI_MODEL=gemini-2.5-flash
 EOF
 
 cat > "$OUT/README.txt" << 'EOF'
@@ -65,14 +76,18 @@ cat > "$OUT/README.txt" << 'EOF'
    - ADMIN_SECRET  = كلمة مرور الداشبورد
    - SESSION_SECRET = نص عشوائي طويل
    - PORT          = البورت اللي Hostinger بيحدده
-4. شغّل الأمر: node dist/index.mjs
+   - GEMINI_API_KEY = مفتاح Gemini المجاني (لاستوديو المحتوى بالذكاء الاصطناعي)
+4. حدّث قاعدة البيانات: شغّل ملف migrate-ai-content-studio.sql مرة واحدة على Neon
+   (بيضيف أعمدة status/scheduled_at للمقالات + جدول social_posts)
+5. شغّل الأمر: node dist/index.mjs
    أو من Script: npm start
 
 === الروابط ===
-الموقع:      https://yourdomain.com/
-المقالات:    https://yourdomain.com/articles
-الداشبورد:   https://yourdomain.com/admin
-الـ API:     https://yourdomain.com/api/healthz
+الموقع:        https://yourdomain.com/
+المقالات:      https://yourdomain.com/articles
+الداشبورد:     https://yourdomain.com/admin
+استوديو المحتوى: https://yourdomain.com/admin/studio
+الـ API:       https://yourdomain.com/api/healthz
 EOF
 
 echo ""

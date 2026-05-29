@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedArticles, seedServices, seedPackages, seedSettings } from "./seed";
+import { startScheduler } from "./lib/scheduler";
 
 const rawPort = process.env["PORT"] ?? "3000";
 const port = Number(rawPort);
@@ -28,6 +29,7 @@ app.listen(port, host, () => {
       console.error("[startup] Seed error:", e);
       logger.error({ e }, "Seed error");
     });
+  startScheduler();
 });
 
 process.on("uncaughtException", (err) => {

@@ -18,11 +18,16 @@ export const articlesTable = pgTable("articles", {
   contentEn: text("content_en").notNull().default(""),
   image: text("image").notNull().default(""),
   published: boolean("published").notNull().default(true),
+  status: text("status").notNull().default("published"),
+  scheduledAt: timestamp("scheduled_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const insertArticleSchema = createInsertSchema(articlesTable).omit({
+export const insertArticleSchema = createInsertSchema(articlesTable, {
+  status: z.enum(["draft", "scheduled", "published"]).optional(),
+  scheduledAt: z.coerce.date().nullish(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,

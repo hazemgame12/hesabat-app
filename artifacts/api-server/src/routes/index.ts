@@ -7,6 +7,8 @@ import packagesRouter from "./packages";
 import leadsRouter from "./leads";
 import caseStudiesRouter from "./case-studies";
 import uploadsRouter from "./uploads";
+import socialPostsRouter from "./social-posts";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -18,5 +20,7 @@ router.use(packagesRouter);
 router.use(leadsRouter);
 router.use(caseStudiesRouter);
 router.use(uploadsRouter);
+router.use(socialPostsRouter);
+router.use(aiRouter);
 
 export default router;

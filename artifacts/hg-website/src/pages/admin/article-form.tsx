@@ -15,7 +15,7 @@ const empty: InsertArticle = {
   slug: "", categoryAr: "", categoryEn: "", date: new Date().toISOString().slice(0, 10),
   readTimeAr: "", readTimeEn: "", titleAr: "", titleEn: "",
   excerptAr: "", excerptEn: "", contentAr: "", contentEn: "",
-  image: "", published: true,
+  image: "", published: true, status: "published", scheduledAt: null,
 };
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
