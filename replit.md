@@ -22,11 +22,20 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- DB schema (source of truth): `lib/db/src/schema/*.ts` (e.g. `social-posts.ts`, `site-settings.ts`, `articles.ts`)
+- API routes: `artifacts/api-server/src/routes/*.ts` mounted in `routes/index.ts`
+- Scheduler (auto-publish due content): `artifacts/api-server/src/lib/scheduler.ts`
+- Social auto-posting adapters: `artifacts/api-server/src/lib/social/` (`config.ts`, `publishers.ts`, `connections.ts`, `dispatch.ts`)
+- Frontend API client: `artifacts/hg-website/src/lib/api.ts`
+- Admin pages: `artifacts/hg-website/src/pages/admin/*` (nav in `components/admin-layout.tsx`, routes in `App.tsx`)
+- Hostinger deploy: `scripts/build-hostinger.sh`, SQL migrations in `hostinger-deploy-sql/`
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Social platform credentials (Facebook/Instagram/LinkedIn) can be entered from the dashboard "ربط المنصات" page (connect/update/disconnect) OR set as env vars. Dashboard-entered creds are stored AES-256-GCM encrypted at rest in `social_credentials` (key derived from `CREDENTIALS_SECRET`/`SESSION_SECRET`/`ADMIN_SECRET`) — never plaintext in the DB. Resolution merges stored over env (stored wins); see `lib/social/config.ts` (`resolveFields`), `crypto.ts`, `store.ts`.
+- Auto-publishing is driven by the existing DB-backed scheduler: when a scheduled social post becomes due it is marked `released` (website feed) AND dispatched to its external platform, with the per-post outcome persisted (`publishResult`/`publishError`/`platformPostId`/`publishedAt`/`publishAttempts`).
+- "نشر الآن" (release) and "إعادة المحاولة" (retry) both run the same `attemptExternalPublish` dispatch; retry never throws and just re-records the outcome.
+- Instagram requires a public image URL (2-step container publish). LinkedIn posts include the image via register-upload → upload-binary → reference-asset (text-only when no image); token validity is verified with a lightweight `/v2/me` call (401 ⇒ not connected, 403 tolerated).
 
 ## Product
 

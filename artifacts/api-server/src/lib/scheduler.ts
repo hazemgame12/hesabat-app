@@ -1,6 +1,7 @@
 import { and, eq, lte, isNotNull } from "drizzle-orm";
 import { db, articlesTable, socialPostsTable } from "@workspace/db";
 import { logger } from "./logger";
+import { attemptExternalPublish } from "./social/dispatch";
 
 const POLL_INTERVAL_MS = Number(process.env["SCHEDULER_INTERVAL_MS"] || 60_000);
 
@@ -39,13 +40,25 @@ async function tick(): Promise<void> {
           lte(socialPostsTable.scheduledAt, now),
         ),
       )
-      .returning({ id: socialPostsTable.id });
+      .returning();
+
+    // Dispatch each just-released post to its connected external platform and
+    // record success/failure. Done sequentially to keep load predictable.
+    let published = 0;
+    let failed = 0;
+    for (const post of releasedPosts) {
+      const updated = await attemptExternalPublish(post);
+      if (updated.publishResult === "published") published += 1;
+      else failed += 1;
+    }
 
     if (publishedArticles.length > 0 || releasedPosts.length > 0) {
       logger.info(
         {
           articles: publishedArticles.length,
           socialPosts: releasedPosts.length,
+          socialPublished: published,
+          socialFailed: failed,
         },
         "Scheduler released due content",
       );

@@ -24,3 +24,4 @@ export * from "./packages";
 export * from "./leads";
 export * from "./case-studies";
 export * from "./social-posts";
+export * from "./social-credentials";

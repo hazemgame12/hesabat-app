@@ -28,6 +28,7 @@ import AdminSettings from "@/pages/admin/settings";
 import ContentStudio from "@/pages/admin/studio";
 import ContentCalendar from "@/pages/admin/content-calendar";
 import AdminSocialPosts from "@/pages/admin/social-posts";
+import AdminSocialConnections from "@/pages/admin/social-connections";
 import { useLocation } from "wouter";
 
 const queryClient = new QueryClient({
@@ -51,6 +52,7 @@ function Router() {
       <Route path="/admin/studio" component={ContentStudio} />
       <Route path="/admin/content-calendar" component={ContentCalendar} />
       <Route path="/admin/social-posts" component={AdminSocialPosts} />
+      <Route path="/admin/social-connections" component={AdminSocialConnections} />
       <Route path="/admin/articles" component={AdminArticles} />
       <Route path="/admin/articles/new" component={ArticleForm} />
       <Route path="/admin/articles/:id/edit" component={ArticleForm} />

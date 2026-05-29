@@ -35,13 +35,44 @@ export interface SocialPostRecord {
   scheduledAt: string | null;
   releasedAt: string | null;
   articleId: number | null;
+  publishResult: "published" | "failed" | null;
+  publishError: string;
+  platformPostId: string;
+  publishedAt: string | null;
+  publishAttempts: number;
   createdAt: string;
   updatedAt: string;
 }
 export type InsertSocialPost = Omit<
   SocialPostRecord,
-  "id" | "createdAt" | "updatedAt"
+  | "id"
+  | "createdAt"
+  | "updatedAt"
+  | "publishResult"
+  | "publishError"
+  | "platformPostId"
+  | "publishedAt"
+  | "publishAttempts"
 >;
+
+export interface SocialConnectionField {
+  key: string;
+  label: string;
+  secret: boolean;
+  required: boolean;
+  hasValue: boolean;
+  source: "stored" | "env" | "";
+}
+export interface SocialConnectionStatus {
+  platform: SocialPlatform;
+  configured: boolean;
+  connected: boolean;
+  accountName: string;
+  error: string;
+  source: "stored" | "env" | "none";
+  fields: SocialConnectionField[];
+  requiredEnv: string[];
+}
 
 /* ─── AI generation types ───────────────────────────────────── */
 export interface AIGeneratedArticle {
@@ -297,5 +328,46 @@ export async function adminDeleteSocialPost(token: string, id: number): Promise<
 export async function adminReleaseSocialPost(token: string, id: number): Promise<SocialPostRecord> {
   const res = await fetch(`/api/admin/social-posts/${id}/release`, { method: "POST", headers: authHeaders(token) });
   if (!res.ok) throw new Error("Failed to release social post");
+  return res.json();
+}
+
+export async function adminRetrySocialPost(token: string, id: number): Promise<SocialPostRecord> {
+  const res = await fetch(`/api/admin/social-posts/${id}/retry`, { method: "POST", headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Failed to retry social post");
+  return res.json();
+}
+
+export async function adminFetchSocialConnections(token: string): Promise<SocialConnectionStatus[]> {
+  const res = await fetch("/api/admin/social-connections", { headers: authHeaders(token) });
+  if (!res.ok) throw new Error("Unauthorized");
+  return res.json();
+}
+
+export async function adminSaveSocialConnection(
+  token: string,
+  platform: SocialPlatform,
+  fields: Record<string, string>,
+): Promise<SocialConnectionStatus> {
+  const res = await fetch(`/api/admin/social-connections/${platform}`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ fields }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error || "Failed to save connection");
+  }
+  return res.json();
+}
+
+export async function adminDisconnectSocial(
+  token: string,
+  platform: SocialPlatform,
+): Promise<SocialConnectionStatus> {
+  const res = await fetch(`/api/admin/social-connections/${platform}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to disconnect");
   return res.json();
 }

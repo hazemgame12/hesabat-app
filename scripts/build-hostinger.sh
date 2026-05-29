@@ -27,6 +27,7 @@ cp -r "$ROOT/artifacts/hg-website/dist/public/." "$OUT/dist/public/"
 
 # Database migrations / seed SQL (run manually on Neon)
 cp "$ROOT/hostinger-deploy-sql/migrate-ai-content-studio.sql" "$OUT/" 2>/dev/null || true
+cp "$ROOT/hostinger-deploy-sql/migrate-social-autoposting.sql" "$OUT/" 2>/dev/null || true
 
 cat > "$OUT/package.json" << 'EOF'
 {
@@ -62,6 +63,22 @@ GEMINI_API_KEY=your_gemini_api_key_here
 # OPENAI_API_KEY=sk-...
 # (اختياري) تغيير الموديل الافتراضي
 # AI_MODEL=gemini-2.5-flash
+
+# ── النشر التلقائي على السوشيال ميديا (Social Auto-Posting) ──
+# تُحفظ كأسرار (Secrets) ولا تُخزَّن في قاعدة البيانات أبداً.
+# الرابط العام للموقع (مطلوب لإرفاق الصور في فيسبوك/إنستجرام)
+SITE_URL=https://yourdomain.com
+# Facebook Page (Meta App موثّق + App Review لصلاحيات النشر)
+# FACEBOOK_PAGE_ID=your_page_id
+# FACEBOOK_PAGE_ACCESS_TOKEN=your_long_lived_page_token
+# Instagram Business (مرتبط بصفحة فيسبوك، يستخدم نفس توكن الصفحة افتراضياً)
+# INSTAGRAM_BUSINESS_ACCOUNT_ID=your_ig_business_account_id
+# INSTAGRAM_ACCESS_TOKEN=optional_separate_token
+# LinkedIn (LinkedIn Marketing Developer Platform approval)
+# LINKEDIN_ACCESS_TOKEN=your_linkedin_token
+# LINKEDIN_AUTHOR_URN=urn:li:organization:1234567
+# (اختياري) إصدار Graph API
+# GRAPH_API_VERSION=v21.0
 EOF
 
 cat > "$OUT/README.txt" << 'EOF'
@@ -77,8 +94,15 @@ cat > "$OUT/README.txt" << 'EOF'
    - SESSION_SECRET = نص عشوائي طويل
    - PORT          = البورت اللي Hostinger بيحدده
    - GEMINI_API_KEY = مفتاح Gemini المجاني (لاستوديو المحتوى بالذكاء الاصطناعي)
-4. حدّث قاعدة البيانات: شغّل ملف migrate-ai-content-studio.sql مرة واحدة على Neon
-   (بيضيف أعمدة status/scheduled_at للمقالات + جدول social_posts)
+   - SITE_URL      = الرابط العام للموقع (مطلوب لإرفاق الصور في النشر التلقائي)
+   - مفاتيح السوشيال ميديا: تُدخَل من الداشبورد (ربط المنصات) وتُحفظ مشفّرة،
+     أو اضبطها كمتغيرات بيئة (شوف .env.example):
+     FACEBOOK_PAGE_ID / FACEBOOK_PAGE_ACCESS_TOKEN
+     INSTAGRAM_BUSINESS_ACCOUNT_ID
+     LINKEDIN_ACCESS_TOKEN / LINKEDIN_AUTHOR_URN
+4. حدّث قاعدة البيانات: شغّل الملفات التالية مرة واحدة على قاعدة البيانات:
+   - migrate-ai-content-studio.sql (أعمدة status/scheduled_at + جدول social_posts)
+   - migrate-social-autoposting.sql (أعمدة نتيجة النشر + جدول social_credentials المشفّر)
 5. شغّل الأمر: node dist/index.mjs
    أو من Script: npm start
 
@@ -87,6 +111,7 @@ cat > "$OUT/README.txt" << 'EOF'
 المقالات:      https://yourdomain.com/articles
 الداشبورد:     https://yourdomain.com/admin
 استوديو المحتوى: https://yourdomain.com/admin/studio
+ربط المنصات:    https://yourdomain.com/admin/social-connections
 الـ API:       https://yourdomain.com/api/healthz
 EOF
 

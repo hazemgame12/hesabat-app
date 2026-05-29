@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Facebook, Instagram, Linkedin, Copy, Check, Trash2, Send, Clock, CheckCircle2, FileEdit, Plus } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Copy, Check, Trash2, Send, Clock, CheckCircle2, FileEdit, Plus, RotateCw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AdminLayout from "@/components/admin-layout";
 import {
-  adminFetchSocialPosts, adminDeleteSocialPost, adminReleaseSocialPost,
+  adminFetchSocialPosts, adminDeleteSocialPost, adminReleaseSocialPost, adminRetrySocialPost,
   clearAdminToken, getAdminToken,
   type SocialPostRecord, type SocialPlatform,
 } from "@/lib/api";
@@ -69,6 +69,15 @@ export default function AdminSocialPosts() {
     } catch { /* ignore */ } finally { setBusy(null); }
   };
 
+  const handleRetry = async (id: number) => {
+    if (!token) return;
+    setBusy(id);
+    try {
+      const updated = await adminRetrySocialPost(token, id);
+      setPosts((cur) => cur.map((p) => (p.id === id ? updated : p)));
+    } catch { /* ignore */ } finally { setBusy(null); }
+  };
+
   const handleDelete = async (id: number) => {
     if (!token || !confirm("حذف هذا المنشور؟")) return;
     setBusy(id);
@@ -114,6 +123,24 @@ export default function AdminSocialPosts() {
                     {p.status === "scheduled" ? `يُنشر: ${fmt(p.scheduledAt)}` : p.status === "released" ? `نُشر: ${fmt(p.releasedAt)}` : "مسودة"}
                   </div>
                 </div>
+                {p.publishResult && (
+                  <div className="mb-3">
+                    {p.publishResult === "published" ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
+                        <CheckCircle2 className="w-3 h-3" />
+                        تم النشر على {meta.label}{p.publishedAt ? ` · ${fmt(p.publishedAt)}` : ""}
+                      </span>
+                    ) : (
+                      <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2 text-xs text-red-700">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <span className="break-words" dir="auto">
+                          فشل النشر على {meta.label}
+                          {p.publishError ? `: ${p.publishError}` : ""}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="grid md:grid-cols-2 gap-3 mb-3">
                   <div className="relative bg-gray-50 rounded-xl p-3 pl-10 text-sm text-gray-700 whitespace-pre-wrap min-h-[80px]" dir="rtl">
                     {p.captionAr || <span className="text-gray-300">لا يوجد نص عربي</span>}
@@ -136,6 +163,11 @@ export default function AdminSocialPosts() {
                   {p.status !== "released" && (
                     <Button size="sm" onClick={() => handleRelease(p.id)} disabled={busy === p.id} className="gap-1.5 h-9">
                       <Send className="w-4 h-4" />نشر الآن
+                    </Button>
+                  )}
+                  {p.publishResult === "failed" && (
+                    <Button size="sm" variant="outline" onClick={() => handleRetry(p.id)} disabled={busy === p.id} className="gap-1.5 h-9 text-amber-700 hover:text-amber-800 hover:bg-amber-50 border-amber-200">
+                      <RotateCw className="w-4 h-4" />إعادة المحاولة
                     </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={() => handleDelete(p.id)} disabled={busy === p.id} className="gap-1.5 h-9 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
