@@ -9,6 +9,7 @@ import {
   type FieldSource,
   type SocialPlatform,
 } from "./config";
+import { isOAuthConfigured } from "./oauth";
 
 export interface ConnectionFieldStatus {
   key: string;
@@ -36,6 +37,8 @@ export interface ConnectionStatus {
   fields: ConnectionFieldStatus[];
   /** Env var names required to connect this platform (docs/fallback). */
   requiredEnv: string[];
+  /** Whether one-click in-app OAuth ("Connect" button) is available. */
+  oauthAvailable: boolean;
 }
 
 async function base(
@@ -54,6 +57,7 @@ async function base(
     requiredEnv: PLATFORM_FIELDS[platform]
       .filter((f) => f.required)
       .map((f) => f.envVar),
+    oauthAvailable: isOAuthConfigured(platform),
   };
 }
 

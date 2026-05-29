@@ -19,6 +19,13 @@ import {
 } from "../lib/social/store";
 import { hasEncryptionKey } from "../lib/social/crypto";
 import { PLATFORM_FIELDS, type SocialPlatform } from "../lib/social/config";
+import {
+  buildAuthUrl,
+  exchangeCode,
+  getPublicBaseUrl,
+  isOAuthConfigured,
+  verifyState,
+} from "../lib/social/oauth";
 
 const router = Router();
 
@@ -122,6 +129,73 @@ router.get("/admin/social-connections", adminAuth, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, "Failed to fetch social connections");
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+/* ─── Admin: start one-click OAuth (returns provider auth URL) ─ */
+router.get("/admin/social-connections/:platform/oauth-url", adminAuth, (req, res) => {
+  const platform = req.params["platform"] as string;
+  if (!isPlatform(platform)) {
+    res.status(400).json({ error: "Unknown platform" });
+    return;
+  }
+  if (!isOAuthConfigured(platform)) {
+    res.status(400).json({
+      error:
+        "الربط بنقرة واحدة غير متاح: لم تُضبط بيانات تطبيق المنصة على الخادم (App ID/Secret).",
+    });
+    return;
+  }
+  if (!getPublicBaseUrl()) {
+    res.status(400).json({
+      error:
+        "تعذّر بناء رابط الربط: لم يتم ضبط عنوان الموقع العام (SITE_URL) على الخادم.",
+    });
+    return;
+  }
+  if (!hasEncryptionKey()) {
+    res.status(400).json({
+      error:
+        "تعذّر بدء الربط: لم يتم ضبط مفتاح التشفير (CREDENTIALS_SECRET) على الخادم.",
+    });
+    return;
+  }
+  res.json({ url: buildAuthUrl(platform) });
+});
+
+/* ─── OAuth callback (provider redirect — validated via signed state) ─ */
+router.get("/admin/social-connections/:platform/callback", async (req, res) => {
+  const platform = req.params["platform"] as string;
+  const base = getPublicBaseUrl();
+  const back = (params: string) =>
+    res.redirect(`${base}/admin/social-connections?${params}`);
+
+  if (!isPlatform(platform)) {
+    back("social_error=unknown_platform");
+    return;
+  }
+  const code = typeof req.query["code"] === "string" ? req.query["code"] : "";
+  const state = typeof req.query["state"] === "string" ? req.query["state"] : "";
+  const oauthError =
+    typeof req.query["error"] === "string" ? req.query["error"] : "";
+
+  if (oauthError) {
+    back(`social_error=${encodeURIComponent(oauthError)}`);
+    return;
+  }
+  if (!code || verifyState(state) !== platform) {
+    back("social_error=invalid_state");
+    return;
+  }
+  try {
+    const fields = await exchangeCode(platform, code);
+    const existing = (await getStoredCreds(platform)) ?? {};
+    await setStoredCreds(platform, { ...existing, ...fields });
+    back(`connected=${platform}`);
+  } catch (err) {
+    req.log.error({ err, platform }, "OAuth code exchange failed");
+    const msg = err instanceof Error ? err.message : "exchange_failed";
+    back(`social_error=${encodeURIComponent(msg)}`);
   }
 });
 

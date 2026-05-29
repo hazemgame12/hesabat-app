@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AdminLayout from "@/components/admin-layout";
 import {
-  adminDisconnectSocial, adminFetchSocialConnections, adminSaveSocialConnection,
-  clearAdminToken, getAdminToken,
+  adminDisconnectSocial, adminFetchSocialConnections, adminGetSocialOAuthUrl,
+  adminSaveSocialConnection, clearAdminToken, getAdminToken,
   type SocialConnectionStatus, type SocialPlatform,
 } from "@/lib/api";
 
@@ -30,7 +30,20 @@ function ConnectionCard({
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [formError, setFormError] = useState("");
+
+  const connectOAuth = async () => {
+    setConnecting(true); setFormError("");
+    try {
+      const url = await adminGetSocialOAuthUrl(token, conn.platform);
+      window.location.href = url;
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "تعذّر بدء الربط");
+      setConnecting(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true); setFormError("");
@@ -88,39 +101,66 @@ function ConnectionCard({
         <p className="text-sm text-red-600 mb-2 break-words" dir="ltr">{conn.error}</p>
       )}
 
-      <div className="space-y-3 mt-3">
-        {conn.fields.map((f) => (
-          <div key={f.key} className="space-y-1">
-            <Label htmlFor={`${conn.platform}-${f.key}`} className="text-sm text-gray-700">
-              {f.label}
-              {f.required && <span className="text-red-500"> *</span>}
-            </Label>
-            <Input
-              id={`${conn.platform}-${f.key}`}
-              type={f.secret ? "password" : "text"}
-              dir="ltr"
-              value={values[f.key] ?? ""}
-              placeholder={f.hasValue ? (f.secret ? "•••••••• (محفوظ — اتركه فارغاً للإبقاء)" : "محفوظ — اتركه فارغاً للإبقاء") : ""}
-              onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
-            />
+      {conn.oauthAvailable && (
+        <div className="mt-3">
+          <Button onClick={connectOAuth} disabled={connecting} className="gap-2 w-full sm:w-auto">
+            {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <meta.icon className="w-4 h-4" />}
+            {hasStored ? `إعادة الربط مع ${meta.label}` : `الربط مع ${meta.label} بنقرة واحدة`}
+          </Button>
+          <p className="text-xs text-gray-400 mt-1.5">
+            ستتم إعادة توجيهك لتسجيل الدخول والموافقة، ثم نلتقط رمز وصول طويل الأمد تلقائياً.
+          </p>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setShowManual((v) => !v)}
+        className="text-xs text-gray-500 underline mt-3 hover:text-gray-700"
+      >
+        {showManual ? "إخفاء الإدخال اليدوي" : "إدخال المفاتيح يدوياً (متقدم)"}
+      </button>
+
+      {(showManual || !conn.oauthAvailable) && (
+        <>
+          <div className="space-y-3 mt-3">
+            {conn.fields.map((f) => (
+              <div key={f.key} className="space-y-1">
+                <Label htmlFor={`${conn.platform}-${f.key}`} className="text-sm text-gray-700">
+                  {f.label}
+                  {f.required && <span className="text-red-500"> *</span>}
+                </Label>
+                <Input
+                  id={`${conn.platform}-${f.key}`}
+                  type={f.secret ? "password" : "text"}
+                  dir="ltr"
+                  value={values[f.key] ?? ""}
+                  placeholder={f.hasValue ? (f.secret ? "•••••••• (محفوظ — اتركه فارغاً للإبقاء)" : "محفوظ — اتركه فارغاً للإبقاء") : ""}
+                  onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+
+          <div className="flex items-center gap-2 mt-4">
+            <Button onClick={save} disabled={saving} className="gap-2">
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {hasStored ? "تحديث الربط" : "ربط الحساب"}
+            </Button>
+          </div>
+        </>
+      )}
 
       {formError && <p className="text-sm text-red-600 mt-3 break-words">{formError}</p>}
 
-      <div className="flex items-center gap-2 mt-4">
-        <Button onClick={save} disabled={saving} className="gap-2">
-          {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-          {hasStored ? "تحديث الربط" : "ربط الحساب"}
-        </Button>
-        {hasStored && (
+      {hasStored && (
+        <div className="flex items-center gap-2 mt-4">
           <Button variant="outline" onClick={disconnect} disabled={disconnecting} className="gap-2">
             {disconnecting && <Loader2 className="w-4 h-4 animate-spin" />}
             فصل الربط
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -131,6 +171,7 @@ export default function AdminSocialConnections() {
   const token = getAdminToken();
   const [conns, setConns] = useState<SocialConnectionStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const load = () => {
     if (!token) { navigate(`${base}/admin`); return; }
@@ -141,7 +182,21 @@ export default function AdminSocialConnections() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("connected");
+    const socialError = params.get("social_error");
+    if (connected) {
+      const label = platformMeta[connected as SocialPlatform]?.label ?? connected;
+      setBanner({ type: "success", text: `تم ربط ${label} بنجاح.` });
+    } else if (socialError) {
+      setBanner({ type: "error", text: `تعذّر إكمال الربط: ${socialError}` });
+    }
+    if (connected || socialError) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    load();
+  }, []);
 
   const updateOne = (s: SocialConnectionStatus) =>
     setConns((prev) => prev.map((c) => (c.platform === s.platform ? s : c)));
@@ -158,6 +213,18 @@ export default function AdminSocialConnections() {
           تحديث
         </Button>
       </div>
+
+      {banner && (
+        <div
+          className={`mb-4 rounded-2xl border p-4 text-sm ${
+            banner.type === "success"
+              ? "bg-green-50 border-green-100 text-green-800"
+              : "bg-red-50 border-red-100 text-red-800"
+          }`}
+        >
+          {banner.text}
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-20 text-gray-400">جاري التحميل...</div>

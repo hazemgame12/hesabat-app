@@ -72,6 +72,7 @@ export interface SocialConnectionStatus {
   source: "stored" | "env" | "none";
   fields: SocialConnectionField[];
   requiredEnv: string[];
+  oauthAvailable: boolean;
 }
 
 /* ─── AI generation types ───────────────────────────────────── */
@@ -358,6 +359,18 @@ export async function adminSaveSocialConnection(
     throw new Error(data?.error || "Failed to save connection");
   }
   return res.json();
+}
+
+export async function adminGetSocialOAuthUrl(
+  token: string,
+  platform: SocialPlatform,
+): Promise<string> {
+  const res = await fetch(`/api/admin/social-connections/${platform}/oauth-url`, {
+    headers: authHeaders(token),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "تعذّر بدء الربط");
+  return data.url as string;
 }
 
 export async function adminDisconnectSocial(
