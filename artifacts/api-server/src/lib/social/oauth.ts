@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { logger } from "../logger";
 import { GRAPH_API_VERSION, GRAPH_BASE, type SocialPlatform } from "./config";
 
 /**
@@ -127,7 +128,26 @@ const META_SCOPES: Record<"facebook" | "instagram", string> = {
     "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish",
 };
 
-const LINKEDIN_SCOPES = "openid,profile,w_member_social";
+const LINKEDIN_BASE_SCOPES = "openid,profile,w_member_social";
+/**
+ * Scopes required to list and post as a LinkedIn Company/Organization. These
+ * belong to the LinkedIn Marketing Developer Platform and are only granted to
+ * approved apps, so requesting them on an unapproved app makes the whole
+ * authorization fail. They are therefore opt-in via LINKEDIN_ENABLE_ORG.
+ */
+const LINKEDIN_ORG_SCOPES = "r_organization_admin,w_organization_social";
+
+/** Whether LinkedIn organization (Company Page) connection is enabled. */
+export function linkedInOrgEnabled(): boolean {
+  const v = (process.env["LINKEDIN_ENABLE_ORG"] || "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
+function linkedInScopes(): string {
+  return linkedInOrgEnabled()
+    ? `${LINKEDIN_BASE_SCOPES},${LINKEDIN_ORG_SCOPES}`
+    : LINKEDIN_BASE_SCOPES;
+}
 
 /** Build the provider authorization URL the admin's browser is sent to. */
 export function buildAuthUrl(platform: SocialPlatform): string {
@@ -138,7 +158,7 @@ export function buildAuthUrl(platform: SocialPlatform): string {
       response_type: "code",
       client_id: linkedInClientId(),
       redirect_uri: redirectUri,
-      scope: LINKEDIN_SCOPES.split(",").join(" "),
+      scope: linkedInScopes().split(",").join(" "),
       state,
     });
     return `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
@@ -166,25 +186,44 @@ async function metaJson<T>(url: string): Promise<T> {
 }
 
 /**
- * Exchange an authorization code for stored credential fields (keyed by the
- * platform's PLATFORM_FIELDS) ready to persist via setStoredCreds.
+ * A connectable target captured during OAuth. `fields` are the credential
+ * values to persist via setStoredCreds when this target is chosen. `id`/`name`/
+ * `subtitle` are the only parts ever surfaced to the client (tokens stay
+ * server-side).
  */
-export async function exchangeCode(
-  platform: SocialPlatform,
-  code: string,
-): Promise<Record<string, string>> {
-  const redirectUri = getRedirectUri(platform);
-  if (platform === "linkedin") {
-    return exchangeLinkedIn(code, redirectUri);
-  }
-  return exchangeMeta(platform, code, redirectUri);
+export interface OAuthTarget {
+  /** Stable selection id (Page ID, IG account ID, or LinkedIn URN). */
+  id: string;
+  /** Display name shown in the chooser. */
+  name: string;
+  /** Secondary line (account type / linkage). */
+  subtitle: string;
+  /** Credential fields to persist if this target is selected. */
+  fields: Record<string, string>;
 }
 
-async function exchangeMeta(
+/**
+ * Exchange an authorization code and enumerate the connectable targets for the
+ * platform (Facebook Pages, Instagram business accounts, or LinkedIn
+ * person/organization URNs). The caller stores the single target directly or,
+ * when more than one exists, asks the admin to choose.
+ */
+export async function listOAuthTargets(
+  platform: SocialPlatform,
+  code: string,
+): Promise<OAuthTarget[]> {
+  const redirectUri = getRedirectUri(platform);
+  if (platform === "linkedin") {
+    return listLinkedInTargets(code, redirectUri);
+  }
+  return listMetaTargets(platform, code, redirectUri);
+}
+
+async function listMetaTargets(
   platform: "facebook" | "instagram",
   code: string,
   redirectUri: string,
-): Promise<Record<string, string>> {
+): Promise<OAuthTarget[]> {
   // 1. code → short-lived user token
   const shortUrl =
     `${GRAPH_BASE}/oauth/access_token?` +
@@ -217,38 +256,60 @@ async function exchangeMeta(
   const pages = await metaJson<{
     data?: { id: string; name: string; access_token: string }[];
   }>(pagesUrl);
-  const page = pages.data?.[0];
-  if (!page) {
+  const list = pages.data ?? [];
+  if (list.length === 0) {
     throw new Error(
       "لم يتم العثور على صفحة فيسبوك مرتبطة بهذا الحساب. تأكد من إدارتك لصفحة واحدة على الأقل.",
     );
   }
 
   if (platform === "facebook") {
-    return { pageId: page.id, accessToken: page.access_token };
+    return list.map((page) => ({
+      id: page.id,
+      name: page.name || page.id,
+      subtitle: "صفحة فيسبوك",
+      fields: { pageId: page.id, accessToken: page.access_token },
+    }));
   }
 
-  // instagram: resolve the IG business account linked to the Page
-  const igUrl =
-    `${GRAPH_BASE}/${page.id}?` +
-    new URLSearchParams({
-      fields: "instagram_business_account",
-      access_token: page.access_token,
-    }).toString();
-  const ig = await metaJson<{ instagram_business_account?: { id: string } }>(igUrl);
-  const igUserId = ig.instagram_business_account?.id;
-  if (!igUserId) {
+  // instagram: resolve the IG business account linked to each Page; only Pages
+  // with a linked IG business account are connectable targets.
+  const targets: OAuthTarget[] = [];
+  for (const page of list) {
+    const igUrl =
+      `${GRAPH_BASE}/${page.id}?` +
+      new URLSearchParams({
+        fields: "instagram_business_account{id,username}",
+        access_token: page.access_token,
+      }).toString();
+    try {
+      const ig = await metaJson<{
+        instagram_business_account?: { id: string; username?: string };
+      }>(igUrl);
+      const igAccount = ig.instagram_business_account;
+      if (!igAccount?.id) continue;
+      targets.push({
+        id: igAccount.id,
+        name: igAccount.username ? `@${igAccount.username}` : igAccount.id,
+        subtitle: `إنستجرام عبر صفحة ${page.name || page.id}`,
+        fields: { igUserId: igAccount.id, accessToken: page.access_token },
+      });
+    } catch {
+      // Skip Pages we cannot inspect for a linked IG account.
+    }
+  }
+  if (targets.length === 0) {
     throw new Error(
       "لا يوجد حساب إنستجرام أعمال مرتبط بصفحة فيسبوك. اربط حساب إنستجرام أعمال بالصفحة ثم أعد المحاولة.",
     );
   }
-  return { igUserId, accessToken: page.access_token };
+  return targets;
 }
 
-async function exchangeLinkedIn(
+async function listLinkedInTargets(
   code: string,
   redirectUri: string,
-): Promise<Record<string, string>> {
+): Promise<OAuthTarget[]> {
   const tokenRes = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -268,25 +329,150 @@ async function exchangeLinkedIn(
   if (!tokenRes.ok || !token.access_token) {
     throw new Error(token.error_description || `HTTP ${tokenRes.status}`);
   }
+  const accessToken = token.access_token;
 
   // Resolve the member URN via the OpenID userinfo endpoint.
   const infoRes = await fetch("https://api.linkedin.com/v2/userinfo", {
-    headers: { Authorization: `Bearer ${token.access_token}` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
-  const info = (await infoRes.json()) as { sub?: string };
+  const info = (await infoRes.json()) as { sub?: string; name?: string };
   if (!infoRes.ok || !info.sub) {
     throw new Error("تعذّر تحديد معرّف الناشر (Author URN) من LinkedIn.");
   }
-  const fields: Record<string, string> = {
-    accessToken: token.access_token,
-    authorUrn: `urn:li:person:${info.sub}`,
-  };
   // LinkedIn access tokens expire (~60 days); record an absolute expiry so the
   // dashboard can nudge a reconnect before auto-publishing silently fails.
+  const expiryFields: Record<string, string> = {};
   if (typeof token.expires_in === "number" && token.expires_in > 0) {
-    fields["tokenExpiresAt"] = new Date(
+    expiryFields["tokenExpiresAt"] = new Date(
       Date.now() + token.expires_in * 1000,
     ).toISOString();
   }
-  return fields;
+
+  const targets: OAuthTarget[] = [
+    {
+      id: `urn:li:person:${info.sub}`,
+      name: info.name || "الحساب الشخصي",
+      subtitle: "حساب شخصي (Personal)",
+      fields: {
+        accessToken,
+        authorUrn: `urn:li:person:${info.sub}`,
+        ...expiryFields,
+      },
+    },
+  ];
+
+  // Organizations the member administers (requires the opt-in org scopes).
+  if (linkedInOrgEnabled()) {
+    try {
+      const orgs = await listLinkedInOrganizations(accessToken, info.sub);
+      for (const org of orgs) {
+        targets.push({
+          id: org.urn,
+          name: org.name,
+          subtitle: "صفحة شركة (Organization)",
+          fields: { accessToken, authorUrn: org.urn, ...expiryFields },
+        });
+      }
+    } catch (err) {
+      // Fall back to person-only when org listing isn't permitted/available,
+      // but surface the reason so the failure is diagnosable.
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        "LinkedIn organization listing failed; offering person account only",
+      );
+    }
+  }
+  return targets;
+}
+
+/** List LinkedIn organizations the member administers (URN + display name). */
+async function listLinkedInOrganizations(
+  accessToken: string,
+  memberSub: string,
+): Promise<{ urn: string; name: string }[]> {
+  // The roleAssignee finder requires the member URN it is querying for.
+  const roleAssignee = `urn:li:person:${memberSub}`;
+  const url =
+    "https://api.linkedin.com/v2/organizationAcls?" +
+    `q=roleAssignee&roleAssignee=${encodeURIComponent(roleAssignee)}` +
+    "&role=ADMINISTRATOR&state=APPROVED" +
+    "&projection=(elements*(organizationalTarget~(id,localizedName)))";
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`organizationAcls HTTP ${res.status} ${body}`.trim());
+  }
+  const data = (await res.json()) as {
+    elements?: {
+      organizationalTarget?: string;
+      "organizationalTarget~"?: { id?: number | string; localizedName?: string };
+    }[];
+  };
+  const out: { urn: string; name: string }[] = [];
+  for (const el of data.elements ?? []) {
+    const urn = el.organizationalTarget;
+    if (!urn) continue;
+    const decorated = el["organizationalTarget~"];
+    out.push({ urn, name: decorated?.localizedName || urn });
+  }
+  return out;
+}
+
+/* ─── Pending target selection (in-memory, short-lived) ──────── */
+
+/**
+ * When OAuth yields more than one connectable target, the captured tokens are
+ * held in process memory (never persisted) until the admin chooses which one to
+ * store. Entries expire quickly and are removed once consumed.
+ */
+interface PendingSelection {
+  platform: SocialPlatform;
+  targets: OAuthTarget[];
+  exp: number;
+}
+
+const PENDING_TTL_MS = 10 * 60 * 1000;
+const pendingSelections = new Map<string, PendingSelection>();
+
+function prunePending(): void {
+  const now = Date.now();
+  for (const [id, entry] of pendingSelections) {
+    if (entry.exp <= now) pendingSelections.delete(id);
+  }
+}
+
+/** Store the captured targets and return an opaque id for the chooser flow. */
+export function createPendingSelection(
+  platform: SocialPlatform,
+  targets: OAuthTarget[],
+): string {
+  prunePending();
+  const id = crypto.randomBytes(18).toString("base64url");
+  pendingSelections.set(id, {
+    platform,
+    targets,
+    exp: Date.now() + PENDING_TTL_MS,
+  });
+  return id;
+}
+
+/** Look up a live pending selection for a platform (null if missing/expired). */
+export function getPendingSelection(
+  platform: SocialPlatform,
+  id: string,
+): PendingSelection | null {
+  prunePending();
+  const entry = pendingSelections.get(id);
+  if (!entry || entry.platform !== platform) return null;
+  return entry;
+}
+
+/** Remove a pending selection once it has been used. */
+export function consumePendingSelection(id: string): void {
+  pendingSelections.delete(id);
 }

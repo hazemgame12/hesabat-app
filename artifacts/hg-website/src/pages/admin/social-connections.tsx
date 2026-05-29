@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import AdminLayout from "@/components/admin-layout";
 import {
-  adminDisconnectSocial, adminFetchSocialConnections, adminGetSocialOAuthUrl,
-  adminSaveSocialConnection, clearAdminToken, getAdminToken,
-  type SocialConnectionStatus, type SocialPlatform,
+  adminDisconnectSocial, adminFetchSocialConnections, adminFetchSocialPendingTargets,
+  adminGetSocialOAuthUrl, adminSaveSocialConnection, adminSelectSocialTarget,
+  clearAdminToken, getAdminToken,
+  type SocialConnectionStatus, type SocialOAuthTarget, type SocialPlatform,
 } from "@/lib/api";
 
 const platformMeta: Record<SocialPlatform, { icon: typeof Facebook; label: string; color: string }> = {
@@ -185,6 +186,106 @@ function ConnectionCard({
   );
 }
 
+function TargetChooser({
+  platform, pendingId, token, onDone, onCancel,
+}: {
+  platform: SocialPlatform;
+  pendingId: string;
+  token: string;
+  onDone: (label: string, status: SocialConnectionStatus | null) => void;
+  onCancel: () => void;
+}) {
+  const meta = platformMeta[platform];
+  const [targets, setTargets] = useState<SocialOAuthTarget[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    adminFetchSocialPendingTargets(token, platform, pendingId)
+      .then((t) => {
+        setTargets(t);
+        if (t[0]) setSelectedId(t[0].id);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "تعذّر التحميل"))
+      .finally(() => setLoading(false));
+  }, [platform, pendingId, token]);
+
+  const confirm = async () => {
+    if (!selectedId) return;
+    setSaving(true); setError("");
+    try {
+      const status = await adminSelectSocialTarget(token, platform, pendingId, selectedId);
+      onDone(meta.label, status);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "تعذّر حفظ الاختيار");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <div className="flex items-center gap-2 font-semibold text-gray-800 mb-1">
+          <meta.icon className={`w-6 h-6 ${meta.color}`} />
+          اختر الحساب الذي تريد ربطه
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          يدير حسابك أكثر من خيار. اختر الوجهة التي ستُنشَر منها المنشورات.
+        </p>
+
+        {loading ? (
+          <div className="py-10 text-center text-gray-400">جاري التحميل...</div>
+        ) : error && targets.length === 0 ? (
+          <p className="text-sm text-red-600 mb-4 break-words">{error}</p>
+        ) : (
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {targets.map((t) => (
+              <label
+                key={t.id}
+                className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition ${
+                  selectedId === t.id
+                    ? "border-blue-400 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="oauth-target"
+                  className="mt-1"
+                  checked={selectedId === t.id}
+                  onChange={() => setSelectedId(t.id)}
+                />
+                <span className="min-w-0">
+                  <span className="block font-medium text-gray-800 truncate" dir="ltr">{t.name}</span>
+                  <span className="block text-xs text-gray-500">{t.subtitle}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {error && targets.length > 0 && (
+          <p className="text-sm text-red-600 mt-3 break-words">{error}</p>
+        )}
+
+        <div className="flex items-center justify-end gap-2 mt-6">
+          <Button variant="outline" onClick={onCancel} disabled={saving}>إلغاء</Button>
+          <Button
+            onClick={confirm}
+            disabled={saving || loading || !selectedId || targets.length === 0}
+            className="gap-2"
+          >
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            ربط الحساب المختار
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminSocialConnections() {
   const [, navigate] = useLocation();
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -192,6 +293,7 @@ export default function AdminSocialConnections() {
   const [conns, setConns] = useState<SocialConnectionStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [chooser, setChooser] = useState<{ platform: SocialPlatform; pendingId: string } | null>(null);
 
   const load = () => {
     if (!token) { navigate(`${base}/admin`); return; }
@@ -206,17 +308,27 @@ export default function AdminSocialConnections() {
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
     const socialError = params.get("social_error");
+    const select = params.get("select");
+    const pending = params.get("pending");
     if (connected) {
       const label = platformMeta[connected as SocialPlatform]?.label ?? connected;
       setBanner({ type: "success", text: `تم ربط ${label} بنجاح.` });
     } else if (socialError) {
       setBanner({ type: "error", text: `تعذّر إكمال الربط: ${socialError}` });
+    } else if (select && pending && platformMeta[select as SocialPlatform]) {
+      setChooser({ platform: select as SocialPlatform, pendingId: pending });
     }
-    if (connected || socialError) {
+    if (connected || socialError || (select && pending)) {
       window.history.replaceState({}, "", window.location.pathname);
     }
     load();
   }, []);
+
+  const finishChooser = (label: string, status: SocialConnectionStatus | null) => {
+    if (status) updateOne(status);
+    setChooser(null);
+    setBanner({ type: "success", text: `تم ربط ${label} بنجاح.` });
+  };
 
   const updateOne = (s: SocialConnectionStatus) =>
     setConns((prev) => prev.map((c) => (c.platform === s.platform ? s : c)));
@@ -264,6 +376,16 @@ export default function AdminSocialConnections() {
           هذه الموافقات خارج تحكّمنا وقد تستغرق وقتاً.
         </p>
       </div>
+
+      {token && chooser && (
+        <TargetChooser
+          platform={chooser.platform}
+          pendingId={chooser.pendingId}
+          token={token}
+          onDone={finishChooser}
+          onCancel={() => setChooser(null)}
+        />
+      )}
     </AdminLayout>
   );
 }

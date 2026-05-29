@@ -21,9 +21,12 @@ import { hasEncryptionKey } from "../lib/social/crypto";
 import { PLATFORM_FIELDS, type SocialPlatform } from "../lib/social/config";
 import {
   buildAuthUrl,
-  exchangeCode,
+  consumePendingSelection,
+  createPendingSelection,
+  getPendingSelection,
   getPublicBaseUrl,
   isOAuthConfigured,
+  listOAuthTargets,
   verifyState,
 } from "../lib/social/oauth";
 
@@ -188,16 +191,102 @@ router.get("/admin/social-connections/:platform/callback", async (req, res) => {
     return;
   }
   try {
-    const fields = await exchangeCode(platform, code);
-    const existing = (await getStoredCreds(platform)) ?? {};
-    await setStoredCreds(platform, { ...existing, ...fields });
-    back(`connected=${platform}`);
+    const targets = await listOAuthTargets(platform, code);
+    if (targets.length === 0) {
+      back("social_error=no_targets");
+      return;
+    }
+    // Single target: store it directly. Multiple: hand off to the chooser UI.
+    if (targets.length === 1) {
+      const only = targets[0]!;
+      const existing = (await getStoredCreds(platform)) ?? {};
+      await setStoredCreds(platform, { ...existing, ...only.fields });
+      back(`connected=${platform}`);
+      return;
+    }
+    const pendingId = createPendingSelection(platform, targets);
+    back(`select=${platform}&pending=${encodeURIComponent(pendingId)}`);
   } catch (err) {
     req.log.error({ err, platform }, "OAuth code exchange failed");
     const msg = err instanceof Error ? err.message : "exchange_failed";
     back(`social_error=${encodeURIComponent(msg)}`);
   }
 });
+
+/* ─── Admin: list pending OAuth targets to choose from ──────── */
+router.get(
+  "/admin/social-connections/:platform/pending/:id",
+  adminAuth,
+  (req, res) => {
+    const platform = req.params["platform"] as string;
+    const id = req.params["id"] as string;
+    if (!isPlatform(platform)) {
+      res.status(400).json({ error: "Unknown platform" });
+      return;
+    }
+    const pending = getPendingSelection(platform, id);
+    if (!pending) {
+      res.status(404).json({ error: "انتهت صلاحية جلسة الاختيار. أعد الربط من جديد." });
+      return;
+    }
+    // Never expose the captured tokens — only the selectable identity.
+    res.json({
+      platform,
+      targets: pending.targets.map((t) => ({
+        id: t.id,
+        name: t.name,
+        subtitle: t.subtitle,
+      })),
+    });
+  },
+);
+
+/* ─── Admin: finalize a chosen OAuth target ─────────────────── */
+router.post(
+  "/admin/social-connections/:platform/select",
+  adminAuth,
+  async (req, res) => {
+    const platform = req.params["platform"] as string;
+    if (!isPlatform(platform)) {
+      res.status(400).json({ error: "Unknown platform" });
+      return;
+    }
+    if (!hasEncryptionKey()) {
+      res.status(400).json({
+        error:
+          "تعذّر حفظ بيانات الربط: لم يتم ضبط مفتاح التشفير (CREDENTIALS_SECRET) على الخادم.",
+      });
+      return;
+    }
+    const body = req.body as { pendingId?: unknown; targetId?: unknown };
+    const pendingId = typeof body?.pendingId === "string" ? body.pendingId : "";
+    const targetId = typeof body?.targetId === "string" ? body.targetId : "";
+    if (!pendingId || !targetId) {
+      res.status(400).json({ error: "بيانات الاختيار ناقصة." });
+      return;
+    }
+    const pending = getPendingSelection(platform, pendingId);
+    if (!pending) {
+      res.status(404).json({ error: "انتهت صلاحية جلسة الاختيار. أعد الربط من جديد." });
+      return;
+    }
+    const target = pending.targets.find((t) => t.id === targetId);
+    if (!target) {
+      res.status(400).json({ error: "الهدف المختار غير موجود." });
+      return;
+    }
+    try {
+      const existing = (await getStoredCreds(platform)) ?? {};
+      await setStoredCreds(platform, { ...existing, ...target.fields });
+      consumePendingSelection(pendingId);
+      const status = await getConnectionStatus(platform);
+      res.json(status);
+    } catch (err) {
+      req.log.error({ err, platform }, "Failed to finalize social connection");
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
 
 /* ─── Admin: connect a platform (store encrypted credentials) ─ */
 router.post("/admin/social-connections/:platform", adminAuth, async (req, res) => {

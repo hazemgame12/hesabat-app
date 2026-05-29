@@ -386,3 +386,40 @@ export async function adminDisconnectSocial(
   if (!res.ok) throw new Error("Failed to disconnect");
   return res.json();
 }
+
+/* ─── Admin: choose which Page / account to connect ─────────── */
+export interface SocialOAuthTarget {
+  id: string;
+  name: string;
+  subtitle: string;
+}
+
+export async function adminFetchSocialPendingTargets(
+  token: string,
+  platform: SocialPlatform,
+  pendingId: string,
+): Promise<SocialOAuthTarget[]> {
+  const res = await fetch(
+    `/api/admin/social-connections/${platform}/pending/${encodeURIComponent(pendingId)}`,
+    { headers: authHeaders(token) },
+  );
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "تعذّر تحميل قائمة الحسابات");
+  return (data.targets ?? []) as SocialOAuthTarget[];
+}
+
+export async function adminSelectSocialTarget(
+  token: string,
+  platform: SocialPlatform,
+  pendingId: string,
+  targetId: string,
+): Promise<SocialConnectionStatus> {
+  const res = await fetch(`/api/admin/social-connections/${platform}/select`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ pendingId, targetId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "تعذّر حفظ الاختيار");
+  return data as SocialConnectionStatus;
+}
