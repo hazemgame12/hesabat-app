@@ -33,3 +33,15 @@ Hostinger panel is the only mechanism, and it won't keep them.
 the platform fighting back, not user error. Route to Hostinger support, or use the
 DB-backed manual token path. The site itself is healthy (`/`, `/api/healthz` → 200;
 OAuth routes deployed → 401/302), so this is isolated to enabling auto-posting.
+
+**Resolution (adopted):** the api-server now loads a real `.env` file at startup
+(`lib/load-env.ts`, imported first in `index.ts`). It is a version-safe manual
+KEY=VALUE parser (no dotenv dep, works on any Node) that reads `ENV_FILE`, then
+`cwd/.env`, then `cwd/dist/.env`, and **never overrides values already in
+process.env** (so Hostinger panel vars still win). This lets the user manage config
+via the Hostinger **file manager** (create/edit `.env` next to `package.json`),
+fully bypassing the broken env panel. Going forward, prefer the `.env` file on the
+server for any new config; only the running `dist/index.mjs` needs replacing (plus
+the pino-*/thread-stream-worker.mjs runtime chunks) to ship this loader — no full
+zip redeploy required. Note Hostinger deploy package.json start is `node
+dist/index.mjs`, cwd = app root (where `.env.example`/`package.json` live).

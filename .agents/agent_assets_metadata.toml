@@ -36,3 +36,9 @@ id = "MUtOVF-bM9nx5QtJv25bQ"
 uri = "file://hostinger-sql-migrations.zip"
 type = "unspecified"
 title = "تحديثات قاعدة البيانات — SQL Migrations"
+
+[[outputs]]
+id = "0g7YN5fG97kWcLFi7T3pA"
+uri = "file://hg-server-update.zip"
+type = "unspecified"
+title = "تحديث السيرفر (قراءة ملف .env)"

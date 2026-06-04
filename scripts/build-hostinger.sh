@@ -84,6 +84,10 @@ LEAD_NOTIFICATION_TO=info@yourdomain.com
 # ── رفع الصور (Image Uploads) ──
 # مكان حفظ الصور المرفوعة من الداشبورد. خليه برّه مجلد dist عشان ميتمسحش مع كل تحديث.
 UPLOADS_DIR=/home/youruser/uploads
+# Meta App (للربط بنقرة واحدة One-Click OAuth لفيسبوك/إنستجرام)
+# انسخ القيم من Meta for Developers ➜ My Apps ➜ Settings ➜ Basic
+# META_APP_ID=your_meta_app_id
+# META_APP_SECRET=your_meta_app_secret
 # Facebook Page (Meta App موثّق + App Review لصلاحيات النشر)
 # FACEBOOK_PAGE_ID=your_page_id
 # FACEBOOK_PAGE_ACCESS_TOKEN=your_long_lived_page_token
