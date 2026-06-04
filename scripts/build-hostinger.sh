@@ -28,6 +28,7 @@ cp -r "$ROOT/artifacts/hg-website/dist/public/." "$OUT/dist/public/"
 # Database migrations / seed SQL (run manually on Neon)
 cp "$ROOT/hostinger-deploy-sql/migrate-ai-content-studio.sql" "$OUT/" 2>/dev/null || true
 cp "$ROOT/hostinger-deploy-sql/migrate-social-autoposting.sql" "$OUT/" 2>/dev/null || true
+cp "$ROOT/hostinger-deploy-sql/migrate-case-studies.sql" "$OUT/" 2>/dev/null || true
 
 cat > "$OUT/package.json" << 'EOF'
 {
@@ -68,6 +69,21 @@ GEMINI_API_KEY=your_gemini_api_key_here
 # تُحفظ كأسرار (Secrets) ولا تُخزَّن في قاعدة البيانات أبداً.
 # الرابط العام للموقع (مطلوب لإرفاق الصور في فيسبوك/إنستجرام)
 SITE_URL=https://yourdomain.com
+
+# ── إيميل نموذج التواصل (SMTP من Hostinger) ──
+# بيانات بريد Hostinger (Email Accounts) عشان طلبات التواصل توصلك بالإيميل.
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_USER=info@yourdomain.com
+SMTP_PASS=your_email_password
+# المُرسِل (غالباً نفس SMTP_USER)
+SMTP_FROM=info@yourdomain.com
+# الإيميل اللي هتوصله الطلبات (لو فاضي بيستخدم SMTP_USER)
+LEAD_NOTIFICATION_TO=info@yourdomain.com
+
+# ── رفع الصور (Image Uploads) ──
+# مكان حفظ الصور المرفوعة من الداشبورد. خليه برّه مجلد dist عشان ميتمسحش مع كل تحديث.
+UPLOADS_DIR=/home/youruser/uploads
 # Facebook Page (Meta App موثّق + App Review لصلاحيات النشر)
 # FACEBOOK_PAGE_ID=your_page_id
 # FACEBOOK_PAGE_ACCESS_TOKEN=your_long_lived_page_token
@@ -95,6 +111,9 @@ cat > "$OUT/README.txt" << 'EOF'
    - PORT          = البورت اللي Hostinger بيحدده
    - GEMINI_API_KEY = مفتاح Gemini المجاني (لاستوديو المحتوى بالذكاء الاصطناعي)
    - SITE_URL      = الرابط العام للموقع (مطلوب لإرفاق الصور في النشر التلقائي)
+   - بريد التواصل (SMTP من Hostinger) عشان طلبات النموذج توصلك إيميل:
+     SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM / LEAD_NOTIFICATION_TO
+   - UPLOADS_DIR = مكان حفظ الصور المرفوعة (خليه برّه dist عشان ميتمسحش مع التحديث)
    - مفاتيح السوشيال ميديا: تُدخَل من الداشبورد (ربط المنصات) وتُحفظ مشفّرة،
      أو اضبطها كمتغيرات بيئة (شوف .env.example):
      FACEBOOK_PAGE_ID / FACEBOOK_PAGE_ACCESS_TOKEN
@@ -103,6 +122,7 @@ cat > "$OUT/README.txt" << 'EOF'
 4. حدّث قاعدة البيانات: شغّل الملفات التالية مرة واحدة على قاعدة البيانات:
    - migrate-ai-content-studio.sql (أعمدة status/scheduled_at + جدول social_posts)
    - migrate-social-autoposting.sql (أعمدة نتيجة النشر + جدول social_credentials المشفّر)
+   - migrate-case-studies.sql (جدول دراسات الحالة case_studies)
 5. شغّل الأمر: node dist/index.mjs
    أو من Script: npm start
 
