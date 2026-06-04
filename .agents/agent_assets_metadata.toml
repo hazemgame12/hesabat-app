@@ -30,3 +30,9 @@ id = "5ttXarJ4qy3uu42Kbm5i8"
 uri = "file://hostinger-deploy/seed-articles.txt"
 type = "text"
 title = "3 مقالات SEO جاهزة (seed-articles)"
+
+[[outputs]]
+id = "MUtOVF-bM9nx5QtJv25bQ"
+uri = "file://hostinger-sql-migrations.zip"
+type = "unspecified"
+title = "تحديثات قاعدة البيانات — SQL Migrations"
