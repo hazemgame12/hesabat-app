@@ -18,6 +18,9 @@ import {
   Users,
   Boxes,
   Download,
+  X,
+  Check,
+  ToggleRight,
 } from "lucide-react";
 
 // --- Sidebar nav (consistent with dashboard) ---
@@ -162,6 +165,7 @@ const groupMeta: Record<string, { color: string; total: number }> = {
 
 export function ChartOfAccounts() {
   const [activeTab, setActiveTab] = useState("الكل");
+  const [addOpen, setAddOpen] = useState(true);
   const groups = Object.keys(tree).filter((g) => activeTab === "الكل" || g === activeTab);
 
   return (
@@ -232,7 +236,10 @@ export function ChartOfAccounts() {
               <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
               تخصيص الشجرة
             </button>
-            <button className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity">
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+            >
               <Plus className="w-4 h-4" />
               إضافة حساب
             </button>
@@ -307,6 +314,101 @@ export function ChartOfAccounts() {
           </p>
         </div>
       </main>
+
+      {/* Add account modal */}
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setAddOpen(false)} />
+          <div className="relative bg-card rounded-2xl shadow-2xl w-full max-w-lg border flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div className="flex items-center gap-2">
+                <Plus className="w-5 h-5 text-primary" />
+                <h2 className="text-base font-bold text-foreground">إضافة حساب جديد</h2>
+              </div>
+              <button onClick={() => setAddOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+              {/* Parent heading */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">البند الرئيسي (الحساب الأب)</label>
+                <div className="relative">
+                  <select className="w-full appearance-none bg-background border rounded-xl h-11 pr-4 pl-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                    <option>الأصول ← الأصول المتداولة (11)</option>
+                    <option>الأصول ← الأصول المتداولة ← النقدية وما في حكمها (111)</option>
+                    <option>الأصول ← الأصول الثابتة (12)</option>
+                    <option>الخصوم (2)</option>
+                    <option>حقوق الملكية (3)</option>
+                    <option>الإيرادات (4)</option>
+                    <option>المصروفات (5)</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                </div>
+                <p className="text-xs text-muted-foreground">الحساب الجديد هيتسجّل تحت البند ده وياخد كوده تلقائي من تسلسله.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-foreground">كود الحساب</label>
+                  <input
+                    dir="ltr"
+                    defaultValue="115"
+                    className="bg-background border rounded-xl h-11 px-4 text-sm font-sans font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                  <p className="text-[11px] text-muted-foreground">مقترح تلقائي · يمكن تعديله</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-foreground">طبيعة الحساب</label>
+                  <div className="relative">
+                    <select className="w-full appearance-none bg-background border rounded-xl h-11 pr-4 pl-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                      <option>مدين</option>
+                      <option>دائن</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">اسم الحساب</label>
+                <input
+                  placeholder="مثال: أوراق قبض"
+                  className="bg-background border rounded-xl h-11 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+              </div>
+
+              {/* Control account toggle */}
+              <div className="flex items-center justify-between bg-secondary/40 border border-secondary rounded-xl px-4 py-3">
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-foreground">حساب تحكم</span>
+                  <span className="text-xs text-muted-foreground">يجمّع حسابات فرعية (عملاء / موردين / بنوك)</span>
+                </div>
+                <ToggleRight className="w-9 h-9 text-primary" />
+              </div>
+
+              <div className="flex items-center justify-between bg-muted/40 rounded-xl px-4 py-3">
+                <span className="text-sm font-semibold text-foreground">حساب نشط</span>
+                <ToggleRight className="w-9 h-9 text-success" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-muted/30">
+              <button
+                onClick={() => setAddOpen(false)}
+                className="px-5 py-2.5 rounded-full text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors"
+              >
+                إلغاء
+              </button>
+              <button className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-5 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-opacity">
+                <Check className="w-4 h-4" />
+                حفظ الحساب
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
