@@ -114,3 +114,102 @@ export interface DashboardSummary {
   accountsByType: AccountTypeCount[];
 }
 
+export type TeamMemberRole = typeof TeamMemberRole[keyof typeof TeamMemberRole];
+
+
+export const TeamMemberRole = {
+  owner: 'owner',
+  manager: 'manager',
+  accountant: 'accountant',
+  data_entry: 'data_entry',
+  viewer: 'viewer',
+} as const;
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: TeamMemberRole;
+  createdAt: string;
+  isSelf: boolean;
+}
+
+export type RoleUpdateInputRole = typeof RoleUpdateInputRole[keyof typeof RoleUpdateInputRole];
+
+
+export const RoleUpdateInputRole = {
+  manager: 'manager',
+  accountant: 'accountant',
+  data_entry: 'data_entry',
+  viewer: 'viewer',
+} as const;
+
+export interface RoleUpdateInput {
+  role: RoleUpdateInputRole;
+}
+
+export type TeamInvitationRole = typeof TeamInvitationRole[keyof typeof TeamInvitationRole];
+
+
+export const TeamInvitationRole = {
+  manager: 'manager',
+  accountant: 'accountant',
+  data_entry: 'data_entry',
+  viewer: 'viewer',
+} as const;
+
+export interface TeamInvitation {
+  id: string;
+  email: string;
+  role: TeamInvitationRole;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export type CreateInvitationInputRole = typeof CreateInvitationInputRole[keyof typeof CreateInvitationInputRole];
+
+
+export const CreateInvitationInputRole = {
+  manager: 'manager',
+  accountant: 'accountant',
+  data_entry: 'data_entry',
+  viewer: 'viewer',
+} as const;
+
+export interface CreateInvitationInput {
+  email: string;
+  role: CreateInvitationInputRole;
+}
+
+export interface CreatedInvitation {
+  id: string;
+  email: string;
+  role: string;
+  expiresAt: string;
+  token: string;
+}
+
+export type InvitationInfoRole = typeof InvitationInfoRole[keyof typeof InvitationInfoRole];
+
+
+export const InvitationInfoRole = {
+  manager: 'manager',
+  accountant: 'accountant',
+  data_entry: 'data_entry',
+  viewer: 'viewer',
+} as const;
+
+export interface InvitationInfo {
+  companyName: string;
+  email: string;
+  role: InvitationInfoRole;
+}
+
+export interface AcceptInvitationInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 8 */
+  password: string;
+}
+

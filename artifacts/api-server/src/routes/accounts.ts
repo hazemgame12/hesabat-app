@@ -3,6 +3,7 @@ import { and, eq, asc } from "drizzle-orm";
 import { db, accountsTable, type Account } from "@workspace/db";
 import { CreateAccountBody, UpdateAccountBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
+import { requireCapability } from "../middleware/require-capability";
 
 const router = Router();
 
@@ -57,7 +58,7 @@ router.get("/accounts", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/accounts", requireAuth, async (req, res) => {
+router.post("/accounts", requireAuth, requireCapability("accounts:create"), async (req, res) => {
   const parsed = CreateAccountBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
@@ -94,7 +95,7 @@ router.post("/accounts", requireAuth, async (req, res) => {
   }
 });
 
-router.patch("/accounts/:id", requireAuth, async (req, res) => {
+router.patch("/accounts/:id", requireAuth, requireCapability("accounts:update"), async (req, res) => {
   const id = req.params["id"] as string;
   if (!id) {
     res.status(400).json({ error: "معرّف غير صحيح" });
@@ -154,7 +155,7 @@ router.patch("/accounts/:id", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/accounts/:id", requireAuth, async (req, res) => {
+router.delete("/accounts/:id", requireAuth, requireCapability("accounts:delete"), async (req, res) => {
   const id = req.params["id"] as string;
   if (!id) {
     res.status(400).json({ error: "معرّف غير صحيح" });

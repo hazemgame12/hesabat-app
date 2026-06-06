@@ -161,3 +161,117 @@ export const GetDashboardSummaryResponse = zod.object({
 })
 
 
+/**
+ * @summary List members of the current company
+ */
+export const ListTeamMembersResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['owner', 'manager', 'accountant', 'data_entry', 'viewer']),
+  "createdAt": zod.string(),
+  "isSelf": zod.boolean()
+})
+export const ListTeamMembersResponse = zod.array(ListTeamMembersResponseItem)
+
+
+/**
+ * @summary Change a member's role
+ */
+export const UpdateMemberRoleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateMemberRoleBody = zod.object({
+  "role": zod.enum(['manager', 'accountant', 'data_entry', 'viewer'])
+})
+
+export const UpdateMemberRoleResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['owner', 'manager', 'accountant', 'data_entry', 'viewer']),
+  "createdAt": zod.string(),
+  "isSelf": zod.boolean()
+})
+
+
+/**
+ * @summary Remove a member from the company
+ */
+export const RemoveMemberParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RemoveMemberResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List pending invitations for the current company
+ */
+export const ListInvitationsResponseItem = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['manager', 'accountant', 'data_entry', 'viewer']),
+  "status": zod.string(),
+  "expiresAt": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListInvitationsResponse = zod.array(ListInvitationsResponseItem)
+
+
+/**
+ * @summary Invite a new member by email
+ */
+export const CreateInvitationBody = zod.object({
+  "email": zod.string().email(),
+  "role": zod.enum(['manager', 'accountant', 'data_entry', 'viewer'])
+})
+
+
+/**
+ * @summary Revoke a pending invitation
+ */
+export const RevokeInvitationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RevokeInvitationResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Get public details of an invitation by token
+ */
+export const GetInvitationParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const GetInvitationResponse = zod.object({
+  "companyName": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['manager', 'accountant', 'data_entry', 'viewer'])
+})
+
+
+/**
+ * @summary Accept an invitation and create the member account
+ */
+export const AcceptInvitationParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+
+export const acceptInvitationBodyPasswordMin = 8;
+
+
+
+export const AcceptInvitationBody = zod.object({
+  "name": zod.string().min(1),
+  "password": zod.string().min(acceptInvitationBodyPasswordMin)
+})
+
+
