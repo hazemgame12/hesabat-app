@@ -1,7 +1,8 @@
 import React from "react";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { useGetDashboardSummary, useGetCurrentUser, useGetCompany } from "@workspace/api-client-react";
-import { countryLabel, currencyLabel } from "@workspace/locale";
+import { countryLabel, currencyLabel, intlLocale, type Lang } from "@workspace/locale";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, Hash, Tag, PieChart as PieChartIcon, Globe, Coins, Pencil, ImageOff } from "lucide-react";
@@ -16,15 +17,10 @@ const COLORS = {
   expense: "hsl(var(--chart-4))",
 };
 
-const typeLabels: Record<string, string> = {
-  asset: "الأصول",
-  liability: "الخصوم",
-  equity: "حقوق الملكية",
-  revenue: "الإيرادات",
-  expense: "المصروفات",
-};
-
 export function Dashboard() {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language === "en" ? "en" : "ar") as Lang;
+  const fontFamily = lang === "en" ? "Inter, sans-serif" : "Cairo, sans-serif";
   const [, setLocation] = useLocation();
   const { data: user } = useGetCurrentUser();
   const { data: company } = useGetCompany();
@@ -39,7 +35,7 @@ export function Dashboard() {
   }
 
   const chartData = summary?.accountsByType?.map(item => ({
-    name: typeLabels[item.type] || item.type,
+    name: t(`accountTypes.${item.type}`, { defaultValue: item.type }),
     value: item.count,
     color: COLORS[item.type as keyof typeof COLORS] || "hsl(var(--muted-foreground))"
   })) || [];
@@ -56,7 +52,7 @@ export function Dashboard() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
               <span className="text-success flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-success"></span>
-                متصل بالنظام
+                {t("dashboard.connected")}
               </span>
             </div>
           </div>
@@ -68,12 +64,12 @@ export function Dashboard() {
         <Card className="p-6 flex flex-col sm:flex-row items-center gap-5">
           <div className="w-20 h-20 rounded-2xl bg-muted border flex items-center justify-center overflow-hidden shrink-0">
             {company?.logoUrl ? (
-              <img src={company.logoUrl} alt="شعار الشركة" className="w-full h-full object-contain" />
+              <img src={company.logoUrl} alt={t("dashboard.logoAlt")} className="w-full h-full object-contain" />
             ) : (
               <ImageOff className="w-8 h-8 text-muted-foreground/40" />
             )}
           </div>
-          <div className="flex-1 text-center sm:text-right">
+          <div className="flex-1 text-center sm:text-start">
             <h2 className="text-xl font-bold">{company?.name || user?.companyName}</h2>
             {company?.tradeName && (
               <p className="text-sm text-muted-foreground mt-0.5">{company.tradeName}</p>
@@ -84,22 +80,22 @@ export function Dashboard() {
             <div className="flex flex-wrap gap-2 justify-center sm:justify-start mt-3">
               <span className="inline-flex items-center gap-1 text-xs font-semibold bg-primary/5 text-primary px-3 py-1 rounded-full">
                 <Globe className="w-3.5 h-3.5" />
-                {countryLabel(company?.country ?? "EG")}
+                {countryLabel(company?.country ?? "EG", lang)}
               </span>
               <span className="inline-flex items-center gap-1 text-xs font-semibold bg-success/10 text-success px-3 py-1 rounded-full">
                 <Coins className="w-3.5 h-3.5" />
-                {currencyLabel(company?.baseCurrency ?? "EGP")}
+                {currencyLabel(company?.baseCurrency ?? "EGP", lang)}
               </span>
               {company?.taxRegistrationNumber && (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold bg-muted text-muted-foreground px-3 py-1 rounded-full" dir="ltr">
-                  ض.ت: {company.taxRegistrationNumber}
+                <span className="inline-flex items-center gap-1 text-xs font-semibold bg-muted text-muted-foreground px-3 py-1 rounded-full">
+                  {t("dashboard.taxShort")}: {company.taxRegistrationNumber}
                 </span>
               )}
             </div>
           </div>
           <Button variant="outline" className="gap-2" onClick={() => setLocation("/company")}>
             <Pencil className="w-4 h-4" />
-            تعديل البيانات
+            {t("dashboard.editData")}
           </Button>
         </Card>
 
@@ -112,11 +108,11 @@ export function Dashboard() {
               </div>
             </div>
             <div className="relative z-10">
-              <h3 className="text-sm font-semibold text-muted-foreground mb-1">إجمالي الحسابات</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.totalAccounts")}</h3>
               <div className="text-2xl font-bold text-foreground font-sans">
                 {summary?.totalAccounts || 0}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">عدد الحسابات المسجلة بالشجرة</p>
+              <p className="text-xs text-muted-foreground mt-2">{t("dashboard.totalAccountsHint")}</p>
             </div>
           </Card>
           
@@ -127,11 +123,11 @@ export function Dashboard() {
               </div>
             </div>
             <div className="relative z-10">
-              <h3 className="text-sm font-semibold text-muted-foreground mb-1">الأقسام الرئيسية</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.mainSections")}</h3>
               <div className="text-2xl font-bold text-foreground font-sans">
                 {summary?.accountsByType?.length || 0}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">أنواع الحسابات النشطة</p>
+              <p className="text-xs text-muted-foreground mt-2">{t("dashboard.mainSectionsHint")}</p>
             </div>
           </Card>
         </div>
@@ -141,8 +137,8 @@ export function Dashboard() {
           <Card className="p-6 lg:col-span-2 flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-lg font-bold">توزيع الحسابات</h2>
-                <p className="text-sm text-muted-foreground">نسبة أنواع الحسابات في الشجرة</p>
+                <h2 className="text-lg font-bold">{t("dashboard.distribution")}</h2>
+                <p className="text-sm text-muted-foreground">{t("dashboard.distributionHint")}</p>
               </div>
             </div>
             <div className="h-[300px] w-full flex items-center justify-center">
@@ -163,33 +159,33 @@ export function Dashboard() {
                       ))}
                     </Pie>
                     <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', fontFamily: 'Cairo, sans-serif' }}
-                      itemStyle={{ fontFamily: 'Cairo, sans-serif' }}
-                      formatter={(value: number) => [value, "عدد الحسابات"]}
+                      contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', fontFamily }}
+                      itemStyle={{ fontFamily }}
+                      formatter={(value: number) => [value, t("dashboard.accountsCount")]}
                     />
                     <Legend 
                       verticalAlign="bottom" 
                       height={36}
-                      wrapperStyle={{ fontFamily: 'Cairo, sans-serif', fontSize: '14px', fontWeight: 600 }}
+                      wrapperStyle={{ fontFamily, fontSize: '14px', fontWeight: 600 }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="text-muted-foreground text-sm font-semibold flex flex-col items-center gap-2">
                   <PieChartIcon className="w-10 h-10 opacity-20" />
-                  لا توجد حسابات بعد
+                  {t("dashboard.noAccounts")}
                 </div>
               )}
             </div>
           </Card>
 
           <div className="flex flex-col gap-4">
-            <h3 className="text-lg font-bold text-foreground mb-2">ملخص الأقسام</h3>
+            <h3 className="text-lg font-bold text-foreground mb-2">{t("dashboard.sectionsSummary")}</h3>
             {summary?.accountsByType?.map((item) => (
               <Card key={item.type} className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[item.type as keyof typeof COLORS] || "gray" }} />
-                  <span className="font-semibold text-sm">{typeLabels[item.type] || item.type}</span>
+                  <span className="font-semibold text-sm">{t(`accountTypes.${item.type}`, { defaultValue: item.type })}</span>
                 </div>
                 <span className="font-bold text-lg font-sans tabular-nums">{item.count}</span>
               </Card>

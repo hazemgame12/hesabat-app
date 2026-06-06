@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { 
   useListAccounts, 
   useCreateAccount, 
@@ -11,7 +12,7 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Search, SlidersHorizontal, Plus, ChevronDown, ChevronLeft, Check, X, Download, ToggleRight, Trash2, Edit2 } from "lucide-react";
+import { Building2, Plus, ChevronDown, ChevronLeft, Check, X, Trash2, Edit2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,18 +29,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const typeLabels: Record<string, string> = {
-  asset: "الأصول",
-  liability: "الخصوم",
-  equity: "حقوق الملكية",
-  revenue: "الإيرادات",
-  expense: "المصروفات",
+const ACCOUNT_TYPES = ["asset", "liability", "equity", "revenue", "expense"] as const;
+type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+const TYPE_COLORS: Record<AccountType, string> = {
+  asset: "bg-primary",
+  liability: "bg-destructive",
+  equity: "bg-secondary-foreground",
+  revenue: "bg-success",
+  expense: "bg-amber-500",
 };
 
+const ALL_TAB = "all";
+
 const accountSchema = z.object({
-  code: z.string().min(1, "كود الحساب مطلوب"),
-  name: z.string().min(1, "اسم الحساب مطلوب"),
-  type: z.enum(["asset", "liability", "equity", "revenue", "expense"]),
+  code: z.string().min(1, "codeRequired"),
+  name: z.string().min(1, "nameRequired"),
+  type: z.enum(ACCOUNT_TYPES),
   parentId: z.string().nullable().optional(),
   isGroup: z.boolean().default(false),
 });
@@ -48,14 +54,14 @@ type TreeNode = Account & {
   children?: TreeNode[];
 };
 
-function buildTree(accounts: Account[]): Record<string, TreeNode[]> {
-  const tree: Record<string, TreeNode[]> = {
-    "الأصول": [],
-    "الخصوم": [],
-    "حقوق الملكية": [],
-    "الإيرادات": [],
-    "المصروفات": [],
-  };
+function buildTree(accounts: Account[]): Record<AccountType, TreeNode[]> {
+  const tree = {
+    asset: [],
+    liability: [],
+    equity: [],
+    revenue: [],
+    expense: [],
+  } as Record<AccountType, TreeNode[]>;
 
   const accountMap = new Map<string, TreeNode>();
   accounts.forEach(acc => {
@@ -71,14 +77,13 @@ function buildTree(accounts: Account[]): Record<string, TreeNode[]> {
         parent.children.push(node);
       }
     } else {
-      const groupName = typeLabels[acc.type];
-      if (groupName && tree[groupName]) {
-        tree[groupName].push(node);
+      const type = acc.type as AccountType;
+      if (tree[type]) {
+        tree[type].push(node);
       }
     }
   });
 
-  // Sort nodes by code
   const sortNodes = (nodes: TreeNode[]) => {
     nodes.sort((a, b) => a.code.localeCompare(b.code));
     nodes.forEach(n => {
@@ -91,6 +96,7 @@ function buildTree(accounts: Account[]): Record<string, TreeNode[]> {
 }
 
 export function Accounts() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: accounts = [], isLoading } = useListAccounts();
@@ -103,13 +109,13 @@ export function Accounts() {
   const canUpdate = hasCapability(role, "accounts:update");
   const canDelete = hasCapability(role, "accounts:delete");
 
-  const [activeTab, setActiveTab] = useState("الكل");
+  const [activeTab, setActiveTab] = useState<AccountType | typeof ALL_TAB>(ALL_TAB);
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
 
   const tree = buildTree(accounts);
-  const groups = Object.keys(tree).filter((g) => activeTab === "الكل" || g === activeTab);
+  const groups = ACCOUNT_TYPES.filter((g) => activeTab === ALL_TAB || g === activeTab);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<z.infer<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
@@ -137,7 +143,7 @@ export function Accounts() {
     reset({
       code: account.code,
       name: account.name,
-      type: account.type as any,
+      type: account.type as AccountType,
       parentId: account.parentId,
       isGroup: account.isGroup
     });
@@ -156,11 +162,11 @@ export function Accounts() {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          toast({ title: "تم إضافة الحساب بنجاح" });
+          toast({ title: t("accounts.toast.added") });
           closeModals();
         },
         onError: (err: any) => {
-          toast({ variant: "destructive", title: "خطأ", description: err?.data?.error || "تعذر إضافة الحساب" });
+          toast({ variant: "destructive", title: t("common.error"), description: err?.data?.error || t("accounts.toast.addError") });
         }
       });
     } else if (modalMode === "edit" && accountToEdit) {
@@ -168,11 +174,11 @@ export function Accounts() {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          toast({ title: "تم تعديل الحساب بنجاح" });
+          toast({ title: t("accounts.toast.edited") });
           closeModals();
         },
         onError: (err: any) => {
-          toast({ variant: "destructive", title: "خطأ", description: err?.data?.error || "تعذر تعديل الحساب" });
+          toast({ variant: "destructive", title: t("common.error"), description: err?.data?.error || t("accounts.toast.editError") });
         }
       });
     }
@@ -184,11 +190,11 @@ export function Accounts() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-        toast({ title: "تم حذف الحساب بنجاح" });
+        toast({ title: t("accounts.toast.deleted") });
         setAccountToDelete(null);
       },
       onError: (err: any) => {
-        toast({ variant: "destructive", title: "خطأ", description: err?.data?.error || "تعذر حذف الحساب" });
+        toast({ variant: "destructive", title: t("common.error"), description: err?.data?.error || t("accounts.toast.deleteError") });
         setAccountToDelete(null);
       }
     });
@@ -201,15 +207,15 @@ export function Accounts() {
     return (
       <>
         <div
-          className="group flex items-center gap-3 py-2.5 pl-4 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
-          style={{ paddingRight: 12 + depth * 26 }}
+          className="group flex items-center gap-3 py-2.5 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
+          style={{ paddingInlineStart: 12 + depth * 26, paddingInlineEnd: 16 }}
         >
           <button 
             className="w-5 flex-shrink-0 text-muted-foreground flex items-center justify-center"
             onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
           >
             {hasChildren ? (
-              open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />
+              open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4 rtl:-scale-x-100" />
             ) : null}
           </button>
           
@@ -222,7 +228,7 @@ export function Accounts() {
             </span>
             {node.isGroup && (
               <span className="text-[11px] font-bold text-secondary-foreground bg-secondary px-2 py-0.5 rounded-full flex-shrink-0">
-                حساب رئيسي
+                {t("accounts.mainAccountBadge")}
               </span>
             )}
           </div>
@@ -233,7 +239,7 @@ export function Accounts() {
                 <button 
                   onClick={(e) => { e.stopPropagation(); openEditModal(node); }}
                   className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                  title="تعديل"
+                  title={t("common.edit")}
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -242,7 +248,7 @@ export function Accounts() {
                 <button 
                   onClick={(e) => { e.stopPropagation(); setAccountToDelete(node); }}
                   className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                  title="حذف"
+                  title={t("common.delete")}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -261,14 +267,6 @@ export function Accounts() {
     );
   };
 
-  const groupMeta: Record<string, { color: string; count: number }> = {
-    الأصول: { color: "bg-primary", count: tree["الأصول"]?.length || 0 },
-    الخصوم: { color: "bg-destructive", count: tree["الخصوم"]?.length || 0 },
-    "حقوق الملكية": { color: "bg-secondary-foreground", count: tree["حقوق الملكية"]?.length || 0 },
-    الإيرادات: { color: "bg-success", count: tree["الإيرادات"]?.length || 0 },
-    المصروفات: { color: "bg-amber-500", count: tree["المصروفات"]?.length || 0 },
-  };
-
   return (
     <div className="flex flex-col min-h-screen">
       <header className="h-20 bg-background/80 backdrop-blur-md border-b sticky top-0 z-10 flex items-center justify-between px-8">
@@ -277,8 +275,8 @@ export function Accounts() {
             <Building2 className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">شجرة الحسابات</h1>
-            <p className="text-sm text-muted-foreground font-medium">إدارة الدليل المحاسبي للشركة</p>
+            <h1 className="text-lg font-bold text-foreground">{t("accounts.title")}</h1>
+            <p className="text-sm text-muted-foreground font-medium">{t("accounts.subtitle")}</p>
           </div>
         </div>
 
@@ -289,7 +287,7 @@ export function Accounts() {
               className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
             >
               <Plus className="w-4 h-4" />
-              إضافة حساب
+              {t("accounts.addAccount")}
             </button>
           </div>
         )}
@@ -297,29 +295,29 @@ export function Accounts() {
 
       <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {Object.entries(groupMeta).map(([name, meta]) => (
-            <div key={name} className="bg-card border rounded-xl p-4 flex flex-col gap-2 relative overflow-hidden shadow-sm">
-              <div className={`absolute right-0 top-0 bottom-0 w-1 ${meta.color}`} />
-              <span className="text-xs font-semibold text-muted-foreground">{name}</span>
+          {ACCOUNT_TYPES.map((type) => (
+            <div key={type} className="bg-card border rounded-xl p-4 flex flex-col gap-2 relative overflow-hidden shadow-sm">
+              <div className={`absolute top-0 bottom-0 w-1 start-0 ${TYPE_COLORS[type]}`} />
+              <span className="text-xs font-semibold text-muted-foreground">{t(`accountTypes.${type}`)}</span>
               <span className="font-sans text-lg font-bold tabular-nums">
-                {accounts.filter(a => typeLabels[a.type] === name).length}
+                {accounts.filter(a => a.type === type).length}
               </span>
             </div>
           ))}
         </div>
 
         <div className="flex items-center gap-2 border-b pb-px overflow-x-auto">
-          {["الكل", ...Object.keys(tree)].map((t) => (
+          {[ALL_TAB, ...ACCOUNT_TYPES].map((tab) => (
             <button
-              key={t}
-              onClick={() => setActiveTab(t)}
+              key={tab}
+              onClick={() => setActiveTab(tab as AccountType | typeof ALL_TAB)}
               className={`px-4 py-2.5 text-sm font-bold rounded-t-lg border-b-2 -mb-px transition-colors whitespace-nowrap ${
-                activeTab === t
+                activeTab === tab
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {t}
+              {tab === ALL_TAB ? t("common.all") : t(`accountTypes.${tab}`)}
             </button>
           ))}
         </div>
@@ -327,8 +325,8 @@ export function Accounts() {
         <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[400px]">
           <div className="flex items-center gap-3 px-6 py-3 border-b bg-muted/40 text-xs font-bold text-muted-foreground">
             <span className="w-5" />
-            <span className="w-12 text-center">الكود</span>
-            <span className="flex-1">اسم الحساب</span>
+            <span className="w-12 text-center">{t("accounts.code")}</span>
+            <span className="flex-1">{t("accounts.accountName")}</span>
             <span className="w-20" />
           </div>
 
@@ -338,10 +336,10 @@ export function Accounts() {
             </div>
           ) : accounts.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
-              <p>لا توجد حسابات بعد.</p>
+              <p>{t("accounts.noAccounts")}</p>
               {canCreate && (
                 <button onClick={openCreateModal} className="mt-4 text-primary font-bold hover:underline">
-                  أضف حسابك الأول
+                  {t("accounts.addFirst")}
                 </button>
               )}
             </div>
@@ -352,8 +350,8 @@ export function Accounts() {
                 return (
                   <div key={g}>
                     <div className="flex items-center gap-3 px-4 py-2 mb-1">
-                      <span className={`w-2.5 h-2.5 rounded-sm ${groupMeta[g].color}`} />
-                      <h3 className="text-sm font-extrabold text-foreground">{g}</h3>
+                      <span className={`w-2.5 h-2.5 rounded-sm ${TYPE_COLORS[g]}`} />
+                      <h3 className="text-sm font-extrabold text-foreground">{t(`accountTypes.${g}`)}</h3>
                     </div>
                     <div className="flex flex-col">
                       {tree[g].map((node) => (
@@ -376,7 +374,7 @@ export function Accounts() {
               <div className="flex items-center gap-2">
                 <Plus className="w-5 h-5 text-primary" />
                 <h2 className="text-base font-bold text-foreground">
-                  {modalMode === "create" ? "إضافة حساب جديد" : "تعديل الحساب"}
+                  {modalMode === "create" ? t("accounts.createTitle") : t("accounts.editTitle")}
                 </h2>
               </div>
               <button type="button" onClick={closeModals} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
@@ -387,63 +385,63 @@ export function Accounts() {
             <div className="p-6 flex flex-col gap-5 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-bold text-foreground">كود الحساب</label>
+                  <label className="text-sm font-bold text-foreground">{t("accounts.accountCode")}</label>
                   <input
                     dir="ltr"
-                    className="bg-background border rounded-xl h-11 px-4 text-sm font-sans font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="bg-background border rounded-xl h-11 px-4 text-sm font-sans font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-start"
                     {...register("code")}
                   />
-                  {errors.code && <span className="text-xs text-destructive">{errors.code.message}</span>}
+                  {errors.code && <span className="text-xs text-destructive">{t(`accounts.validation.${errors.code.message}`)}</span>}
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-bold text-foreground">نوع الحساب</label>
+                  <label className="text-sm font-bold text-foreground">{t("accounts.accountType")}</label>
                   <div className="relative">
                     <select 
-                      className="w-full appearance-none bg-background border rounded-xl h-11 pr-4 pl-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full appearance-none bg-background border rounded-xl h-11 ps-4 pe-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       {...register("type")}
                     >
-                      {Object.entries(typeLabels).map(([val, label]) => (
-                        <option key={val} value={val}>{label}</option>
+                      {ACCOUNT_TYPES.map((val) => (
+                        <option key={val} value={val}>{t(`accountTypes.${val}`)}</option>
                       ))}
                     </select>
-                    <ChevronDown className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-foreground">اسم الحساب</label>
+                <label className="text-sm font-bold text-foreground">{t("accounts.accountName")}</label>
                 <input
-                  placeholder="مثال: أوراق قبض"
+                  placeholder={t("accounts.namePlaceholder")}
                   className="bg-background border rounded-xl h-11 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                   {...register("name")}
                 />
-                {errors.name && <span className="text-xs text-destructive">{errors.name.message}</span>}
+                {errors.name && <span className="text-xs text-destructive">{t(`accounts.validation.${errors.name.message}`)}</span>}
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-foreground">الحساب الأب (اختياري)</label>
+                <label className="text-sm font-bold text-foreground">{t("accounts.parentAccount")}</label>
                 <div className="relative">
                   <select 
-                    className="w-full appearance-none bg-background border rounded-xl h-11 pr-4 pl-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full appearance-none bg-background border rounded-xl h-11 ps-4 pe-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     {...register("parentId")}
                   >
-                    <option value="">-- بدون حساب أب --</option>
+                    <option value="">{t("accounts.parentNone")}</option>
                     {accounts.filter(a => a.isGroup && a.id !== accountToEdit?.id).map(a => (
                       <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
                     ))}
                   </select>
-                  <ChevronDown className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
 
               <div className="flex items-center justify-between bg-secondary/40 border border-secondary rounded-xl px-4 py-3 cursor-pointer" onClick={() => setValue("isGroup", !isGroup)}>
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-foreground">حساب رئيسي (تجميعي)</span>
-                  <span className="text-xs text-muted-foreground">لا يمكن القيد عليه مباشرة، يجمع الحسابات الفرعية</span>
+                  <span className="text-sm font-bold text-foreground">{t("accounts.isGroupTitle")}</span>
+                  <span className="text-xs text-muted-foreground">{t("accounts.isGroupHint")}</span>
                 </div>
                 <div className={`w-10 h-6 rounded-full flex items-center transition-colors px-0.5 ${isGroup ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-                  <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isGroup ? '-translate-x-4' : 'translate-x-0'}`} />
+                  <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isGroup ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0'}`} />
                 </div>
               </div>
             </div>
@@ -454,7 +452,7 @@ export function Accounts() {
                 onClick={closeModals}
                 className="px-5 py-2.5 rounded-full text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors"
               >
-                إلغاء
+                {t("common.cancel")}
               </button>
               <button 
                 type="submit" 
@@ -462,7 +460,7 @@ export function Accounts() {
                 className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-5 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
               >
                 <Check className="w-4 h-4" />
-                {createAccount.isPending || updateAccount.isPending ? "جاري الحفظ..." : "حفظ الحساب"}
+                {createAccount.isPending || updateAccount.isPending ? t("common.saving") : t("accounts.saveAccount")}
               </button>
             </div>
           </form>
@@ -470,17 +468,17 @@ export function Accounts() {
       )}
 
       <AlertDialog open={!!accountToDelete} onOpenChange={(open) => !open && setAccountToDelete(null)}>
-        <AlertDialogContent dir="rtl" className="font-sans">
+        <AlertDialogContent className="font-sans">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-right">حذف الحساب</AlertDialogTitle>
-            <AlertDialogDescription className="text-right">
-              هل أنت متأكد من حذف الحساب "{accountToDelete?.name}"؟ لا يمكن التراجع عن هذا الإجراء.
+            <AlertDialogTitle className="text-start">{t("accounts.deleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              {t("accounts.deleteBody", { name: accountToDelete?.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:justify-start">
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-              {deleteAccount.isPending ? "جاري الحذف..." : "تأكيد الحذف"}
+              {deleteAccount.isPending ? t("accounts.deleting") : t("accounts.confirmDelete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

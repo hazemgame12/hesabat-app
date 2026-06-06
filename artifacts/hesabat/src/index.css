@@ -69,8 +69,6 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap');
-
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);
@@ -132,6 +130,7 @@
   --app-font-sans: 'Cairo', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
+  --app-font-ltr: 'Inter', 'Cairo', sans-serif;
   
   --radius: 0.75rem;
 
@@ -195,5 +194,9 @@
   }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+  /* English uses Inter for cleaner Latin rendering; Arabic keeps Cairo. */
+  html[lang="en"] {
+    --app-font-sans: var(--app-font-ltr);
   }
 }

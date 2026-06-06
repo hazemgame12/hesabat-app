@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslation } from "react-i18next";
 import { useSignup, useGetCurrentUser, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -20,19 +21,24 @@ import {
   COUNTRIES,
   CURRENCIES,
   COUNTRY_INFO,
-  CURRENCY_INFO,
+  countryName,
+  currencyName,
+  type Lang,
 } from "@workspace/locale";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const signupSchema = z.object({
-  companyName: z.string().min(1, "اسم الشركة مطلوب"),
-  name: z.string().min(1, "الاسم الكامل مطلوب"),
-  email: z.string().email("البريد الإلكتروني غير صالح"),
-  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+  companyName: z.string().min(1, "companyNameRequired"),
+  name: z.string().min(1, "fullNameRequired"),
+  email: z.string().email("emailInvalid"),
+  password: z.string().min(8, "passwordMin"),
   country: z.enum(COUNTRIES),
   baseCurrency: z.enum(CURRENCIES),
 });
 
 export function Signup() {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language === "en" ? "en" : "ar") as Lang;
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: user, isLoading: isUserLoading } = useGetCurrentUser();
@@ -64,7 +70,7 @@ export function Signup() {
         setLocation("/dashboard");
       },
       onError: (err: any) => {
-        setErrorMsg(err?.data?.error || "حدث خطأ أثناء التسجيل");
+        setErrorMsg(err?.data?.error || t("auth.signup.errorGeneric"));
       }
     });
   };
@@ -72,15 +78,18 @@ export function Signup() {
   if (isUserLoading) return null;
 
   return (
-    <div dir="rtl" className="min-h-screen flex items-center justify-center bg-background p-4 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 font-sans relative">
+      <div className="absolute top-4 end-4">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-md p-8 shadow-xl border-border">
         <div className="flex flex-col items-center gap-4 mb-8">
           <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl shadow-sm">
             ح
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-1">تسجيل شركة جديدة</h1>
-            <p className="text-sm text-muted-foreground">أنشئ حسابك وابدأ في إدارة حساباتك</p>
+            <h1 className="text-2xl font-bold text-foreground mb-1">{t("auth.signup.title")}</h1>
+            <p className="text-sm text-muted-foreground">{t("auth.signup.subtitle")}</p>
           </div>
         </div>
 
@@ -92,55 +101,55 @@ export function Signup() {
           )}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="companyName">اسم الشركة</Label>
+            <Label htmlFor="companyName">{t("auth.signup.companyName")}</Label>
             <Input
               id="companyName"
-              placeholder="مثال: شركة النيل للتجارة"
+              placeholder={t("auth.signup.companyNamePlaceholder")}
               className="focus-visible:ring-primary"
               {...register("companyName")}
             />
-            {errors.companyName && <span className="text-xs text-destructive">{errors.companyName.message}</span>}
+            {errors.companyName && <span className="text-xs text-destructive">{t(`auth.validation.${errors.companyName.message}`)}</span>}
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="name">الاسم الكامل</Label>
+            <Label htmlFor="name">{t("auth.signup.fullName")}</Label>
             <Input
               id="name"
-              placeholder="الاسم الثلاثي"
+              placeholder={t("auth.signup.fullNamePlaceholder")}
               className="focus-visible:ring-primary"
               {...register("name")}
             />
-            {errors.name && <span className="text-xs text-destructive">{errors.name.message}</span>}
+            {errors.name && <span className="text-xs text-destructive">{t(`auth.validation.${errors.name.message}`)}</span>}
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">البريد الإلكتروني</Label>
+            <Label htmlFor="email">{t("auth.signup.email")}</Label>
             <Input
               id="email"
               type="email"
               dir="ltr"
               placeholder="name@company.com"
-              className="text-right focus-visible:ring-primary"
+              className="text-start focus-visible:ring-primary"
               {...register("email")}
             />
-            {errors.email && <span className="text-xs text-destructive">{errors.email.message}</span>}
+            {errors.email && <span className="text-xs text-destructive">{t(`auth.validation.${errors.email.message}`)}</span>}
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password">كلمة المرور</Label>
+            <Label htmlFor="password">{t("auth.signup.password")}</Label>
             <Input
               id="password"
               type="password"
               dir="ltr"
-              className="text-right focus-visible:ring-primary"
+              className="text-start focus-visible:ring-primary"
               {...register("password")}
             />
-            {errors.password && <span className="text-xs text-destructive">{errors.password.message}</span>}
+            {errors.password && <span className="text-xs text-destructive">{t(`auth.validation.${errors.password.message}`)}</span>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label>الدولة</Label>
+              <Label>{t("auth.signup.country")}</Label>
               <Select
                 value={country}
                 onValueChange={(v) => {
@@ -155,7 +164,7 @@ export function Signup() {
                 <SelectContent>
                   {COUNTRIES.map((c) => (
                     <SelectItem key={c} value={c}>
-                      {COUNTRY_INFO[c].nameAr}
+                      {countryName(c, lang)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -163,7 +172,7 @@ export function Signup() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label>العملة الأساسية</Label>
+              <Label>{t("auth.signup.baseCurrency")}</Label>
               <Select
                 value={baseCurrency}
                 onValueChange={(v) => setValue("baseCurrency", v as typeof baseCurrency)}
@@ -174,7 +183,7 @@ export function Signup() {
                 <SelectContent>
                   {CURRENCIES.map((c) => (
                     <SelectItem key={c} value={c}>
-                      {CURRENCY_INFO[c].nameAr} ({c})
+                      {currencyName(c, lang)} ({c})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -183,14 +192,14 @@ export function Signup() {
           </div>
 
           <Button type="submit" disabled={signup.isPending} className="w-full h-11 text-base font-bold mt-4 shadow-md hover:opacity-90">
-            {signup.isPending ? "جاري التسجيل..." : "إنشاء حساب"}
+            {signup.isPending ? t("auth.signup.submitting") : t("auth.signup.submit")}
           </Button>
         </form>
 
         <div className="mt-8 text-center text-sm text-muted-foreground">
-          لديك حساب بالفعل؟{" "}
+          {t("auth.signup.haveAccount")}{" "}
           <Link href="/login" className="text-primary font-bold hover:underline">
-            تسجيل الدخول
+            {t("auth.signup.login")}
           </Link>
         </div>
       </Card>

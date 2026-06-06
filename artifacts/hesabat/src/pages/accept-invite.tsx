@@ -3,6 +3,7 @@ import { useLocation, useRoute } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslation } from "react-i18next";
 import {
   useGetInvitation,
   useAcceptInvitation,
@@ -10,23 +11,21 @@ import {
   getGetCurrentUserQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ROLE_LABELS, type RoleId } from "@workspace/permissions";
+import { type RoleId } from "@workspace/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const acceptSchema = z.object({
-  name: z.string().min(1, "الاسم الكامل مطلوب"),
-  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+  name: z.string().min(1, "fullNameRequired"),
+  password: z.string().min(8, "passwordMin"),
 });
 
-function roleLabel(role: string): string {
-  return ROLE_LABELS[role as RoleId] ?? role;
-}
-
 export function AcceptInvite() {
+  const { t } = useTranslation();
   const [, params] = useRoute("/invite/:token");
   const token = params?.token ?? "";
   const [, setLocation] = useLocation();
@@ -49,17 +48,17 @@ export function AcceptInvite() {
         setLocation("/dashboard");
       },
       onError: (err: any) => {
-        setErrorMsg(err?.data?.error || "حدث خطأ أثناء قبول الدعوة");
+        setErrorMsg(err?.data?.error || t("auth.accept.errorGeneric"));
       },
     });
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Spinner className="w-8 h-8 text-primary" />
-          <p className="text-muted-foreground font-medium text-sm">جاري التحميل...</p>
+          <p className="text-muted-foreground font-medium text-sm">{t("auth.accept.loading")}</p>
         </div>
       </div>
     );
@@ -67,17 +66,20 @@ export function AcceptInvite() {
 
   if (isError || !invite) {
     return (
-      <div dir="rtl" className="min-h-screen flex items-center justify-center bg-background p-4 font-sans">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 font-sans relative">
+        <div className="absolute top-4 end-4">
+          <LanguageSwitcher />
+        </div>
         <Card className="w-full max-w-md p-8 shadow-xl border-border text-center flex flex-col gap-4">
           <div className="w-12 h-12 rounded-xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto font-bold text-2xl">
             !
           </div>
-          <h1 className="text-xl font-bold text-foreground">الدعوة غير صالحة</h1>
+          <h1 className="text-xl font-bold text-foreground">{t("auth.accept.invalidTitle")}</h1>
           <p className="text-sm text-muted-foreground">
-            هذا الرابط غير صحيح أو انتهت صلاحيته. تواصل مع مدير شركتك لإرسال دعوة جديدة.
+            {t("auth.accept.invalidBody")}
           </p>
           <Button onClick={() => setLocation("/login")} className="w-full h-11 font-bold mt-2">
-            تسجيل الدخول
+            {t("auth.accept.login")}
           </Button>
         </Card>
       </div>
@@ -85,16 +87,20 @@ export function AcceptInvite() {
   }
 
   return (
-    <div dir="rtl" className="min-h-screen flex items-center justify-center bg-background p-4 font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 font-sans relative">
+      <div className="absolute top-4 end-4">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-md p-8 shadow-xl border-border">
         <div className="flex flex-col items-center gap-4 mb-8">
           <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl shadow-sm">
             ح
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-1">انضم إلى {invite.companyName}</h1>
+            <h1 className="text-2xl font-bold text-foreground mb-1">{t("auth.accept.joinTitle", { company: invite.companyName })}</h1>
             <p className="text-sm text-muted-foreground">
-              دُعيت للانضمام بصفة <span className="font-bold text-foreground">{roleLabel(invite.role)}</span>
+              {t("auth.accept.invitedAs")}{" "}
+              <span className="font-bold text-foreground">{t(`roles.${invite.role as RoleId}.label`, { defaultValue: invite.role })}</span>
             </p>
           </div>
         </div>
@@ -107,24 +113,24 @@ export function AcceptInvite() {
           )}
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">البريد الإلكتروني</Label>
-            <Input id="email" type="email" dir="ltr" value={invite.email} readOnly disabled className="text-right bg-muted" />
+            <Label htmlFor="email">{t("auth.accept.email")}</Label>
+            <Input id="email" type="email" dir="ltr" value={invite.email} readOnly disabled className="text-start bg-muted" />
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="name">الاسم الكامل</Label>
-            <Input id="name" placeholder="الاسم الثلاثي" className="focus-visible:ring-primary" {...register("name")} />
-            {errors.name && <span className="text-xs text-destructive">{errors.name.message}</span>}
+            <Label htmlFor="name">{t("auth.accept.fullName")}</Label>
+            <Input id="name" placeholder={t("auth.accept.fullNamePlaceholder")} className="focus-visible:ring-primary" {...register("name")} />
+            {errors.name && <span className="text-xs text-destructive">{t(`auth.validation.${errors.name.message}`)}</span>}
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password">كلمة المرور</Label>
-            <Input id="password" type="password" dir="ltr" className="text-right focus-visible:ring-primary" {...register("password")} />
-            {errors.password && <span className="text-xs text-destructive">{errors.password.message}</span>}
+            <Label htmlFor="password">{t("auth.accept.password")}</Label>
+            <Input id="password" type="password" dir="ltr" className="text-start focus-visible:ring-primary" {...register("password")} />
+            {errors.password && <span className="text-xs text-destructive">{t(`auth.validation.${errors.password.message}`)}</span>}
           </div>
 
           <Button type="submit" disabled={accept.isPending} className="w-full h-11 text-base font-bold mt-4 shadow-md hover:opacity-90">
-            {accept.isPending ? "جاري الإنشاء..." : "إنشاء الحساب والانضمام"}
+            {accept.isPending ? t("auth.accept.submitting") : t("auth.accept.submit")}
           </Button>
         </form>
       </Card>

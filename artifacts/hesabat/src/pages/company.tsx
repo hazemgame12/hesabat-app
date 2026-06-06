@@ -1,5 +1,6 @@
 import React from "react";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import {
   useGetCompany,
   useUpdateCompany,
@@ -14,9 +15,11 @@ import {
   COUNTRIES,
   CURRENCIES,
   COUNTRY_INFO,
-  CURRENCY_INFO,
   countryLabel,
   currencyLabel,
+  countryName,
+  currencyName,
+  type Lang,
 } from "@workspace/locale";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -60,6 +63,8 @@ function toForm(c: Company): FormValues {
 }
 
 export function CompanyProfile() {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language === "en" ? "en" : "ar") as Lang;
   const { data: user } = useGetCurrentUser();
   const canEdit = hasCapability(user?.role ?? "", "company:manage");
   const { data: company, isLoading } = useGetCompany();
@@ -106,11 +111,11 @@ export function CompanyProfile() {
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getGetCompanyQueryKey() });
-          toast({ title: "تم حفظ بيانات الشركة بنجاح" });
+          toast({ title: t("company.toast.saved") });
         },
         onError: (err: any) => {
           toast({
-            title: err?.data?.error || "تعذّر حفظ البيانات",
+            title: err?.data?.error || t("company.toast.saveError"),
             variant: "destructive",
           });
         },
@@ -135,12 +140,12 @@ export function CompanyProfile() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || "تعذّر رفع الشعار");
+        throw new Error(body?.error || t("company.toast.logoError"));
       }
       await queryClient.invalidateQueries({ queryKey: getGetCompanyQueryKey() });
-      toast({ title: "تم تحديث شعار الشركة" });
+      toast({ title: t("company.toast.logoUpdated") });
     } catch (err: any) {
-      toast({ title: err?.message || "تعذّر رفع الشعار", variant: "destructive" });
+      toast({ title: err?.message || t("company.toast.logoError"), variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -158,9 +163,9 @@ export function CompanyProfile() {
     <div className="flex flex-col min-h-screen">
       <header className="h-20 bg-background/80 backdrop-blur-md border-b sticky top-0 z-10 flex items-center px-8">
         <div>
-          <h1 className="text-lg font-bold text-foreground">بيانات الشركة</h1>
+          <h1 className="text-lg font-bold text-foreground">{t("company.title")}</h1>
           <p className="text-sm text-muted-foreground font-medium">
-            الملف التعريفي للشركة وبيانات التسجيل والعملة
+            {t("company.subtitle")}
           </p>
         </div>
       </header>
@@ -172,28 +177,28 @@ export function CompanyProfile() {
             {company?.logoUrl ? (
               <img
                 src={company.logoUrl}
-                alt="شعار الشركة"
+                alt={t("company.logoAlt")}
                 className="w-full h-full object-contain"
               />
             ) : (
               <ImageOff className="w-10 h-10 text-muted-foreground/40" />
             )}
           </div>
-          <div className="flex-1 text-center sm:text-right">
+          <div className="flex-1 text-center sm:text-start">
             <h2 className="text-xl font-bold">{company?.name}</h2>
             {company?.tradeName && (
               <p className="text-sm text-muted-foreground mt-1">
-                الاسم التجاري: {company.tradeName}
+                {t("company.tradeNameInline", { name: company.tradeName })}
               </p>
             )}
             <div className="flex flex-wrap gap-2 justify-center sm:justify-start mt-3">
               <span className="inline-flex items-center gap-1 text-xs font-semibold bg-primary/5 text-primary px-3 py-1 rounded-full">
                 <Globe className="w-3.5 h-3.5" />
-                {countryLabel(company?.country ?? "EG")}
+                {countryLabel(company?.country ?? "EG", lang)}
               </span>
               <span className="inline-flex items-center gap-1 text-xs font-semibold bg-success/10 text-success px-3 py-1 rounded-full">
                 <Coins className="w-3.5 h-3.5" />
-                {currencyLabel(company?.baseCurrency ?? "EGP")}
+                {currencyLabel(company?.baseCurrency ?? "EGP", lang)}
               </span>
             </div>
           </div>
@@ -218,7 +223,7 @@ export function CompanyProfile() {
                 ) : (
                   <Upload className="w-4 h-4" />
                 )}
-                {company?.logoUrl ? "تغيير الشعار" : "رفع الشعار"}
+                {company?.logoUrl ? t("company.changeLogo") : t("company.uploadLogo")}
               </Button>
             </div>
           )}
@@ -230,7 +235,7 @@ export function CompanyProfile() {
             <div className="bg-primary/5 p-2.5 rounded-xl text-primary">
               <Building2 className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-bold">تفاصيل الشركة</h2>
+            <h2 className="text-lg font-bold">{t("company.details")}</h2>
           </div>
 
           <form
@@ -238,45 +243,45 @@ export function CompanyProfile() {
             className="grid grid-cols-1 md:grid-cols-2 gap-5"
           >
             <div className="flex flex-col gap-2">
-              <Label htmlFor="name">اسم الشركة</Label>
+              <Label htmlFor="name">{t("company.name")}</Label>
               <Input id="name" disabled={!canEdit} {...register("name")} />
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="tradeName">الاسم التجاري</Label>
+              <Label htmlFor="tradeName">{t("company.tradeName")}</Label>
               <Input
                 id="tradeName"
                 disabled={!canEdit}
-                placeholder="الاسم التجاري المسجّل"
+                placeholder={t("company.tradeNamePlaceholder")}
                 {...register("tradeName")}
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="taxRegistrationNumber">رقم التسجيل الضريبي</Label>
+              <Label htmlFor="taxRegistrationNumber">{t("company.taxNumber")}</Label>
               <Input
                 id="taxRegistrationNumber"
                 dir="ltr"
-                className="text-right"
+                className="text-start"
                 disabled={!canEdit}
-                placeholder="مثال: 123-456-789"
+                placeholder={t("company.taxNumberPlaceholder")}
                 {...register("taxRegistrationNumber")}
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="phone">رقم الهاتف</Label>
+              <Label htmlFor="phone">{t("company.phone")}</Label>
               <Input
                 id="phone"
                 dir="ltr"
-                className="text-right"
+                className="text-start"
                 disabled={!canEdit}
                 {...register("phone")}
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label>الدولة</Label>
+              <Label>{t("company.country")}</Label>
               <Select
                 value={country}
                 disabled={!canEdit}
@@ -293,7 +298,7 @@ export function CompanyProfile() {
                 <SelectContent>
                   {COUNTRIES.map((c) => (
                     <SelectItem key={c} value={c}>
-                      {COUNTRY_INFO[c].nameAr}
+                      {countryName(c, lang)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -301,7 +306,7 @@ export function CompanyProfile() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label>العملة الأساسية</Label>
+              <Label>{t("company.baseCurrency")}</Label>
               <Select
                 value={baseCurrency}
                 disabled={!canEdit}
@@ -313,7 +318,7 @@ export function CompanyProfile() {
                 <SelectContent>
                   {CURRENCIES.map((c) => (
                     <SelectItem key={c} value={c}>
-                      {CURRENCY_INFO[c].nameAr} ({c})
+                      {currencyName(c, lang)} ({c})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -321,18 +326,18 @@ export function CompanyProfile() {
             </div>
 
             <div className="flex flex-col gap-2 md:col-span-2">
-              <Label htmlFor="activityDescription">وصف النشاط</Label>
+              <Label htmlFor="activityDescription">{t("company.activity")}</Label>
               <Textarea
                 id="activityDescription"
                 rows={2}
                 disabled={!canEdit}
-                placeholder="مثال: تجارة الأجهزة الكهربائية بالجملة"
+                placeholder={t("company.activityPlaceholder")}
                 {...register("activityDescription")}
               />
             </div>
 
             <div className="flex flex-col gap-2 md:col-span-2">
-              <Label htmlFor="address">العنوان</Label>
+              <Label htmlFor="address">{t("company.address")}</Label>
               <Textarea
                 id="address"
                 rows={2}
@@ -348,7 +353,7 @@ export function CompanyProfile() {
                   disabled={updateCompany.isPending}
                   className="h-11 px-8 font-bold"
                 >
-                  {updateCompany.isPending ? "جاري الحفظ..." : "حفظ التعديلات"}
+                  {updateCompany.isPending ? t("common.saving") : t("company.saveChanges")}
                 </Button>
               </div>
             )}

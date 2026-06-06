@@ -6,3 +6,4 @@
 - [Hesabat architecture](hesabat-architecture.md) — multi-tenant accounting app: scope all queries by companyId AND re-validate cross-row FKs (parentId) to caller's company; native scrypt+cookie auth; roles/permissions/invitations; QueryClient retry:false.
 - [Secrets in URL paths](secrets-in-url-paths.md) — tokens in URL path segments leak into request logs; redact them in the pino-http req serializer (query-string already stripped, path isn't).
 - [Orval multipart codegen broken](orval-multipart-codegen.md) — declaring multipart/form-data requestBody generates broken Blob type + dup export; omit requestBody, upload via manual fetch+FormData.
+- [Hesabat i18n](hesabat-i18n.md) — i18next ar(default)/en; sync html lang+dir → use Tailwind logical props (ms/ps/start/text-start) not dir="rtl"; group/tab by stable IDs, translate only for display.

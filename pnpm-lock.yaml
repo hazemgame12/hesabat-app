@@ -393,6 +393,9 @@ importers:
       framer-motion:
         specifier: 'catalog:'
         version: 12.38.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      i18next:
+        specifier: ^26.3.1
+        version: 26.3.1(typescript@5.9.3)
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -414,6 +417,9 @@ importers:
       react-hook-form:
         specifier: ^7.55.0
         version: 7.75.0(react@19.1.0)
+      react-i18next:
+        specifier: ^17.0.8
+        version: 17.0.8(i18next@26.3.1(typescript@5.9.3))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react-icons:
         specifier: ^5.4.0
         version: 5.6.0(react@19.1.0)
@@ -2705,6 +2711,9 @@ packages:
   help-me@5.0.0:
     resolution: {integrity: sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg==}
 
+  html-parse-stringify@3.0.1:
+    resolution: {integrity: sha512-KknJ50kTInJ7qIScF3jeaFRpMpE8/lfiTdzf/twXyPBLAGrLRTmkz3AdTnKeh40X8k9L2fdYwEp/42WGXIRGcg==}
+
   http-errors@2.0.1:
     resolution: {integrity: sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==}
     engines: {node: '>= 0.8'}
@@ -2712,6 +2721,14 @@ packages:
   human-signals@8.0.1:
     resolution: {integrity: sha512-eKCa6bwnJhvxj14kZk5NCPc6Hb6BdsU9DZcOnmQKSnO1VKrfV0zCvtttPZUsBvjmNDn8rpcJfpwSYnHBjc95MQ==}
     engines: {node: '>=18.18.0'}
+
+  i18next@26.3.1:
+    resolution: {integrity: sha512-txQqd5EULsqEh9OJqRH15aCaOuy/nLJyhw5EHCSKLKJE1aBbb3Zve2+uQIxgWhPm1QqUQoWyQBm2kfmmIrzkcQ==}
+    peerDependencies:
+      typescript: ^5 || ^6
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   iconv-lite@0.7.2:
     resolution: {integrity: sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw==}
@@ -2960,7 +2977,7 @@ packages:
     engines: {node: '>=0.10.0'}
 
   npm-run-path@6.0.0:
-    resolution: {integrity: sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA==}
+    resolution: {integrity: sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA==, tarball: https://registry.npmjs.org/npm-run-path/-/npm-run-path-6.0.0.tgz}
     engines: {node: '>=18'}
 
   object-assign@4.1.1:
@@ -3193,6 +3210,22 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
+
+  react-i18next@17.0.8:
+    resolution: {integrity: sha512-0ooKbGLU8JXhe1zwpQUWIeXSgLPOfwJmgheWRIUpcoA0CpyabpGhayjdG+/eA5esC1AQ8h2jWpXjJfzQzeDOCw==}
+    peerDependencies:
+      i18next: '>= 26.2.0'
+      react: '>= 16.8.0'
+      react-dom: '*'
+      react-native: '*'
+      typescript: ^5 || ^6
+    peerDependenciesMeta:
+      react-dom:
+        optional: true
+      react-native:
+        optional: true
+      typescript:
+        optional: true
 
   react-icons@5.6.0:
     resolution: {integrity: sha512-RH93p5ki6LfOiIt0UtDyNg/cee+HLVR6cHHtW3wALfo+eOHTp8RnU2kRkI6E+H19zMIs03DyxUG/GfZMOGvmiA==}
@@ -3711,6 +3744,10 @@ packages:
         optional: true
       jsdom:
         optional: true
+
+  void-elements@3.1.0:
+    resolution: {integrity: sha512-Dhxzh5HZuiHQhbvTW9AMetFfBHDMYpo23Uo9btPXgdYP+3T5S+p+jgNy7spra+veYhBP2dCSgxR/i2Y02h5/6w==}
+    engines: {node: '>=0.10.0'}
 
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
@@ -5657,6 +5694,10 @@ snapshots:
 
   help-me@5.0.0: {}
 
+  html-parse-stringify@3.0.1:
+    dependencies:
+      void-elements: 3.1.0
+
   http-errors@2.0.1:
     dependencies:
       depd: 2.0.0
@@ -5666,6 +5707,10 @@ snapshots:
       toidentifier: 1.0.1
 
   human-signals@8.0.1: {}
+
+  i18next@26.3.1(typescript@5.9.3):
+    optionalDependencies:
+      typescript: 5.9.3
 
   iconv-lite@0.7.2:
     dependencies:
@@ -6108,6 +6153,17 @@ snapshots:
   react-hook-form@7.75.0(react@19.1.0):
     dependencies:
       react: 19.1.0
+
+  react-i18next@17.0.8(i18next@26.3.1(typescript@5.9.3))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.9.3):
+    dependencies:
+      '@babel/runtime': 7.29.2
+      html-parse-stringify: 3.0.1
+      i18next: 26.3.1(typescript@5.9.3)
+      react: 19.1.0
+      use-sync-external-store: 1.6.0(react@19.1.0)
+    optionalDependencies:
+      react-dom: 19.1.0(react@19.1.0)
+      typescript: 5.9.3
 
   react-icons@5.6.0(react@19.1.0):
     dependencies:
@@ -6604,6 +6660,8 @@ snapshots:
       - terser
       - tsx
       - yaml
+
+  void-elements@3.1.0: {}
 
   which@2.0.2:
     dependencies:
