@@ -9,10 +9,16 @@ import caseStudiesRouter from "./case-studies";
 import uploadsRouter from "./uploads";
 import socialPostsRouter from "./social-posts";
 import aiRouter from "./ai";
+import authRouter from "./auth";
+import accountsRouter from "./accounts";
+import dashboardRouter from "./dashboard";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(authRouter);
+router.use(accountsRouter);
+router.use(dashboardRouter);
 router.use(articlesRouter);
 router.use(settingsRouter);
 router.use(servicesRouter);

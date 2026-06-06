@@ -42,7 +42,14 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Two products live in this monorepo:
+- **HG Financial Consulting** website (`artifacts/hg-website`) — marketing site + admin dashboard.
+- **حسابات / Hesabat** (`artifacts/hesabat`, route `/hesabat/`) — a multi-tenant cloud accounting SaaS for Egyptian SMEs. Arabic-first (RTL, Cairo), navy+sand theme. Milestone 1 shipped: company signup, native login/logout, financial dashboard summary, and a tenant-scoped chart of accounts (CRUD). Backend routes live in `@workspace/api-server` (`routes/auth.ts`, `accounts.ts`, `dashboard.ts`); schema (`companies`, `users`, `sessions`, `accounts`) in `@workspace/db`.
+
+### Hesabat architecture (read before extending)
+- **Strict tenant isolation:** every business table has `company_id`; all queries scope by `req.auth.companyId` (set by `requireAuth`). Any FK that references another row (e.g. account `parentId`) MUST be re-validated to belong to the caller's company before write — a plain DB FK is not enough.
+- **Native auth:** scrypt password hashing (`lib/auth.ts`), session token stored only as SHA-256 in `sessions`, httpOnly cookie (`lib/session.ts`). No vendor lock — portable to any Node+Postgres VPS.
+- API client sends the cookie via `credentials: "include"` (set in `lib/api-client-react/src/custom-fetch.ts`).
 
 ## User preferences
 

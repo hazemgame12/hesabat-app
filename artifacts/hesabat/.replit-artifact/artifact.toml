@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/hesabat/"
+title = "حسابات — Hesabat Accounting"
+version = "1.0.0"
+id = "artifacts/hesabat"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/hesabat/" ]
+localPort = 18627
+
+[services.development]
+run = "pnpm --filter @workspace/hesabat run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hesabat", "run", "build" ]
+publicDir = "artifacts/hesabat/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18627"
+BASE_PATH = "/hesabat/"
