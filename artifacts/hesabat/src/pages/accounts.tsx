@@ -4,11 +4,12 @@ import {
   useCreateAccount, 
   useUpdateAccount, 
   useDeleteAccount,
+  useGetCurrentUser,
   getListAccountsQueryKey,
   getGetDashboardSummaryQueryKey,
   type Account,
-  type AccountInput
 } from "@workspace/api-client-react";
+import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Building2, Search, SlidersHorizontal, Plus, ChevronDown, ChevronLeft, Check, X, Download, ToggleRight, Trash2, Edit2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
@@ -96,6 +97,11 @@ export function Accounts() {
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
+  const { data: user } = useGetCurrentUser();
+  const role = user?.role ?? "";
+  const canCreate = hasCapability(role, "accounts:create");
+  const canUpdate = hasCapability(role, "accounts:update");
+  const canDelete = hasCapability(role, "accounts:delete");
 
   const [activeTab, setActiveTab] = useState("الكل");
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
@@ -221,22 +227,28 @@ export function Accounts() {
             )}
           </div>
 
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 flex-shrink-0 px-2">
-            <button 
-              onClick={(e) => { e.stopPropagation(); openEditModal(node); }}
-              className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-              title="تعديل"
-            >
-              <Edit2 className="w-4 h-4" />
-            </button>
-            <button 
-              onClick={(e) => { e.stopPropagation(); setAccountToDelete(node); }}
-              className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-              title="حذف"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
+          {(canUpdate || canDelete) && (
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 flex-shrink-0 px-2">
+              {canUpdate && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); openEditModal(node); }}
+                  className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                  title="تعديل"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+              {canDelete && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setAccountToDelete(node); }}
+                  className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
+                  title="حذف"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
         {hasChildren && open && (
           <div>
@@ -270,15 +282,17 @@ export function Accounts() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            إضافة حساب
-          </button>
-        </div>
+        {canCreate && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              إضافة حساب
+            </button>
+          </div>
+        )}
       </header>
 
       <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
@@ -325,9 +339,11 @@ export function Accounts() {
           ) : accounts.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
               <p>لا توجد حسابات بعد.</p>
-              <button onClick={openCreateModal} className="mt-4 text-primary font-bold hover:underline">
-                أضف حسابك الأول
-              </button>
+              {canCreate && (
+                <button onClick={openCreateModal} className="mt-4 text-primary font-bold hover:underline">
+                  أضف حسابك الأول
+                </button>
+              )}
             </div>
           ) : (
             <div className="p-3 flex flex-col gap-4">

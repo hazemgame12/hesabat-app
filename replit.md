@@ -44,12 +44,14 @@ _Replace the heading above with the project's name, and this line with one sente
 
 Two products live in this monorepo:
 - **HG Financial Consulting** website (`artifacts/hg-website`) — marketing site + admin dashboard.
-- **حسابات / Hesabat** (`artifacts/hesabat`, route `/hesabat/`) — a multi-tenant cloud accounting SaaS for Egyptian SMEs. Arabic-first (RTL, Cairo), navy+sand theme. Milestone 1 shipped: company signup, native login/logout, financial dashboard summary, and a tenant-scoped chart of accounts (CRUD). Backend routes live in `@workspace/api-server` (`routes/auth.ts`, `accounts.ts`, `dashboard.ts`); schema (`companies`, `users`, `sessions`, `accounts`) in `@workspace/db`.
+- **حسابات / Hesabat** (`artifacts/hesabat`, route `/hesabat/`) — a multi-tenant cloud accounting SaaS for Egyptian SMEs. Arabic-first (RTL, Cairo), navy+sand theme. Milestone 1 shipped: company signup, native login/logout, financial dashboard summary, and a tenant-scoped chart of accounts (CRUD). Milestone 2 shipped: team members + roles + employee invitations with strict server-enforced per-company permissions. Backend routes live in `@workspace/api-server` (`routes/auth.ts`, `accounts.ts`, `dashboard.ts`, `team.ts`, `invitations.ts`); schema (`companies`, `users`, `sessions`, `accounts`, `invitations`) in `@workspace/db`.
 
 ### Hesabat architecture (read before extending)
 - **Strict tenant isolation:** every business table has `company_id`; all queries scope by `req.auth.companyId` (set by `requireAuth`). Any FK that references another row (e.g. account `parentId`) MUST be re-validated to belong to the caller's company before write — a plain DB FK is not enough.
 - **Native auth:** scrypt password hashing (`lib/auth.ts`), session token stored only as SHA-256 in `sessions`, httpOnly cookie (`lib/session.ts`). No vendor lock — portable to any Node+Postgres VPS.
 - API client sends the cookie via `credentials: "include"` (set in `lib/api-client-react/src/custom-fetch.ts`).
+- **Roles & permissions:** single source of truth is the shared `@workspace/permissions` lib (5 roles: owner/manager/accountant/data_entry/viewer; capability matrix; `hasCapability`; `ASSIGNABLE_ROLES`). The server enforces via `requireCapability(cap)` middleware (runs after `requireAuth` → 403); the frontend only hides UI. `owner` is fixed to the company creator — never invited, set, removed, or self-demoted.
+- **Employee invitations:** invite-link based (no email dependency). Create returns the raw token ONCE; DB stores only its SHA-256 (`invitations` table). Accept is a PUBLIC route (`routes/invitations.ts`) — token is the credential — that creates the user + session in one tx. `users.email` is globally unique → invite-create and accept 409 on duplicate. Secret tokens ride in the URL path, so the pino-http serializer redacts `/invitations/:token` from logs (`app.ts`).
 
 ## User preferences
 

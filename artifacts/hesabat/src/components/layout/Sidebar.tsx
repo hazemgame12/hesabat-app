@@ -2,21 +2,28 @@ import React from "react";
 import { Link, useLocation } from "wouter";
 import { useLogout, useGetCurrentUser, getGetCurrentUserQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { hasCapability, ROLE_LABELS, type RoleId, type Capability } from "@workspace/permissions";
 import {
   LayoutDashboard,
-  Wallet,
   Receipt,
   FileText,
-  Settings,
   Boxes,
   HandCoins,
   Landmark,
   ListTree,
   LogOut,
-  Users
+  Users,
+  ShieldCheck
 } from "lucide-react";
 
-const navItems = [
+type NavItem = {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  requires?: Capability;
+};
+
+const navItems: NavItem[] = [
   { label: "لوحة التحكم", icon: LayoutDashboard, href: "/dashboard" },
   { label: "شجرة الحسابات", icon: ListTree, href: "/accounts" },
   { label: "القيود اليومية", icon: FileText, href: "/journal" },
@@ -26,6 +33,7 @@ const navItems = [
   { label: "المشتريات والموردين", icon: Receipt, href: "/purchases" },
   { label: "مراكز التكلفة والمشاريع", icon: Boxes, href: "/cost-centers" },
   { label: "التقارير المالية", icon: FileText, href: "/reports" },
+  { label: "الفريق والصلاحيات", icon: ShieldCheck, href: "/team", requires: "team:manage" },
 ];
 
 export function Sidebar() {
@@ -54,7 +62,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-4 py-2 flex flex-col gap-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {navItems.filter((item) => !item.requires || hasCapability(user?.role ?? "", item.requires)).map((item) => {
           const isActive = location === item.href || (location.startsWith(item.href) && item.href !== "/");
           return (
             <Link
@@ -81,7 +89,7 @@ export function Sidebar() {
             </div>
             <div className="flex flex-col overflow-hidden">
               <span className="text-sm font-bold truncate">{user?.name}</span>
-              <span className="text-xs text-muted-foreground truncate">{user?.role === 'owner' ? 'المالك' : 'مدير مالي'}</span>
+              <span className="text-xs text-muted-foreground truncate">{ROLE_LABELS[user?.role as RoleId] ?? "عضو"}</span>
             </div>
           </div>
           <button 

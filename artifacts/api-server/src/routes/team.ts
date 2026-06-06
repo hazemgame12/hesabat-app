@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, gt } from "drizzle-orm";
 import {
   db,
   usersTable,
@@ -237,7 +237,8 @@ router.post(
           .json({ error: "هذا البريد الإلكتروني مسجل بالفعل" });
         return;
       }
-      // An existing pending invitation for this email in this company?
+      // An existing *non-expired* pending invitation for this email in this
+      // company? Expired-but-pending invites should not block a fresh invite.
       const existingInvite = await db
         .select({ id: invitationsTable.id })
         .from(invitationsTable)
@@ -246,6 +247,7 @@ router.post(
             eq(invitationsTable.companyId, req.auth!.companyId),
             eq(invitationsTable.email, email),
             eq(invitationsTable.status, "pending"),
+            gt(invitationsTable.expiresAt, new Date()),
           ),
         )
         .limit(1);

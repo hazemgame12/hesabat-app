@@ -18,10 +18,13 @@ app.use(
     logger,
     serializers: {
       req(req) {
+        const path = req.url?.split("?")[0];
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0],
+          // Invitation tokens are secrets carried in the path; redact them so
+          // they never end up in logs.
+          url: path?.replace(/\/invitations\/[^/]+/, "/invitations/[redacted]"),
         };
       },
       res(res) {

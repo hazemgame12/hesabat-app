@@ -17,6 +17,12 @@ Arabic-first (RTL, Cairo font), navy+sand theme derived from approved mockups. F
 - Session: random token; only its SHA-256 is stored in `sessions`; delivered as httpOnly SameSite=Lax cookie (`secure` only in production). `resolveSession` joins session→user→company and deletes expired rows.
 - API client must send the cookie: `credentials: "include"` is set in `lib/api-client-react/src/custom-fetch.ts` (hand-edited, NOT overwritten by codegen).
 
+## Roles, permissions & invitations
+- Single source of truth is the shared `@workspace/permissions` lib (ROLES, capability matrix, `hasCapability`, `ASSIGNABLE_ROLES`). Server enforces; frontend only hides UI. Never trust the client.
+- `owner` is fixed to the company creator: it is NOT in `ASSIGNABLE_ROLES`, cannot be invited, set, removed, or self-demoted. Guard every member mutation: scope by companyId, block self-target, block owner-target, require an assignable role.
+- Employee onboarding is invite-link based (no email dependency): create returns the raw token ONCE; DB stores only its SHA-256 (reuse `hashToken`/`generateSessionToken` from `lib/auth`, same as sessions). Accept is a PUBLIC route (token is the credential) that creates the user + session in one tx and marks the invite accepted. `users.email` is GLOBALLY unique → invite-create and accept must 409 if the email already exists.
+- Re-invite check must filter `status=pending AND expiresAt>now` — an expired-but-pending row must not block a fresh invite.
+
 ## Frontend gotcha
 - React Query default `retry: 3` made the auth-gated pages blank for ~7s (3 retries of the 401 from `useGetCurrentUser` kept `isLoading` true). Fix: QueryClient `defaultOptions.queries.retry = false`. Any auth-probe-on-load pattern needs retry disabled.
 - Frontend imports entity types (`Account`, `AccountInput`) from `@workspace/api-client-react`, NOT from `@workspace/api-zod` (that's the server-side validation lib and isn't a hesabat dependency).
