@@ -8,6 +8,7 @@ import {
   type Company,
 } from "@workspace/db";
 import { SignupBody, LoginBody } from "@workspace/api-zod";
+import { COUNTRY_INFO, isCountry, isCurrency } from "@workspace/locale";
 import { hashPassword, verifyPassword } from "../lib/auth";
 import {
   createSession,
@@ -37,8 +38,14 @@ router.post("/auth/signup", async (req, res) => {
     res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
     return;
   }
-  const { companyName, name, email, password } = parsed.data;
+  const { companyName, name, email, password, country, baseCurrency } =
+    parsed.data;
   const normalizedEmail = email.toLowerCase().trim();
+  const resolvedCountry = country && isCountry(country) ? country : "EG";
+  const resolvedCurrency =
+    baseCurrency && isCurrency(baseCurrency)
+      ? baseCurrency
+      : COUNTRY_INFO[resolvedCountry].defaultCurrency;
   try {
     const existing = await db
       .select({ id: usersTable.id })
@@ -54,7 +61,11 @@ router.post("/auth/signup", async (req, res) => {
     const created = await db.transaction(async (tx) => {
       const [company] = await tx
         .insert(companiesTable)
-        .values({ name: companyName })
+        .values({
+          name: companyName,
+          country: resolvedCountry,
+          baseCurrency: resolvedCurrency,
+        })
         .returning();
       const [user] = await tx
         .insert(usersTable)

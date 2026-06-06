@@ -44,6 +44,9 @@ app.use("/api", router);
 app.use(seoRouter);
 
 app.use("/uploads", express.static(uploadsDir, { maxAge: "30d" }));
+// Also expose uploads under /api so they route through the shared proxy
+// (only /api is mapped to this service) — used by the Hesabat app for logos.
+app.use("/api/uploads", express.static(uploadsDir, { maxAge: "30d" }));
 
 const publicPath = path.join(__dirname, "public");
 app.use(express.static(publicPath));

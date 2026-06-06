@@ -6,8 +6,14 @@ export const companiesTable = pgTable("companies", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   legalName: text("legal_name"),
+  tradeName: text("trade_name"),
   taxRegistrationNumber: text("tax_registration_number"),
+  activityDescription: text("activity_description"),
+  logoUrl: text("logo_url"),
+  country: text("country").notNull().default("EG"),
   baseCurrency: text("base_currency").notNull().default("EGP"),
+  address: text("address"),
+  phone: text("phone"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

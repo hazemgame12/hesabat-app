@@ -13,7 +13,8 @@ import {
   ListTree,
   LogOut,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  Building2
 } from "lucide-react";
 
 type NavItem = {
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { label: "مراكز التكلفة والمشاريع", icon: Boxes, href: "/cost-centers" },
   { label: "التقارير المالية", icon: FileText, href: "/reports" },
   { label: "الفريق والصلاحيات", icon: ShieldCheck, href: "/team", requires: "team:manage" },
+  { label: "بيانات الشركة", icon: Building2, href: "/company" },
 ];
 
 export function Sidebar() {

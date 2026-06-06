@@ -246,6 +246,79 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /company:
+    get:
+      operationId: getCompany
+      tags: [company]
+      summary: Get the current company's profile
+      responses:
+        "200":
+          description: Company profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateCompany
+      tags: [company]
+      summary: Update the current company's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /company/logo:
+    post:
+      operationId: uploadCompanyLogo
+      tags: [company]
+      summary: Upload and set the company logo (multipart/form-data, field "file")
+      responses:
+        "200":
+          description: Updated company with new logo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          description: No file or invalid file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /team/members:
     get:
       operationId: listTeamMembers
@@ -557,6 +630,60 @@ components:
         password:
           type: string
           minLength: 8
+        country:
+          type: string
+          enum: [EG, SA, AE]
+        baseCurrency:
+          type: string
+          enum: [EGP, SAR, AED, USD]
+
+    Company:
+      type: object
+      required: [id, name, country, baseCurrency]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        tradeName:
+          type: ["string", "null"]
+        taxRegistrationNumber:
+          type: ["string", "null"]
+        activityDescription:
+          type: ["string", "null"]
+        logoUrl:
+          type: ["string", "null"]
+        country:
+          type: string
+        baseCurrency:
+          type: string
+        address:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+
+    CompanyUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        tradeName:
+          type: ["string", "null"]
+        taxRegistrationNumber:
+          type: ["string", "null"]
+        activityDescription:
+          type: ["string", "null"]
+        country:
+          type: string
+          enum: [EG, SA, AE]
+        baseCurrency:
+          type: string
+          enum: [EGP, SAR, AED, USD]
+        address:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
 
     LoginInput:
       type: object

@@ -1,7 +1,10 @@
 import React from "react";
-import { useGetDashboardSummary, useGetCurrentUser } from "@workspace/api-client-react";
+import { useLocation } from "wouter";
+import { useGetDashboardSummary, useGetCurrentUser, useGetCompany } from "@workspace/api-client-react";
+import { countryLabel, currencyLabel } from "@workspace/locale";
 import { Card } from "@/components/ui/card";
-import { Building2, ListTree, Activity, Hash, Tag, PieChart as PieChartIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Building2, Hash, Tag, PieChart as PieChartIcon, Globe, Coins, Pencil, ImageOff } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -22,7 +25,9 @@ const typeLabels: Record<string, string> = {
 };
 
 export function Dashboard() {
+  const [, setLocation] = useLocation();
   const { data: user } = useGetCurrentUser();
+  const { data: company } = useGetCompany();
   const { data: summary, isLoading } = useGetDashboardSummary();
 
   if (isLoading) {
@@ -59,6 +64,45 @@ export function Dashboard() {
       </header>
 
       <div className="p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
+        {/* Company Profile Card */}
+        <Card className="p-6 flex flex-col sm:flex-row items-center gap-5">
+          <div className="w-20 h-20 rounded-2xl bg-muted border flex items-center justify-center overflow-hidden shrink-0">
+            {company?.logoUrl ? (
+              <img src={company.logoUrl} alt="شعار الشركة" className="w-full h-full object-contain" />
+            ) : (
+              <ImageOff className="w-8 h-8 text-muted-foreground/40" />
+            )}
+          </div>
+          <div className="flex-1 text-center sm:text-right">
+            <h2 className="text-xl font-bold">{company?.name || user?.companyName}</h2>
+            {company?.tradeName && (
+              <p className="text-sm text-muted-foreground mt-0.5">{company.tradeName}</p>
+            )}
+            {company?.activityDescription && (
+              <p className="text-sm text-muted-foreground mt-1">{company.activityDescription}</p>
+            )}
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start mt-3">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold bg-primary/5 text-primary px-3 py-1 rounded-full">
+                <Globe className="w-3.5 h-3.5" />
+                {countryLabel(company?.country ?? "EG")}
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold bg-success/10 text-success px-3 py-1 rounded-full">
+                <Coins className="w-3.5 h-3.5" />
+                {currencyLabel(company?.baseCurrency ?? "EGP")}
+              </span>
+              {company?.taxRegistrationNumber && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold bg-muted text-muted-foreground px-3 py-1 rounded-full" dir="ltr">
+                  ض.ت: {company.taxRegistrationNumber}
+                </span>
+              )}
+            </div>
+          </div>
+          <Button variant="outline" className="gap-2" onClick={() => setLocation("/company")}>
+            <Pencil className="w-4 h-4" />
+            تعديل البيانات
+          </Button>
+        </Card>
+
         {/* Top KPIs Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="p-5 flex flex-col gap-4 group hover:border-primary/30 transition-colors relative overflow-hidden">

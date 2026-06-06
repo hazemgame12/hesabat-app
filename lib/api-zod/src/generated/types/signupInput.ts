@@ -5,6 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { SignupInputBaseCurrency } from './signupInputBaseCurrency';
+import type { SignupInputCountry } from './signupInputCountry';
 
 export interface SignupInput {
   /** @minLength 1 */
@@ -14,4 +16,6 @@ export interface SignupInput {
   email: string;
   /** @minLength 8 */
   password: string;
+  country?: SignupInputCountry;
+  baseCurrency?: SignupInputBaseCurrency;
 }

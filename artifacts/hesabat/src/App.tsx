@@ -9,6 +9,7 @@ import { Signup } from "@/pages/signup";
 import { Dashboard } from "@/pages/dashboard";
 import { Accounts } from "@/pages/accounts";
 import { Team } from "@/pages/team";
+import { CompanyProfile } from "@/pages/company";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { ComingSoon } from "@/pages/coming-soon";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -29,6 +30,7 @@ function ProtectedRoutes() {
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/accounts" component={Accounts} />
         <Route path="/team" component={Team} />
+        <Route path="/company" component={CompanyProfile} />
         <Route path="/journal" component={ComingSoon} />
         <Route path="/bank" component={ComingSoon} />
         <Route path="/advances" component={ComingSoon} />

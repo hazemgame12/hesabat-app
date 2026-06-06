@@ -30,7 +30,9 @@ export const SignupBody = zod.object({
   "companyName": zod.string().min(1),
   "name": zod.string().min(1),
   "email": zod.string().email(),
-  "password": zod.string().min(signupBodyPasswordMin)
+  "password": zod.string().min(signupBodyPasswordMin),
+  "country": zod.enum(['EG', 'SA', 'AE']).optional(),
+  "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'USD']).optional()
 })
 
 
@@ -158,6 +160,71 @@ export const GetDashboardSummaryResponse = zod.object({
   "type": zod.string(),
   "count": zod.number()
 }))
+})
+
+
+/**
+ * @summary Get the current company's profile
+ */
+export const GetCompanyResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "tradeName": zod.string().nullish(),
+  "taxRegistrationNumber": zod.string().nullish(),
+  "activityDescription": zod.string().nullish(),
+  "logoUrl": zod.string().nullish(),
+  "country": zod.string(),
+  "baseCurrency": zod.string(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish()
+})
+
+
+/**
+ * @summary Update the current company's profile
+ */
+
+
+
+export const UpdateCompanyBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "tradeName": zod.string().nullish(),
+  "taxRegistrationNumber": zod.string().nullish(),
+  "activityDescription": zod.string().nullish(),
+  "country": zod.enum(['EG', 'SA', 'AE']).optional(),
+  "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'USD']).optional(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish()
+})
+
+export const UpdateCompanyResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "tradeName": zod.string().nullish(),
+  "taxRegistrationNumber": zod.string().nullish(),
+  "activityDescription": zod.string().nullish(),
+  "logoUrl": zod.string().nullish(),
+  "country": zod.string(),
+  "baseCurrency": zod.string(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish()
+})
+
+
+/**
+ * @summary Upload and set the company logo (multipart/form-data, field "file")
+ */
+export const UploadCompanyLogoResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "tradeName": zod.string().nullish(),
+  "taxRegistrationNumber": zod.string().nullish(),
+  "activityDescription": zod.string().nullish(),
+  "logoUrl": zod.string().nullish(),
+  "country": zod.string(),
+  "baseCurrency": zod.string(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish()
 })
 
 

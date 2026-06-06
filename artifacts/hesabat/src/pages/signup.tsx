@@ -9,12 +9,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  COUNTRIES,
+  CURRENCIES,
+  COUNTRY_INFO,
+  CURRENCY_INFO,
+} from "@workspace/locale";
 
 const signupSchema = z.object({
   companyName: z.string().min(1, "اسم الشركة مطلوب"),
   name: z.string().min(1, "الاسم الكامل مطلوب"),
   email: z.string().email("البريد الإلكتروني غير صالح"),
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+  country: z.enum(COUNTRIES),
+  baseCurrency: z.enum(CURRENCIES),
 });
 
 export function Signup() {
@@ -30,9 +45,16 @@ export function Signup() {
     }
   }, [user, isUserLoading, setLocation]);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<z.infer<typeof signupSchema>>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),
+    defaultValues: {
+      country: "EG",
+      baseCurrency: "EGP",
+    },
   });
+
+  const country = watch("country");
+  const baseCurrency = watch("baseCurrency");
 
   const onSubmit = (data: z.infer<typeof signupSchema>) => {
     setErrorMsg(null);
@@ -114,6 +136,50 @@ export function Signup() {
               {...register("password")}
             />
             {errors.password && <span className="text-xs text-destructive">{errors.password.message}</span>}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <Label>الدولة</Label>
+              <Select
+                value={country}
+                onValueChange={(v) => {
+                  setValue("country", v as typeof country);
+                  const def = COUNTRY_INFO[v as keyof typeof COUNTRY_INFO]?.defaultCurrency;
+                  if (def) setValue("baseCurrency", def);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {COUNTRY_INFO[c].nameAr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>العملة الأساسية</Label>
+              <Select
+                value={baseCurrency}
+                onValueChange={(v) => setValue("baseCurrency", v as typeof baseCurrency)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CURRENCY_INFO[c].nameAr} ({c})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <Button type="submit" disabled={signup.isPending} className="w-full h-11 text-base font-bold mt-4 shadow-md hover:opacity-90">

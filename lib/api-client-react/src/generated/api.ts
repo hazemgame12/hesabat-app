@@ -25,6 +25,8 @@ import type {
   AccountInput,
   AccountUpdate,
   AuthUser,
+  Company,
+  CompanyUpdate,
   CreateInvitationInput,
   CreatedInvitation,
   DashboardSummary,
@@ -783,6 +785,224 @@ export function useGetDashboardSummary<TData = Awaited<ReturnType<typeof getDash
 
 
 
+
+export const getGetCompanyUrl = () => {
+
+
+
+
+  return `/api/company`
+}
+
+/**
+ * @summary Get the current company's profile
+ */
+export const getCompany = async ( options?: RequestInit): Promise<Company> => {
+
+  return customFetch<Company>(getGetCompanyUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCompanyQueryKey = () => {
+    return [
+    `/api/company`
+    ] as const;
+    }
+
+
+export const getGetCompanyQueryOptions = <TData = Awaited<ReturnType<typeof getCompany>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompany>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCompanyQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCompany>>> = ({ signal }) => getCompany({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCompany>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCompanyQueryResult = NonNullable<Awaited<ReturnType<typeof getCompany>>>
+export type GetCompanyQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the current company's profile
+ */
+
+export function useGetCompany<TData = Awaited<ReturnType<typeof getCompany>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCompany>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCompanyQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateCompanyUrl = () => {
+
+
+
+
+  return `/api/company`
+}
+
+/**
+ * @summary Update the current company's profile
+ */
+export const updateCompany = async (companyUpdate: CompanyUpdate, options?: RequestInit): Promise<Company> => {
+
+  return customFetch<Company>(getUpdateCompanyUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      companyUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateCompanyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCompany>>, TError,{data: BodyType<CompanyUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCompany>>, TError,{data: BodyType<CompanyUpdate>}, TContext> => {
+
+const mutationKey = ['updateCompany'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCompany>>, {data: BodyType<CompanyUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateCompany(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCompanyMutationResult = NonNullable<Awaited<ReturnType<typeof updateCompany>>>
+    export type UpdateCompanyMutationBody = BodyType<CompanyUpdate>
+    export type UpdateCompanyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update the current company's profile
+ */
+export const useUpdateCompany = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCompany>>, TError,{data: BodyType<CompanyUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCompany>>,
+        TError,
+        {data: BodyType<CompanyUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateCompanyMutationOptions(options));
+    }
+
+export const getUploadCompanyLogoUrl = () => {
+
+
+
+
+  return `/api/company/logo`
+}
+
+/**
+ * @summary Upload and set the company logo (multipart/form-data, field "file")
+ */
+export const uploadCompanyLogo = async ( options?: RequestInit): Promise<Company> => {
+
+  return customFetch<Company>(getUploadCompanyLogoUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getUploadCompanyLogoMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCompanyLogo>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadCompanyLogo>>, TError,void, TContext> => {
+
+const mutationKey = ['uploadCompanyLogo'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadCompanyLogo>>, void> = () => {
+
+
+          return  uploadCompanyLogo(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadCompanyLogoMutationResult = NonNullable<Awaited<ReturnType<typeof uploadCompanyLogo>>>
+
+    export type UploadCompanyLogoMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Upload and set the company logo (multipart/form-data, field "file")
+ */
+export const useUploadCompanyLogo = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCompanyLogo>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadCompanyLogo>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getUploadCompanyLogoMutationOptions(options));
+    }
 
 export const getListTeamMembersUrl = () => {
 

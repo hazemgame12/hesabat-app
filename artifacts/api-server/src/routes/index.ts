@@ -12,6 +12,7 @@ import aiRouter from "./ai";
 import authRouter from "./auth";
 import accountsRouter from "./accounts";
 import dashboardRouter from "./dashboard";
+import companyRouter from "./company";
 import teamRouter from "./team";
 import invitationsRouter from "./invitations";
 
@@ -21,6 +22,7 @@ router.use(healthRouter);
 router.use(authRouter);
 router.use(accountsRouter);
 router.use(dashboardRouter);
+router.use(companyRouter);
 router.use(teamRouter);
 router.use(invitationsRouter);
 router.use(articlesRouter);

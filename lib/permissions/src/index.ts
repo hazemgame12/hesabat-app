@@ -26,6 +26,7 @@ export const ROLE_DESCRIPTIONS: Record<RoleId, string> = {
 
 export const CAPABILITIES = [
   "team:manage",
+  "company:manage",
   "accounts:read",
   "accounts:create",
   "accounts:update",
@@ -42,8 +43,8 @@ const ACCOUNTS_FULL: Capability[] = [
 ];
 
 export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
-  owner: ["team:manage", ...ACCOUNTS_FULL],
-  manager: [...ACCOUNTS_FULL],
+  owner: ["team:manage", "company:manage", ...ACCOUNTS_FULL],
+  manager: ["company:manage", ...ACCOUNTS_FULL],
   accountant: ["accounts:read", "accounts:create", "accounts:update"],
   data_entry: ["accounts:read", "accounts:create"],
   viewer: ["accounts:read"],

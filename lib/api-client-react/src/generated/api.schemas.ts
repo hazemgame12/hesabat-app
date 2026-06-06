@@ -22,6 +22,25 @@ export interface AuthUser {
   companyName: string;
 }
 
+export type SignupInputCountry = typeof SignupInputCountry[keyof typeof SignupInputCountry];
+
+
+export const SignupInputCountry = {
+  EG: 'EG',
+  SA: 'SA',
+  AE: 'AE',
+} as const;
+
+export type SignupInputBaseCurrency = typeof SignupInputBaseCurrency[keyof typeof SignupInputBaseCurrency];
+
+
+export const SignupInputBaseCurrency = {
+  EGP: 'EGP',
+  SAR: 'SAR',
+  AED: 'AED',
+  USD: 'USD',
+} as const;
+
 export interface SignupInput {
   /** @minLength 1 */
   companyName: string;
@@ -30,6 +49,63 @@ export interface SignupInput {
   email: string;
   /** @minLength 8 */
   password: string;
+  country?: SignupInputCountry;
+  baseCurrency?: SignupInputBaseCurrency;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  /** @nullable */
+  tradeName?: string | null;
+  /** @nullable */
+  taxRegistrationNumber?: string | null;
+  /** @nullable */
+  activityDescription?: string | null;
+  /** @nullable */
+  logoUrl?: string | null;
+  country: string;
+  baseCurrency: string;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  phone?: string | null;
+}
+
+export type CompanyUpdateCountry = typeof CompanyUpdateCountry[keyof typeof CompanyUpdateCountry];
+
+
+export const CompanyUpdateCountry = {
+  EG: 'EG',
+  SA: 'SA',
+  AE: 'AE',
+} as const;
+
+export type CompanyUpdateBaseCurrency = typeof CompanyUpdateBaseCurrency[keyof typeof CompanyUpdateBaseCurrency];
+
+
+export const CompanyUpdateBaseCurrency = {
+  EGP: 'EGP',
+  SAR: 'SAR',
+  AED: 'AED',
+  USD: 'USD',
+} as const;
+
+export interface CompanyUpdate {
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  tradeName?: string | null;
+  /** @nullable */
+  taxRegistrationNumber?: string | null;
+  /** @nullable */
+  activityDescription?: string | null;
+  country?: CompanyUpdateCountry;
+  baseCurrency?: CompanyUpdateBaseCurrency;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  phone?: string | null;
 }
 
 export interface LoginInput {
