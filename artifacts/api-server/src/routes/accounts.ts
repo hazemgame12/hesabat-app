@@ -4,6 +4,7 @@ import { db, accountsTable, type Account } from "@workspace/db";
 import { CreateAccountBody, UpdateAccountBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
+import { seedDefaultAccounts } from "../lib/seed-accounts";
 
 const router = Router();
 
@@ -11,7 +12,8 @@ function toAccount(row: Account) {
   return {
     id: row.id,
     code: row.code,
-    name: row.name,
+    nameAr: row.nameAr,
+    nameEn: row.nameEn,
     type: row.type,
     parentId: row.parentId,
     isGroup: row.isGroup,
@@ -58,6 +60,38 @@ router.get("/accounts", requireAuth, async (req, res) => {
   }
 });
 
+router.post(
+  "/accounts/seed-defaults",
+  requireAuth,
+  requireCapability("accounts:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const existing = await db
+        .select({ id: accountsTable.id })
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId))
+        .limit(1);
+      if (existing.length > 0) {
+        res.status(409).json({ error: "يوجد دليل حسابات بالفعل" });
+        return;
+      }
+      const rows = await db.transaction(async (tx) => {
+        await seedDefaultAccounts(tx, companyId);
+        return tx
+          .select()
+          .from(accountsTable)
+          .where(eq(accountsTable.companyId, companyId))
+          .orderBy(asc(accountsTable.code));
+      });
+      res.status(201).json(rows.map(toAccount));
+    } catch (err) {
+      req.log.error({ err }, "Failed to seed default accounts");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
 router.post("/accounts", requireAuth, requireCapability("accounts:create"), async (req, res) => {
   const parsed = CreateAccountBody.safeParse(req.body);
   if (!parsed.success) {
@@ -78,7 +112,8 @@ router.post("/accounts", requireAuth, requireCapability("accounts:create"), asyn
       .values({
         companyId: req.auth!.companyId,
         code: parsed.data.code,
-        name: parsed.data.name,
+        nameAr: parsed.data.nameAr,
+        nameEn: parsed.data.nameEn ?? null,
         type: parsed.data.type,
         parentId,
         isGroup: parsed.data.isGroup ?? false,
@@ -108,7 +143,8 @@ router.patch("/accounts/:id", requireAuth, requireCapability("accounts:update"),
   }
   const updates: Record<string, unknown> = {};
   if (parsed.data.code !== undefined) updates["code"] = parsed.data.code;
-  if (parsed.data.name !== undefined) updates["name"] = parsed.data.name;
+  if (parsed.data.nameAr !== undefined) updates["nameAr"] = parsed.data.nameAr;
+  if (parsed.data.nameEn !== undefined) updates["nameEn"] = parsed.data.nameEn;
   if (parsed.data.type !== undefined) updates["type"] = parsed.data.type;
   if (parsed.data.parentId !== undefined)
     updates["parentId"] = parsed.data.parentId;

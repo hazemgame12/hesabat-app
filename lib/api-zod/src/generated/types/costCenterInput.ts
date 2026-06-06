@@ -5,17 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { AccountInputType } from './accountInputType';
+import type { CostCenterInputType } from './costCenterInputType';
 
-export interface AccountInput {
-  /** @minLength 1 */
-  code: string;
+export interface CostCenterInput {
   /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
-  type: AccountInputType;
+  type: CostCenterInputType;
   /** @nullable */
-  parentId?: string | null;
-  isGroup?: boolean;
+  budget?: number | null;
+  isActive?: boolean;
 }

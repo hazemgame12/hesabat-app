@@ -13,7 +13,8 @@
     "loading": "جاري التحميل...",
     "error": "خطأ",
     "you": "أنت",
-    "all": "الكل"
+    "all": "الكل",
+    "view": "عرض"
   },
   "lang": {
     "switch": "اللغة",
@@ -87,7 +88,8 @@
     "company": "بيانات الشركة",
     "logout": "تسجيل الخروج",
     "member": "عضو",
-    "defaultInitial": "ح"
+    "defaultInitial": "ح",
+    "taxes": "الضرائب"
   },
   "dashboard": {
     "connected": "متصل بالنظام",
@@ -119,12 +121,18 @@
     "noAccounts": "لا توجد حسابات بعد.",
     "code": "الكود",
     "accountName": "اسم الحساب",
+    "accountNameAr": "اسم الحساب (عربي)",
+    "accountNameEn": "اسم الحساب (إنجليزي)",
+    "optional": "اختياري",
+    "loadDefaults": "تحميل دليل الحسابات الافتراضي",
+    "loadDefaultsHint": "دليل حسابات مصري جاهز يمكنك تعديله لاحقًا",
     "mainAccountBadge": "حساب رئيسي",
     "createTitle": "إضافة حساب جديد",
     "editTitle": "تعديل الحساب",
     "accountCode": "كود الحساب",
     "accountType": "نوع الحساب",
     "namePlaceholder": "مثال: أوراق قبض",
+    "namePlaceholderEn": "e.g. Notes Receivable",
     "parentAccount": "الحساب الأب (اختياري)",
     "parentNone": "-- بدون حساب أب --",
     "isGroupTitle": "حساب رئيسي (تجميعي)",
@@ -144,7 +152,9 @@
       "deleted": "تم حذف الحساب بنجاح",
       "addError": "تعذر إضافة الحساب",
       "editError": "تعذر تعديل الحساب",
-      "deleteError": "تعذر حذف الحساب"
+      "deleteError": "تعذر حذف الحساب",
+      "defaultsLoaded": "تم تحميل دليل الحسابات الافتراضي بنجاح",
+      "defaultsError": "تعذر تحميل دليل الحسابات"
     }
   },
   "team": {
@@ -188,11 +198,26 @@
     }
   },
   "roles": {
-    "owner": { "label": "صاحب الشركة", "desc": "تحكم كامل في النظام وإدارة الفريق والصلاحيات" },
-    "manager": { "label": "مدير", "desc": "كل العمليات المحاسبية بدون إدارة الفريق أو الاشتراك" },
-    "accountant": { "label": "محاسب", "desc": "إضافة وتعديل الحسابات والقيود (بدون حذف)" },
-    "data_entry": { "label": "مُدخِل بيانات", "desc": "إضافة البيانات فقط بدون تعديل أو حذف" },
-    "viewer": { "label": "مشاهد", "desc": "الاطلاع على التقارير فقط بدون أي تعديل" }
+    "owner": {
+      "label": "صاحب الشركة",
+      "desc": "تحكم كامل في النظام وإدارة الفريق والصلاحيات"
+    },
+    "manager": {
+      "label": "مدير",
+      "desc": "كل العمليات المحاسبية بدون إدارة الفريق أو الاشتراك"
+    },
+    "accountant": {
+      "label": "محاسب",
+      "desc": "إضافة وتعديل الحسابات والقيود (بدون حذف)"
+    },
+    "data_entry": {
+      "label": "مُدخِل بيانات",
+      "desc": "إضافة البيانات فقط بدون تعديل أو حذف"
+    },
+    "viewer": {
+      "label": "مشاهد",
+      "desc": "الاطلاع على التقارير فقط بدون أي تعديل"
+    }
   },
   "company": {
     "title": "بيانات الشركة",
@@ -230,5 +255,189 @@
     "title": "الصفحة غير موجودة",
     "body": "عذراً، الصفحة التي تبحث عنها غير موجودة.",
     "backHome": "العودة للرئيسية"
+  },
+  "taxes": {
+    "title": "الضرائب",
+    "subtitle": "تعريف أنواع الضرائب وأسعارها وربطها بشجرة الحسابات",
+    "addTax": "أضف ضريبة",
+    "tabs": {
+      "vat": "القيمة المضافة",
+      "wht": "الخصم من المنبع"
+    },
+    "vatHint": "ضريبة القيمة المضافة تُحتسب على فواتير الإيرادات بنسب مختلفة حسب طبيعة الخدمة.",
+    "whtHint": "ضريبة الخصم من المنبع تُخصم من المورد وقت الدفع وتُرحّل لحساب «خصم منبع مستحق».",
+    "name": "اسم الضريبة",
+    "rate": "السعر",
+    "serviceNature": "طبيعة الخدمة",
+    "linkedAccount": "الحساب المرتبط بالشجرة",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "متوقف",
+    "noTaxesVat": "لا توجد ضرائب قيمة مضافة بعد",
+    "noTaxesWht": "لا توجد ضرائب خصم من المنبع بعد",
+    "createTitle": "تعريف ضريبة جديدة",
+    "editTitle": "تعديل الضريبة",
+    "kind": "نوع الضريبة",
+    "kindVat": "القيمة المضافة",
+    "kindWht": "الخصم من المنبع",
+    "nameAr": "اسم الضريبة (عربي)",
+    "nameEn": "اسم الضريبة (إنجليزي)",
+    "optional": "اختياري",
+    "namePlaceholder": "مثال: ق.م - خدمات استشارية",
+    "namePlaceholderEn": "e.g. VAT - Consulting",
+    "ratePlaceholder": "14",
+    "serviceNaturePlaceholder": "مثال: خدمات استشارية",
+    "linkedAccountLabel": "الحساب المرتبط",
+    "linkedAccountNone": "بدون ربط",
+    "isActive": "ضريبة نشطة",
+    "save": "حفظ الضريبة",
+    "none": "—",
+    "deleteTitle": "حذف الضريبة",
+    "deleteBody": "هل أنت متأكد من حذف «{{name}}»؟ لا يمكن التراجع عن هذا الإجراء.",
+    "deleting": "جارٍ الحذف…",
+    "confirmDelete": "تأكيد الحذف",
+    "validation": {
+      "nameRequired": "اسم الضريبة مطلوب",
+      "rateRequired": "السعر مطلوب"
+    },
+    "toast": {
+      "added": "تمت إضافة الضريبة",
+      "edited": "تم تعديل الضريبة",
+      "deleted": "تم حذف الضريبة",
+      "addError": "تعذّر إضافة الضريبة",
+      "editError": "تعذّر تعديل الضريبة",
+      "deleteError": "تعذّر حذف الضريبة"
+    }
+  },
+  "costCenters": {
+    "title": "مراكز التكلفة والمشاريع",
+    "subtitle": "تعريف المشاريع والفروع ومراكز التكلفة وموازناتها",
+    "addCenter": "إضافة مركز / مشروع",
+    "types": {
+      "project": "مشروع",
+      "cost_center": "مركز تكلفة",
+      "branch": "فرع"
+    },
+    "name": "الاسم",
+    "type": "النوع",
+    "budget": "الموازنة",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "متوقف",
+    "noCenters": "لا توجد مراكز تكلفة بعد",
+    "noCentersHint": "ابدأ بإضافة مشروع أو فرع أو مركز تكلفة لتتبع موازناته.",
+    "addFirst": "إضافة أول مركز",
+    "createTitle": "إضافة مركز / مشروع",
+    "editTitle": "تعديل المركز",
+    "nameAr": "الاسم (عربي)",
+    "nameEn": "الاسم (إنجليزي)",
+    "optional": "اختياري",
+    "namePlaceholder": "مثال: مشروع برج النيل",
+    "namePlaceholderEn": "e.g. Nile Tower Project",
+    "typeLabel": "النوع",
+    "budgetLabel": "الموازنة (ج.م)",
+    "budgetPlaceholder": "1000000",
+    "noBudget": "—",
+    "isActive": "مركز نشط",
+    "save": "حفظ",
+    "deleteTitle": "حذف المركز",
+    "deleteBody": "هل أنت متأكد من حذف «{{name}}»؟ لا يمكن التراجع عن هذا الإجراء.",
+    "deleting": "جارٍ الحذف…",
+    "confirmDelete": "تأكيد الحذف",
+    "validation": {
+      "nameRequired": "الاسم مطلوب"
+    },
+    "toast": {
+      "added": "تمت إضافة المركز",
+      "edited": "تم تعديل المركز",
+      "deleted": "تم حذف المركز",
+      "addError": "تعذّر إضافة المركز",
+      "editError": "تعذّر تعديل المركز",
+      "deleteError": "تعذّر حذف المركز"
+    }
+  },
+  "journal": {
+    "title": "القيود اليومية",
+    "subtitle": "إنشاء ومراجعة وترحيل القيود المحاسبية متعددة العملات",
+    "addEntry": "قيد جديد",
+    "noEntries": "لا توجد قيود بعد",
+    "noEntriesHint": "ابدأ بإنشاء أول قيد يومية لشركتك",
+    "addFirst": "إنشاء أول قيد",
+    "entryNo": "رقم القيد",
+    "date": "التاريخ",
+    "reference": "المرجع",
+    "notes": "البيان / ملاحظات",
+    "status": "الحالة",
+    "draft": "مسودة",
+    "posted": "مرحَّل",
+    "totalDebit": "إجمالي مدين",
+    "totalCredit": "إجمالي دائن",
+    "createTitle": "إنشاء قيد",
+    "editTitle": "تعديل قيد",
+    "viewTitle": "عرض القيد",
+    "referencePlaceholder": "مثال: فاتورة رقم 1024",
+    "notesPlaceholder": "وصف مختصر للقيد",
+    "lines": "سطور القيد",
+    "addLine": "إضافة سطر",
+    "removeLine": "حذف السطر",
+    "colDescription": "البيان",
+    "colAccount": "الحساب",
+    "colContact": "جهة الاتصال",
+    "contactSoon": "قريبًا",
+    "colCurrency": "العملة",
+    "colRate": "سعر الصرف",
+    "colDebit": "مدين",
+    "colCredit": "دائن",
+    "colDebitBase": "مدين (بالعملة الأساسية)",
+    "colCreditBase": "دائن (بالعملة الأساسية)",
+    "colTax": "الضريبة",
+    "colCostCenter": "مركز التكلفة",
+    "selectAccount": "اختر حساب",
+    "selectTax": "بدون ضريبة",
+    "selectCostCenter": "بدون مركز",
+    "balanced": "القيد متوازن",
+    "notBalanced": "القيد غير متوازن",
+    "difference": "الفرق",
+    "save": "حفظ كمسودة",
+    "saveAndPost": "حفظ وترحيل",
+    "post": "ترحيل القيد",
+    "back": "رجوع للقائمة",
+    "baseCurrencyNote": "المبالغ بالعملة الأساسية تُحتسب تلقائيًا = المبلغ × سعر الصرف",
+    "toast": {
+      "added": "تم إنشاء القيد",
+      "edited": "تم تعديل القيد",
+      "posted": "تم ترحيل القيد",
+      "deleted": "تم حذف القيد",
+      "saveError": "تعذّر حفظ القيد",
+      "postError": "تعذّر ترحيل القيد",
+      "deleteError": "تعذّر حذف القيد"
+    },
+    "deleteTitle": "حذف القيد",
+    "deleteBody": "هل أنت متأكد من حذف القيد رقم {{no}}؟ لا يمكن التراجع عن هذا الإجراء.",
+    "deleting": "جارٍ الحذف…",
+    "confirmDelete": "تأكيد الحذف",
+    "postedLockHint": "هذا القيد مرحَّل ولا يمكن تعديله",
+    "minLines": "القيد يجب أن يحتوي على سطرين على الأقل",
+    "validation": {
+      "accountRequired": "اختر حساب",
+      "amountRequired": "أدخل مبلغ مدين أو دائن"
+    },
+    "attachments": {
+      "title": "المرفقات",
+      "upload": "إرفاق ملف",
+      "download": "تنزيل",
+      "none": "لا توجد مرفقات",
+      "saveFirst": "احفظ القيد أولًا لتتمكن من إرفاق الملفات",
+      "uploaded": "تم رفع المرفق",
+      "deleted": "تم حذف المرفق",
+      "uploadError": "تعذّر رفع الملف",
+      "deleteError": "تعذّر حذف المرفق"
+    },
+    "excel": {
+      "export": "تصدير Excel",
+      "import": "استيراد Excel",
+      "imported": "تم استيراد {{count}} قيد",
+      "importError": "تعذّر استيراد الملف"
+    }
   }
 }

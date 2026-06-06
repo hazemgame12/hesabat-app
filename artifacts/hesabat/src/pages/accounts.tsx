@@ -5,6 +5,7 @@ import {
   useCreateAccount, 
   useUpdateAccount, 
   useDeleteAccount,
+  useSeedDefaultAccounts,
   useGetCurrentUser,
   getListAccountsQueryKey,
   getGetDashboardSummaryQueryKey,
@@ -44,7 +45,8 @@ const ALL_TAB = "all";
 
 const accountSchema = z.object({
   code: z.string().min(1, "codeRequired"),
-  name: z.string().min(1, "nameRequired"),
+  nameAr: z.string().min(1, "nameRequired"),
+  nameEn: z.string().optional(),
   type: z.enum(ACCOUNT_TYPES),
   parentId: z.string().nullable().optional(),
   isGroup: z.boolean().default(false),
@@ -95,14 +97,20 @@ function buildTree(accounts: Account[]): Record<AccountType, TreeNode[]> {
   return tree;
 }
 
+function displayName(acc: Pick<Account, "nameAr" | "nameEn">, lang: string): string {
+  return lang.startsWith("en") && acc.nameEn ? acc.nameEn : acc.nameAr;
+}
+
 export function Accounts() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: accounts = [], isLoading } = useListAccounts();
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
+  const seedDefaults = useSeedDefaultAccounts();
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
   const canCreate = hasCapability(role, "accounts:create");
@@ -131,7 +139,8 @@ export function Accounts() {
   const openCreateModal = () => {
     reset({
       code: "",
-      name: "",
+      nameAr: "",
+      nameEn: "",
       type: "asset",
       parentId: null,
       isGroup: false
@@ -142,13 +151,27 @@ export function Accounts() {
   const openEditModal = (account: Account) => {
     reset({
       code: account.code,
-      name: account.name,
+      nameAr: account.nameAr,
+      nameEn: account.nameEn ?? "",
       type: account.type as AccountType,
       parentId: account.parentId,
       isGroup: account.isGroup
     });
     setAccountToEdit(account);
     setModalMode("edit");
+  };
+
+  const handleLoadDefaults = () => {
+    seedDefaults.mutate(undefined, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        toast({ title: t("accounts.toast.defaultsLoaded") });
+      },
+      onError: (err: any) => {
+        toast({ variant: "destructive", title: t("common.error"), description: err?.data?.error || t("accounts.toast.defaultsError") });
+      }
+    });
   };
 
   const closeModals = () => {
@@ -224,7 +247,7 @@ export function Accounts() {
               {node.code}
             </span>
             <span className={`text-sm ${node.isGroup ? "font-bold text-foreground" : "font-medium text-foreground/90"}`}>
-              {node.name}
+              {displayName(node, lang)}
             </span>
             {node.isGroup && (
               <span className="text-[11px] font-bold text-secondary-foreground bg-secondary px-2 py-0.5 rounded-full flex-shrink-0">
@@ -338,9 +361,20 @@ export function Accounts() {
             <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
               <p>{t("accounts.noAccounts")}</p>
               {canCreate && (
-                <button onClick={openCreateModal} className="mt-4 text-primary font-bold hover:underline">
-                  {t("accounts.addFirst")}
-                </button>
+                <div className="mt-4 flex flex-col items-center gap-3">
+                  <button
+                    onClick={handleLoadDefaults}
+                    disabled={seedDefaults.isPending}
+                    className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-5 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-60"
+                  >
+                    {seedDefaults.isPending ? <Spinner className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {t("accounts.loadDefaults")}
+                  </button>
+                  <span className="text-xs text-muted-foreground">{t("accounts.loadDefaultsHint")}</span>
+                  <button onClick={openCreateModal} className="text-primary font-bold hover:underline">
+                    {t("accounts.addFirst")}
+                  </button>
+                </div>
               )}
             </div>
           ) : (
@@ -410,13 +444,27 @@ export function Accounts() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-foreground">{t("accounts.accountName")}</label>
+                <label className="text-sm font-bold text-foreground">{t("accounts.accountNameAr")}</label>
                 <input
+                  dir="rtl"
                   placeholder={t("accounts.namePlaceholder")}
-                  className="bg-background border rounded-xl h-11 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  {...register("name")}
+                  className="bg-background border rounded-xl h-11 px-4 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  {...register("nameAr")}
                 />
-                {errors.name && <span className="text-xs text-destructive">{t(`accounts.validation.${errors.name.message}`)}</span>}
+                {errors.nameAr && <span className="text-xs text-destructive">{t(`accounts.validation.${errors.nameAr.message}`)}</span>}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">
+                  {t("accounts.accountNameEn")}
+                  <span className="text-xs font-medium text-muted-foreground ms-2">{t("accounts.optional")}</span>
+                </label>
+                <input
+                  dir="ltr"
+                  placeholder={t("accounts.namePlaceholderEn")}
+                  className="bg-background border rounded-xl h-11 px-4 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  {...register("nameEn")}
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -428,7 +476,7 @@ export function Accounts() {
                   >
                     <option value="">{t("accounts.parentNone")}</option>
                     {accounts.filter(a => a.isGroup && a.id !== accountToEdit?.id).map(a => (
-                      <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
+                      <option key={a.id} value={a.id}>{a.code} - {displayName(a, lang)}</option>
                     ))}
                   </select>
                   <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -472,7 +520,7 @@ export function Accounts() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-start">{t("accounts.deleteTitle")}</AlertDialogTitle>
             <AlertDialogDescription className="text-start">
-              {t("accounts.deleteBody", { name: accountToDelete?.name })}
+              {t("accounts.deleteBody", { name: accountToDelete ? displayName(accountToDelete, lang) : "" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:justify-start">

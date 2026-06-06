@@ -84,7 +84,8 @@ export const GetCurrentUserResponse = zod.object({
 export const ListAccountsResponseItem = zod.object({
   "id": zod.string(),
   "code": zod.string(),
-  "name": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
   "parentId": zod.string().nullish(),
   "isGroup": zod.boolean(),
@@ -102,9 +103,10 @@ export const ListAccountsResponse = zod.array(ListAccountsResponseItem)
 
 export const CreateAccountBody = zod.object({
   "code": zod.string().min(1),
-  "name": zod.string().min(1),
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
-  "parentId": zod.string().nullish(),
+  "parentId": zod.string().uuid().nullish(),
   "isGroup": zod.boolean().optional()
 })
 
@@ -122,16 +124,18 @@ export const UpdateAccountParams = zod.object({
 
 export const UpdateAccountBody = zod.object({
   "code": zod.string().min(1).optional(),
-  "name": zod.string().min(1).optional(),
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']).optional(),
-  "parentId": zod.string().nullish(),
+  "parentId": zod.string().uuid().nullish(),
   "isGroup": zod.boolean().optional()
 })
 
 export const UpdateAccountResponse = zod.object({
   "id": zod.string(),
   "code": zod.string(),
-  "name": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
   "parentId": zod.string().nullish(),
   "isGroup": zod.boolean(),
@@ -147,6 +151,395 @@ export const DeleteAccountParams = zod.object({
 })
 
 export const DeleteAccountResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List all taxes for the current company
+ */
+export const ListTaxesResponseItem = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "kind": zod.enum(['vat', 'wht']),
+  "rate": zod.number(),
+  "serviceNature": zod.string().nullish(),
+  "linkedAccountId": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListTaxesResponse = zod.array(ListTaxesResponseItem)
+
+
+/**
+ * @summary Create a tax
+ */
+
+export const createTaxBodyRateMin = 0;
+
+
+
+export const CreateTaxBody = zod.object({
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "kind": zod.enum(['vat', 'wht']),
+  "rate": zod.number().min(createTaxBodyRateMin),
+  "serviceNature": zod.string().nullish(),
+  "linkedAccountId": zod.string().uuid().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a tax
+ */
+export const UpdateTaxParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const updateTaxBodyRateMin = 0;
+
+
+
+export const UpdateTaxBody = zod.object({
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "kind": zod.enum(['vat', 'wht']).optional(),
+  "rate": zod.number().min(updateTaxBodyRateMin).optional(),
+  "serviceNature": zod.string().nullish(),
+  "linkedAccountId": zod.string().uuid().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateTaxResponse = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "kind": zod.enum(['vat', 'wht']),
+  "rate": zod.number(),
+  "serviceNature": zod.string().nullish(),
+  "linkedAccountId": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a tax
+ */
+export const DeleteTaxParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteTaxResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List all cost centers for the current company
+ */
+export const ListCostCentersResponseItem = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['project', 'cost_center', 'branch']),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListCostCentersResponse = zod.array(ListCostCentersResponseItem)
+
+
+/**
+ * @summary Create a cost center
+ */
+
+
+
+export const CreateCostCenterBody = zod.object({
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['project', 'cost_center', 'branch']),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a cost center
+ */
+export const UpdateCostCenterParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const UpdateCostCenterBody = zod.object({
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['project', 'cost_center', 'branch']).optional(),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateCostCenterResponse = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['project', 'cost_center', 'branch']),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a cost center
+ */
+export const DeleteCostCenterParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCostCenterResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List journal entries for the current company
+ */
+export const ListJournalEntriesResponseItem = zod.object({
+  "id": zod.string(),
+  "entryNo": zod.number(),
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted']),
+  "totalDebitBase": zod.number(),
+  "totalCreditBase": zod.number(),
+  "postedAt": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListJournalEntriesResponse = zod.array(ListJournalEntriesResponseItem)
+
+
+/**
+ * @summary Create a journal entry with lines
+ */
+
+export const createJournalEntryBodyLinesItemExchangeRateExclusiveMin = 0;
+
+export const createJournalEntryBodyLinesItemDebitMin = 0;
+
+export const createJournalEntryBodyLinesItemCreditMin = 0;
+
+export const createJournalEntryBodyLinesMin = 2;
+
+
+
+export const CreateJournalEntryBody = zod.object({
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string().uuid(),
+  "description": zod.string().nullish(),
+  "currency": zod.string().min(1),
+  "exchangeRate": zod.number().gt(createJournalEntryBodyLinesItemExchangeRateExclusiveMin),
+  "debit": zod.number().min(createJournalEntryBodyLinesItemDebitMin),
+  "credit": zod.number().min(createJournalEntryBodyLinesItemCreditMin),
+  "taxId": zod.string().uuid().nullish(),
+  "costCenterId": zod.string().uuid().nullish()
+})).min(createJournalEntryBodyLinesMin)
+})
+
+
+/**
+ * @summary Get a journal entry with its lines and attachments
+ */
+export const GetJournalEntryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "entryNo": zod.number(),
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted']),
+  "totalDebitBase": zod.number(),
+  "totalCreditBase": zod.number(),
+  "postedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "accountId": zod.string(),
+  "description": zod.string().nullish(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "debit": zod.number(),
+  "credit": zod.number(),
+  "debitBase": zod.number(),
+  "creditBase": zod.number(),
+  "taxId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish()
+})),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Update a draft journal entry
+ */
+export const UpdateJournalEntryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+export const updateJournalEntryBodyLinesItemExchangeRateExclusiveMin = 0;
+
+export const updateJournalEntryBodyLinesItemDebitMin = 0;
+
+export const updateJournalEntryBodyLinesItemCreditMin = 0;
+
+export const updateJournalEntryBodyLinesMin = 2;
+
+
+
+export const UpdateJournalEntryBody = zod.object({
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string().uuid(),
+  "description": zod.string().nullish(),
+  "currency": zod.string().min(1),
+  "exchangeRate": zod.number().gt(updateJournalEntryBodyLinesItemExchangeRateExclusiveMin),
+  "debit": zod.number().min(updateJournalEntryBodyLinesItemDebitMin),
+  "credit": zod.number().min(updateJournalEntryBodyLinesItemCreditMin),
+  "taxId": zod.string().uuid().nullish(),
+  "costCenterId": zod.string().uuid().nullish()
+})).min(updateJournalEntryBodyLinesMin)
+})
+
+export const UpdateJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "entryNo": zod.number(),
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted']),
+  "totalDebitBase": zod.number(),
+  "totalCreditBase": zod.number(),
+  "postedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "accountId": zod.string(),
+  "description": zod.string().nullish(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "debit": zod.number(),
+  "credit": zod.number(),
+  "debitBase": zod.number(),
+  "creditBase": zod.number(),
+  "taxId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish()
+})),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Delete a journal entry
+ */
+export const DeleteJournalEntryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const DeleteJournalEntryResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Post a draft journal entry (locks it)
+ */
+export const PostJournalEntryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const PostJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "entryNo": zod.number(),
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted']),
+  "totalDebitBase": zod.number(),
+  "totalCreditBase": zod.number(),
+  "postedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "accountId": zod.string(),
+  "description": zod.string().nullish(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "debit": zod.number(),
+  "credit": zod.number(),
+  "debitBase": zod.number(),
+  "creditBase": zod.number(),
+  "taxId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish()
+})),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Attach a file to a journal entry (multipart/form-data, field "file")
+ */
+export const UploadJournalAttachmentParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+
+/**
+ * @summary Delete a journal entry attachment
+ */
+export const DeleteJournalAttachmentParams = zod.object({
+  "id": zod.coerce.string().uuid(),
+  "attachmentId": zod.coerce.string().uuid()
+})
+
+export const DeleteJournalAttachmentResponse = zod.object({
   "status": zod.string()
 })
 

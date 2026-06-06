@@ -31,6 +31,19 @@ export const CAPABILITIES = [
   "accounts:create",
   "accounts:update",
   "accounts:delete",
+  "taxes:read",
+  "taxes:create",
+  "taxes:update",
+  "taxes:delete",
+  "costCenters:read",
+  "costCenters:create",
+  "costCenters:update",
+  "costCenters:delete",
+  "journal:read",
+  "journal:create",
+  "journal:update",
+  "journal:delete",
+  "journal:post",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -42,12 +55,74 @@ const ACCOUNTS_FULL: Capability[] = [
   "accounts:delete",
 ];
 
+const TAXES_FULL: Capability[] = [
+  "taxes:read",
+  "taxes:create",
+  "taxes:update",
+  "taxes:delete",
+];
+
+const COST_CENTERS_FULL: Capability[] = [
+  "costCenters:read",
+  "costCenters:create",
+  "costCenters:update",
+  "costCenters:delete",
+];
+
+const JOURNAL_FULL: Capability[] = [
+  "journal:read",
+  "journal:create",
+  "journal:update",
+  "journal:delete",
+  "journal:post",
+];
+
 export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
-  owner: ["team:manage", "company:manage", ...ACCOUNTS_FULL],
-  manager: ["company:manage", ...ACCOUNTS_FULL],
-  accountant: ["accounts:read", "accounts:create", "accounts:update"],
-  data_entry: ["accounts:read", "accounts:create"],
-  viewer: ["accounts:read"],
+  owner: [
+    "team:manage",
+    "company:manage",
+    ...ACCOUNTS_FULL,
+    ...TAXES_FULL,
+    ...COST_CENTERS_FULL,
+    ...JOURNAL_FULL,
+  ],
+  manager: [
+    "company:manage",
+    ...ACCOUNTS_FULL,
+    ...TAXES_FULL,
+    ...COST_CENTERS_FULL,
+    ...JOURNAL_FULL,
+  ],
+  accountant: [
+    "accounts:read",
+    "accounts:create",
+    "accounts:update",
+    "taxes:read",
+    "taxes:create",
+    "taxes:update",
+    "costCenters:read",
+    "costCenters:create",
+    "costCenters:update",
+    "journal:read",
+    "journal:create",
+    "journal:update",
+    "journal:post",
+  ],
+  data_entry: [
+    "accounts:read",
+    "accounts:create",
+    "taxes:read",
+    "costCenters:read",
+    "costCenters:create",
+    "journal:read",
+    "journal:create",
+  ],
+  viewer: [
+    "accounts:read",
+    "taxes:read",
+    "costCenters:read",
+    "journal:read",
+  ],
 };
 
 export function isRole(value: string): value is RoleId {

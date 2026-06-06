@@ -18,6 +18,7 @@ import {
   SESSION_COOKIE,
 } from "../lib/session";
 import { requireAuth } from "../middleware/require-auth";
+import { seedDefaultAccounts } from "../lib/seed-accounts";
 
 const router = Router();
 
@@ -77,6 +78,7 @@ router.post("/auth/signup", async (req, res) => {
           role: "owner",
         })
         .returning();
+      await seedDefaultAccounts(tx, company!.id);
       return { company: company as Company, user: user as User };
     });
 

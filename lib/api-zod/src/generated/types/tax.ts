@@ -5,17 +5,19 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { AccountType } from './accountType';
+import type { TaxKind } from './taxKind';
 
-export interface Account {
+export interface Tax {
   id: string;
-  code: string;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
-  type: AccountType;
+  kind: TaxKind;
+  rate: number;
   /** @nullable */
-  parentId?: string | null;
-  isGroup: boolean;
+  serviceNature?: string | null;
+  /** @nullable */
+  linkedAccountId?: string | null;
+  isActive: boolean;
   createdAt: string;
 }

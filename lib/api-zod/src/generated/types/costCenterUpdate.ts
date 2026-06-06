@@ -5,17 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { AccountUpdateType } from './accountUpdateType';
+import type { CostCenterUpdateType } from './costCenterUpdateType';
 
-export interface AccountUpdate {
-  /** @minLength 1 */
-  code?: string;
+export interface CostCenterUpdate {
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
   nameEn?: string | null;
-  type?: AccountUpdateType;
+  type?: CostCenterUpdateType;
   /** @nullable */
-  parentId?: string | null;
-  isGroup?: boolean;
+  budget?: number | null;
+  isActive?: boolean;
 }

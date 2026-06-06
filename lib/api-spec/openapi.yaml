@@ -14,6 +14,12 @@ tags:
     description: Authentication and account management
   - name: accounts
     description: Chart of accounts
+  - name: taxes
+    description: VAT and withholding taxes
+  - name: costCenters
+    description: Cost centers, projects, and branches
+  - name: journal
+    description: Journal entries and lines
   - name: dashboard
     description: Dashboard aggregates
   - name: team
@@ -213,6 +219,455 @@ paths:
           required: true
           schema:
             type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /accounts/seed-defaults:
+    post:
+      operationId: seedDefaultAccounts
+      tags: [accounts]
+      summary: Seed the default Egyptian chart of accounts (only when empty)
+      responses:
+        "201":
+          description: Seeded accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Accounts already exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /taxes:
+    get:
+      operationId: listTaxes
+      tags: [taxes]
+      summary: List all taxes for the current company
+      responses:
+        "200":
+          description: Taxes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tax"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createTax
+      tags: [taxes]
+      summary: Create a tax
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaxInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tax"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /taxes/{id}:
+    patch:
+      operationId: updateTax
+      tags: [taxes]
+      summary: Update a tax
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaxUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tax"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteTax
+      tags: [taxes]
+      summary: Delete a tax
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cost-centers:
+    get:
+      operationId: listCostCenters
+      tags: [costCenters]
+      summary: List all cost centers for the current company
+      responses:
+        "200":
+          description: Cost centers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CostCenter"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createCostCenter
+      tags: [costCenters]
+      summary: Create a cost center
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CostCenterInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostCenter"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /cost-centers/{id}:
+    patch:
+      operationId: updateCostCenter
+      tags: [costCenters]
+      summary: Update a cost center
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CostCenterUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostCenter"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCostCenter
+      tags: [costCenters]
+      summary: Delete a cost center
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /journal:
+    get:
+      operationId: listJournalEntries
+      tags: [journal]
+      summary: List journal entries for the current company
+      responses:
+        "200":
+          description: Journal entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/JournalEntry"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createJournalEntry
+      tags: [journal]
+      summary: Create a journal entry with lines
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalEntryInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryDetail"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /journal/{id}:
+    get:
+      operationId: getJournalEntry
+      tags: [journal]
+      summary: Get a journal entry with its lines and attachments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Journal entry detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateJournalEntry
+      tags: [journal]
+      summary: Update a draft journal entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalEntryInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryDetail"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteJournalEntry
+      tags: [journal]
+      summary: Delete a journal entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /journal/{id}/post:
+    post:
+      operationId: postJournalEntry
+      tags: [journal]
+      summary: Post a draft journal entry (locks it)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryDetail"
+        "400":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /journal/{id}/attachments:
+    post:
+      operationId: uploadJournalAttachment
+      tags: [journal]
+      summary: Attach a file to a journal entry (multipart/form-data, field "file")
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Attachment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryAttachment"
+        "400":
+          description: No file or invalid file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Entry not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /journal/{id}/attachments/{attachmentId}:
+    delete:
+      operationId: deleteJournalAttachment
+      tags: [journal]
+      summary: Delete a journal entry attachment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Deleted
@@ -698,14 +1153,16 @@ components:
 
     Account:
       type: object
-      required: [id, code, name, type, isGroup, createdAt]
+      required: [id, code, nameAr, type, isGroup, createdAt]
       properties:
         id:
           type: string
         code:
           type: string
-        name:
+        nameAr:
           type: string
+        nameEn:
+          type: ["string", "null"]
         type:
           type: string
           enum: [asset, liability, equity, revenue, expense]
@@ -718,19 +1175,22 @@ components:
 
     AccountInput:
       type: object
-      required: [code, name, type]
+      required: [code, nameAr, type]
       properties:
         code:
           type: string
           minLength: 1
-        name:
+        nameAr:
           type: string
           minLength: 1
+        nameEn:
+          type: ["string", "null"]
         type:
           type: string
           enum: [asset, liability, equity, revenue, expense]
         parentId:
           type: ["string", "null"]
+          format: uuid
         isGroup:
           type: boolean
 
@@ -740,16 +1200,312 @@ components:
         code:
           type: string
           minLength: 1
-        name:
+        nameAr:
           type: string
           minLength: 1
+        nameEn:
+          type: ["string", "null"]
         type:
           type: string
           enum: [asset, liability, equity, revenue, expense]
         parentId:
           type: ["string", "null"]
+          format: uuid
         isGroup:
           type: boolean
+
+    Tax:
+      type: object
+      required: [id, nameAr, kind, rate, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        kind:
+          type: string
+          enum: [vat, wht]
+        rate:
+          type: number
+        serviceNature:
+          type: ["string", "null"]
+        linkedAccountId:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    TaxInput:
+      type: object
+      required: [nameAr, kind, rate]
+      properties:
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        kind:
+          type: string
+          enum: [vat, wht]
+        rate:
+          type: number
+          minimum: 0
+        serviceNature:
+          type: ["string", "null"]
+        linkedAccountId:
+          type: ["string", "null"]
+          format: uuid
+        isActive:
+          type: boolean
+
+    TaxUpdate:
+      type: object
+      properties:
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        kind:
+          type: string
+          enum: [vat, wht]
+        rate:
+          type: number
+          minimum: 0
+        serviceNature:
+          type: ["string", "null"]
+        linkedAccountId:
+          type: ["string", "null"]
+          format: uuid
+        isActive:
+          type: boolean
+
+    CostCenter:
+      type: object
+      required: [id, nameAr, type, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [project, cost_center, branch]
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    CostCenterInput:
+      type: object
+      required: [nameAr, type]
+      properties:
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [project, cost_center, branch]
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+
+    CostCenterUpdate:
+      type: object
+      properties:
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [project, cost_center, branch]
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+
+    JournalEntryLineInput:
+      type: object
+      required: [accountId, currency, exchangeRate, debit, credit]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        description:
+          type: ["string", "null"]
+        currency:
+          type: string
+          minLength: 1
+        exchangeRate:
+          type: number
+          exclusiveMinimum: 0
+        debit:
+          type: number
+          minimum: 0
+        credit:
+          type: number
+          minimum: 0
+        taxId:
+          type: ["string", "null"]
+          format: uuid
+        costCenterId:
+          type: ["string", "null"]
+          format: uuid
+
+    JournalEntryLine:
+      type: object
+      required:
+        [
+          id,
+          accountId,
+          lineNo,
+          currency,
+          exchangeRate,
+          debit,
+          credit,
+          debitBase,
+          creditBase,
+        ]
+      properties:
+        id:
+          type: string
+        lineNo:
+          type: integer
+        accountId:
+          type: string
+        description:
+          type: ["string", "null"]
+        currency:
+          type: string
+        exchangeRate:
+          type: number
+        debit:
+          type: number
+        credit:
+          type: number
+        debitBase:
+          type: number
+        creditBase:
+          type: number
+        taxId:
+          type: ["string", "null"]
+        costCenterId:
+          type: ["string", "null"]
+
+    JournalEntryAttachment:
+      type: object
+      required: [id, fileName, createdAt]
+      properties:
+        id:
+          type: string
+        fileName:
+          type: string
+        contentType:
+          type: ["string", "null"]
+        size:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    JournalEntryInput:
+      type: object
+      required: [date, lines]
+      properties:
+        date:
+          type: string
+        reference:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        lines:
+          type: array
+          minItems: 2
+          items:
+            $ref: "#/components/schemas/JournalEntryLineInput"
+
+    JournalEntry:
+      type: object
+      required:
+        [id, entryNo, date, status, totalDebitBase, totalCreditBase, createdAt]
+      properties:
+        id:
+          type: string
+        entryNo:
+          type: integer
+        date:
+          type: string
+        reference:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, posted]
+        totalDebitBase:
+          type: number
+        totalCreditBase:
+          type: number
+        postedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    JournalEntryDetail:
+      type: object
+      required:
+        [
+          id,
+          entryNo,
+          date,
+          status,
+          totalDebitBase,
+          totalCreditBase,
+          createdAt,
+          lines,
+          attachments,
+        ]
+      properties:
+        id:
+          type: string
+        entryNo:
+          type: integer
+        date:
+          type: string
+        reference:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, posted]
+        totalDebitBase:
+          type: number
+        totalCreditBase:
+          type: number
+        postedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalEntryLine"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalEntryAttachment"
 
     DashboardSummary:
       type: object

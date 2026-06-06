@@ -19,7 +19,8 @@ export const accountsTable = pgTable(
       .notNull()
       .references(() => companiesTable.id, { onDelete: "cascade" }),
     code: text("code").notNull(),
-    name: text("name").notNull(),
+    nameAr: text("name_ar").notNull(),
+    nameEn: text("name_en"),
     type: text("type").notNull(),
     parentId: uuid("parent_id").references((): AnyPgColumn => accountsTable.id, {
       onDelete: "set null",

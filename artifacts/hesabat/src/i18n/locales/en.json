@@ -13,7 +13,8 @@
     "loading": "Loading...",
     "error": "Error",
     "you": "You",
-    "all": "All"
+    "all": "All",
+    "view": "View"
   },
   "lang": {
     "switch": "Language",
@@ -87,7 +88,8 @@
     "company": "Company Profile",
     "logout": "Sign out",
     "member": "Member",
-    "defaultInitial": "U"
+    "defaultInitial": "U",
+    "taxes": "Taxes"
   },
   "dashboard": {
     "connected": "Connected",
@@ -119,12 +121,18 @@
     "noAccounts": "No accounts yet.",
     "code": "Code",
     "accountName": "Account name",
+    "accountNameAr": "Account name (Arabic)",
+    "accountNameEn": "Account name (English)",
+    "optional": "optional",
+    "loadDefaults": "Load default chart of accounts",
+    "loadDefaultsHint": "A ready-made Egyptian chart you can edit later",
     "mainAccountBadge": "Group account",
     "createTitle": "Add new account",
     "editTitle": "Edit account",
     "accountCode": "Account code",
     "accountType": "Account type",
-    "namePlaceholder": "e.g. Notes Receivable",
+    "namePlaceholder": "e.g. أوراق قبض",
+    "namePlaceholderEn": "e.g. Notes Receivable",
     "parentAccount": "Parent account (optional)",
     "parentNone": "-- No parent account --",
     "isGroupTitle": "Group account",
@@ -144,7 +152,9 @@
       "deleted": "Account deleted successfully",
       "addError": "Could not add the account",
       "editError": "Could not update the account",
-      "deleteError": "Could not delete the account"
+      "deleteError": "Could not delete the account",
+      "defaultsLoaded": "Default chart of accounts loaded successfully",
+      "defaultsError": "Could not load the default chart of accounts"
     }
   },
   "team": {
@@ -188,11 +198,26 @@
     }
   },
   "roles": {
-    "owner": { "label": "Owner", "desc": "Full control of the system, team, and permissions" },
-    "manager": { "label": "Manager", "desc": "All accounting operations without team or subscription management" },
-    "accountant": { "label": "Accountant", "desc": "Add and edit accounts and entries (no deletion)" },
-    "data_entry": { "label": "Data entry", "desc": "Add data only, without editing or deleting" },
-    "viewer": { "label": "Viewer", "desc": "View reports only, no editing" }
+    "owner": {
+      "label": "Owner",
+      "desc": "Full control of the system, team, and permissions"
+    },
+    "manager": {
+      "label": "Manager",
+      "desc": "All accounting operations without team or subscription management"
+    },
+    "accountant": {
+      "label": "Accountant",
+      "desc": "Add and edit accounts and entries (no deletion)"
+    },
+    "data_entry": {
+      "label": "Data entry",
+      "desc": "Add data only, without editing or deleting"
+    },
+    "viewer": {
+      "label": "Viewer",
+      "desc": "View reports only, no editing"
+    }
   },
   "company": {
     "title": "Company Profile",
@@ -230,5 +255,189 @@
     "title": "Page not found",
     "body": "Sorry, the page you are looking for does not exist.",
     "backHome": "Back to home"
+  },
+  "taxes": {
+    "title": "Taxes",
+    "subtitle": "Define tax types, rates, and link them to the chart of accounts",
+    "addTax": "Add tax",
+    "tabs": {
+      "vat": "VAT",
+      "wht": "Withholding"
+    },
+    "vatHint": "VAT is applied to revenue invoices at different rates depending on the service nature.",
+    "whtHint": "Withholding tax is deducted from the supplier at payment and posted to a 'withholding payable' account.",
+    "name": "Tax name",
+    "rate": "Rate",
+    "serviceNature": "Service nature",
+    "linkedAccount": "Linked account",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "noTaxesVat": "No VAT taxes yet",
+    "noTaxesWht": "No withholding taxes yet",
+    "createTitle": "Define a new tax",
+    "editTitle": "Edit tax",
+    "kind": "Tax type",
+    "kindVat": "VAT",
+    "kindWht": "Withholding",
+    "nameAr": "Tax name (Arabic)",
+    "nameEn": "Tax name (English)",
+    "optional": "optional",
+    "namePlaceholder": "e.g. VAT - Consulting services",
+    "namePlaceholderEn": "e.g. VAT - Consulting",
+    "ratePlaceholder": "14",
+    "serviceNaturePlaceholder": "e.g. Consulting services",
+    "linkedAccountLabel": "Linked account",
+    "linkedAccountNone": "No link",
+    "isActive": "Active tax",
+    "save": "Save tax",
+    "none": "—",
+    "deleteTitle": "Delete tax",
+    "deleteBody": "Are you sure you want to delete \"{{name}}\"? This cannot be undone.",
+    "deleting": "Deleting…",
+    "confirmDelete": "Confirm delete",
+    "validation": {
+      "nameRequired": "Tax name is required",
+      "rateRequired": "Rate is required"
+    },
+    "toast": {
+      "added": "Tax added",
+      "edited": "Tax updated",
+      "deleted": "Tax deleted",
+      "addError": "Could not add tax",
+      "editError": "Could not update tax",
+      "deleteError": "Could not delete tax"
+    }
+  },
+  "costCenters": {
+    "title": "Cost Centers & Projects",
+    "subtitle": "Define projects, branches, and cost centers with their budgets",
+    "addCenter": "Add center / project",
+    "types": {
+      "project": "Project",
+      "cost_center": "Cost center",
+      "branch": "Branch"
+    },
+    "name": "Name",
+    "type": "Type",
+    "budget": "Budget",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "noCenters": "No cost centers yet",
+    "noCentersHint": "Start by adding a project, branch, or cost center to track its budget.",
+    "addFirst": "Add first center",
+    "createTitle": "Add center / project",
+    "editTitle": "Edit center",
+    "nameAr": "Name (Arabic)",
+    "nameEn": "Name (English)",
+    "optional": "optional",
+    "namePlaceholder": "e.g. Nile Tower Project",
+    "namePlaceholderEn": "e.g. Nile Tower Project",
+    "typeLabel": "Type",
+    "budgetLabel": "Budget (EGP)",
+    "budgetPlaceholder": "1000000",
+    "noBudget": "—",
+    "isActive": "Active center",
+    "save": "Save",
+    "deleteTitle": "Delete center",
+    "deleteBody": "Are you sure you want to delete \"{{name}}\"? This cannot be undone.",
+    "deleting": "Deleting…",
+    "confirmDelete": "Confirm delete",
+    "validation": {
+      "nameRequired": "Name is required"
+    },
+    "toast": {
+      "added": "Center added",
+      "edited": "Center updated",
+      "deleted": "Center deleted",
+      "addError": "Could not add center",
+      "editError": "Could not update center",
+      "deleteError": "Could not delete center"
+    }
+  },
+  "journal": {
+    "title": "Journal Entries",
+    "subtitle": "Create, review and post multi-currency accounting entries",
+    "addEntry": "New Entry",
+    "noEntries": "No entries yet",
+    "noEntriesHint": "Start by creating your company first journal entry",
+    "addFirst": "Create first entry",
+    "entryNo": "Entry No.",
+    "date": "Date",
+    "reference": "Reference",
+    "notes": "Memo / Notes",
+    "status": "Status",
+    "draft": "Draft",
+    "posted": "Posted",
+    "totalDebit": "Total Debit",
+    "totalCredit": "Total Credit",
+    "createTitle": "Create Entry",
+    "editTitle": "Edit Entry",
+    "viewTitle": "View Entry",
+    "referencePlaceholder": "e.g. Invoice #1024",
+    "notesPlaceholder": "Short description of the entry",
+    "lines": "Entry Lines",
+    "addLine": "Add line",
+    "removeLine": "Remove line",
+    "colDescription": "Description",
+    "colAccount": "Account",
+    "colContact": "Contact",
+    "contactSoon": "soon",
+    "colCurrency": "Currency",
+    "colRate": "Exchange Rate",
+    "colDebit": "Debit",
+    "colCredit": "Credit",
+    "colDebitBase": "Debit (base)",
+    "colCreditBase": "Credit (base)",
+    "colTax": "Tax",
+    "colCostCenter": "Cost Center",
+    "selectAccount": "Select account",
+    "selectTax": "No tax",
+    "selectCostCenter": "No center",
+    "balanced": "Entry is balanced",
+    "notBalanced": "Entry is not balanced",
+    "difference": "Difference",
+    "save": "Save as draft",
+    "saveAndPost": "Save & Post",
+    "post": "Post entry",
+    "back": "Back to list",
+    "baseCurrencyNote": "Base-currency amounts are auto-calculated = amount × exchange rate",
+    "toast": {
+      "added": "Entry created",
+      "edited": "Entry updated",
+      "posted": "Entry posted",
+      "deleted": "Entry deleted",
+      "saveError": "Failed to save entry",
+      "postError": "Failed to post entry",
+      "deleteError": "Failed to delete entry"
+    },
+    "deleteTitle": "Delete entry",
+    "deleteBody": "Are you sure you want to delete entry #{{no}}? This action cannot be undone.",
+    "deleting": "Deleting…",
+    "confirmDelete": "Confirm delete",
+    "postedLockHint": "This entry is posted and cannot be edited",
+    "minLines": "An entry must have at least two lines",
+    "validation": {
+      "accountRequired": "Select an account",
+      "amountRequired": "Enter a debit or credit amount"
+    },
+    "attachments": {
+      "title": "Attachments",
+      "upload": "Attach file",
+      "download": "Download",
+      "none": "No attachments",
+      "saveFirst": "Save the entry first to attach files",
+      "uploaded": "Attachment uploaded",
+      "deleted": "Attachment deleted",
+      "uploadError": "Failed to upload file",
+      "deleteError": "Failed to delete attachment"
+    },
+    "excel": {
+      "export": "Export Excel",
+      "import": "Import Excel",
+      "imported": "Imported {{count}} entries",
+      "importError": "Failed to import file"
+    }
   }
 }

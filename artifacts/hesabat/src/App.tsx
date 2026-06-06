@@ -8,6 +8,9 @@ import { Login } from "@/pages/login";
 import { Signup } from "@/pages/signup";
 import { Dashboard } from "@/pages/dashboard";
 import { Accounts } from "@/pages/accounts";
+import { Taxes } from "@/pages/taxes";
+import { CostCenters } from "@/pages/cost-centers";
+import { Journal } from "@/pages/journal";
 import { Team } from "@/pages/team";
 import { CompanyProfile } from "@/pages/company";
 import { AcceptInvite } from "@/pages/accept-invite";
@@ -29,14 +32,15 @@ function ProtectedRoutes() {
       <Switch>
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/accounts" component={Accounts} />
+        <Route path="/taxes" component={Taxes} />
+        <Route path="/cost-centers" component={CostCenters} />
         <Route path="/team" component={Team} />
         <Route path="/company" component={CompanyProfile} />
-        <Route path="/journal" component={ComingSoon} />
+        <Route path="/journal" component={Journal} />
         <Route path="/bank" component={ComingSoon} />
         <Route path="/advances" component={ComingSoon} />
         <Route path="/sales" component={ComingSoon} />
         <Route path="/purchases" component={ComingSoon} />
-        <Route path="/cost-centers" component={ComingSoon} />
         <Route path="/reports" component={ComingSoon} />
         <Route path="/" component={Dashboard} />
         <Route component={NotFound} />

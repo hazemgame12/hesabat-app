@@ -128,7 +128,9 @@ export const AccountType = {
 export interface Account {
   id: string;
   code: string;
-  name: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
   type: AccountType;
   /** @nullable */
   parentId?: string | null;
@@ -151,7 +153,9 @@ export interface AccountInput {
   /** @minLength 1 */
   code: string;
   /** @minLength 1 */
-  name: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
   type: AccountInputType;
   /** @nullable */
   parentId?: string | null;
@@ -173,11 +177,249 @@ export interface AccountUpdate {
   /** @minLength 1 */
   code?: string;
   /** @minLength 1 */
-  name?: string;
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
   type?: AccountUpdateType;
   /** @nullable */
   parentId?: string | null;
   isGroup?: boolean;
+}
+
+export type TaxKind = typeof TaxKind[keyof typeof TaxKind];
+
+
+export const TaxKind = {
+  vat: 'vat',
+  wht: 'wht',
+} as const;
+
+export interface Tax {
+  id: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  kind: TaxKind;
+  rate: number;
+  /** @nullable */
+  serviceNature?: string | null;
+  /** @nullable */
+  linkedAccountId?: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type TaxInputKind = typeof TaxInputKind[keyof typeof TaxInputKind];
+
+
+export const TaxInputKind = {
+  vat: 'vat',
+  wht: 'wht',
+} as const;
+
+export interface TaxInput {
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  kind: TaxInputKind;
+  /** @minimum 0 */
+  rate: number;
+  /** @nullable */
+  serviceNature?: string | null;
+  /** @nullable */
+  linkedAccountId?: string | null;
+  isActive?: boolean;
+}
+
+export type TaxUpdateKind = typeof TaxUpdateKind[keyof typeof TaxUpdateKind];
+
+
+export const TaxUpdateKind = {
+  vat: 'vat',
+  wht: 'wht',
+} as const;
+
+export interface TaxUpdate {
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  kind?: TaxUpdateKind;
+  /** @minimum 0 */
+  rate?: number;
+  /** @nullable */
+  serviceNature?: string | null;
+  /** @nullable */
+  linkedAccountId?: string | null;
+  isActive?: boolean;
+}
+
+export type CostCenterType = typeof CostCenterType[keyof typeof CostCenterType];
+
+
+export const CostCenterType = {
+  project: 'project',
+  cost_center: 'cost_center',
+  branch: 'branch',
+} as const;
+
+export interface CostCenter {
+  id: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: CostCenterType;
+  /** @nullable */
+  budget?: number | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type CostCenterInputType = typeof CostCenterInputType[keyof typeof CostCenterInputType];
+
+
+export const CostCenterInputType = {
+  project: 'project',
+  cost_center: 'cost_center',
+  branch: 'branch',
+} as const;
+
+export interface CostCenterInput {
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: CostCenterInputType;
+  /** @nullable */
+  budget?: number | null;
+  isActive?: boolean;
+}
+
+export type CostCenterUpdateType = typeof CostCenterUpdateType[keyof typeof CostCenterUpdateType];
+
+
+export const CostCenterUpdateType = {
+  project: 'project',
+  cost_center: 'cost_center',
+  branch: 'branch',
+} as const;
+
+export interface CostCenterUpdate {
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type?: CostCenterUpdateType;
+  /** @nullable */
+  budget?: number | null;
+  isActive?: boolean;
+}
+
+export interface JournalEntryLineInput {
+  accountId: string;
+  /** @nullable */
+  description?: string | null;
+  /** @minLength 1 */
+  currency: string;
+  /** @exclusiveMinimum 0 */
+  exchangeRate: number;
+  /** @minimum 0 */
+  debit: number;
+  /** @minimum 0 */
+  credit: number;
+  /** @nullable */
+  taxId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+}
+
+export interface JournalEntryLine {
+  id: string;
+  lineNo: number;
+  accountId: string;
+  /** @nullable */
+  description?: string | null;
+  currency: string;
+  exchangeRate: number;
+  debit: number;
+  credit: number;
+  debitBase: number;
+  creditBase: number;
+  /** @nullable */
+  taxId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+}
+
+export interface JournalEntryAttachment {
+  id: string;
+  fileName: string;
+  /** @nullable */
+  contentType?: string | null;
+  /** @nullable */
+  size?: number | null;
+  createdAt: string;
+}
+
+export interface JournalEntryInput {
+  date: string;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @minItems 2 */
+  lines: JournalEntryLineInput[];
+}
+
+export type JournalEntryStatus = typeof JournalEntryStatus[keyof typeof JournalEntryStatus];
+
+
+export const JournalEntryStatus = {
+  draft: 'draft',
+  posted: 'posted',
+} as const;
+
+export interface JournalEntry {
+  id: string;
+  entryNo: number;
+  date: string;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  status: JournalEntryStatus;
+  totalDebitBase: number;
+  totalCreditBase: number;
+  /** @nullable */
+  postedAt?: string | null;
+  createdAt: string;
+}
+
+export type JournalEntryDetailStatus = typeof JournalEntryDetailStatus[keyof typeof JournalEntryDetailStatus];
+
+
+export const JournalEntryDetailStatus = {
+  draft: 'draft',
+  posted: 'posted',
+} as const;
+
+export interface JournalEntryDetail {
+  id: string;
+  entryNo: number;
+  date: string;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  status: JournalEntryDetailStatus;
+  totalDebitBase: number;
+  totalCreditBase: number;
+  /** @nullable */
+  postedAt?: string | null;
+  createdAt: string;
+  lines: JournalEntryLine[];
+  attachments: JournalEntryAttachment[];
 }
 
 export interface AccountTypeCount {
