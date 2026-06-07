@@ -16,3 +16,5 @@ description: Banks, Cash & Reconciliation design constraints worth keeping consi
 - Hard-delete of the JE on movement delete is the established convention (payments module does the same) — not a reversal entry.
 
 - **`isAdjustment` flag distinguishes adjust-created movements.** Regular cleared movements and adjust-created movements both get `isCleared=true`+`reconciliationId`, so they are otherwise indistinguishable. The reconciliation report's "entries created" relies on `bank_movements.isAdjustment`.
+
+- **Reconciliation match payload is authoritative — keep client cleared/matched state synced.** The `/match` handler rewrites `isCleared`/`reconciliationId` for ALL in-period movements from the request's `movementIds` set, so any movement omitted becomes un-cleared. The detail UI must re-merge server state on every refetch (not seed once), or a movement created server-side after load (e.g. an adjusting entry, which returns `isCleared=true`) gets dropped on the next save. Backend also force-keeps `isAdjustment` movements cleared as defense-in-depth.

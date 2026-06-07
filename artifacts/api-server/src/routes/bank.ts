@@ -1291,7 +1291,11 @@ router.post(
         }
         for (const m of periodMovements) {
           if (m.reconciliationId && m.reconciliationId !== id) continue;
-          const shouldClear = clearedIds.has(m.id);
+          // Adjusting entries created for THIS reconciliation are always part of
+          // it and must never be un-cleared by a match payload that happens to
+          // omit them (defense-in-depth against stale client state).
+          const shouldClear =
+            clearedIds.has(m.id) || (m.isAdjustment && m.reconciliationId === id);
           await tx
             .update(bankMovementsTable)
             .set({

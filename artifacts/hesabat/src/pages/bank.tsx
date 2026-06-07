@@ -1603,7 +1603,6 @@ function ReconciliationDetail({
   const [uploading, setUploading] = useState(false);
   const [cleared, setCleared] = useState<Record<string, boolean>>({});
   const [matched, setMatched] = useState<Record<string, string>>({});
-  const [clearedInit, setClearedInit] = useState<string | null>(null);
   const [adjType, setAdjType] = useState<(typeof ADJUSTMENT_TYPES)[number]>(
     "bank_charge",
   );
@@ -1625,19 +1624,28 @@ function ReconciliationDetail({
     });
   };
 
-  // Seed checkbox state from server data once per reconciliation load.
+  // Sync checkbox/match state from server on every detail change. For movements
+  // and statement lines already in local state we keep the (possibly unsaved)
+  // local value; rows not yet tracked are seeded from the server, and rows the
+  // server no longer returns are pruned. This ensures movements created server
+  // side AFTER the initial load (e.g. adjusting entries, which come back
+  // isCleared=true) are reflected — otherwise a later saveMatch would drop them
+  // from the payload and the backend would un-clear them.
   React.useEffect(() => {
-    if (detail && clearedInit !== reconciliationId) {
-      const init: Record<string, boolean> = {};
-      for (const m of detail.movements) init[m.id] = m.isCleared;
-      setCleared(init);
-      const initMatched: Record<string, string> = {};
+    if (!detail) return;
+    setCleared((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const m of detail.movements)
+        next[m.id] = m.id in prev ? prev[m.id] : m.isCleared;
+      return next;
+    });
+    setMatched((prev) => {
+      const next: Record<string, string> = {};
       for (const s of detail.statementLines)
-        initMatched[s.id] = s.matchedMovementId ?? "";
-      setMatched(initMatched);
-      setClearedInit(reconciliationId);
-    }
-  }, [detail, reconciliationId, clearedInit]);
+        next[s.id] = s.id in prev ? prev[s.id] : (s.matchedMovementId ?? "");
+      return next;
+    });
+  }, [detail]);
 
   const isCompleted = detail?.reconciliation.status === "completed";
   const editable = !isCompleted && canUpdate;
