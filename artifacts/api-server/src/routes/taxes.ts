@@ -1,9 +1,20 @@
 import { Router } from "express";
 import { and, eq, asc } from "drizzle-orm";
-import { db, taxesTable, accountsTable, type Tax } from "@workspace/db";
+import {
+  db,
+  taxesTable,
+  accountsTable,
+  type Tax,
+} from "@workspace/db";
 import { CreateTaxBody, UpdateTaxBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
+import {
+  seedDefaultTaxes,
+  loadAccountCodeMap,
+  lockCompanyRow,
+  companyHasTaxesTx,
+} from "../lib/seed-taxes";
 
 const router = Router();
 
@@ -85,6 +96,44 @@ router.post("/taxes", requireAuth, requireCapability("taxes:create"), async (req
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });
+
+// Seeds the company's country default taxes (linked to their accounts). Only
+// runs when the company has no taxes yet, so it never duplicates user data.
+router.post(
+  "/taxes/seed-defaults",
+  requireAuth,
+  requireCapability("taxes:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const result = await db.transaction(async (tx) => {
+        // Lock the company row so concurrent calls serialize here; the
+        // "already has taxes" check then runs atomically before seeding.
+        const company = await lockCompanyRow(tx, companyId);
+        if (await companyHasTaxesTx(tx, companyId)) {
+          return { conflict: true as const };
+        }
+        const country = company?.country ?? "EG";
+        const codeToId = await loadAccountCodeMap(tx, companyId);
+        await seedDefaultTaxes(tx, companyId, country, codeToId);
+        const rows = await tx
+          .select()
+          .from(taxesTable)
+          .where(eq(taxesTable.companyId, companyId))
+          .orderBy(asc(taxesTable.createdAt));
+        return { conflict: false as const, rows };
+      });
+      if (result.conflict) {
+        res.status(409).json({ error: "توجد ضرائب مسجلة بالفعل" });
+        return;
+      }
+      res.status(201).json(result.rows.map(toTax));
+    } catch (err) {
+      req.log.error({ err }, "Failed to seed default taxes");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
 
 router.patch("/taxes/:id", requireAuth, requireCapability("taxes:update"), async (req, res) => {
   const id = req.params["id"] as string;

@@ -31,8 +31,8 @@ export const SignupBody = zod.object({
   "name": zod.string().min(1),
   "email": zod.string().email(),
   "password": zod.string().min(signupBodyPasswordMin),
-  "country": zod.enum(['EG', 'SA', 'AE']).optional(),
-  "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'USD']).optional()
+  "country": zod.enum(['EG', 'SA', 'AE', 'KW', 'QA', 'BH', 'OM']).optional(),
+  "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'USD']).optional()
 })
 
 
@@ -162,7 +162,7 @@ export const ListTaxesResponseItem = zod.object({
   "id": zod.string(),
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
-  "kind": zod.enum(['vat', 'wht']),
+  "kind": zod.enum(['vat', 'wht', 'income', 'payroll', 'zakat']),
   "rate": zod.number(),
   "serviceNature": zod.string().nullish(),
   "linkedAccountId": zod.string().nullish(),
@@ -183,7 +183,7 @@ export const createTaxBodyRateMin = 0;
 export const CreateTaxBody = zod.object({
   "nameAr": zod.string().min(1),
   "nameEn": zod.string().nullish(),
-  "kind": zod.enum(['vat', 'wht']),
+  "kind": zod.enum(['vat', 'wht', 'income', 'payroll', 'zakat']),
   "rate": zod.number().min(createTaxBodyRateMin),
   "serviceNature": zod.string().nullish(),
   "linkedAccountId": zod.string().uuid().nullish(),
@@ -206,7 +206,7 @@ export const updateTaxBodyRateMin = 0;
 export const UpdateTaxBody = zod.object({
   "nameAr": zod.string().min(1).optional(),
   "nameEn": zod.string().nullish(),
-  "kind": zod.enum(['vat', 'wht']).optional(),
+  "kind": zod.enum(['vat', 'wht', 'income', 'payroll', 'zakat']).optional(),
   "rate": zod.number().min(updateTaxBodyRateMin).optional(),
   "serviceNature": zod.string().nullish(),
   "linkedAccountId": zod.string().uuid().nullish(),
@@ -217,7 +217,7 @@ export const UpdateTaxResponse = zod.object({
   "id": zod.string(),
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
-  "kind": zod.enum(['vat', 'wht']),
+  "kind": zod.enum(['vat', 'wht', 'income', 'payroll', 'zakat']),
   "rate": zod.number(),
   "serviceNature": zod.string().nullish(),
   "linkedAccountId": zod.string().nullish(),
@@ -673,8 +673,8 @@ export const UpdateCompanyBody = zod.object({
   "tradeName": zod.string().nullish(),
   "taxRegistrationNumber": zod.string().nullish(),
   "activityDescription": zod.string().nullish(),
-  "country": zod.enum(['EG', 'SA', 'AE']).optional(),
-  "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'USD']).optional(),
+  "country": zod.enum(['EG', 'SA', 'AE', 'KW', 'QA', 'BH', 'OM']).optional(),
+  "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'USD']).optional(),
   "address": zod.string().nullish(),
   "phone": zod.string().nullish()
 })

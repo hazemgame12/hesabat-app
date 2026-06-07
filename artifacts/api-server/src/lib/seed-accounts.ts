@@ -35,8 +35,12 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   // ---- Liabilities ----
   { code: "21", nameAr: "الخصوم المتداولة", nameEn: "Current Liabilities", type: "liability", isGroup: true, parentCode: null },
   { code: "211", nameAr: "الموردين", nameEn: "Accounts Payable", type: "liability", isGroup: true, parentCode: "21" },
-  { code: "212", nameAr: "ضرائب مستحقة (ق.م)", nameEn: "Accrued Taxes (VAT)", type: "liability", isGroup: false, parentCode: "21" },
+  { code: "212", nameAr: "ضريبة القيمة المضافة المستحقة", nameEn: "VAT Payable", type: "liability", isGroup: false, parentCode: "21" },
   { code: "213", nameAr: "قروض قصيرة الأجل", nameEn: "Short-term Loans", type: "liability", isGroup: false, parentCode: "21" },
+  { code: "214", nameAr: "ضريبة الخصم من المنبع المستحقة", nameEn: "Withholding Tax Payable", type: "liability", isGroup: false, parentCode: "21" },
+  { code: "215", nameAr: "ضريبة كسب العمل المستحقة", nameEn: "Payroll Tax Payable", type: "liability", isGroup: false, parentCode: "21" },
+  { code: "216", nameAr: "ضريبة الدخل/الأرباح المستحقة", nameEn: "Income/Corporate Tax Payable", type: "liability", isGroup: false, parentCode: "21" },
+  { code: "217", nameAr: "الزكاة المستحقة", nameEn: "Zakat Payable", type: "liability", isGroup: false, parentCode: "21" },
 
   // ---- Equity ----
   { code: "31", nameAr: "حقوق الملكية", nameEn: "Equity", type: "equity", isGroup: true, parentCode: null },
@@ -60,7 +64,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
 export async function seedDefaultAccounts(
   tx: Tx,
   companyId: string,
-): Promise<number> {
+): Promise<Map<string, string>> {
   const codeToId = new Map<string, string>();
   for (const acc of DEFAULT_CHART_OF_ACCOUNTS) {
     const parentId = acc.parentCode ? codeToId.get(acc.parentCode) ?? null : null;
@@ -78,5 +82,5 @@ export async function seedDefaultAccounts(
       .returning({ id: accountsTable.id });
     if (row) codeToId.set(acc.code, row.id);
   }
-  return codeToId.size;
+  return codeToId;
 }

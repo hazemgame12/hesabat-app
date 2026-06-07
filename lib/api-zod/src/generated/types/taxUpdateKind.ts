@@ -12,4 +12,7 @@ export type TaxUpdateKind = typeof TaxUpdateKind[keyof typeof TaxUpdateKind];
 export const TaxUpdateKind = {
   vat: 'vat',
   wht: 'wht',
+  income: 'income',
+  payroll: 'payroll',
+  zakat: 'zakat',
 } as const;

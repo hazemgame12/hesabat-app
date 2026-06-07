@@ -13,4 +13,8 @@ export const CompanyUpdateCountry = {
   EG: 'EG',
   SA: 'SA',
   AE: 'AE',
+  KW: 'KW',
+  QA: 'QA',
+  BH: 'BH',
+  OM: 'OM',
 } as const;

@@ -306,6 +306,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /taxes/seed-defaults:
+    post:
+      operationId: seedDefaultTaxes
+      tags: [taxes]
+      summary: Seed the company's country default taxes (only when none exist)
+      responses:
+        "201":
+          description: Seeded taxes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Tax"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Taxes already exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /taxes/{id}:
     patch:
       operationId: updateTax
@@ -1347,10 +1374,10 @@ components:
           minLength: 8
         country:
           type: string
-          enum: [EG, SA, AE]
+          enum: [EG, SA, AE, KW, QA, BH, OM]
         baseCurrency:
           type: string
-          enum: [EGP, SAR, AED, USD]
+          enum: [EGP, SAR, AED, KWD, QAR, BHD, OMR, USD]
 
     Company:
       type: object
@@ -1391,10 +1418,10 @@ components:
           type: ["string", "null"]
         country:
           type: string
-          enum: [EG, SA, AE]
+          enum: [EG, SA, AE, KW, QA, BH, OM]
         baseCurrency:
           type: string
-          enum: [EGP, SAR, AED, USD]
+          enum: [EGP, SAR, AED, KWD, QAR, BHD, OMR, USD]
         address:
           type: ["string", "null"]
         phone:
@@ -1486,7 +1513,7 @@ components:
           type: ["string", "null"]
         kind:
           type: string
-          enum: [vat, wht]
+          enum: [vat, wht, income, payroll, zakat]
         rate:
           type: number
         serviceNature:
@@ -1509,7 +1536,7 @@ components:
           type: ["string", "null"]
         kind:
           type: string
-          enum: [vat, wht]
+          enum: [vat, wht, income, payroll, zakat]
         rate:
           type: number
           minimum: 0
@@ -1531,7 +1558,7 @@ components:
           type: ["string", "null"]
         kind:
           type: string
-          enum: [vat, wht]
+          enum: [vat, wht, income, payroll, zakat]
         rate:
           type: number
           minimum: 0

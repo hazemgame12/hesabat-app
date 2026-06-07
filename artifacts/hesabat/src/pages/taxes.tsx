@@ -5,6 +5,7 @@ import {
   useCreateTax,
   useUpdateTax,
   useDeleteTax,
+  useSeedDefaultTaxes,
   useListAccounts,
   useGetCurrentUser,
   getListTaxesQueryKey,
@@ -12,7 +13,7 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
-import { Percent, Plus, X, Check, ChevronDown, Link2, Trash2, Edit2 } from "lucide-react";
+import { Percent, Plus, X, Check, ChevronDown, Link2, Trash2, Edit2, Download } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,8 +30,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const TAX_KINDS = ["vat", "wht"] as const;
+const TAX_KINDS = ["vat", "wht", "income", "payroll", "zakat"] as const;
 type TaxKind = (typeof TAX_KINDS)[number];
+
+const KIND_RATE_COLOR: Record<TaxKind, string> = {
+  vat: "text-primary bg-primary/10",
+  wht: "text-amber-600 bg-amber-500/10",
+  income: "text-blue-600 bg-blue-500/10",
+  payroll: "text-purple-600 bg-purple-500/10",
+  zakat: "text-emerald-600 bg-emerald-500/10",
+};
 
 const taxSchema = z.object({
   nameAr: z.string().min(1, "nameRequired"),
@@ -59,6 +68,7 @@ export function Taxes() {
   const createTax = useCreateTax();
   const updateTax = useUpdateTax();
   const deleteTax = useDeleteTax();
+  const seedTaxes = useSeedDefaultTaxes();
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
   const canCreate = hasCapability(role, "taxes:create");
@@ -136,7 +146,14 @@ export function Taxes() {
     });
   };
 
-  const rateColor = tab === "vat" ? "text-primary bg-primary/10" : "text-amber-600 bg-amber-500/10";
+  const handleSeedDefaults = () => {
+    seedTaxes.mutate(undefined, {
+      onSuccess: () => { invalidate(); toast({ title: t("taxes.toast.seeded") }); },
+      onError: (err: any) => toast({ variant: "destructive", title: t("common.error"), description: err?.data?.error || t("taxes.toast.seedError") }),
+    });
+  };
+
+  const rateColor = KIND_RATE_COLOR[tab];
 
   return (
     <div className="flex flex-col">
@@ -176,14 +193,27 @@ export function Taxes() {
           ))}
         </div>
 
-        <p className="text-sm text-muted-foreground">{tab === "vat" ? t("taxes.vatHint") : t("taxes.whtHint")}</p>
+        <p className="text-sm text-muted-foreground">{t(`taxes.hints.${tab}`)}</p>
 
         <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
           {isLoading ? (
             <div className="flex items-center justify-center p-12"><Spinner className="w-8 h-8 text-primary" /></div>
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-3">
-              <p>{tab === "vat" ? t("taxes.noTaxesVat") : t("taxes.noTaxesWht")}</p>
+              <p>{t("taxes.noTaxes", { kind: t(`taxes.tabs.${tab}`) })}</p>
+              {taxes.length === 0 && canCreate && (
+                <>
+                  <p className="text-xs text-center max-w-sm">{t("taxes.seedDefaultsHint")}</p>
+                  <button
+                    onClick={handleSeedDefaults}
+                    disabled={seedTaxes.isPending}
+                    className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-60"
+                  >
+                    {seedTaxes.isPending ? <Spinner className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+                    {t("taxes.seedDefaults")}
+                  </button>
+                </>
+              )}
               {canCreate && (
                 <button onClick={openCreateModal} className="text-primary font-bold hover:underline">{t("taxes.addTax")}</button>
               )}
@@ -267,7 +297,7 @@ export function Taxes() {
             <div className="p-6 flex flex-col gap-5 overflow-y-auto">
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold text-foreground">{t("taxes.kind")}</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {TAX_KINDS.map((k) => (
                     <button
                       key={k}
@@ -277,7 +307,7 @@ export function Taxes() {
                         watch("kind") === k ? "border-primary/50 bg-primary/5 text-primary ring-1 ring-primary/20" : "border-border text-muted-foreground hover:border-primary/30"
                       }`}
                     >
-                      {t(`taxes.kind${k === "vat" ? "Vat" : "Wht"}`)}
+                      {t(`taxes.kindLabels.${k}`)}
                     </button>
                   ))}
                 </div>

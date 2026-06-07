@@ -19,6 +19,7 @@ import {
 } from "../lib/session";
 import { requireAuth } from "../middleware/require-auth";
 import { seedDefaultAccounts } from "../lib/seed-accounts";
+import { seedDefaultTaxes } from "../lib/seed-taxes";
 
 const router = Router();
 
@@ -78,7 +79,8 @@ router.post("/auth/signup", async (req, res) => {
           role: "owner",
         })
         .returning();
-      await seedDefaultAccounts(tx, company!.id);
+      const codeToId = await seedDefaultAccounts(tx, company!.id);
+      await seedDefaultTaxes(tx, company!.id, resolvedCountry, codeToId);
       return { company: company as Company, user: user as User };
     });
 

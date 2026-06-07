@@ -276,10 +276,18 @@
     "addTax": "Add tax",
     "tabs": {
       "vat": "VAT",
-      "wht": "Withholding"
+      "wht": "Withholding",
+      "income": "Income tax",
+      "payroll": "Payroll tax",
+      "zakat": "Zakat"
     },
-    "vatHint": "VAT is applied to revenue invoices at different rates depending on the service nature.",
-    "whtHint": "Withholding tax is deducted from the supplier at payment and posted to a 'withholding payable' account.",
+    "hints": {
+      "vat": "VAT is applied to revenue invoices at different rates depending on the service nature.",
+      "wht": "Withholding tax is deducted from the supplier at payment and posted to a 'withholding payable' account.",
+      "income": "Income / corporate tax is computed on net profit according to the country's law.",
+      "payroll": "Payroll tax is deducted from employee salaries on progressive brackets.",
+      "zakat": "Zakat is computed on the zakat base for eligible entities."
+    },
     "name": "Tax name",
     "rate": "Rate",
     "serviceNature": "Service nature",
@@ -287,13 +295,19 @@
     "status": "Status",
     "active": "Active",
     "inactive": "Inactive",
-    "noTaxesVat": "No VAT taxes yet",
-    "noTaxesWht": "No withholding taxes yet",
+    "noTaxes": "No \"{{kind}}\" taxes yet",
+    "seedDefaults": "Load country default taxes",
+    "seedDefaultsHint": "Automatically load the tax types for your company's country (you can edit or delete them later).",
     "createTitle": "Define a new tax",
     "editTitle": "Edit tax",
     "kind": "Tax type",
-    "kindVat": "VAT",
-    "kindWht": "Withholding",
+    "kindLabels": {
+      "vat": "VAT",
+      "wht": "Withholding",
+      "income": "Income tax",
+      "payroll": "Payroll tax",
+      "zakat": "Zakat"
+    },
     "nameAr": "Tax name (Arabic)",
     "nameEn": "Tax name (English)",
     "optional": "optional",
@@ -320,7 +334,9 @@
       "deleted": "Tax deleted",
       "addError": "Could not add tax",
       "editError": "Could not update tax",
-      "deleteError": "Could not delete tax"
+      "deleteError": "Could not delete tax",
+      "seeded": "Country default taxes loaded",
+      "seedError": "Could not load default taxes"
     }
   },
   "currencies": {

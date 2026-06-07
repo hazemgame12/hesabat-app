@@ -12,4 +12,7 @@ export type TaxInputKind = typeof TaxInputKind[keyof typeof TaxInputKind];
 export const TaxInputKind = {
   vat: 'vat',
   wht: 'wht',
+  income: 'income',
+  payroll: 'payroll',
+  zakat: 'zakat',
 } as const;

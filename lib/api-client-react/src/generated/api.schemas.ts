@@ -29,6 +29,10 @@ export const SignupInputCountry = {
   EG: 'EG',
   SA: 'SA',
   AE: 'AE',
+  KW: 'KW',
+  QA: 'QA',
+  BH: 'BH',
+  OM: 'OM',
 } as const;
 
 export type SignupInputBaseCurrency = typeof SignupInputBaseCurrency[keyof typeof SignupInputBaseCurrency];
@@ -38,6 +42,10 @@ export const SignupInputBaseCurrency = {
   EGP: 'EGP',
   SAR: 'SAR',
   AED: 'AED',
+  KWD: 'KWD',
+  QAR: 'QAR',
+  BHD: 'BHD',
+  OMR: 'OMR',
   USD: 'USD',
 } as const;
 
@@ -79,6 +87,10 @@ export const CompanyUpdateCountry = {
   EG: 'EG',
   SA: 'SA',
   AE: 'AE',
+  KW: 'KW',
+  QA: 'QA',
+  BH: 'BH',
+  OM: 'OM',
 } as const;
 
 export type CompanyUpdateBaseCurrency = typeof CompanyUpdateBaseCurrency[keyof typeof CompanyUpdateBaseCurrency];
@@ -88,6 +100,10 @@ export const CompanyUpdateBaseCurrency = {
   EGP: 'EGP',
   SAR: 'SAR',
   AED: 'AED',
+  KWD: 'KWD',
+  QAR: 'QAR',
+  BHD: 'BHD',
+  OMR: 'OMR',
   USD: 'USD',
 } as const;
 
@@ -192,6 +208,9 @@ export type TaxKind = typeof TaxKind[keyof typeof TaxKind];
 export const TaxKind = {
   vat: 'vat',
   wht: 'wht',
+  income: 'income',
+  payroll: 'payroll',
+  zakat: 'zakat',
 } as const;
 
 export interface Tax {
@@ -215,6 +234,9 @@ export type TaxInputKind = typeof TaxInputKind[keyof typeof TaxInputKind];
 export const TaxInputKind = {
   vat: 'vat',
   wht: 'wht',
+  income: 'income',
+  payroll: 'payroll',
+  zakat: 'zakat',
 } as const;
 
 export interface TaxInput {
@@ -238,6 +260,9 @@ export type TaxUpdateKind = typeof TaxUpdateKind[keyof typeof TaxUpdateKind];
 export const TaxUpdateKind = {
   vat: 'vat',
   wht: 'wht',
+  income: 'income',
+  payroll: 'payroll',
+  zakat: 'zakat',
 } as const;
 
 export interface TaxUpdate {

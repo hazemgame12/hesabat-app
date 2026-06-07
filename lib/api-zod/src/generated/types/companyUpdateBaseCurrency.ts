@@ -13,5 +13,9 @@ export const CompanyUpdateBaseCurrency = {
   EGP: 'EGP',
   SAR: 'SAR',
   AED: 'AED',
+  KWD: 'KWD',
+  QAR: 'QAR',
+  BHD: 'BHD',
+  OMR: 'OMR',
   USD: 'USD',
 } as const;

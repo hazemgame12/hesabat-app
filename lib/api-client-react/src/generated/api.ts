@@ -946,6 +946,76 @@ export const useCreateTax = <TError = ErrorType<ErrorResponse>,
       return useMutation(getCreateTaxMutationOptions(options));
     }
 
+export const getSeedDefaultTaxesUrl = () => {
+
+
+
+
+  return `/api/taxes/seed-defaults`
+}
+
+/**
+ * @summary Seed the company's country default taxes (only when none exist)
+ */
+export const seedDefaultTaxes = async ( options?: RequestInit): Promise<Tax[]> => {
+
+  return customFetch<Tax[]>(getSeedDefaultTaxesUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSeedDefaultTaxesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedDefaultTaxes>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof seedDefaultTaxes>>, TError,void, TContext> => {
+
+const mutationKey = ['seedDefaultTaxes'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof seedDefaultTaxes>>, void> = () => {
+
+
+          return  seedDefaultTaxes(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SeedDefaultTaxesMutationResult = NonNullable<Awaited<ReturnType<typeof seedDefaultTaxes>>>
+
+    export type SeedDefaultTaxesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Seed the company's country default taxes (only when none exist)
+ */
+export const useSeedDefaultTaxes = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof seedDefaultTaxes>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof seedDefaultTaxes>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getSeedDefaultTaxesMutationOptions(options));
+    }
+
 export const getUpdateTaxUrl = (id: string,) => {
 
 
