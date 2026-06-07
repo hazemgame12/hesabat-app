@@ -299,6 +299,126 @@ export interface CurrencyUpdate {
   isActive?: boolean;
 }
 
+export type FixedAssetMethod = typeof FixedAssetMethod[keyof typeof FixedAssetMethod];
+
+
+export const FixedAssetMethod = {
+  straight_line: 'straight_line',
+} as const;
+
+export type FixedAssetStatus = typeof FixedAssetStatus[keyof typeof FixedAssetStatus];
+
+
+export const FixedAssetStatus = {
+  active: 'active',
+  disposed: 'disposed',
+} as const;
+
+export interface FixedAsset {
+  id: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @nullable */
+  category?: string | null;
+  acquisitionDate: string;
+  cost: number;
+  salvageValue: number;
+  usefulLifeMonths: number;
+  method: FixedAssetMethod;
+  status: FixedAssetStatus;
+  assetAccountId: string;
+  accumulatedAccountId: string;
+  expenseAccountId: string;
+  accumulatedDepreciation: number;
+  netBookValue: number;
+  createdAt: string;
+}
+
+export type FixedAssetInputMethod = typeof FixedAssetInputMethod[keyof typeof FixedAssetInputMethod];
+
+
+export const FixedAssetInputMethod = {
+  straight_line: 'straight_line',
+} as const;
+
+export interface FixedAssetInput {
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @nullable */
+  category?: string | null;
+  /** @minLength 1 */
+  acquisitionDate: string;
+  /** @exclusiveMinimum 0 */
+  cost: number;
+  /** @minimum 0 */
+  salvageValue?: number;
+  /** @minimum 1 */
+  usefulLifeMonths: number;
+  method?: FixedAssetInputMethod;
+  assetAccountId: string;
+  accumulatedAccountId: string;
+  expenseAccountId: string;
+}
+
+export type FixedAssetUpdateMethod = typeof FixedAssetUpdateMethod[keyof typeof FixedAssetUpdateMethod];
+
+
+export const FixedAssetUpdateMethod = {
+  straight_line: 'straight_line',
+} as const;
+
+export type FixedAssetUpdateStatus = typeof FixedAssetUpdateStatus[keyof typeof FixedAssetUpdateStatus];
+
+
+export const FixedAssetUpdateStatus = {
+  active: 'active',
+  disposed: 'disposed',
+} as const;
+
+export interface FixedAssetUpdate {
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @nullable */
+  category?: string | null;
+  /** @minLength 1 */
+  acquisitionDate?: string;
+  /** @exclusiveMinimum 0 */
+  cost?: number;
+  /** @minimum 0 */
+  salvageValue?: number;
+  /** @minimum 1 */
+  usefulLifeMonths?: number;
+  method?: FixedAssetUpdateMethod;
+  status?: FixedAssetUpdateStatus;
+  assetAccountId?: string;
+  accumulatedAccountId?: string;
+  expenseAccountId?: string;
+}
+
+export interface RunDepreciationInput {
+  /**
+     * Target month as YYYY-MM
+     * @pattern ^[0-9]{4}-[0-9]{2}$
+     */
+  period: string;
+}
+
+export interface RunDepreciationResult {
+  period: string;
+  assetsDepreciated: number;
+  totalAmount: number;
+  /** @nullable */
+  journalEntryId?: string | null;
+  /** @nullable */
+  journalEntryNo?: number | null;
+  skipped: number;
+}
+
 export type CostCenterType = typeof CostCenterType[keyof typeof CostCenterType];
 
 

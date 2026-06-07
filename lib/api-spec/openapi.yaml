@@ -20,6 +20,8 @@ tags:
     description: Cost centers, projects, and branches
   - name: journal
     description: Journal entries and lines
+  - name: assets
+    description: Fixed assets and depreciation
   - name: dashboard
     description: Dashboard aggregates
   - name: team
@@ -1157,6 +1159,141 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /assets:
+    get:
+      operationId: listAssets
+      tags: [assets]
+      summary: List all fixed assets for the current company
+      responses:
+        "200":
+          description: Fixed assets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FixedAsset"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createAsset
+      tags: [assets]
+      summary: Create a fixed asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FixedAssetInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixedAsset"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assets/depreciation/run:
+    post:
+      operationId: runDepreciation
+      tags: [assets]
+      summary: Run straight-line depreciation for a chosen month (creates one draft entry)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunDepreciationInput"
+      responses:
+        "200":
+          description: Depreciation run result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunDepreciationResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /assets/{id}:
+    patch:
+      operationId: updateAsset
+      tags: [assets]
+      summary: Update a fixed asset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FixedAssetUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FixedAsset"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAsset
+      tags: [assets]
+      summary: Delete a fixed asset
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "400":
+          description: Asset has depreciation history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1474,6 +1611,170 @@ components:
           exclusiveMinimum: 0
         isActive:
           type: boolean
+
+    FixedAsset:
+      type: object
+      required:
+        [
+          id,
+          nameAr,
+          acquisitionDate,
+          cost,
+          salvageValue,
+          usefulLifeMonths,
+          method,
+          status,
+          assetAccountId,
+          accumulatedAccountId,
+          expenseAccountId,
+          accumulatedDepreciation,
+          netBookValue,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        acquisitionDate:
+          type: string
+        cost:
+          type: number
+        salvageValue:
+          type: number
+        usefulLifeMonths:
+          type: integer
+        method:
+          type: string
+          enum: [straight_line]
+        status:
+          type: string
+          enum: [active, disposed]
+        assetAccountId:
+          type: string
+        accumulatedAccountId:
+          type: string
+        expenseAccountId:
+          type: string
+        accumulatedDepreciation:
+          type: number
+        netBookValue:
+          type: number
+        createdAt:
+          type: string
+
+    FixedAssetInput:
+      type: object
+      required:
+        [
+          nameAr,
+          acquisitionDate,
+          cost,
+          usefulLifeMonths,
+          assetAccountId,
+          accumulatedAccountId,
+          expenseAccountId,
+        ]
+      properties:
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        acquisitionDate:
+          type: string
+          minLength: 1
+        cost:
+          type: number
+          exclusiveMinimum: 0
+        salvageValue:
+          type: number
+          minimum: 0
+        usefulLifeMonths:
+          type: integer
+          minimum: 1
+        method:
+          type: string
+          enum: [straight_line]
+        assetAccountId:
+          type: string
+          format: uuid
+        accumulatedAccountId:
+          type: string
+          format: uuid
+        expenseAccountId:
+          type: string
+          format: uuid
+
+    FixedAssetUpdate:
+      type: object
+      properties:
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        acquisitionDate:
+          type: string
+          minLength: 1
+        cost:
+          type: number
+          exclusiveMinimum: 0
+        salvageValue:
+          type: number
+          minimum: 0
+        usefulLifeMonths:
+          type: integer
+          minimum: 1
+        method:
+          type: string
+          enum: [straight_line]
+        status:
+          type: string
+          enum: [active, disposed]
+        assetAccountId:
+          type: string
+          format: uuid
+        accumulatedAccountId:
+          type: string
+          format: uuid
+        expenseAccountId:
+          type: string
+          format: uuid
+
+    RunDepreciationInput:
+      type: object
+      required: [period]
+      properties:
+        period:
+          type: string
+          description: Target month as YYYY-MM
+          pattern: "^[0-9]{4}-[0-9]{2}$"
+
+    RunDepreciationResult:
+      type: object
+      required: [period, assetsDepreciated, totalAmount, skipped]
+      properties:
+        period:
+          type: string
+        assetsDepreciated:
+          type: integer
+        totalAmount:
+          type: number
+        journalEntryId:
+          type: ["string", "null"]
+        journalEntryNo:
+          type: ["integer", "null"]
+        skipped:
+          type: integer
 
     CostCenter:
       type: object

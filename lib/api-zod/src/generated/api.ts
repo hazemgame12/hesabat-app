@@ -824,3 +824,137 @@ export const AcceptInvitationBody = zod.object({
 })
 
 
+/**
+ * @summary List all fixed assets for the current company
+ */
+export const ListAssetsResponseItem = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "acquisitionDate": zod.string(),
+  "cost": zod.number(),
+  "salvageValue": zod.number(),
+  "usefulLifeMonths": zod.number(),
+  "method": zod.enum(['straight_line']),
+  "status": zod.enum(['active', 'disposed']),
+  "assetAccountId": zod.string(),
+  "accumulatedAccountId": zod.string(),
+  "expenseAccountId": zod.string(),
+  "accumulatedDepreciation": zod.number(),
+  "netBookValue": zod.number(),
+  "createdAt": zod.string()
+})
+export const ListAssetsResponse = zod.array(ListAssetsResponseItem)
+
+
+/**
+ * @summary Create a fixed asset
+ */
+
+
+export const createAssetBodyCostExclusiveMin = 0;
+
+export const createAssetBodySalvageValueMin = 0;
+
+
+
+
+export const CreateAssetBody = zod.object({
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "acquisitionDate": zod.string().min(1),
+  "cost": zod.number().gt(createAssetBodyCostExclusiveMin),
+  "salvageValue": zod.number().min(createAssetBodySalvageValueMin).optional(),
+  "usefulLifeMonths": zod.number().min(1),
+  "method": zod.enum(['straight_line']).optional(),
+  "assetAccountId": zod.string().uuid(),
+  "accumulatedAccountId": zod.string().uuid(),
+  "expenseAccountId": zod.string().uuid()
+})
+
+
+/**
+ * @summary Run straight-line depreciation for a chosen month (creates one draft entry)
+ */
+export const runDepreciationBodyPeriodRegExp = new RegExp('^[0-9]{4}-[0-9]{2}$');
+
+
+export const RunDepreciationBody = zod.object({
+  "period": zod.string().regex(runDepreciationBodyPeriodRegExp).describe('Target month as YYYY-MM')
+})
+
+export const RunDepreciationResponse = zod.object({
+  "period": zod.string(),
+  "assetsDepreciated": zod.number(),
+  "totalAmount": zod.number(),
+  "journalEntryId": zod.string().nullish(),
+  "journalEntryNo": zod.number().nullish(),
+  "skipped": zod.number()
+})
+
+
+/**
+ * @summary Update a fixed asset
+ */
+export const UpdateAssetParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+export const updateAssetBodyCostExclusiveMin = 0;
+
+export const updateAssetBodySalvageValueMin = 0;
+
+
+
+
+export const UpdateAssetBody = zod.object({
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "acquisitionDate": zod.string().min(1).optional(),
+  "cost": zod.number().gt(updateAssetBodyCostExclusiveMin).optional(),
+  "salvageValue": zod.number().min(updateAssetBodySalvageValueMin).optional(),
+  "usefulLifeMonths": zod.number().min(1).optional(),
+  "method": zod.enum(['straight_line']).optional(),
+  "status": zod.enum(['active', 'disposed']).optional(),
+  "assetAccountId": zod.string().uuid().optional(),
+  "accumulatedAccountId": zod.string().uuid().optional(),
+  "expenseAccountId": zod.string().uuid().optional()
+})
+
+export const UpdateAssetResponse = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "category": zod.string().nullish(),
+  "acquisitionDate": zod.string(),
+  "cost": zod.number(),
+  "salvageValue": zod.number(),
+  "usefulLifeMonths": zod.number(),
+  "method": zod.enum(['straight_line']),
+  "status": zod.enum(['active', 'disposed']),
+  "assetAccountId": zod.string(),
+  "accumulatedAccountId": zod.string(),
+  "expenseAccountId": zod.string(),
+  "accumulatedDepreciation": zod.number(),
+  "netBookValue": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a fixed asset
+ */
+export const DeleteAssetParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteAssetResponse = zod.object({
+  "status": zod.string()
+})
+
+

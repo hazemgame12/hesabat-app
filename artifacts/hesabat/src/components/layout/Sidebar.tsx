@@ -14,6 +14,7 @@ import {
   ListTree,
   LogOut,
   Users,
+  Boxes,
   Settings
 } from "lucide-react";
 
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { labelKey: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
   { labelKey: "nav.journal", icon: FileText, href: "/journal" },
+  { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
   { labelKey: "nav.bank", icon: Landmark, href: "/bank" },
   { labelKey: "nav.advances", icon: HandCoins, href: "/advances" },
   { labelKey: "nav.sales", icon: Users, href: "/sales" },
