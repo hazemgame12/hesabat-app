@@ -44,6 +44,7 @@ import type {
   JournalEntryDetail,
   JournalEntryInput,
   LoginInput,
+  RefreshRatesResult,
   RoleUpdateInput,
   SignupInput,
   Tax,
@@ -1228,6 +1229,76 @@ export const useCreateCurrency = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateCurrencyMutationOptions(options));
+    }
+
+export const getRefreshCurrencyRatesUrl = () => {
+
+
+
+
+  return `/api/currencies/refresh-rates`
+}
+
+/**
+ * @summary Refresh all currency exchange rates from an external source
+ */
+export const refreshCurrencyRates = async ( options?: RequestInit): Promise<RefreshRatesResult> => {
+
+  return customFetch<RefreshRatesResult>(getRefreshCurrencyRatesUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRefreshCurrencyRatesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshCurrencyRates>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshCurrencyRates>>, TError,void, TContext> => {
+
+const mutationKey = ['refreshCurrencyRates'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshCurrencyRates>>, void> = () => {
+
+
+          return  refreshCurrencyRates(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshCurrencyRatesMutationResult = NonNullable<Awaited<ReturnType<typeof refreshCurrencyRates>>>
+
+    export type RefreshCurrencyRatesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Refresh all currency exchange rates from an external source
+ */
+export const useRefreshCurrencyRates = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshCurrencyRates>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof refreshCurrencyRates>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRefreshCurrencyRatesMutationOptions(options));
     }
 
 export const getUpdateCurrencyUrl = (id: string,) => {

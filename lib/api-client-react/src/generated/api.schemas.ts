@@ -263,7 +263,16 @@ export interface Currency {
   nameEn?: string | null;
   exchangeRate: number;
   isActive: boolean;
+  /** @nullable */
+  rateUpdatedAt?: string | null;
   createdAt: string;
+}
+
+export interface RefreshRatesResult {
+  updated: number;
+  skipped: string[];
+  /** @nullable */
+  ratesAsOf: string | null;
 }
 
 export interface CurrencyInput {

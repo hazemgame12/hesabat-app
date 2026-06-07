@@ -314,6 +314,10 @@
     "title": "Currencies & Exchange Rates",
     "subtitle": "Define foreign currencies and each one's rate against your base currency",
     "addCurrency": "Add currency",
+    "refreshRates": "Auto-update rates",
+    "refreshing": "Updating…",
+    "lastUpdated": "Rates last updated: {{time}}",
+    "neverUpdated": "Rates have not been auto-updated yet",
     "baseCurrencyLabel": "Base currency",
     "baseCurrencyHint": "Each currency's rate is the value of one unit in your base currency ({{base}}). E.g. 1 USD = 50 {{base}}.",
     "code": "Code",
@@ -353,7 +357,10 @@
       "deleted": "Currency deleted",
       "addError": "Could not add currency",
       "editError": "Could not update currency",
-      "deleteError": "Could not delete currency"
+      "deleteError": "Could not delete currency",
+      "ratesUpdated": "Updated {{count}} currencies",
+      "ratesSkipped": "Could not update {{count}} currencies (not available from source)",
+      "ratesError": "Could not update exchange rates"
     }
   },
   "costCenters": {

@@ -248,6 +248,7 @@ export const ListCurrenciesResponseItem = zod.object({
   "nameEn": zod.string().nullish(),
   "exchangeRate": zod.number(),
   "isActive": zod.boolean(),
+  "rateUpdatedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListCurrenciesResponse = zod.array(ListCurrenciesResponseItem)
@@ -268,6 +269,16 @@ export const CreateCurrencyBody = zod.object({
   "nameEn": zod.string().nullish(),
   "exchangeRate": zod.number().gt(createCurrencyBodyExchangeRateExclusiveMin),
   "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Refresh all currency exchange rates from an external source
+ */
+export const RefreshCurrencyRatesResponse = zod.object({
+  "updated": zod.number(),
+  "skipped": zod.array(zod.string()),
+  "ratesAsOf": zod.string().nullable()
 })
 
 
@@ -299,6 +310,7 @@ export const UpdateCurrencyResponse = zod.object({
   "nameEn": zod.string().nullish(),
   "exchangeRate": zod.number(),
   "isActive": zod.boolean(),
+  "rateUpdatedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
 

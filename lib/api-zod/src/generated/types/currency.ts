@@ -14,5 +14,7 @@ export interface Currency {
   nameEn?: string | null;
   exchangeRate: number;
   isActive: boolean;
+  /** @nullable */
+  rateUpdatedAt?: string | null;
   createdAt: string;
 }

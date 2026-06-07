@@ -402,6 +402,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /currencies/refresh-rates:
+    post:
+      operationId: refreshCurrencyRates
+      tags: [currencies]
+      summary: Refresh all currency exchange rates from an external source
+      responses:
+        "200":
+          description: Rates refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshRatesResult"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: External rate source unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /currencies/{id}:
     patch:
       operationId: updateCurrency
@@ -1397,8 +1422,23 @@ components:
           type: number
         isActive:
           type: boolean
+        rateUpdatedAt:
+          type: ["string", "null"]
         createdAt:
           type: string
+
+    RefreshRatesResult:
+      type: object
+      required: [updated, skipped, ratesAsOf]
+      properties:
+        updated:
+          type: integer
+        skipped:
+          type: array
+          items:
+            type: string
+        ratesAsOf:
+          type: ["string", "null"]
 
     CurrencyInput:
       type: object

@@ -5,6 +5,7 @@ import {
   useCreateCurrency,
   useUpdateCurrency,
   useDeleteCurrency,
+  useRefreshCurrencyRates,
   useGetCurrentUser,
   useGetCompany,
   getListCurrenciesQueryKey,
@@ -12,7 +13,7 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
-import { Coins, Plus, X, Check, Trash2, Edit2 } from "lucide-react";
+import { Coins, Plus, X, Check, Trash2, Edit2, RefreshCw } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,6 +59,7 @@ export function Currencies() {
   const createCurrency = useCreateCurrency();
   const updateCurrency = useUpdateCurrency();
   const deleteCurrency = useDeleteCurrency();
+  const refreshRates = useRefreshCurrencyRates();
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
   const canCreate = hasCapability(role, "currencies:create");
@@ -105,6 +107,33 @@ export function Currencies() {
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getListCurrenciesQueryKey() });
+
+  const lastUpdated = currencies
+    .map((c) => c.rateUpdatedAt)
+    .filter((d): d is string => !!d)
+    .sort()
+    .at(-1);
+
+  const handleRefreshRates = () => {
+    refreshRates.mutate(undefined, {
+      onSuccess: (result) => {
+        invalidate();
+        toast({
+          title: t("currencies.toast.ratesUpdated", { count: result.updated }),
+          description:
+            result.skipped.length > 0
+              ? t("currencies.toast.ratesSkipped", { count: result.skipped.length })
+              : undefined,
+        });
+      },
+      onError: (err: any) =>
+        toast({
+          variant: "destructive",
+          title: t("common.error"),
+          description: err?.data?.error || t("currencies.toast.ratesError"),
+        }),
+    });
+  };
 
   const onSubmit = (form: CurrencyForm) => {
     const data = {
@@ -185,15 +214,27 @@ export function Currencies() {
             <p className="text-sm text-muted-foreground font-medium">{t("currencies.subtitle")}</p>
           </div>
         </div>
-        {canCreate && (
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            {t("currencies.addCurrency")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {canUpdate && currencies.length > 0 && (
+            <button
+              onClick={handleRefreshRates}
+              disabled={refreshRates.isPending}
+              className="flex items-center gap-2 bg-card border text-foreground px-4 py-2 rounded-full text-sm font-bold hover:bg-muted transition-colors disabled:opacity-60"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshRates.isPending ? "animate-spin" : ""}`} />
+              {refreshRates.isPending ? t("currencies.refreshing") : t("currencies.refreshRates")}
+            </button>
+          )}
+          {canCreate && (
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              {t("currencies.addCurrency")}
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
@@ -202,7 +243,21 @@ export function Currencies() {
             <span className="text-xs font-semibold text-muted-foreground">{t("currencies.baseCurrencyLabel")}</span>
             <span className="font-sans text-lg font-bold text-foreground" dir="ltr">{baseCurrency}</span>
           </div>
-          <p className="text-xs text-muted-foreground flex-1 text-start">{t("currencies.baseCurrencyHint", { base: baseCurrency })}</p>
+          <div className="flex flex-col items-end gap-1 flex-1">
+            <p className="text-xs text-muted-foreground text-start w-full">{t("currencies.baseCurrencyHint", { base: baseCurrency })}</p>
+            {currencies.length > 0 && (
+              <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
+                {lastUpdated
+                  ? t("currencies.lastUpdated", {
+                      time: new Date(lastUpdated).toLocaleString(lang, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      }),
+                    })
+                  : t("currencies.neverUpdated")}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">

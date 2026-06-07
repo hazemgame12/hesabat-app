@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { and, eq, asc } from "drizzle-orm";
-import { db, currenciesTable, type Currency } from "@workspace/db";
+import { db, currenciesTable, companiesTable, type Currency } from "@workspace/db";
 import { CreateCurrencyBody, UpdateCurrencyBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 
 const router = Router();
+
+const RATE_SOURCE_URL = "https://open.er-api.com/v6/latest";
 
 function toCurrency(row: Currency) {
   return {
@@ -15,6 +17,7 @@ function toCurrency(row: Currency) {
     nameEn: row.nameEn,
     exchangeRate: Number(row.exchangeRate),
     isActive: row.isActive,
+    rateUpdatedAt: row.rateUpdatedAt ? row.rateUpdatedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -72,6 +75,98 @@ router.post(
         return;
       }
       req.log.error({ err }, "Failed to create currency");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+router.post(
+  "/currencies/refresh-rates",
+  requireAuth,
+  requireCapability("currencies:update"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const [company] = await db
+        .select({ baseCurrency: companiesTable.baseCurrency })
+        .from(companiesTable)
+        .where(eq(companiesTable.id, companyId));
+      const base = (company?.baseCurrency || "EGP").toUpperCase();
+
+      const rows = await db
+        .select()
+        .from(currenciesTable)
+        .where(eq(currenciesTable.companyId, companyId));
+      if (rows.length === 0) {
+        res.json({ updated: 0, skipped: [], ratesAsOf: null });
+        return;
+      }
+
+      let payload: {
+        result?: string;
+        rates?: Record<string, number>;
+        time_last_update_utc?: string;
+      };
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        try {
+          const resp = await fetch(
+            `${RATE_SOURCE_URL}/${encodeURIComponent(base)}`,
+            { signal: controller.signal },
+          );
+          if (!resp.ok) {
+            res
+              .status(502)
+              .json({ error: "تعذّر جلب أسعار الصرف من المصدر الخارجي" });
+            return;
+          }
+          payload = (await resp.json()) as typeof payload;
+        } finally {
+          clearTimeout(timer);
+        }
+      } catch (err) {
+        req.log.error({ err }, "Failed to fetch exchange rates");
+        res.status(502).json({ error: "تعذّر الاتصال بمصدر أسعار الصرف" });
+        return;
+      }
+      if (payload.result !== "success" || !payload.rates) {
+        res.status(502).json({ error: "تعذّر جلب أسعار الصرف من المصدر الخارجي" });
+        return;
+      }
+
+      const rates = payload.rates;
+      const now = new Date();
+      const skipped: string[] = [];
+      let updated = 0;
+      await db.transaction(async (tx) => {
+        for (const row of rows) {
+          const perBase = rates[row.code.toUpperCase()];
+          if (!perBase || perBase <= 0) {
+            skipped.push(row.code);
+            continue;
+          }
+          const rate = 1 / perBase;
+          await tx
+            .update(currenciesTable)
+            .set({ exchangeRate: rate.toFixed(6), rateUpdatedAt: now })
+            .where(
+              and(
+                eq(currenciesTable.id, row.id),
+                eq(currenciesTable.companyId, companyId),
+              ),
+            );
+          updated++;
+        }
+      });
+
+      res.json({
+        updated,
+        skipped,
+        ratesAsOf: payload.time_last_update_utc ?? now.toISOString(),
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to refresh exchange rates");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

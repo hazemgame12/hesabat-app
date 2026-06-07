@@ -28,6 +28,7 @@ export const currenciesTable = pgTable(
     nameEn: text("name_en"),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 }).notNull(),
     isActive: boolean("is_active").notNull().default(true),
+    rateUpdatedAt: timestamp("rate_updated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

@@ -45,6 +45,7 @@ export * from './journalEntryLine';
 export * from './journalEntryLineInput';
 export * from './journalEntryStatus';
 export * from './loginInput';
+export * from './refreshRatesResult';
 export * from './roleUpdateInput';
 export * from './roleUpdateInputRole';
 export * from './signupInput';
