@@ -1487,6 +1487,220 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /employees:
+    get:
+      operationId: listEmployees
+      tags: [payroll]
+      summary: List all employees for the current company
+      responses:
+        "200":
+          description: Employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Employee"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createEmployee
+      tags: [payroll]
+      summary: Create an employee (with recurring pay components)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate employee code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /employees/{id}:
+    get:
+      operationId: getEmployee
+      tags: [payroll]
+      summary: Get a single employee with pay components
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateEmployee
+      tags: [payroll]
+      summary: Update an employee (replaces pay components when provided)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmployeeUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate employee code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteEmployee
+      tags: [payroll]
+      summary: Delete an employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "400":
+          description: Employee has payroll history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payroll/runs:
+    get:
+      operationId: listPayrollRuns
+      tags: [payroll]
+      summary: List payroll runs for the current company
+      responses:
+        "200":
+          description: Payroll runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PayrollRun"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPayrollRun
+      tags: [payroll]
+      summary: Run payroll for a period (creates one draft journal entry)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayrollRunInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollRun"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Payroll already run for this period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payroll/runs/{id}:
+    get:
+      operationId: getPayrollRun
+      tags: [payroll]
+      summary: Get a payroll run with per-employee lines
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payroll run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollRun"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -2133,6 +2347,233 @@ components:
           format: uuid
         counterpartAccountId:
           type: string
+          format: uuid
+        notes:
+          type: ["string", "null"]
+
+    PayComponent:
+      type: object
+      required: [id, kind, nameAr, amount, isActive]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [allowance, deduction]
+        nameAr:
+          type: string
+        amount:
+          type: number
+        isActive:
+          type: boolean
+
+    PayComponentInput:
+      type: object
+      required: [kind, nameAr, amount]
+      properties:
+        kind:
+          type: string
+          enum: [allowance, deduction]
+        nameAr:
+          type: string
+          minLength: 1
+        amount:
+          type: number
+          minimum: 0
+        isActive:
+          type: boolean
+
+    Employee:
+      type: object
+      required:
+        [
+          id,
+          code,
+          nameAr,
+          hireDate,
+          status,
+          baseSalary,
+          components,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        jobTitle:
+          type: ["string", "null"]
+        hireDate:
+          type: string
+        status:
+          type: string
+          enum: [active, terminated]
+        baseSalary:
+          type: number
+        notes:
+          type: ["string", "null"]
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayComponent"
+        createdAt:
+          type: string
+
+    EmployeeInput:
+      type: object
+      required: [code, nameAr, hireDate, baseSalary]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        jobTitle:
+          type: ["string", "null"]
+        hireDate:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum: [active, terminated]
+        baseSalary:
+          type: number
+          minimum: 0
+        notes:
+          type: ["string", "null"]
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayComponentInput"
+
+    EmployeeUpdate:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        jobTitle:
+          type: ["string", "null"]
+        hireDate:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum: [active, terminated]
+        baseSalary:
+          type: number
+          minimum: 0
+        notes:
+          type: ["string", "null"]
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayComponentInput"
+
+    PayrollRunLine:
+      type: object
+      required:
+        [
+          id,
+          employeeId,
+          employeeName,
+          baseSalary,
+          totalAllowances,
+          totalDeductions,
+          netPay,
+        ]
+      properties:
+        id:
+          type: string
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        baseSalary:
+          type: number
+        totalAllowances:
+          type: number
+        totalDeductions:
+          type: number
+        netPay:
+          type: number
+
+    PayrollRun:
+      type: object
+      required:
+        [
+          id,
+          period,
+          status,
+          salaryExpenseAccountId,
+          netPayableAccountId,
+          totalGross,
+          totalDeductions,
+          totalNet,
+          employeeCount,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        period:
+          type: string
+        status:
+          type: string
+        salaryExpenseAccountId:
+          type: string
+        netPayableAccountId:
+          type: string
+        deductionsAccountId:
+          type: ["string", "null"]
+        totalGross:
+          type: number
+        totalDeductions:
+          type: number
+        totalNet:
+          type: number
+        employeeCount:
+          type: integer
+        notes:
+          type: ["string", "null"]
+        journalEntryId:
+          type: ["string", "null"]
+        journalEntryNo:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayrollRunLine"
+
+    PayrollRunInput:
+      type: object
+      required: [period, salaryExpenseAccountId, netPayableAccountId]
+      properties:
+        period:
+          type: string
+          minLength: 7
+        salaryExpenseAccountId:
+          type: string
+          format: uuid
+        netPayableAccountId:
+          type: string
+          format: uuid
+        deductionsAccountId:
+          type: ["string", "null"]
           format: uuid
         notes:
           type: ["string", "null"]

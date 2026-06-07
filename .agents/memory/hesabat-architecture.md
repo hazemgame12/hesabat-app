@@ -32,3 +32,8 @@ Arabic-first (RTL, Cairo font), navy+sand theme derived from approved mockups. F
 
 ## "Seed-on-first-use" backfill endpoints must check existence inside a locked tx
 - Any endpoint that one-shot seeds defaults for a tenant (e.g. country taxes) must take a row lock on the parent (`SELECT … FOR UPDATE` on the company row) and re-check "already seeded?" INSIDE the same transaction, then 409 on conflict. An out-of-transaction precheck lets two concurrent clicks both pass and double-seed. **Why:** code review flagged exactly this race on the tax seed-defaults route. Apply to future payroll/inventory "seed defaults" actions.
+
+## Period-unique posting (payroll runs, depreciation) — guard the race two ways
+- One-shot-per-period postings (payroll run per `(company, period)`, depreciation per `(asset, period)`) need BOTH a pre-tx existence check (fast, friendly 409) AND a post-tx catch of the Postgres `23505` unique-violation mapped to 409. The pre-check alone races: two concurrent requests can both pass it, then one insert throws and would otherwise leak as a generic 500. **Why:** code review flagged the payroll-run double-post returning 500 under concurrency. (Seed-defaults uses `SELECT … FOR UPDATE` instead; either approach works, but a unique constraint + 23505 catch is simplest when one already exists.)
+- Manual-amount modules (payroll): validate business invariants (e.g. per-employee net ≥ 0 when deductions > gross) and return 400 BEFORE calling `createDraftJournalEntry`, so a bad input never surfaces as a 500 from the balance/validation inside journal-posting.
+- Run-line tables snapshot the human-readable name (`employeeName`) and use `onDelete restrict` on the entity FK, so historical runs survive employee edits/deletes.

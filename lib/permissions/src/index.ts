@@ -56,6 +56,10 @@ export const CAPABILITIES = [
   "inventory:create",
   "inventory:update",
   "inventory:delete",
+  "payroll:read",
+  "payroll:create",
+  "payroll:update",
+  "payroll:delete",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -110,6 +114,13 @@ const INVENTORY_FULL: Capability[] = [
   "inventory:delete",
 ];
 
+const PAYROLL_FULL: Capability[] = [
+  "payroll:read",
+  "payroll:create",
+  "payroll:update",
+  "payroll:delete",
+];
+
 export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
   owner: [
     "team:manage",
@@ -121,6 +132,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...JOURNAL_FULL,
     ...ASSETS_FULL,
     ...INVENTORY_FULL,
+    ...PAYROLL_FULL,
   ],
   manager: [
     "company:manage",
@@ -131,6 +143,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...JOURNAL_FULL,
     ...ASSETS_FULL,
     ...INVENTORY_FULL,
+    ...PAYROLL_FULL,
   ],
   accountant: [
     "accounts:read",
@@ -155,6 +168,9 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "inventory:read",
     "inventory:create",
     "inventory:update",
+    "payroll:read",
+    "payroll:create",
+    "payroll:update",
   ],
   data_entry: [
     "accounts:read",
@@ -169,6 +185,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "assets:create",
     "inventory:read",
     "inventory:create",
+    "payroll:read",
+    "payroll:create",
   ],
   viewer: [
     "accounts:read",
@@ -178,6 +196,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "journal:read",
     "assets:read",
     "inventory:read",
+    "payroll:read",
   ],
 };
 

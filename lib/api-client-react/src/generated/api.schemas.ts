@@ -551,6 +551,161 @@ export interface InventoryMovementInput {
   notes?: string | null;
 }
 
+export type PayComponentKind = typeof PayComponentKind[keyof typeof PayComponentKind];
+
+
+export const PayComponentKind = {
+  allowance: 'allowance',
+  deduction: 'deduction',
+} as const;
+
+export interface PayComponent {
+  id: string;
+  kind: PayComponentKind;
+  nameAr: string;
+  amount: number;
+  isActive: boolean;
+}
+
+export type PayComponentInputKind = typeof PayComponentInputKind[keyof typeof PayComponentInputKind];
+
+
+export const PayComponentInputKind = {
+  allowance: 'allowance',
+  deduction: 'deduction',
+} as const;
+
+export interface PayComponentInput {
+  kind: PayComponentInputKind;
+  /** @minLength 1 */
+  nameAr: string;
+  /** @minimum 0 */
+  amount: number;
+  isActive?: boolean;
+}
+
+export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
+
+
+export const EmployeeStatus = {
+  active: 'active',
+  terminated: 'terminated',
+} as const;
+
+export interface Employee {
+  id: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @nullable */
+  jobTitle?: string | null;
+  hireDate: string;
+  status: EmployeeStatus;
+  baseSalary: number;
+  /** @nullable */
+  notes?: string | null;
+  components: PayComponent[];
+  createdAt: string;
+}
+
+export type EmployeeInputStatus = typeof EmployeeInputStatus[keyof typeof EmployeeInputStatus];
+
+
+export const EmployeeInputStatus = {
+  active: 'active',
+  terminated: 'terminated',
+} as const;
+
+export interface EmployeeInput {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @nullable */
+  jobTitle?: string | null;
+  /** @minLength 1 */
+  hireDate: string;
+  status?: EmployeeInputStatus;
+  /** @minimum 0 */
+  baseSalary: number;
+  /** @nullable */
+  notes?: string | null;
+  components?: PayComponentInput[];
+}
+
+export type EmployeeUpdateStatus = typeof EmployeeUpdateStatus[keyof typeof EmployeeUpdateStatus];
+
+
+export const EmployeeUpdateStatus = {
+  active: 'active',
+  terminated: 'terminated',
+} as const;
+
+export interface EmployeeUpdate {
+  /** @minLength 1 */
+  code?: string;
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @nullable */
+  jobTitle?: string | null;
+  /** @minLength 1 */
+  hireDate?: string;
+  status?: EmployeeUpdateStatus;
+  /** @minimum 0 */
+  baseSalary?: number;
+  /** @nullable */
+  notes?: string | null;
+  components?: PayComponentInput[];
+}
+
+export interface PayrollRunLine {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  baseSalary: number;
+  totalAllowances: number;
+  totalDeductions: number;
+  netPay: number;
+}
+
+export interface PayrollRun {
+  id: string;
+  period: string;
+  status: string;
+  salaryExpenseAccountId: string;
+  netPayableAccountId: string;
+  /** @nullable */
+  deductionsAccountId?: string | null;
+  totalGross: number;
+  totalDeductions: number;
+  totalNet: number;
+  employeeCount: number;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  journalEntryId?: string | null;
+  /** @nullable */
+  journalEntryNo?: number | null;
+  createdAt: string;
+  lines?: PayrollRunLine[];
+}
+
+export interface PayrollRunInput {
+  /** @minLength 7 */
+  period: string;
+  salaryExpenseAccountId: string;
+  netPayableAccountId: string;
+  /** @nullable */
+  deductionsAccountId?: string | null;
+  /** @nullable */
+  notes?: string | null;
+}
+
 export type CostCenterType = typeof CostCenterType[keyof typeof CostCenterType];
 
 

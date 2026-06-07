@@ -11,6 +11,7 @@ import { Accounts } from "@/pages/accounts";
 import { Journal } from "@/pages/journal";
 import { FixedAssets } from "@/pages/fixed-assets";
 import { Inventory } from "@/pages/inventory";
+import { Payroll } from "@/pages/payroll";
 import { Settings } from "@/pages/settings";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { ComingSoon } from "@/pages/coming-soon";
@@ -34,6 +35,7 @@ function ProtectedRoutes() {
         <Route path="/journal" component={Journal} />
         <Route path="/assets" component={FixedAssets} />
         <Route path="/inventory" component={Inventory} />
+        <Route path="/payroll" component={Payroll} />
         <Route path="/settings/:tab?" component={Settings} />
         <Route path="/taxes">
           <Redirect to="/settings/taxes" />

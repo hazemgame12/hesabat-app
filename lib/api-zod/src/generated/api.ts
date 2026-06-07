@@ -1096,3 +1096,235 @@ export const CreateInventoryMovementBody = zod.object({
 })
 
 
+/**
+ * @summary List all employees for the current company
+ */
+export const ListEmployeesResponseItem = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "hireDate": zod.string(),
+  "status": zod.enum(['active', 'terminated']),
+  "baseSalary": zod.number(),
+  "notes": zod.string().nullish(),
+  "components": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['allowance', 'deduction']),
+  "nameAr": zod.string(),
+  "amount": zod.number(),
+  "isActive": zod.boolean()
+})),
+  "createdAt": zod.string()
+})
+export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
+
+
+/**
+ * @summary Create an employee (with recurring pay components)
+ */
+
+
+
+export const createEmployeeBodyBaseSalaryMin = 0;
+
+
+export const createEmployeeBodyComponentsItemAmountMin = 0;
+
+
+
+export const CreateEmployeeBody = zod.object({
+  "code": zod.string().min(1),
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "hireDate": zod.string().min(1),
+  "status": zod.enum(['active', 'terminated']).optional(),
+  "baseSalary": zod.number().min(createEmployeeBodyBaseSalaryMin),
+  "notes": zod.string().nullish(),
+  "components": zod.array(zod.object({
+  "kind": zod.enum(['allowance', 'deduction']),
+  "nameAr": zod.string().min(1),
+  "amount": zod.number().min(createEmployeeBodyComponentsItemAmountMin),
+  "isActive": zod.boolean().optional()
+})).optional()
+})
+
+
+/**
+ * @summary Get a single employee with pay components
+ */
+export const GetEmployeeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetEmployeeResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "hireDate": zod.string(),
+  "status": zod.enum(['active', 'terminated']),
+  "baseSalary": zod.number(),
+  "notes": zod.string().nullish(),
+  "components": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['allowance', 'deduction']),
+  "nameAr": zod.string(),
+  "amount": zod.number(),
+  "isActive": zod.boolean()
+})),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update an employee (replaces pay components when provided)
+ */
+export const UpdateEmployeeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const updateEmployeeBodyBaseSalaryMin = 0;
+
+
+export const updateEmployeeBodyComponentsItemAmountMin = 0;
+
+
+
+export const UpdateEmployeeBody = zod.object({
+  "code": zod.string().min(1).optional(),
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "hireDate": zod.string().min(1).optional(),
+  "status": zod.enum(['active', 'terminated']).optional(),
+  "baseSalary": zod.number().min(updateEmployeeBodyBaseSalaryMin).optional(),
+  "notes": zod.string().nullish(),
+  "components": zod.array(zod.object({
+  "kind": zod.enum(['allowance', 'deduction']),
+  "nameAr": zod.string().min(1),
+  "amount": zod.number().min(updateEmployeeBodyComponentsItemAmountMin),
+  "isActive": zod.boolean().optional()
+})).optional()
+})
+
+export const UpdateEmployeeResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "jobTitle": zod.string().nullish(),
+  "hireDate": zod.string(),
+  "status": zod.enum(['active', 'terminated']),
+  "baseSalary": zod.number(),
+  "notes": zod.string().nullish(),
+  "components": zod.array(zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['allowance', 'deduction']),
+  "nameAr": zod.string(),
+  "amount": zod.number(),
+  "isActive": zod.boolean()
+})),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete an employee
+ */
+export const DeleteEmployeeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteEmployeeResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List payroll runs for the current company
+ */
+export const ListPayrollRunsResponseItem = zod.object({
+  "id": zod.string(),
+  "period": zod.string(),
+  "status": zod.string(),
+  "salaryExpenseAccountId": zod.string(),
+  "netPayableAccountId": zod.string(),
+  "deductionsAccountId": zod.string().nullish(),
+  "totalGross": zod.number(),
+  "totalDeductions": zod.number(),
+  "totalNet": zod.number(),
+  "employeeCount": zod.number(),
+  "notes": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "journalEntryNo": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "baseSalary": zod.number(),
+  "totalAllowances": zod.number(),
+  "totalDeductions": zod.number(),
+  "netPay": zod.number()
+})).optional()
+})
+export const ListPayrollRunsResponse = zod.array(ListPayrollRunsResponseItem)
+
+
+/**
+ * @summary Run payroll for a period (creates one draft journal entry)
+ */
+export const createPayrollRunBodyPeriodMin = 7;
+
+
+
+export const CreatePayrollRunBody = zod.object({
+  "period": zod.string().min(createPayrollRunBodyPeriodMin),
+  "salaryExpenseAccountId": zod.string().uuid(),
+  "netPayableAccountId": zod.string().uuid(),
+  "deductionsAccountId": zod.string().uuid().nullish(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get a payroll run with per-employee lines
+ */
+export const GetPayrollRunParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetPayrollRunResponse = zod.object({
+  "id": zod.string(),
+  "period": zod.string(),
+  "status": zod.string(),
+  "salaryExpenseAccountId": zod.string(),
+  "netPayableAccountId": zod.string(),
+  "deductionsAccountId": zod.string().nullish(),
+  "totalGross": zod.number(),
+  "totalDeductions": zod.number(),
+  "totalNet": zod.number(),
+  "employeeCount": zod.number(),
+  "notes": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "journalEntryNo": zod.number().nullish(),
+  "createdAt": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "baseSalary": zod.number(),
+  "totalAllowances": zod.number(),
+  "totalDeductions": zod.number(),
+  "netPay": zod.number()
+})).optional()
+})
+
+
