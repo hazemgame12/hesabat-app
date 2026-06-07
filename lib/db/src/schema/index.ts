@@ -35,3 +35,4 @@ export * from "./cost-centers";
 export * from "./currencies";
 export * from "./journal-entries";
 export * from "./fixed-assets";
+export * from "./inventory";

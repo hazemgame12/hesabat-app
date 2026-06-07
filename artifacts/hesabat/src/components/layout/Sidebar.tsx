@@ -15,6 +15,7 @@ import {
   LogOut,
   Users,
   Boxes,
+  Package,
   Settings
 } from "lucide-react";
 
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
   { labelKey: "nav.journal", icon: FileText, href: "/journal" },
   { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
+  { labelKey: "nav.inventory", icon: Package, href: "/inventory", requires: "inventory:read" },
   { labelKey: "nav.bank", icon: Landmark, href: "/bank" },
   { labelKey: "nav.advances", icon: HandCoins, href: "/advances" },
   { labelKey: "nav.sales", icon: Users, href: "/sales" },

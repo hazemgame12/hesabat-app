@@ -7,6 +7,23 @@ import {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/**
+ * Serializes per-company journal entry-number allocation by taking a Postgres
+ * transaction-scoped advisory lock keyed on the company id. Entry numbers are
+ * allocated as `max(entry_no)+1`, which races under concurrent posting (e.g. two
+ * inventory movements on different items whose row locks don't conflict) and can
+ * mint duplicate numbers. Every code path that allocates an entry number for a
+ * company MUST call this first, inside the same transaction; the lock auto-releases
+ * on commit/rollback. Collisions across companies (hashtext is int4) are harmless —
+ * at worst two companies briefly serialize.
+ */
+export async function lockCompanyEntryNo(
+  tx: Tx,
+  companyId: string,
+): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${companyId}))`);
+}
+
 // Money values use 2 decimals; treat sub-cent differences as balanced. Kept in
 // sync with the conventions in routes/journal.ts.
 const BALANCE_TOLERANCE = 0.005;
@@ -62,6 +79,7 @@ export async function createDraftJournalEntry(
     throw new Error("DRAFT_ENTRY_UNBALANCED");
   }
 
+  await lockCompanyEntryNo(tx, opts.companyId);
   const [{ maxNo }] = await tx
     .select({
       maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,

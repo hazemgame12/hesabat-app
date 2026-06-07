@@ -1321,6 +1321,172 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /inventory/items:
+    get:
+      operationId: listInventoryItems
+      tags: [inventory]
+      summary: List all stock items for the current company
+      responses:
+        "200":
+          description: Stock items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryItem"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createInventoryItem
+      tags: [inventory]
+      summary: Create a stock item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryItemInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate item code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /inventory/items/{id}:
+    patch:
+      operationId: updateInventoryItem
+      tags: [inventory]
+      summary: Update a stock item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryItemUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteInventoryItem
+      tags: [inventory]
+      summary: Delete a stock item
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "400":
+          description: Item has movement history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /inventory/movements:
+    get:
+      operationId: listInventoryMovements
+      tags: [inventory]
+      summary: List stock movements for the current company
+      parameters:
+        - name: itemId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stock movements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InventoryMovement"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createInventoryMovement
+      tags: [inventory]
+      summary: Record a stock movement (creates a draft journal entry)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryMovementInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryMovement"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1802,6 +1968,174 @@ components:
           type: ["integer", "null"]
         skipped:
           type: integer
+
+    InventoryItem:
+      type: object
+      required:
+        [
+          id,
+          code,
+          nameAr,
+          unit,
+          isActive,
+          quantityOnHand,
+          averageCost,
+          stockValue,
+          inventoryAccountId,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        unit:
+          type: string
+        category:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        quantityOnHand:
+          type: number
+        averageCost:
+          type: number
+        stockValue:
+          type: number
+        inventoryAccountId:
+          type: string
+        createdAt:
+          type: string
+
+    InventoryItemInput:
+      type: object
+      required: [code, nameAr, unit, inventoryAccountId]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        unit:
+          type: string
+          minLength: 1
+        category:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        inventoryAccountId:
+          type: string
+          format: uuid
+
+    InventoryItemUpdate:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        unit:
+          type: string
+          minLength: 1
+        category:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        inventoryAccountId:
+          type: string
+          format: uuid
+
+    InventoryMovement:
+      type: object
+      required:
+        [
+          id,
+          itemId,
+          itemCode,
+          itemNameAr,
+          unit,
+          date,
+          type,
+          quantity,
+          unitCost,
+          totalValue,
+          inventoryAccountId,
+          counterpartAccountId,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        itemId:
+          type: string
+        itemCode:
+          type: string
+        itemNameAr:
+          type: string
+        itemNameEn:
+          type: ["string", "null"]
+        unit:
+          type: string
+        date:
+          type: string
+        type:
+          type: string
+          enum: [receipt, issue, adjustment]
+        quantity:
+          type: number
+        unitCost:
+          type: number
+        totalValue:
+          type: number
+        inventoryAccountId:
+          type: string
+        counterpartAccountId:
+          type: string
+        notes:
+          type: ["string", "null"]
+        journalEntryId:
+          type: ["string", "null"]
+        journalEntryNo:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    InventoryMovementInput:
+      type: object
+      required: [itemId, date, type, quantity, counterpartAccountId]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          minLength: 1
+        type:
+          type: string
+          enum: [receipt, issue, adjustment]
+        quantity:
+          type: number
+        unitCost:
+          type: ["number", "null"]
+          minimum: 0
+        inventoryAccountId:
+          type: ["string", "null"]
+          format: uuid
+        counterpartAccountId:
+          type: string
+          format: uuid
+        notes:
+          type: ["string", "null"]
 
     CostCenter:
       type: object

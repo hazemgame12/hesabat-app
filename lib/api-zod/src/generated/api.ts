@@ -958,3 +958,141 @@ export const DeleteAssetResponse = zod.object({
 })
 
 
+/**
+ * @summary List all stock items for the current company
+ */
+export const ListInventoryItemsResponseItem = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "unit": zod.string(),
+  "category": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "quantityOnHand": zod.number(),
+  "averageCost": zod.number(),
+  "stockValue": zod.number(),
+  "inventoryAccountId": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListInventoryItemsResponse = zod.array(ListInventoryItemsResponseItem)
+
+
+/**
+ * @summary Create a stock item
+ */
+
+
+
+
+
+export const CreateInventoryItemBody = zod.object({
+  "code": zod.string().min(1),
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "unit": zod.string().min(1),
+  "category": zod.string().nullish(),
+  "isActive": zod.boolean().optional(),
+  "inventoryAccountId": zod.string().uuid()
+})
+
+
+/**
+ * @summary Update a stock item
+ */
+export const UpdateInventoryItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+
+
+export const UpdateInventoryItemBody = zod.object({
+  "code": zod.string().min(1).optional(),
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "unit": zod.string().min(1).optional(),
+  "category": zod.string().nullish(),
+  "isActive": zod.boolean().optional(),
+  "inventoryAccountId": zod.string().uuid().optional()
+})
+
+export const UpdateInventoryItemResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "unit": zod.string(),
+  "category": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "quantityOnHand": zod.number(),
+  "averageCost": zod.number(),
+  "stockValue": zod.number(),
+  "inventoryAccountId": zod.string(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a stock item
+ */
+export const DeleteInventoryItemParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteInventoryItemResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List stock movements for the current company
+ */
+export const ListInventoryMovementsQueryParams = zod.object({
+  "itemId": zod.coerce.string().optional()
+})
+
+export const ListInventoryMovementsResponseItem = zod.object({
+  "id": zod.string(),
+  "itemId": zod.string(),
+  "itemCode": zod.string(),
+  "itemNameAr": zod.string(),
+  "itemNameEn": zod.string().nullish(),
+  "unit": zod.string(),
+  "date": zod.string(),
+  "type": zod.enum(['receipt', 'issue', 'adjustment']),
+  "quantity": zod.number(),
+  "unitCost": zod.number(),
+  "totalValue": zod.number(),
+  "inventoryAccountId": zod.string(),
+  "counterpartAccountId": zod.string(),
+  "notes": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "journalEntryNo": zod.number().nullish(),
+  "createdAt": zod.string()
+})
+export const ListInventoryMovementsResponse = zod.array(ListInventoryMovementsResponseItem)
+
+
+/**
+ * @summary Record a stock movement (creates a draft journal entry)
+ */
+
+export const createInventoryMovementBodyUnitCostMin = 0;
+
+
+
+export const CreateInventoryMovementBody = zod.object({
+  "itemId": zod.string().uuid(),
+  "date": zod.string().min(1),
+  "type": zod.enum(['receipt', 'issue', 'adjustment']),
+  "quantity": zod.number(),
+  "unitCost": zod.number().min(createInventoryMovementBodyUnitCostMin).nullish(),
+  "inventoryAccountId": zod.string().uuid().nullish(),
+  "counterpartAccountId": zod.string().uuid(),
+  "notes": zod.string().nullish()
+})
+
+

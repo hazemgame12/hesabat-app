@@ -444,6 +444,113 @@ export interface RunDepreciationResult {
   skipped: number;
 }
 
+export interface InventoryItem {
+  id: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  unit: string;
+  /** @nullable */
+  category?: string | null;
+  isActive: boolean;
+  quantityOnHand: number;
+  averageCost: number;
+  stockValue: number;
+  inventoryAccountId: string;
+  createdAt: string;
+}
+
+export interface InventoryItemInput {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @minLength 1 */
+  unit: string;
+  /** @nullable */
+  category?: string | null;
+  isActive?: boolean;
+  inventoryAccountId: string;
+}
+
+export interface InventoryItemUpdate {
+  /** @minLength 1 */
+  code?: string;
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @minLength 1 */
+  unit?: string;
+  /** @nullable */
+  category?: string | null;
+  isActive?: boolean;
+  inventoryAccountId?: string;
+}
+
+export type InventoryMovementType = typeof InventoryMovementType[keyof typeof InventoryMovementType];
+
+
+export const InventoryMovementType = {
+  receipt: 'receipt',
+  issue: 'issue',
+  adjustment: 'adjustment',
+} as const;
+
+export interface InventoryMovement {
+  id: string;
+  itemId: string;
+  itemCode: string;
+  itemNameAr: string;
+  /** @nullable */
+  itemNameEn?: string | null;
+  unit: string;
+  date: string;
+  type: InventoryMovementType;
+  quantity: number;
+  unitCost: number;
+  totalValue: number;
+  inventoryAccountId: string;
+  counterpartAccountId: string;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  journalEntryId?: string | null;
+  /** @nullable */
+  journalEntryNo?: number | null;
+  createdAt: string;
+}
+
+export type InventoryMovementInputType = typeof InventoryMovementInputType[keyof typeof InventoryMovementInputType];
+
+
+export const InventoryMovementInputType = {
+  receipt: 'receipt',
+  issue: 'issue',
+  adjustment: 'adjustment',
+} as const;
+
+export interface InventoryMovementInput {
+  itemId: string;
+  /** @minLength 1 */
+  date: string;
+  type: InventoryMovementInputType;
+  quantity: number;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  unitCost?: number | null;
+  /** @nullable */
+  inventoryAccountId?: string | null;
+  counterpartAccountId: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
 export type CostCenterType = typeof CostCenterType[keyof typeof CostCenterType];
 
 
@@ -719,4 +826,8 @@ export interface AcceptInvitationInput {
   /** @minLength 8 */
   password: string;
 }
+
+export type ListInventoryMovementsParams = {
+itemId?: string;
+};
 

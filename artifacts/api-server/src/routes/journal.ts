@@ -21,6 +21,7 @@ import { CreateJournalEntryBody, UpdateJournalEntryBody } from "@workspace/api-z
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { uploadsDir } from "./uploads";
+import { lockCompanyEntryNo } from "../lib/journal-posting";
 
 const router = Router();
 
@@ -464,6 +465,7 @@ router.post(
         return;
       }
       const detail = await db.transaction(async (tx) => {
+        await lockCompanyEntryNo(tx, companyId);
         const [{ maxNo }] = await tx
           .select({
             maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,
@@ -1031,6 +1033,7 @@ router.post(
 
       // Persist all entries in a single transaction.
       const created = await db.transaction(async (tx) => {
+        await lockCompanyEntryNo(tx, companyId);
         const [{ maxNo }] = await tx
           .select({
             maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,
