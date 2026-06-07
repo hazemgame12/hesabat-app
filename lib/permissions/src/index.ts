@@ -77,6 +77,10 @@ export const CAPABILITIES = [
   "payments:create",
   "payments:update",
   "payments:delete",
+  "bank:read",
+  "bank:create",
+  "bank:update",
+  "bank:delete",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -167,6 +171,13 @@ const PAYMENTS_FULL: Capability[] = [
   "payments:delete",
 ];
 
+const BANK_FULL: Capability[] = [
+  "bank:read",
+  "bank:create",
+  "bank:update",
+  "bank:delete",
+];
+
 export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
   owner: [
     "team:manage",
@@ -183,6 +194,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...SUPPLIERS_FULL,
     ...INVOICES_FULL,
     ...PAYMENTS_FULL,
+    ...BANK_FULL,
   ],
   manager: [
     "company:manage",
@@ -198,6 +210,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...SUPPLIERS_FULL,
     ...INVOICES_FULL,
     ...PAYMENTS_FULL,
+    ...BANK_FULL,
   ],
   accountant: [
     "accounts:read",
@@ -238,6 +251,9 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "payments:read",
     "payments:create",
     "payments:update",
+    "bank:read",
+    "bank:create",
+    "bank:update",
   ],
   data_entry: [
     "accounts:read",
@@ -262,6 +278,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "invoices:create",
     "payments:read",
     "payments:create",
+    "bank:read",
+    "bank:create",
   ],
   viewer: [
     "accounts:read",
@@ -276,6 +294,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "suppliers:read",
     "invoices:read",
     "payments:read",
+    "bank:read",
   ],
 };
 

@@ -24,8 +24,17 @@ import type {
   Account,
   AccountInput,
   AccountUpdate,
+  AdjustReconciliationInput,
   AgingReport,
   AuthUser,
+  BankAccount,
+  BankAccountInput,
+  BankAccountUpdate,
+  BankMovement,
+  BankMovementInput,
+  BankReconciliation,
+  BankReconciliationDetail,
+  BankReconciliationInput,
   Company,
   CompanyUpdate,
   CostCenter,
@@ -66,10 +75,13 @@ import type {
   JournalEntryAttachment,
   JournalEntryDetail,
   JournalEntryInput,
+  ListBankMovementsParams,
+  ListBankReconciliationsParams,
   ListInventoryMovementsParams,
   ListInvoicesParams,
   ListPaymentsParams,
   LoginInput,
+  MatchReconciliationInput,
   OutstandingInvoice,
   PartyStatement,
   Payment,
@@ -6367,4 +6379,1105 @@ export function useGetPaymentsSummaryReport<TData = Awaited<ReturnType<typeof ge
 
 
 
+
+export const getListBankAccountsUrl = () => {
+
+
+
+
+  return `/api/bank/accounts`
+}
+
+/**
+ * @summary List cash and bank accounts for the current company
+ */
+export const listBankAccounts = async ( options?: RequestInit): Promise<BankAccount[]> => {
+
+  return customFetch<BankAccount[]>(getListBankAccountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankAccountsQueryKey = () => {
+    return [
+    `/api/bank/accounts`
+    ] as const;
+    }
+
+
+export const getListBankAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listBankAccounts>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankAccountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankAccounts>>> = ({ signal }) => listBankAccounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBankAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listBankAccounts>>>
+export type ListBankAccountsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List cash and bank accounts for the current company
+ */
+
+export function useListBankAccounts<TData = Awaited<ReturnType<typeof listBankAccounts>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBankAccountsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateBankAccountUrl = () => {
+
+
+
+
+  return `/api/bank/accounts`
+}
+
+/**
+ * @summary Create a cash or bank account
+ */
+export const createBankAccount = async (bankAccountInput: BankAccountInput, options?: RequestInit): Promise<BankAccount> => {
+
+  return customFetch<BankAccount>(getCreateBankAccountUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bankAccountInput,)
+  }
+);}
+
+
+
+
+export const getCreateBankAccountMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankAccount>>, TError,{data: BodyType<BankAccountInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBankAccount>>, TError,{data: BodyType<BankAccountInput>}, TContext> => {
+
+const mutationKey = ['createBankAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBankAccount>>, {data: BodyType<BankAccountInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBankAccount(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof createBankAccount>>>
+    export type CreateBankAccountMutationBody = BodyType<BankAccountInput>
+    export type CreateBankAccountMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a cash or bank account
+ */
+export const useCreateBankAccount = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankAccount>>, TError,{data: BodyType<BankAccountInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBankAccount>>,
+        TError,
+        {data: BodyType<BankAccountInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBankAccountMutationOptions(options));
+    }
+
+export const getUpdateBankAccountUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/accounts/${id}`
+}
+
+/**
+ * @summary Update a cash or bank account
+ */
+export const updateBankAccount = async (id: string,
+    bankAccountUpdate: BankAccountUpdate, options?: RequestInit): Promise<BankAccount> => {
+
+  return customFetch<BankAccount>(getUpdateBankAccountUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bankAccountUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateBankAccountMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBankAccount>>, TError,{id: string;data: BodyType<BankAccountUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBankAccount>>, TError,{id: string;data: BodyType<BankAccountUpdate>}, TContext> => {
+
+const mutationKey = ['updateBankAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBankAccount>>, {id: string;data: BodyType<BankAccountUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateBankAccount(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof updateBankAccount>>>
+    export type UpdateBankAccountMutationBody = BodyType<BankAccountUpdate>
+    export type UpdateBankAccountMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a cash or bank account
+ */
+export const useUpdateBankAccount = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBankAccount>>, TError,{id: string;data: BodyType<BankAccountUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBankAccount>>,
+        TError,
+        {id: string;data: BodyType<BankAccountUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateBankAccountMutationOptions(options));
+    }
+
+export const getDeleteBankAccountUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/accounts/${id}`
+}
+
+/**
+ * @summary Delete a cash or bank account (blocked if it has movements)
+ */
+export const deleteBankAccount = async (id: string, options?: RequestInit): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getDeleteBankAccountUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteBankAccountMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBankAccount>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBankAccount>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteBankAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBankAccount>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteBankAccount(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBankAccountMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBankAccount>>>
+
+    export type DeleteBankAccountMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a cash or bank account (blocked if it has movements)
+ */
+export const useDeleteBankAccount = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBankAccount>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBankAccount>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteBankAccountMutationOptions(options));
+    }
+
+export const getListBankMovementsUrl = (params: ListBankMovementsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bank/movements?${stringifiedParams}` : `/api/bank/movements`
+}
+
+/**
+ * @summary List movements for a bank account, optionally within a period
+ */
+export const listBankMovements = async (params: ListBankMovementsParams, options?: RequestInit): Promise<BankMovement[]> => {
+
+  return customFetch<BankMovement[]>(getListBankMovementsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankMovementsQueryKey = (params?: ListBankMovementsParams,) => {
+    return [
+    `/api/bank/movements`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBankMovementsQueryOptions = <TData = Awaited<ReturnType<typeof listBankMovements>>, TError = ErrorType<ErrorResponse>>(params: ListBankMovementsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankMovements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankMovementsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankMovements>>> = ({ signal }) => listBankMovements(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankMovements>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBankMovementsQueryResult = NonNullable<Awaited<ReturnType<typeof listBankMovements>>>
+export type ListBankMovementsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List movements for a bank account, optionally within a period
+ */
+
+export function useListBankMovements<TData = Awaited<ReturnType<typeof listBankMovements>>, TError = ErrorType<ErrorResponse>>(
+ params: ListBankMovementsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankMovements>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBankMovementsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateBankMovementUrl = () => {
+
+
+
+
+  return `/api/bank/movements`
+}
+
+/**
+ * @summary Record a bank/cash movement and post its journal entry
+ */
+export const createBankMovement = async (bankMovementInput: BankMovementInput, options?: RequestInit): Promise<BankMovement[]> => {
+
+  return customFetch<BankMovement[]>(getCreateBankMovementUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bankMovementInput,)
+  }
+);}
+
+
+
+
+export const getCreateBankMovementMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankMovement>>, TError,{data: BodyType<BankMovementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBankMovement>>, TError,{data: BodyType<BankMovementInput>}, TContext> => {
+
+const mutationKey = ['createBankMovement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBankMovement>>, {data: BodyType<BankMovementInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBankMovement(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBankMovementMutationResult = NonNullable<Awaited<ReturnType<typeof createBankMovement>>>
+    export type CreateBankMovementMutationBody = BodyType<BankMovementInput>
+    export type CreateBankMovementMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Record a bank/cash movement and post its journal entry
+ */
+export const useCreateBankMovement = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankMovement>>, TError,{data: BodyType<BankMovementInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBankMovement>>,
+        TError,
+        {data: BodyType<BankMovementInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBankMovementMutationOptions(options));
+    }
+
+export const getDeleteBankMovementUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/movements/${id}`
+}
+
+/**
+ * @summary Delete a movement, reversing its journal entry
+ */
+export const deleteBankMovement = async (id: string, options?: RequestInit): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getDeleteBankMovementUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteBankMovementMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBankMovement>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBankMovement>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteBankMovement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBankMovement>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteBankMovement(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBankMovementMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBankMovement>>>
+
+    export type DeleteBankMovementMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a movement, reversing its journal entry
+ */
+export const useDeleteBankMovement = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBankMovement>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBankMovement>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteBankMovementMutationOptions(options));
+    }
+
+export const getListBankReconciliationsUrl = (params?: ListBankReconciliationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bank/reconciliations?${stringifiedParams}` : `/api/bank/reconciliations`
+}
+
+/**
+ * @summary List reconciliations, optionally filtered by account
+ */
+export const listBankReconciliations = async (params?: ListBankReconciliationsParams, options?: RequestInit): Promise<BankReconciliation[]> => {
+
+  return customFetch<BankReconciliation[]>(getListBankReconciliationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankReconciliationsQueryKey = (params?: ListBankReconciliationsParams,) => {
+    return [
+    `/api/bank/reconciliations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBankReconciliationsQueryOptions = <TData = Awaited<ReturnType<typeof listBankReconciliations>>, TError = ErrorType<unknown>>(params?: ListBankReconciliationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankReconciliations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankReconciliationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankReconciliations>>> = ({ signal }) => listBankReconciliations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankReconciliations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBankReconciliationsQueryResult = NonNullable<Awaited<ReturnType<typeof listBankReconciliations>>>
+export type ListBankReconciliationsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List reconciliations, optionally filtered by account
+ */
+
+export function useListBankReconciliations<TData = Awaited<ReturnType<typeof listBankReconciliations>>, TError = ErrorType<unknown>>(
+ params?: ListBankReconciliationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankReconciliations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBankReconciliationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateBankReconciliationUrl = () => {
+
+
+
+
+  return `/api/bank/reconciliations`
+}
+
+/**
+ * @summary Start a reconciliation for an account and period
+ */
+export const createBankReconciliation = async (bankReconciliationInput: BankReconciliationInput, options?: RequestInit): Promise<BankReconciliationDetail> => {
+
+  return customFetch<BankReconciliationDetail>(getCreateBankReconciliationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bankReconciliationInput,)
+  }
+);}
+
+
+
+
+export const getCreateBankReconciliationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankReconciliation>>, TError,{data: BodyType<BankReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBankReconciliation>>, TError,{data: BodyType<BankReconciliationInput>}, TContext> => {
+
+const mutationKey = ['createBankReconciliation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBankReconciliation>>, {data: BodyType<BankReconciliationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBankReconciliation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBankReconciliationMutationResult = NonNullable<Awaited<ReturnType<typeof createBankReconciliation>>>
+    export type CreateBankReconciliationMutationBody = BodyType<BankReconciliationInput>
+    export type CreateBankReconciliationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Start a reconciliation for an account and period
+ */
+export const useCreateBankReconciliation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankReconciliation>>, TError,{data: BodyType<BankReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBankReconciliation>>,
+        TError,
+        {data: BodyType<BankReconciliationInput>},
+        TContext
+      > => {
+      return useMutation(getCreateBankReconciliationMutationOptions(options));
+    }
+
+export const getGetBankReconciliationUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/reconciliations/${id}`
+}
+
+/**
+ * @summary Get a reconciliation with its statement lines and outstanding items
+ */
+export const getBankReconciliation = async (id: string, options?: RequestInit): Promise<BankReconciliationDetail> => {
+
+  return customFetch<BankReconciliationDetail>(getGetBankReconciliationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankReconciliationQueryKey = (id: string,) => {
+    return [
+    `/api/bank/reconciliations/${id}`
+    ] as const;
+    }
+
+
+export const getGetBankReconciliationQueryOptions = <TData = Awaited<ReturnType<typeof getBankReconciliation>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankReconciliation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankReconciliationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankReconciliation>>> = ({ signal }) => getBankReconciliation(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankReconciliation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBankReconciliationQueryResult = NonNullable<Awaited<ReturnType<typeof getBankReconciliation>>>
+export type GetBankReconciliationQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get a reconciliation with its statement lines and outstanding items
+ */
+
+export function useGetBankReconciliation<TData = Awaited<ReturnType<typeof getBankReconciliation>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankReconciliation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBankReconciliationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getDeleteBankReconciliationUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/reconciliations/${id}`
+}
+
+/**
+ * @summary Delete a draft reconciliation (un-matches its movements)
+ */
+export const deleteBankReconciliation = async (id: string, options?: RequestInit): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getDeleteBankReconciliationUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteBankReconciliationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBankReconciliation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBankReconciliation>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteBankReconciliation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBankReconciliation>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteBankReconciliation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBankReconciliationMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBankReconciliation>>>
+
+    export type DeleteBankReconciliationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a draft reconciliation (un-matches its movements)
+ */
+export const useDeleteBankReconciliation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBankReconciliation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBankReconciliation>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteBankReconciliationMutationOptions(options));
+    }
+
+export const getUploadBankStatementUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/reconciliations/${id}/statement`
+}
+
+/**
+ * @summary Upload a bank statement Excel file (multipart/form-data, field "file")
+ */
+export const uploadBankStatement = async (id: string, options?: RequestInit): Promise<BankReconciliationDetail> => {
+
+  return customFetch<BankReconciliationDetail>(getUploadBankStatementUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getUploadBankStatementMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadBankStatement>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadBankStatement>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['uploadBankStatement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadBankStatement>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  uploadBankStatement(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadBankStatementMutationResult = NonNullable<Awaited<ReturnType<typeof uploadBankStatement>>>
+
+    export type UploadBankStatementMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Upload a bank statement Excel file (multipart/form-data, field "file")
+ */
+export const useUploadBankStatement = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadBankStatement>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadBankStatement>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getUploadBankStatementMutationOptions(options));
+    }
+
+export const getMatchBankReconciliationUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/reconciliations/${id}/match`
+}
+
+/**
+ * @summary Set the matched/cleared state of statement lines and movements
+ */
+export const matchBankReconciliation = async (id: string,
+    matchReconciliationInput: MatchReconciliationInput, options?: RequestInit): Promise<BankReconciliationDetail> => {
+
+  return customFetch<BankReconciliationDetail>(getMatchBankReconciliationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      matchReconciliationInput,)
+  }
+);}
+
+
+
+
+export const getMatchBankReconciliationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchBankReconciliation>>, TError,{id: string;data: BodyType<MatchReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof matchBankReconciliation>>, TError,{id: string;data: BodyType<MatchReconciliationInput>}, TContext> => {
+
+const mutationKey = ['matchBankReconciliation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof matchBankReconciliation>>, {id: string;data: BodyType<MatchReconciliationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  matchBankReconciliation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MatchBankReconciliationMutationResult = NonNullable<Awaited<ReturnType<typeof matchBankReconciliation>>>
+    export type MatchBankReconciliationMutationBody = BodyType<MatchReconciliationInput>
+    export type MatchBankReconciliationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set the matched/cleared state of statement lines and movements
+ */
+export const useMatchBankReconciliation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof matchBankReconciliation>>, TError,{id: string;data: BodyType<MatchReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof matchBankReconciliation>>,
+        TError,
+        {id: string;data: BodyType<MatchReconciliationInput>},
+        TContext
+      > => {
+      return useMutation(getMatchBankReconciliationMutationOptions(options));
+    }
+
+export const getAdjustBankReconciliationUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/reconciliations/${id}/adjust`
+}
+
+/**
+ * @summary Record adjusting movements (charges/interest) for the reconciliation
+ */
+export const adjustBankReconciliation = async (id: string,
+    adjustReconciliationInput: AdjustReconciliationInput, options?: RequestInit): Promise<BankReconciliationDetail> => {
+
+  return customFetch<BankReconciliationDetail>(getAdjustBankReconciliationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      adjustReconciliationInput,)
+  }
+);}
+
+
+
+
+export const getAdjustBankReconciliationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustBankReconciliation>>, TError,{id: string;data: BodyType<AdjustReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof adjustBankReconciliation>>, TError,{id: string;data: BodyType<AdjustReconciliationInput>}, TContext> => {
+
+const mutationKey = ['adjustBankReconciliation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adjustBankReconciliation>>, {id: string;data: BodyType<AdjustReconciliationInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  adjustBankReconciliation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdjustBankReconciliationMutationResult = NonNullable<Awaited<ReturnType<typeof adjustBankReconciliation>>>
+    export type AdjustBankReconciliationMutationBody = BodyType<AdjustReconciliationInput>
+    export type AdjustBankReconciliationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Record adjusting movements (charges/interest) for the reconciliation
+ */
+export const useAdjustBankReconciliation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustBankReconciliation>>, TError,{id: string;data: BodyType<AdjustReconciliationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof adjustBankReconciliation>>,
+        TError,
+        {id: string;data: BodyType<AdjustReconciliationInput>},
+        TContext
+      > => {
+      return useMutation(getAdjustBankReconciliationMutationOptions(options));
+    }
+
+export const getCompleteBankReconciliationUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/reconciliations/${id}/complete`
+}
+
+/**
+ * @summary Finalize a reconciliation (snapshots balances)
+ */
+export const completeBankReconciliation = async (id: string, options?: RequestInit): Promise<BankReconciliationDetail> => {
+
+  return customFetch<BankReconciliationDetail>(getCompleteBankReconciliationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCompleteBankReconciliationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeBankReconciliation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof completeBankReconciliation>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['completeBankReconciliation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeBankReconciliation>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  completeBankReconciliation(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CompleteBankReconciliationMutationResult = NonNullable<Awaited<ReturnType<typeof completeBankReconciliation>>>
+
+    export type CompleteBankReconciliationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Finalize a reconciliation (snapshots balances)
+ */
+export const useCompleteBankReconciliation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeBankReconciliation>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof completeBankReconciliation>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCompleteBankReconciliationMutationOptions(options));
+    }
 

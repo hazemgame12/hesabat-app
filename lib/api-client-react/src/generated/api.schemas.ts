@@ -1548,6 +1548,285 @@ export interface SummaryRow {
   total: number;
 }
 
+export type BankAccountType = typeof BankAccountType[keyof typeof BankAccountType];
+
+
+export const BankAccountType = {
+  bank: 'bank',
+  cash: 'cash',
+  credit_card: 'credit_card',
+  loan: 'loan',
+} as const;
+
+export interface BankAccount {
+  id: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: BankAccountType;
+  /** @nullable */
+  bankName?: string | null;
+  /** @nullable */
+  accountNumber?: string | null;
+  currency: string;
+  openingBalance: number;
+  /** @nullable */
+  openingBalanceDate?: string | null;
+  accountId: string;
+  /** @nullable */
+  accountCode?: string | null;
+  /** @nullable */
+  accountName?: string | null;
+  isActive: boolean;
+  currentBalance: number;
+  createdAt: string;
+}
+
+export type BankAccountInputType = typeof BankAccountInputType[keyof typeof BankAccountInputType];
+
+
+export const BankAccountInputType = {
+  bank: 'bank',
+  cash: 'cash',
+  credit_card: 'credit_card',
+  loan: 'loan',
+} as const;
+
+export interface BankAccountInput {
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: BankAccountInputType;
+  /** @nullable */
+  bankName?: string | null;
+  /** @nullable */
+  accountNumber?: string | null;
+  currency: string;
+  openingBalance?: number;
+  /** @nullable */
+  openingBalanceDate?: string | null;
+  accountId: string;
+  isActive?: boolean;
+}
+
+export type BankAccountUpdateType = typeof BankAccountUpdateType[keyof typeof BankAccountUpdateType];
+
+
+export const BankAccountUpdateType = {
+  bank: 'bank',
+  cash: 'cash',
+  credit_card: 'credit_card',
+  loan: 'loan',
+} as const;
+
+export interface BankAccountUpdate {
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type?: BankAccountUpdateType;
+  /** @nullable */
+  bankName?: string | null;
+  /** @nullable */
+  accountNumber?: string | null;
+  currency?: string;
+  openingBalance?: number;
+  /** @nullable */
+  openingBalanceDate?: string | null;
+  accountId?: string;
+  isActive?: boolean;
+}
+
+export type BankMovementType = typeof BankMovementType[keyof typeof BankMovementType];
+
+
+export const BankMovementType = {
+  deposit: 'deposit',
+  withdrawal: 'withdrawal',
+  transfer: 'transfer',
+  bank_charge: 'bank_charge',
+  interest_income: 'interest_income',
+  interest_expense: 'interest_expense',
+  customer_collection: 'customer_collection',
+  supplier_payment: 'supplier_payment',
+  loan_installment: 'loan_installment',
+  cash_expense: 'cash_expense',
+} as const;
+
+export type BankMovementDirection = typeof BankMovementDirection[keyof typeof BankMovementDirection];
+
+
+export const BankMovementDirection = {
+  in: 'in',
+  out: 'out',
+} as const;
+
+export interface BankMovement {
+  id: string;
+  bankAccountId: string;
+  /** @nullable */
+  bankAccountName?: string | null;
+  date: string;
+  type: BankMovementType;
+  direction: BankMovementDirection;
+  amount: number;
+  currency: string;
+  exchangeRate: number;
+  /** @nullable */
+  counterpartAccountId?: string | null;
+  /** @nullable */
+  counterpartAccountName?: string | null;
+  /** @nullable */
+  transferAccountId?: string | null;
+  /** @nullable */
+  transferAccountName?: string | null;
+  /** @nullable */
+  transferGroupId?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  reference?: string | null;
+  /** @nullable */
+  journalEntryId?: string | null;
+  /** @nullable */
+  reconciliationId?: string | null;
+  isCleared: boolean;
+  createdAt: string;
+}
+
+export type BankMovementInputType = typeof BankMovementInputType[keyof typeof BankMovementInputType];
+
+
+export const BankMovementInputType = {
+  deposit: 'deposit',
+  withdrawal: 'withdrawal',
+  transfer: 'transfer',
+  bank_charge: 'bank_charge',
+  interest_income: 'interest_income',
+  interest_expense: 'interest_expense',
+  customer_collection: 'customer_collection',
+  supplier_payment: 'supplier_payment',
+  loan_installment: 'loan_installment',
+  cash_expense: 'cash_expense',
+} as const;
+
+export interface BankMovementInput {
+  bankAccountId: string;
+  date: string;
+  type: BankMovementInputType;
+  amount: number;
+  /** @nullable */
+  currency?: string | null;
+  exchangeRate?: number;
+  /** @nullable */
+  counterpartAccountId?: string | null;
+  /** @nullable */
+  transferAccountId?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  reference?: string | null;
+}
+
+export type BankReconciliationStatus = typeof BankReconciliationStatus[keyof typeof BankReconciliationStatus];
+
+
+export const BankReconciliationStatus = {
+  draft: 'draft',
+  completed: 'completed',
+} as const;
+
+export interface BankReconciliation {
+  id: string;
+  bankAccountId: string;
+  /** @nullable */
+  bankAccountName?: string | null;
+  periodStart: string;
+  periodEnd: string;
+  statementBalance: number;
+  bookBalance: number;
+  difference: number;
+  status: BankReconciliationStatus;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  adjustingEntryId?: string | null;
+  createdAt: string;
+  /** @nullable */
+  completedAt?: string | null;
+}
+
+export type BankStatementLineDirection = typeof BankStatementLineDirection[keyof typeof BankStatementLineDirection];
+
+
+export const BankStatementLineDirection = {
+  in: 'in',
+  out: 'out',
+} as const;
+
+export interface BankStatementLine {
+  id: string;
+  /** @nullable */
+  date?: string | null;
+  /** @nullable */
+  description?: string | null;
+  amount: number;
+  direction: BankStatementLineDirection;
+  /** @nullable */
+  matchedMovementId?: string | null;
+}
+
+export interface BankReconciliationDetail {
+  reconciliation: BankReconciliation;
+  statementLines: BankStatementLine[];
+  movements: BankMovement[];
+  outstanding: BankMovement[];
+  clearedBookBalance: number;
+  reconciledDifference: number;
+}
+
+export type MatchReconciliationInputStatementLineMatchesItem = {
+  statementLineId: string;
+  /** @nullable */
+  movementId: string | null;
+};
+
+export interface MatchReconciliationInput {
+  movementIds: string[];
+  statementLineMatches?: MatchReconciliationInputStatementLineMatchesItem[];
+}
+
+export type AdjustReconciliationLineType = typeof AdjustReconciliationLineType[keyof typeof AdjustReconciliationLineType];
+
+
+export const AdjustReconciliationLineType = {
+  bank_charge: 'bank_charge',
+  interest_income: 'interest_income',
+  interest_expense: 'interest_expense',
+} as const;
+
+export interface AdjustReconciliationLine {
+  /** @nullable */
+  date?: string | null;
+  type: AdjustReconciliationLineType;
+  amount: number;
+  counterpartAccountId: string;
+  /** @nullable */
+  description?: string | null;
+}
+
+export interface AdjustReconciliationInput {
+  lines: AdjustReconciliationLine[];
+}
+
+export interface BankReconciliationInput {
+  bankAccountId: string;
+  periodStart: string;
+  periodEnd: string;
+  statementBalance: number;
+  /** @nullable */
+  notes?: string | null;
+}
+
 export type ListInventoryMovementsParams = {
 itemId?: string;
 };
@@ -1652,4 +1931,14 @@ export const GetPaymentsSummaryReportKind = {
   collection: 'collection',
   payment: 'payment',
 } as const;
+
+export type ListBankMovementsParams = {
+bankAccountId: string;
+from?: string;
+to?: string;
+};
+
+export type ListBankReconciliationsParams = {
+bankAccountId?: string;
+};
 

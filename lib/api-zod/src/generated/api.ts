@@ -2073,3 +2073,552 @@ export const GetPaymentsSummaryReportResponseItem = zod.object({
 export const GetPaymentsSummaryReportResponse = zod.array(GetPaymentsSummaryReportResponseItem)
 
 
+/**
+ * @summary List cash and bank accounts for the current company
+ */
+export const ListBankAccountsResponseItem = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['bank', 'cash', 'credit_card', 'loan']),
+  "bankName": zod.string().nullish(),
+  "accountNumber": zod.string().nullish(),
+  "currency": zod.string(),
+  "openingBalance": zod.number(),
+  "openingBalanceDate": zod.string().nullish(),
+  "accountId": zod.string(),
+  "accountCode": zod.string().nullish(),
+  "accountName": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "currentBalance": zod.number(),
+  "createdAt": zod.string()
+})
+export const ListBankAccountsResponse = zod.array(ListBankAccountsResponseItem)
+
+
+/**
+ * @summary Create a cash or bank account
+ */
+export const CreateBankAccountBody = zod.object({
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['bank', 'cash', 'credit_card', 'loan']),
+  "bankName": zod.string().nullish(),
+  "accountNumber": zod.string().nullish(),
+  "currency": zod.string(),
+  "openingBalance": zod.number().optional(),
+  "openingBalanceDate": zod.string().nullish(),
+  "accountId": zod.string(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a cash or bank account
+ */
+export const UpdateBankAccountParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateBankAccountBody = zod.object({
+  "nameAr": zod.string().optional(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['bank', 'cash', 'credit_card', 'loan']).optional(),
+  "bankName": zod.string().nullish(),
+  "accountNumber": zod.string().nullish(),
+  "currency": zod.string().optional(),
+  "openingBalance": zod.number().optional(),
+  "openingBalanceDate": zod.string().nullish(),
+  "accountId": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateBankAccountResponse = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['bank', 'cash', 'credit_card', 'loan']),
+  "bankName": zod.string().nullish(),
+  "accountNumber": zod.string().nullish(),
+  "currency": zod.string(),
+  "openingBalance": zod.number(),
+  "openingBalanceDate": zod.string().nullish(),
+  "accountId": zod.string(),
+  "accountCode": zod.string().nullish(),
+  "accountName": zod.string().nullish(),
+  "isActive": zod.boolean(),
+  "currentBalance": zod.number(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a cash or bank account (blocked if it has movements)
+ */
+export const DeleteBankAccountParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteBankAccountResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List movements for a bank account, optionally within a period
+ */
+export const ListBankMovementsQueryParams = zod.object({
+  "bankAccountId": zod.coerce.string(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const ListBankMovementsResponseItem = zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListBankMovementsResponse = zod.array(ListBankMovementsResponseItem)
+
+
+/**
+ * @summary Record a bank/cash movement and post its journal entry
+ */
+export const CreateBankMovementBody = zod.object({
+  "bankAccountId": zod.string(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "amount": zod.number(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "counterpartAccountId": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish()
+})
+
+
+/**
+ * @summary Delete a movement, reversing its journal entry
+ */
+export const DeleteBankMovementParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteBankMovementResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List reconciliations, optionally filtered by account
+ */
+export const ListBankReconciliationsQueryParams = zod.object({
+  "bankAccountId": zod.coerce.string().optional()
+})
+
+export const ListBankReconciliationsResponseItem = zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "statementBalance": zod.number(),
+  "bookBalance": zod.number(),
+  "difference": zod.number(),
+  "status": zod.enum(['draft', 'completed']),
+  "notes": zod.string().nullish(),
+  "adjustingEntryId": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+})
+export const ListBankReconciliationsResponse = zod.array(ListBankReconciliationsResponseItem)
+
+
+/**
+ * @summary Start a reconciliation for an account and period
+ */
+export const CreateBankReconciliationBody = zod.object({
+  "bankAccountId": zod.string(),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "statementBalance": zod.number(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get a reconciliation with its statement lines and outstanding items
+ */
+export const GetBankReconciliationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetBankReconciliationResponse = zod.object({
+  "reconciliation": zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "statementBalance": zod.number(),
+  "bookBalance": zod.number(),
+  "difference": zod.number(),
+  "status": zod.enum(['draft', 'completed']),
+  "notes": zod.string().nullish(),
+  "adjustingEntryId": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+}),
+  "statementLines": zod.array(zod.object({
+  "id": zod.string(),
+  "date": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "amount": zod.number(),
+  "direction": zod.enum(['in', 'out']),
+  "matchedMovementId": zod.string().nullish()
+})),
+  "movements": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "outstanding": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "clearedBookBalance": zod.number(),
+  "reconciledDifference": zod.number()
+})
+
+
+/**
+ * @summary Delete a draft reconciliation (un-matches its movements)
+ */
+export const DeleteBankReconciliationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteBankReconciliationResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Upload a bank statement Excel file (multipart/form-data, field "file")
+ */
+export const UploadBankStatementParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UploadBankStatementResponse = zod.object({
+  "reconciliation": zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "statementBalance": zod.number(),
+  "bookBalance": zod.number(),
+  "difference": zod.number(),
+  "status": zod.enum(['draft', 'completed']),
+  "notes": zod.string().nullish(),
+  "adjustingEntryId": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+}),
+  "statementLines": zod.array(zod.object({
+  "id": zod.string(),
+  "date": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "amount": zod.number(),
+  "direction": zod.enum(['in', 'out']),
+  "matchedMovementId": zod.string().nullish()
+})),
+  "movements": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "outstanding": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "clearedBookBalance": zod.number(),
+  "reconciledDifference": zod.number()
+})
+
+
+/**
+ * @summary Set the matched/cleared state of statement lines and movements
+ */
+export const MatchBankReconciliationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const MatchBankReconciliationBody = zod.object({
+  "movementIds": zod.array(zod.string()),
+  "statementLineMatches": zod.array(zod.object({
+  "statementLineId": zod.string(),
+  "movementId": zod.string().nullable()
+})).optional()
+})
+
+export const MatchBankReconciliationResponse = zod.object({
+  "reconciliation": zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "statementBalance": zod.number(),
+  "bookBalance": zod.number(),
+  "difference": zod.number(),
+  "status": zod.enum(['draft', 'completed']),
+  "notes": zod.string().nullish(),
+  "adjustingEntryId": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+}),
+  "statementLines": zod.array(zod.object({
+  "id": zod.string(),
+  "date": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "amount": zod.number(),
+  "direction": zod.enum(['in', 'out']),
+  "matchedMovementId": zod.string().nullish()
+})),
+  "movements": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "outstanding": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "clearedBookBalance": zod.number(),
+  "reconciledDifference": zod.number()
+})
+
+
+/**
+ * @summary Record adjusting movements (charges/interest) for the reconciliation
+ */
+export const AdjustBankReconciliationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AdjustBankReconciliationBody = zod.object({
+  "lines": zod.array(zod.object({
+  "date": zod.string().nullish(),
+  "type": zod.enum(['bank_charge', 'interest_income', 'interest_expense']),
+  "amount": zod.number(),
+  "counterpartAccountId": zod.string(),
+  "description": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Finalize a reconciliation (snapshots balances)
+ */
+export const CompleteBankReconciliationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CompleteBankReconciliationResponse = zod.object({
+  "reconciliation": zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "periodStart": zod.string(),
+  "periodEnd": zod.string(),
+  "statementBalance": zod.number(),
+  "bookBalance": zod.number(),
+  "difference": zod.number(),
+  "status": zod.enum(['draft', 'completed']),
+  "notes": zod.string().nullish(),
+  "adjustingEntryId": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "completedAt": zod.string().nullish()
+}),
+  "statementLines": zod.array(zod.object({
+  "id": zod.string(),
+  "date": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "amount": zod.number(),
+  "direction": zod.enum(['in', 'out']),
+  "matchedMovementId": zod.string().nullish()
+})),
+  "movements": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "outstanding": zod.array(zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "createdAt": zod.string()
+})),
+  "clearedBookBalance": zod.number(),
+  "reconciledDifference": zod.number()
+})
+
+
