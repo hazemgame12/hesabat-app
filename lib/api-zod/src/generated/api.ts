@@ -1566,3 +1566,509 @@ export const DeleteSupplierResponse = zod.object({
 })
 
 
+/**
+ * @summary List invoices for the current company
+ */
+export const ListInvoicesQueryParams = zod.object({
+  "kind": zod.enum(['sales', 'purchase'])
+})
+
+export const ListInvoicesResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['sales', 'purchase']),
+  "invoiceNo": zod.number(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "partyId": zod.string().nullish(),
+  "partyName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "overdue": zod.boolean().optional(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "subtotal": zod.number().optional(),
+  "discountTotal": zod.number().optional(),
+  "taxTotal": zod.number().optional(),
+  "total": zod.number(),
+  "amountPaid": zod.number(),
+  "balance": zod.number(),
+  "journalEntryId": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem)
+
+
+/**
+ * @summary Create a draft invoice
+ */
+export const createInvoiceBodyExchangeRateMin = 0;
+
+export const createInvoiceBodyLinesItemQuantityMin = 0;
+
+export const createInvoiceBodyLinesItemUnitPriceMin = 0;
+
+export const createInvoiceBodyLinesItemDiscountMin = 0;
+
+
+export const createInvoiceBodyLinesItemAssetSalvageValueMin = 0;
+
+
+
+export const CreateInvoiceBody = zod.object({
+  "kind": zod.enum(['sales', 'purchase']),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "customerId": zod.string().nullish(),
+  "supplierId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().min(createInvoiceBodyExchangeRateMin).optional(),
+  "notes": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "lineType": zod.enum(['service', 'inventory', 'fixed_asset']),
+  "description": zod.string().nullish(),
+  "accountId": zod.string().uuid(),
+  "itemId": zod.string().nullish(),
+  "warehouse": zod.string().nullish(),
+  "cogsAccountId": zod.string().nullish(),
+  "quantity": zod.number().min(createInvoiceBodyLinesItemQuantityMin),
+  "unitPrice": zod.number().min(createInvoiceBodyLinesItemUnitPriceMin),
+  "discount": zod.number().min(createInvoiceBodyLinesItemDiscountMin).optional(),
+  "taxId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "assetNameAr": zod.string().nullish(),
+  "assetNameEn": zod.string().nullish(),
+  "assetUsefulLifeMonths": zod.number().min(1).nullish(),
+  "assetSalvageValue": zod.number().min(createInvoiceBodyLinesItemAssetSalvageValueMin).nullish(),
+  "assetAccumulatedAccountId": zod.string().nullish(),
+  "assetExpenseAccountId": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Get an invoice with its lines
+ */
+export const GetInvoiceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['sales', 'purchase']),
+  "invoiceNo": zod.number(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "partyId": zod.string().nullish(),
+  "partyName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "overdue": zod.boolean().optional(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "subtotal": zod.number().optional(),
+  "discountTotal": zod.number().optional(),
+  "taxTotal": zod.number().optional(),
+  "total": zod.number(),
+  "amountPaid": zod.number(),
+  "balance": zod.number(),
+  "journalEntryId": zod.string().nullish(),
+  "createdAt": zod.string()
+}).and(zod.object({
+  "notes": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "lineType": zod.enum(['service', 'inventory', 'fixed_asset']),
+  "description": zod.string().nullish(),
+  "accountId": zod.string(),
+  "itemId": zod.string().nullish(),
+  "warehouse": zod.string().nullish(),
+  "cogsAccountId": zod.string().nullish(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "discount": zod.number(),
+  "taxId": zod.string().nullish(),
+  "taxAmount": zod.number(),
+  "lineTotal": zod.number(),
+  "costCenterId": zod.string().nullish(),
+  "assetNameAr": zod.string().nullish(),
+  "assetNameEn": zod.string().nullish(),
+  "assetUsefulLifeMonths": zod.number().nullish(),
+  "assetSalvageValue": zod.number().nullish(),
+  "assetAccumulatedAccountId": zod.string().nullish(),
+  "assetExpenseAccountId": zod.string().nullish(),
+  "fixedAssetId": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Update a draft invoice
+ */
+export const UpdateInvoiceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateInvoiceBodyExchangeRateMin = 0;
+
+export const updateInvoiceBodyLinesItemQuantityMin = 0;
+
+export const updateInvoiceBodyLinesItemUnitPriceMin = 0;
+
+export const updateInvoiceBodyLinesItemDiscountMin = 0;
+
+
+export const updateInvoiceBodyLinesItemAssetSalvageValueMin = 0;
+
+
+
+export const UpdateInvoiceBody = zod.object({
+  "kind": zod.enum(['sales', 'purchase']),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "customerId": zod.string().nullish(),
+  "supplierId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().min(updateInvoiceBodyExchangeRateMin).optional(),
+  "notes": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "lineType": zod.enum(['service', 'inventory', 'fixed_asset']),
+  "description": zod.string().nullish(),
+  "accountId": zod.string().uuid(),
+  "itemId": zod.string().nullish(),
+  "warehouse": zod.string().nullish(),
+  "cogsAccountId": zod.string().nullish(),
+  "quantity": zod.number().min(updateInvoiceBodyLinesItemQuantityMin),
+  "unitPrice": zod.number().min(updateInvoiceBodyLinesItemUnitPriceMin),
+  "discount": zod.number().min(updateInvoiceBodyLinesItemDiscountMin).optional(),
+  "taxId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "assetNameAr": zod.string().nullish(),
+  "assetNameEn": zod.string().nullish(),
+  "assetUsefulLifeMonths": zod.number().min(1).nullish(),
+  "assetSalvageValue": zod.number().min(updateInvoiceBodyLinesItemAssetSalvageValueMin).nullish(),
+  "assetAccumulatedAccountId": zod.string().nullish(),
+  "assetExpenseAccountId": zod.string().nullish()
+}))
+})
+
+export const UpdateInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['sales', 'purchase']),
+  "invoiceNo": zod.number(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "partyId": zod.string().nullish(),
+  "partyName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "overdue": zod.boolean().optional(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "subtotal": zod.number().optional(),
+  "discountTotal": zod.number().optional(),
+  "taxTotal": zod.number().optional(),
+  "total": zod.number(),
+  "amountPaid": zod.number(),
+  "balance": zod.number(),
+  "journalEntryId": zod.string().nullish(),
+  "createdAt": zod.string()
+}).and(zod.object({
+  "notes": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "lineType": zod.enum(['service', 'inventory', 'fixed_asset']),
+  "description": zod.string().nullish(),
+  "accountId": zod.string(),
+  "itemId": zod.string().nullish(),
+  "warehouse": zod.string().nullish(),
+  "cogsAccountId": zod.string().nullish(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "discount": zod.number(),
+  "taxId": zod.string().nullish(),
+  "taxAmount": zod.number(),
+  "lineTotal": zod.number(),
+  "costCenterId": zod.string().nullish(),
+  "assetNameAr": zod.string().nullish(),
+  "assetNameEn": zod.string().nullish(),
+  "assetUsefulLifeMonths": zod.number().nullish(),
+  "assetSalvageValue": zod.number().nullish(),
+  "assetAccumulatedAccountId": zod.string().nullish(),
+  "assetExpenseAccountId": zod.string().nullish(),
+  "fixedAssetId": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary Delete a draft invoice
+ */
+export const DeleteInvoiceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteInvoiceResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Approve a draft invoice and post its journal entry
+ */
+export const ApproveInvoiceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ApproveInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['sales', 'purchase']),
+  "invoiceNo": zod.number(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "partyId": zod.string().nullish(),
+  "partyName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "overdue": zod.boolean().optional(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "subtotal": zod.number().optional(),
+  "discountTotal": zod.number().optional(),
+  "taxTotal": zod.number().optional(),
+  "total": zod.number(),
+  "amountPaid": zod.number(),
+  "balance": zod.number(),
+  "journalEntryId": zod.string().nullish(),
+  "createdAt": zod.string()
+}).and(zod.object({
+  "notes": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "lineType": zod.enum(['service', 'inventory', 'fixed_asset']),
+  "description": zod.string().nullish(),
+  "accountId": zod.string(),
+  "itemId": zod.string().nullish(),
+  "warehouse": zod.string().nullish(),
+  "cogsAccountId": zod.string().nullish(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "discount": zod.number(),
+  "taxId": zod.string().nullish(),
+  "taxAmount": zod.number(),
+  "lineTotal": zod.number(),
+  "costCenterId": zod.string().nullish(),
+  "assetNameAr": zod.string().nullish(),
+  "assetNameEn": zod.string().nullish(),
+  "assetUsefulLifeMonths": zod.number().nullish(),
+  "assetSalvageValue": zod.number().nullish(),
+  "assetAccumulatedAccountId": zod.string().nullish(),
+  "assetExpenseAccountId": zod.string().nullish(),
+  "fixedAssetId": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * @summary List collections or payments for the current company
+ */
+export const ListPaymentsQueryParams = zod.object({
+  "kind": zod.enum(['collection', 'payment'])
+})
+
+export const ListPaymentsResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['collection', 'payment']),
+  "paymentNo": zod.number(),
+  "date": zod.string(),
+  "partyId": zod.string().nullish(),
+  "partyName": zod.string().nullish(),
+  "method": zod.enum(['cash', 'bank', 'cheque', 'card']),
+  "cashAccountId": zod.string(),
+  "cashAccountName": zod.string().nullish(),
+  "amount": zod.number(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "notes": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "allocations": zod.array(zod.object({
+  "id": zod.string(),
+  "invoiceId": zod.string(),
+  "invoiceNo": zod.number().nullish(),
+  "amount": zod.number()
+})),
+  "createdAt": zod.string()
+})
+export const ListPaymentsResponse = zod.array(ListPaymentsResponseItem)
+
+
+/**
+ * @summary Record a collection or payment and post its journal entry
+ */
+export const createPaymentBodyAmountMin = 0;
+
+export const createPaymentBodyExchangeRateMin = 0;
+
+export const createPaymentBodyAllocationsItemAmountMin = 0;
+
+
+
+export const CreatePaymentBody = zod.object({
+  "kind": zod.enum(['collection', 'payment']),
+  "date": zod.string(),
+  "customerId": zod.string().nullish(),
+  "supplierId": zod.string().nullish(),
+  "method": zod.enum(['cash', 'bank', 'cheque', 'card']),
+  "cashAccountId": zod.string().uuid(),
+  "amount": zod.number().min(createPaymentBodyAmountMin),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().min(createPaymentBodyExchangeRateMin).optional(),
+  "notes": zod.string().nullish(),
+  "allocations": zod.array(zod.object({
+  "invoiceId": zod.string().uuid(),
+  "amount": zod.number().min(createPaymentBodyAllocationsItemAmountMin)
+}))
+})
+
+
+/**
+ * @summary Delete a payment, reversing its journal entry and allocations
+ */
+export const DeletePaymentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeletePaymentResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Statement of a customer or supplier over a date range
+ */
+export const GetPartyStatementQueryParams = zod.object({
+  "partyType": zod.enum(['customer', 'supplier']),
+  "partyId": zod.coerce.string(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetPartyStatementResponse = zod.object({
+  "partyId": zod.string(),
+  "partyName": zod.string(),
+  "accountCode": zod.string(),
+  "openingBalance": zod.number(),
+  "closingBalance": zod.number(),
+  "entries": zod.array(zod.object({
+  "date": zod.string(),
+  "ref": zod.string().nullish(),
+  "description": zod.string(),
+  "debit": zod.number(),
+  "credit": zod.number(),
+  "balance": zod.number()
+}))
+})
+
+
+/**
+ * @summary AR or AP aging buckets by party
+ */
+export const GetAgingReportQueryParams = zod.object({
+  "type": zod.enum(['ar', 'ap']),
+  "asOf": zod.coerce.string().optional()
+})
+
+export const GetAgingReportResponse = zod.object({
+  "asOf": zod.string(),
+  "rows": zod.array(zod.object({
+  "partyId": zod.string(),
+  "partyName": zod.string(),
+  "current": zod.number(),
+  "days30": zod.number(),
+  "days60": zod.number(),
+  "days90": zod.number(),
+  "days90plus": zod.number(),
+  "total": zod.number()
+}))
+})
+
+
+/**
+ * @summary Approved invoices with an outstanding balance
+ */
+export const GetOutstandingInvoicesQueryParams = zod.object({
+  "kind": zod.enum(['sales', 'purchase'])
+})
+
+export const GetOutstandingInvoicesResponseItem = zod.object({
+  "id": zod.string(),
+  "invoiceNo": zod.number(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "partyName": zod.string(),
+  "total": zod.number(),
+  "amountPaid": zod.number(),
+  "balance": zod.number(),
+  "status": zod.string(),
+  "overdue": zod.boolean()
+})
+export const GetOutstandingInvoicesResponse = zod.array(GetOutstandingInvoicesResponseItem)
+
+
+/**
+ * @summary Invoice totals grouped by party or cost center
+ */
+export const GetInvoiceSummaryReportQueryParams = zod.object({
+  "kind": zod.enum(['sales', 'purchase']),
+  "groupBy": zod.enum(['party', 'costCenter']),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetInvoiceSummaryReportResponseItem = zod.object({
+  "key": zod.string().nullable(),
+  "label": zod.string(),
+  "count": zod.number(),
+  "total": zod.number()
+})
+export const GetInvoiceSummaryReportResponse = zod.array(GetInvoiceSummaryReportResponseItem)
+
+
+/**
+ * @summary Collections or payments over a period
+ */
+export const GetPaymentsSummaryReportQueryParams = zod.object({
+  "kind": zod.enum(['collection', 'payment']),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetPaymentsSummaryReportResponseItem = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['collection', 'payment']),
+  "paymentNo": zod.number(),
+  "date": zod.string(),
+  "partyId": zod.string().nullish(),
+  "partyName": zod.string().nullish(),
+  "method": zod.enum(['cash', 'bank', 'cheque', 'card']),
+  "cashAccountId": zod.string(),
+  "cashAccountName": zod.string().nullish(),
+  "amount": zod.number(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "notes": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "allocations": zod.array(zod.object({
+  "id": zod.string(),
+  "invoiceId": zod.string(),
+  "invoiceNo": zod.number().nullish(),
+  "amount": zod.number()
+})),
+  "createdAt": zod.string()
+})
+export const GetPaymentsSummaryReportResponse = zod.array(GetPaymentsSummaryReportResponseItem)
+
+

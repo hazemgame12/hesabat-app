@@ -44,17 +44,23 @@ export type CreateDraftEntryOptions = {
   reference?: string | null;
   notes?: string | null;
   createdBy?: string | null;
+  // Defaults to 'draft' to preserve existing callers. The Invoicing/Payments
+  // module passes 'posted' because party (AR/AP) balances are derived from
+  // POSTED journal activity only.
+  status?: "draft" | "posted";
   lines: DraftPostingLine[];
 };
 
 /**
- * Creates a DRAFT journal entry + lines in the company base currency (rate 1)
+ * Creates a journal entry + lines in the company base currency (rate 1)
  * inside the given transaction, reusing the journal's per-company numbering and
- * base-amount conventions. Throws if the lines don't balance or are empty.
+ * base-amount conventions. Defaults to a DRAFT entry; pass `status: "posted"`
+ * to post immediately (sets `postedAt`). Throws if the lines don't balance or
+ * are empty.
  *
  * Callers are responsible for validating that every `accountId` belongs to the
  * company and is a leaf (non-group) account before calling this helper. Shared
- * by the Fixed Assets, Payroll, and Inventory modules.
+ * by the Fixed Assets, Payroll, Inventory, and Invoicing modules.
  */
 export async function createDraftJournalEntry(
   tx: Tx,
@@ -87,6 +93,7 @@ export async function createDraftJournalEntry(
     .from(journalEntriesTable)
     .where(eq(journalEntriesTable.companyId, opts.companyId));
 
+  const status = opts.status ?? "draft";
   const [entry] = await tx
     .insert(journalEntriesTable)
     .values({
@@ -95,7 +102,8 @@ export async function createDraftJournalEntry(
       date: opts.date,
       reference: opts.reference ?? null,
       notes: opts.notes ?? null,
-      status: "draft",
+      status,
+      postedAt: status === "posted" ? new Date() : null,
       createdBy: opts.createdBy ?? null,
     })
     .returning();

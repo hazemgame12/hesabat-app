@@ -32,6 +32,12 @@ tags:
     description: Customers (receivables) master data
   - name: suppliers
     description: Suppliers (payables) master data
+  - name: invoices
+    description: Sales (customer) and purchase (supplier) invoices with line types
+  - name: payments
+    description: Collections from customers and payments to suppliers
+  - name: receivablesReports
+    description: AR/AP reports (statements, aging, outstanding, summaries)
 paths:
   /healthz:
     get:
@@ -1925,6 +1931,411 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List invoices for the current company
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [sales, purchase]
+      responses:
+        "200":
+          description: Invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InvoiceSummary"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create a draft invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceDetail"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      summary: Get an invoice with its lines
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceDetail"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateInvoice
+      tags: [invoices]
+      summary: Update a draft invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceDetail"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      summary: Delete a draft invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "400":
+          description: Cannot delete (not a draft)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /invoices/{id}/approve:
+    post:
+      operationId: approveInvoice
+      tags: [invoices]
+      summary: Approve a draft invoice and post its journal entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceDetail"
+        "400":
+          description: Cannot approve
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List collections or payments for the current company
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [collection, payment]
+      responses:
+        "200":
+          description: Payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Record a collection or payment and post its journal entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payments/{id}:
+    delete:
+      operationId: deletePayment
+      tags: [payments]
+      summary: Delete a payment, reversing its journal entry and allocations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reports/party-statement:
+    get:
+      operationId: getPartyStatement
+      tags: [receivablesReports]
+      summary: Statement of a customer or supplier over a date range
+      parameters:
+        - name: partyType
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [customer, supplier]
+        - name: partyId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartyStatement"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /reports/aging:
+    get:
+      operationId: getAgingReport
+      tags: [receivablesReports]
+      summary: AR or AP aging buckets by party
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [ar, ap]
+        - name: asOf
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Aging
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgingReport"
+
+  /reports/outstanding-invoices:
+    get:
+      operationId: getOutstandingInvoices
+      tags: [receivablesReports]
+      summary: Approved invoices with an outstanding balance
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [sales, purchase]
+      responses:
+        "200":
+          description: Outstanding invoices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OutstandingInvoice"
+
+  /reports/invoice-summary:
+    get:
+      operationId: getInvoiceSummaryReport
+      tags: [receivablesReports]
+      summary: Invoice totals grouped by party or cost center
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [sales, purchase]
+        - name: groupBy
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [party, costCenter]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SummaryRow"
+
+  /reports/payments-summary:
+    get:
+      operationId: getPaymentsSummaryReport
+      tags: [receivablesReports]
+      summary: Collections or payments over a period
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [collection, payment]
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+
 components:
   schemas:
     HealthStatus:
@@ -3396,3 +3807,396 @@ components:
           format: uuid
         isActive:
           type: boolean
+
+    InvoiceLineInput:
+      type: object
+      required: [lineType, accountId, quantity, unitPrice]
+      properties:
+        lineType:
+          type: string
+          enum: [service, inventory, fixed_asset]
+        description:
+          type: ["string", "null"]
+        accountId:
+          type: string
+          format: uuid
+        itemId:
+          type: ["string", "null"]
+        warehouse:
+          type: ["string", "null"]
+        cogsAccountId:
+          type: ["string", "null"]
+        quantity:
+          type: number
+          minimum: 0
+        unitPrice:
+          type: number
+          minimum: 0
+        discount:
+          type: number
+          minimum: 0
+        taxId:
+          type: ["string", "null"]
+        costCenterId:
+          type: ["string", "null"]
+        assetNameAr:
+          type: ["string", "null"]
+        assetNameEn:
+          type: ["string", "null"]
+        assetUsefulLifeMonths:
+          type: ["integer", "null"]
+          minimum: 1
+        assetSalvageValue:
+          type: ["number", "null"]
+          minimum: 0
+        assetAccumulatedAccountId:
+          type: ["string", "null"]
+        assetExpenseAccountId:
+          type: ["string", "null"]
+
+    InvoiceLine:
+      type: object
+      required:
+        [id, lineNo, lineType, accountId, quantity, unitPrice, discount, taxAmount, lineTotal]
+      properties:
+        id:
+          type: string
+        lineNo:
+          type: integer
+        lineType:
+          type: string
+          enum: [service, inventory, fixed_asset]
+        description:
+          type: ["string", "null"]
+        accountId:
+          type: string
+        itemId:
+          type: ["string", "null"]
+        warehouse:
+          type: ["string", "null"]
+        cogsAccountId:
+          type: ["string", "null"]
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+        discount:
+          type: number
+        taxId:
+          type: ["string", "null"]
+        taxAmount:
+          type: number
+        lineTotal:
+          type: number
+        costCenterId:
+          type: ["string", "null"]
+        assetNameAr:
+          type: ["string", "null"]
+        assetNameEn:
+          type: ["string", "null"]
+        assetUsefulLifeMonths:
+          type: ["integer", "null"]
+        assetSalvageValue:
+          type: ["number", "null"]
+        assetAccumulatedAccountId:
+          type: ["string", "null"]
+        assetExpenseAccountId:
+          type: ["string", "null"]
+        fixedAssetId:
+          type: ["string", "null"]
+
+    InvoiceInput:
+      type: object
+      required: [kind, date, lines]
+      properties:
+        kind:
+          type: string
+          enum: [sales, purchase]
+        date:
+          type: string
+        dueDate:
+          type: ["string", "null"]
+        customerId:
+          type: ["string", "null"]
+        supplierId:
+          type: ["string", "null"]
+        costCenterId:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        exchangeRate:
+          type: number
+          minimum: 0
+        notes:
+          type: ["string", "null"]
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLineInput"
+
+    InvoiceSummary:
+      type: object
+      required:
+        [id, kind, invoiceNo, date, status, total, amountPaid, balance, createdAt]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [sales, purchase]
+        invoiceNo:
+          type: integer
+        date:
+          type: string
+        dueDate:
+          type: ["string", "null"]
+        partyId:
+          type: ["string", "null"]
+        partyName:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [draft, approved, partially_paid, paid, cancelled]
+        overdue:
+          type: boolean
+        currency:
+          type: ["string", "null"]
+        exchangeRate:
+          type: number
+        subtotal:
+          type: number
+        discountTotal:
+          type: number
+        taxTotal:
+          type: number
+        total:
+          type: number
+        amountPaid:
+          type: number
+        balance:
+          type: number
+        journalEntryId:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    InvoiceDetail:
+      allOf:
+        - $ref: "#/components/schemas/InvoiceSummary"
+        - type: object
+          required: [lines]
+          properties:
+            notes:
+              type: ["string", "null"]
+            costCenterId:
+              type: ["string", "null"]
+            lines:
+              type: array
+              items:
+                $ref: "#/components/schemas/InvoiceLine"
+
+    PaymentAllocationInput:
+      type: object
+      required: [invoiceId, amount]
+      properties:
+        invoiceId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          minimum: 0
+
+    PaymentInput:
+      type: object
+      required: [kind, date, method, cashAccountId, amount, allocations]
+      properties:
+        kind:
+          type: string
+          enum: [collection, payment]
+        date:
+          type: string
+        customerId:
+          type: ["string", "null"]
+        supplierId:
+          type: ["string", "null"]
+        method:
+          type: string
+          enum: [cash, bank, cheque, card]
+        cashAccountId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          minimum: 0
+        currency:
+          type: ["string", "null"]
+        exchangeRate:
+          type: number
+          minimum: 0
+        notes:
+          type: ["string", "null"]
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentAllocationInput"
+
+    PaymentAllocation:
+      type: object
+      required: [id, invoiceId, amount]
+      properties:
+        id:
+          type: string
+        invoiceId:
+          type: string
+        invoiceNo:
+          type: ["integer", "null"]
+        amount:
+          type: number
+
+    Payment:
+      type: object
+      required:
+        [id, kind, paymentNo, date, method, cashAccountId, amount, allocations, createdAt]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [collection, payment]
+        paymentNo:
+          type: integer
+        date:
+          type: string
+        partyId:
+          type: ["string", "null"]
+        partyName:
+          type: ["string", "null"]
+        method:
+          type: string
+          enum: [cash, bank, cheque, card]
+        cashAccountId:
+          type: string
+        cashAccountName:
+          type: ["string", "null"]
+        amount:
+          type: number
+        currency:
+          type: ["string", "null"]
+        exchangeRate:
+          type: number
+        notes:
+          type: ["string", "null"]
+        journalEntryId:
+          type: ["string", "null"]
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentAllocation"
+        createdAt:
+          type: string
+
+    PartyStatementEntry:
+      type: object
+      required: [date, description, debit, credit, balance]
+      properties:
+        date:
+          type: string
+        ref:
+          type: ["string", "null"]
+        description:
+          type: string
+        debit:
+          type: number
+        credit:
+          type: number
+        balance:
+          type: number
+
+    PartyStatement:
+      type: object
+      required: [partyId, partyName, accountCode, openingBalance, closingBalance, entries]
+      properties:
+        partyId:
+          type: string
+        partyName:
+          type: string
+        accountCode:
+          type: string
+        openingBalance:
+          type: number
+        closingBalance:
+          type: number
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PartyStatementEntry"
+
+    AgingRow:
+      type: object
+      required: [partyId, partyName, current, days30, days60, days90, days90plus, total]
+      properties:
+        partyId:
+          type: string
+        partyName:
+          type: string
+        current:
+          type: number
+        days30:
+          type: number
+        days60:
+          type: number
+        days90:
+          type: number
+        days90plus:
+          type: number
+        total:
+          type: number
+
+    AgingReport:
+      type: object
+      required: [asOf, rows]
+      properties:
+        asOf:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgingRow"
+
+    OutstandingInvoice:
+      type: object
+      required: [id, invoiceNo, date, partyName, total, amountPaid, balance, status, overdue]
+      properties:
+        id:
+          type: string
+        invoiceNo:
+          type: integer
+        date:
+          type: string
+        dueDate:
+          type: ["string", "null"]
+        partyName:
+          type: string
+        total:
+          type: number
+        amountPaid:
+          type: number
+        balance:
+          type: number
+        status:
+          type: string
+        overdue:
+          type: boolean
+
+    SummaryRow:
+      type: object
+      required: [key, label, count, total]
+      properties:
+        key:
+          type: ["string", "null"]
+        label:
+          type: string
+        count:
+          type: integer
+        total:
+          type: number

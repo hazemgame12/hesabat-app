@@ -1216,7 +1216,439 @@ export interface SupplierUpdate {
   isActive?: boolean;
 }
 
+export type InvoiceLineInputLineType = typeof InvoiceLineInputLineType[keyof typeof InvoiceLineInputLineType];
+
+
+export const InvoiceLineInputLineType = {
+  service: 'service',
+  inventory: 'inventory',
+  fixed_asset: 'fixed_asset',
+} as const;
+
+export interface InvoiceLineInput {
+  lineType: InvoiceLineInputLineType;
+  /** @nullable */
+  description?: string | null;
+  accountId: string;
+  /** @nullable */
+  itemId?: string | null;
+  /** @nullable */
+  warehouse?: string | null;
+  /** @nullable */
+  cogsAccountId?: string | null;
+  /** @minimum 0 */
+  quantity: number;
+  /** @minimum 0 */
+  unitPrice: number;
+  /** @minimum 0 */
+  discount?: number;
+  /** @nullable */
+  taxId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  assetNameAr?: string | null;
+  /** @nullable */
+  assetNameEn?: string | null;
+  /**
+     * @minimum 1
+     * @nullable
+     */
+  assetUsefulLifeMonths?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  assetSalvageValue?: number | null;
+  /** @nullable */
+  assetAccumulatedAccountId?: string | null;
+  /** @nullable */
+  assetExpenseAccountId?: string | null;
+}
+
+export type InvoiceLineLineType = typeof InvoiceLineLineType[keyof typeof InvoiceLineLineType];
+
+
+export const InvoiceLineLineType = {
+  service: 'service',
+  inventory: 'inventory',
+  fixed_asset: 'fixed_asset',
+} as const;
+
+export interface InvoiceLine {
+  id: string;
+  lineNo: number;
+  lineType: InvoiceLineLineType;
+  /** @nullable */
+  description?: string | null;
+  accountId: string;
+  /** @nullable */
+  itemId?: string | null;
+  /** @nullable */
+  warehouse?: string | null;
+  /** @nullable */
+  cogsAccountId?: string | null;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  /** @nullable */
+  taxId?: string | null;
+  taxAmount: number;
+  lineTotal: number;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  assetNameAr?: string | null;
+  /** @nullable */
+  assetNameEn?: string | null;
+  /** @nullable */
+  assetUsefulLifeMonths?: number | null;
+  /** @nullable */
+  assetSalvageValue?: number | null;
+  /** @nullable */
+  assetAccumulatedAccountId?: string | null;
+  /** @nullable */
+  assetExpenseAccountId?: string | null;
+  /** @nullable */
+  fixedAssetId?: string | null;
+}
+
+export type InvoiceInputKind = typeof InvoiceInputKind[keyof typeof InvoiceInputKind];
+
+
+export const InvoiceInputKind = {
+  sales: 'sales',
+  purchase: 'purchase',
+} as const;
+
+export interface InvoiceInput {
+  kind: InvoiceInputKind;
+  date: string;
+  /** @nullable */
+  dueDate?: string | null;
+  /** @nullable */
+  customerId?: string | null;
+  /** @nullable */
+  supplierId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /** @minimum 0 */
+  exchangeRate?: number;
+  /** @nullable */
+  notes?: string | null;
+  lines: InvoiceLineInput[];
+}
+
+export type InvoiceSummaryKind = typeof InvoiceSummaryKind[keyof typeof InvoiceSummaryKind];
+
+
+export const InvoiceSummaryKind = {
+  sales: 'sales',
+  purchase: 'purchase',
+} as const;
+
+export type InvoiceSummaryStatus = typeof InvoiceSummaryStatus[keyof typeof InvoiceSummaryStatus];
+
+
+export const InvoiceSummaryStatus = {
+  draft: 'draft',
+  approved: 'approved',
+  partially_paid: 'partially_paid',
+  paid: 'paid',
+  cancelled: 'cancelled',
+} as const;
+
+export interface InvoiceSummary {
+  id: string;
+  kind: InvoiceSummaryKind;
+  invoiceNo: number;
+  date: string;
+  /** @nullable */
+  dueDate?: string | null;
+  /** @nullable */
+  partyId?: string | null;
+  /** @nullable */
+  partyName?: string | null;
+  status: InvoiceSummaryStatus;
+  overdue?: boolean;
+  /** @nullable */
+  currency?: string | null;
+  exchangeRate?: number;
+  subtotal?: number;
+  discountTotal?: number;
+  taxTotal?: number;
+  total: number;
+  amountPaid: number;
+  balance: number;
+  /** @nullable */
+  journalEntryId?: string | null;
+  createdAt: string;
+}
+
+export type InvoiceDetail = InvoiceSummary & ({
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  lines: InvoiceLine[];
+});
+
+export interface PaymentAllocationInput {
+  invoiceId: string;
+  /** @minimum 0 */
+  amount: number;
+}
+
+export type PaymentInputKind = typeof PaymentInputKind[keyof typeof PaymentInputKind];
+
+
+export const PaymentInputKind = {
+  collection: 'collection',
+  payment: 'payment',
+} as const;
+
+export type PaymentInputMethod = typeof PaymentInputMethod[keyof typeof PaymentInputMethod];
+
+
+export const PaymentInputMethod = {
+  cash: 'cash',
+  bank: 'bank',
+  cheque: 'cheque',
+  card: 'card',
+} as const;
+
+export interface PaymentInput {
+  kind: PaymentInputKind;
+  date: string;
+  /** @nullable */
+  customerId?: string | null;
+  /** @nullable */
+  supplierId?: string | null;
+  method: PaymentInputMethod;
+  cashAccountId: string;
+  /** @minimum 0 */
+  amount: number;
+  /** @nullable */
+  currency?: string | null;
+  /** @minimum 0 */
+  exchangeRate?: number;
+  /** @nullable */
+  notes?: string | null;
+  allocations: PaymentAllocationInput[];
+}
+
+export interface PaymentAllocation {
+  id: string;
+  invoiceId: string;
+  /** @nullable */
+  invoiceNo?: number | null;
+  amount: number;
+}
+
+export type PaymentKind = typeof PaymentKind[keyof typeof PaymentKind];
+
+
+export const PaymentKind = {
+  collection: 'collection',
+  payment: 'payment',
+} as const;
+
+export type PaymentMethod = typeof PaymentMethod[keyof typeof PaymentMethod];
+
+
+export const PaymentMethod = {
+  cash: 'cash',
+  bank: 'bank',
+  cheque: 'cheque',
+  card: 'card',
+} as const;
+
+export interface Payment {
+  id: string;
+  kind: PaymentKind;
+  paymentNo: number;
+  date: string;
+  /** @nullable */
+  partyId?: string | null;
+  /** @nullable */
+  partyName?: string | null;
+  method: PaymentMethod;
+  cashAccountId: string;
+  /** @nullable */
+  cashAccountName?: string | null;
+  amount: number;
+  /** @nullable */
+  currency?: string | null;
+  exchangeRate?: number;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  journalEntryId?: string | null;
+  allocations: PaymentAllocation[];
+  createdAt: string;
+}
+
+export interface PartyStatementEntry {
+  date: string;
+  /** @nullable */
+  ref?: string | null;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface PartyStatement {
+  partyId: string;
+  partyName: string;
+  accountCode: string;
+  openingBalance: number;
+  closingBalance: number;
+  entries: PartyStatementEntry[];
+}
+
+export interface AgingRow {
+  partyId: string;
+  partyName: string;
+  current: number;
+  days30: number;
+  days60: number;
+  days90: number;
+  days90plus: number;
+  total: number;
+}
+
+export interface AgingReport {
+  asOf: string;
+  rows: AgingRow[];
+}
+
+export interface OutstandingInvoice {
+  id: string;
+  invoiceNo: number;
+  date: string;
+  /** @nullable */
+  dueDate?: string | null;
+  partyName: string;
+  total: number;
+  amountPaid: number;
+  balance: number;
+  status: string;
+  overdue: boolean;
+}
+
+export interface SummaryRow {
+  /** @nullable */
+  key: string | null;
+  label: string;
+  count: number;
+  total: number;
+}
+
 export type ListInventoryMovementsParams = {
 itemId?: string;
 };
+
+export type ListInvoicesParams = {
+kind: ListInvoicesKind;
+};
+
+export type ListInvoicesKind = typeof ListInvoicesKind[keyof typeof ListInvoicesKind];
+
+
+export const ListInvoicesKind = {
+  sales: 'sales',
+  purchase: 'purchase',
+} as const;
+
+export type ListPaymentsParams = {
+kind: ListPaymentsKind;
+};
+
+export type ListPaymentsKind = typeof ListPaymentsKind[keyof typeof ListPaymentsKind];
+
+
+export const ListPaymentsKind = {
+  collection: 'collection',
+  payment: 'payment',
+} as const;
+
+export type GetPartyStatementParams = {
+partyType: GetPartyStatementPartyType;
+partyId: string;
+from?: string;
+to?: string;
+};
+
+export type GetPartyStatementPartyType = typeof GetPartyStatementPartyType[keyof typeof GetPartyStatementPartyType];
+
+
+export const GetPartyStatementPartyType = {
+  customer: 'customer',
+  supplier: 'supplier',
+} as const;
+
+export type GetAgingReportParams = {
+type: GetAgingReportType;
+asOf?: string;
+};
+
+export type GetAgingReportType = typeof GetAgingReportType[keyof typeof GetAgingReportType];
+
+
+export const GetAgingReportType = {
+  ar: 'ar',
+  ap: 'ap',
+} as const;
+
+export type GetOutstandingInvoicesParams = {
+kind: GetOutstandingInvoicesKind;
+};
+
+export type GetOutstandingInvoicesKind = typeof GetOutstandingInvoicesKind[keyof typeof GetOutstandingInvoicesKind];
+
+
+export const GetOutstandingInvoicesKind = {
+  sales: 'sales',
+  purchase: 'purchase',
+} as const;
+
+export type GetInvoiceSummaryReportParams = {
+kind: GetInvoiceSummaryReportKind;
+groupBy: GetInvoiceSummaryReportGroupBy;
+from?: string;
+to?: string;
+};
+
+export type GetInvoiceSummaryReportKind = typeof GetInvoiceSummaryReportKind[keyof typeof GetInvoiceSummaryReportKind];
+
+
+export const GetInvoiceSummaryReportKind = {
+  sales: 'sales',
+  purchase: 'purchase',
+} as const;
+
+export type GetInvoiceSummaryReportGroupBy = typeof GetInvoiceSummaryReportGroupBy[keyof typeof GetInvoiceSummaryReportGroupBy];
+
+
+export const GetInvoiceSummaryReportGroupBy = {
+  party: 'party',
+  costCenter: 'costCenter',
+} as const;
+
+export type GetPaymentsSummaryReportParams = {
+kind: GetPaymentsSummaryReportKind;
+from?: string;
+to?: string;
+};
+
+export type GetPaymentsSummaryReportKind = typeof GetPaymentsSummaryReportKind[keyof typeof GetPaymentsSummaryReportKind];
+
+
+export const GetPaymentsSummaryReportKind = {
+  collection: 'collection',
+  payment: 'payment',
+} as const;
 

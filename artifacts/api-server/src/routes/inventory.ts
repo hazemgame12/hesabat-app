@@ -17,11 +17,10 @@ import {
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { createDraftJournalEntry } from "../lib/journal-posting";
+import { computeMovement, round2, round4 } from "../lib/inventory-posting";
 
 const router = Router();
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-const round4 = (n: number) => Math.round(n * 10000) / 10000;
 const EPS = 0.00005;
 
 function toItem(row: InventoryItem) {
@@ -405,41 +404,18 @@ router.post(
         const curQty = round4(Number(item.quantityOnHand));
         const curAvg = round4(Number(item.averageCost));
 
-        let newQty: number;
-        let newAvg: number;
-        let unitCost: number;
-        let totalValue: number; // signed
-        let inventoryIsDebit: boolean;
-
-        if (d.type === "receipt") {
-          unitCost = round4(d.unitCost as number);
-          newQty = round4(curQty + qty);
-          newAvg =
-            newQty > EPS
-              ? round4((curQty * curAvg + qty * unitCost) / newQty)
-              : 0;
-          totalValue = round2(qty * unitCost);
-          inventoryIsDebit = true;
-        } else if (d.type === "issue") {
-          if (qty > curQty + EPS) {
-            return { error: "negative" as const };
-          }
-          unitCost = curAvg;
-          newQty = round4(curQty - qty);
-          newAvg = curAvg;
-          totalValue = round2(qty * curAvg);
-          inventoryIsDebit = false;
-        } else {
-          // adjustment: signed qty, valued at current average cost
-          newQty = round4(curQty + qty);
-          if (newQty < -EPS) {
-            return { error: "negative" as const };
-          }
-          unitCost = curAvg;
-          newAvg = curAvg;
-          totalValue = round2(qty * curAvg);
-          inventoryIsDebit = qty > 0;
+        const computed = computeMovement(
+          curQty,
+          curAvg,
+          d.type,
+          qty,
+          d.type === "receipt" ? (d.unitCost as number) : null,
+        );
+        if (computed === "negative") {
+          return { error: "negative" as const };
         }
+        const { newQty, newAvg, unitCost, totalValue, inventoryIsDebit } =
+          computed;
 
         const postAmount = round2(Math.abs(totalValue));
         let journalEntryId: string | null = null;

@@ -10,3 +10,4 @@
 - [Hesabat i18n](hesabat-i18n.md) — i18next ar(default)/en; sync html lang+dir → use Tailwind logical props (ms/ps/start/text-start) not dir="rtl"; group/tab by stable IDs, translate only for display.
 - [Journal entryNo numbering race](entrynno-numbering-race.md) — per-company entryNo (max+1, no unique constraint) races under concurrent posting; call lockCompanyEntryNo(tx,companyId) before allocating.
 - [Subsidiary-ledger parties](subsidiary-ledger-parties.md) — customers/suppliers store NO balance; auto-create a leaf account under a control group; derive balance from posted lines; advisory-lock child-code allocation.
+- [Hesabat lock-order contract](hesabat-lock-ordering.md) — any tx taking BOTH a row FOR UPDATE and lockCompanyEntryNo must lock rows first (sorted), THEN the advisory lock; reverse order deadlocks approve vs payment.

@@ -68,6 +68,15 @@ export const CAPABILITIES = [
   "suppliers:create",
   "suppliers:update",
   "suppliers:delete",
+  "invoices:read",
+  "invoices:create",
+  "invoices:update",
+  "invoices:delete",
+  "invoices:approve",
+  "payments:read",
+  "payments:create",
+  "payments:update",
+  "payments:delete",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -143,6 +152,21 @@ const SUPPLIERS_FULL: Capability[] = [
   "suppliers:delete",
 ];
 
+const INVOICES_FULL: Capability[] = [
+  "invoices:read",
+  "invoices:create",
+  "invoices:update",
+  "invoices:delete",
+  "invoices:approve",
+];
+
+const PAYMENTS_FULL: Capability[] = [
+  "payments:read",
+  "payments:create",
+  "payments:update",
+  "payments:delete",
+];
+
 export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
   owner: [
     "team:manage",
@@ -157,6 +181,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...PAYROLL_FULL,
     ...CUSTOMERS_FULL,
     ...SUPPLIERS_FULL,
+    ...INVOICES_FULL,
+    ...PAYMENTS_FULL,
   ],
   manager: [
     "company:manage",
@@ -170,6 +196,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...PAYROLL_FULL,
     ...CUSTOMERS_FULL,
     ...SUPPLIERS_FULL,
+    ...INVOICES_FULL,
+    ...PAYMENTS_FULL,
   ],
   accountant: [
     "accounts:read",
@@ -203,6 +231,13 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "suppliers:read",
     "suppliers:create",
     "suppliers:update",
+    "invoices:read",
+    "invoices:create",
+    "invoices:update",
+    "invoices:approve",
+    "payments:read",
+    "payments:create",
+    "payments:update",
   ],
   data_entry: [
     "accounts:read",
@@ -223,6 +258,10 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "customers:create",
     "suppliers:read",
     "suppliers:create",
+    "invoices:read",
+    "invoices:create",
+    "payments:read",
+    "payments:create",
   ],
   viewer: [
     "accounts:read",
@@ -235,6 +274,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "payroll:read",
     "customers:read",
     "suppliers:read",
+    "invoices:read",
+    "payments:read",
   ],
 };
 

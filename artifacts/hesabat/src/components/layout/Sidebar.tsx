@@ -8,7 +8,9 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import {
   LayoutDashboard,
   Receipt,
+  ReceiptText,
   FileText,
+  FileSpreadsheet,
   HandCoins,
   Landmark,
   ListTree,
@@ -38,6 +40,8 @@ const navItems: NavItem[] = [
   { labelKey: "nav.advances", icon: HandCoins, href: "/advances" },
   { labelKey: "nav.sales", icon: Users, href: "/sales", requires: "customers:read" },
   { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
+  { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
+  { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
   { labelKey: "nav.reports", icon: FileText, href: "/reports" },
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];

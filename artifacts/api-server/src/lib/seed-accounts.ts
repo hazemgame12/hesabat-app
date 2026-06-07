@@ -57,6 +57,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: "511", nameAr: "رواتب وأجور", nameEn: "Salaries & Wages", type: "expense", isGroup: false, parentCode: "51" },
   { code: "512", nameAr: "إيجارات", nameEn: "Rent", type: "expense", isGroup: false, parentCode: "51" },
   { code: "513", nameAr: "مصروفات تشغيل", nameEn: "Operating Expenses", type: "expense", isGroup: false, parentCode: "51" },
+  { code: "514", nameAr: "تكلفة المبيعات", nameEn: "Cost of Sales", type: "expense", isGroup: false, parentCode: "51" },
 ];
 
 // Inserts the default chart of accounts for a company, resolving parent codes to

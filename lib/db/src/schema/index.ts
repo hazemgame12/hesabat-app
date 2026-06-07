@@ -38,3 +38,4 @@ export * from "./fixed-assets";
 export * from "./inventory";
 export * from "./payroll";
 export * from "./customers-suppliers";
+export * from "./invoices";

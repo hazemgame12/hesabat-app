@@ -14,6 +14,8 @@ import { Inventory } from "@/pages/inventory";
 import { Payroll } from "@/pages/payroll";
 import { Customers } from "@/pages/customers";
 import { Suppliers } from "@/pages/suppliers";
+import SalesInvoicesPage from "@/pages/sales-invoices";
+import PurchaseInvoicesPage from "@/pages/purchase-invoices";
 import { Settings } from "@/pages/settings";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { ComingSoon } from "@/pages/coming-soon";
@@ -58,6 +60,8 @@ function ProtectedRoutes() {
         <Route path="/advances" component={ComingSoon} />
         <Route path="/sales" component={Customers} />
         <Route path="/purchases" component={Suppliers} />
+        <Route path="/invoices/sales" component={SalesInvoicesPage} />
+        <Route path="/invoices/purchases" component={PurchaseInvoicesPage} />
         <Route path="/reports" component={ComingSoon} />
         <Route path="/" component={Dashboard} />
         <Route component={NotFound} />
