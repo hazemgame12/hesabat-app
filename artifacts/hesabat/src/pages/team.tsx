@@ -140,8 +140,8 @@ export function Team() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="h-20 bg-background/80 backdrop-blur-md border-b sticky top-0 z-10 flex items-center justify-between px-8">
+    <div className="flex flex-col">
+      <header className="h-20 bg-background/80 backdrop-blur-md border-b flex items-center justify-between px-8">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-card border shadow-sm flex items-center justify-center text-primary">
             <Users className="w-6 h-6" />

@@ -90,7 +90,19 @@
     "member": "Member",
     "defaultInitial": "U",
     "taxes": "Taxes",
-    "currencies": "Currencies & Exchange Rates"
+    "currencies": "Currencies & Exchange Rates",
+    "settings": "Company Settings"
+  },
+  "settings": {
+    "title": "Company Settings",
+    "subtitle": "All your company settings and data in one place",
+    "tabs": {
+      "company": "Company Profile",
+      "team": "Team & Permissions",
+      "costCenters": "Cost Centers & Projects",
+      "currencies": "Currencies & Exchange Rates",
+      "taxes": "Taxes"
+    }
   },
   "dashboard": {
     "connected": "Connected",

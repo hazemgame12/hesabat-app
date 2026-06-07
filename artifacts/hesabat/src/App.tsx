@@ -1,5 +1,5 @@
 import React from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,12 +8,8 @@ import { Login } from "@/pages/login";
 import { Signup } from "@/pages/signup";
 import { Dashboard } from "@/pages/dashboard";
 import { Accounts } from "@/pages/accounts";
-import { Taxes } from "@/pages/taxes";
-import { CostCenters } from "@/pages/cost-centers";
-import { Currencies } from "@/pages/currencies";
 import { Journal } from "@/pages/journal";
-import { Team } from "@/pages/team";
-import { CompanyProfile } from "@/pages/company";
+import { Settings } from "@/pages/settings";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { ComingSoon } from "@/pages/coming-soon";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -33,12 +29,23 @@ function ProtectedRoutes() {
       <Switch>
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/accounts" component={Accounts} />
-        <Route path="/taxes" component={Taxes} />
-        <Route path="/cost-centers" component={CostCenters} />
-        <Route path="/currencies" component={Currencies} />
-        <Route path="/team" component={Team} />
-        <Route path="/company" component={CompanyProfile} />
         <Route path="/journal" component={Journal} />
+        <Route path="/settings/:tab?" component={Settings} />
+        <Route path="/taxes">
+          <Redirect to="/settings/taxes" />
+        </Route>
+        <Route path="/cost-centers">
+          <Redirect to="/settings/cost-centers" />
+        </Route>
+        <Route path="/currencies">
+          <Redirect to="/settings/currencies" />
+        </Route>
+        <Route path="/team">
+          <Redirect to="/settings/team" />
+        </Route>
+        <Route path="/company">
+          <Redirect to="/settings/company" />
+        </Route>
         <Route path="/bank" component={ComingSoon} />
         <Route path="/advances" component={ComingSoon} />
         <Route path="/sales" component={ComingSoon} />

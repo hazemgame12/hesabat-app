@@ -160,8 +160,8 @@ export function CompanyProfile() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="h-20 bg-background/80 backdrop-blur-md border-b sticky top-0 z-10 flex items-center px-8">
+    <div className="flex flex-col">
+      <header className="h-20 bg-background/80 backdrop-blur-md border-b flex items-center px-8">
         <div>
           <h1 className="text-lg font-bold text-foreground">{t("company.title")}</h1>
           <p className="text-sm text-muted-foreground font-medium">
