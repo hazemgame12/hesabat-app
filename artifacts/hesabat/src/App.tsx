@@ -10,6 +10,7 @@ import { Dashboard } from "@/pages/dashboard";
 import { Accounts } from "@/pages/accounts";
 import { Taxes } from "@/pages/taxes";
 import { CostCenters } from "@/pages/cost-centers";
+import { Currencies } from "@/pages/currencies";
 import { Journal } from "@/pages/journal";
 import { Team } from "@/pages/team";
 import { CompanyProfile } from "@/pages/company";
@@ -34,6 +35,7 @@ function ProtectedRoutes() {
         <Route path="/accounts" component={Accounts} />
         <Route path="/taxes" component={Taxes} />
         <Route path="/cost-centers" component={CostCenters} />
+        <Route path="/currencies" component={Currencies} />
         <Route path="/team" component={Team} />
         <Route path="/company" component={CompanyProfile} />
         <Route path="/journal" component={Journal} />

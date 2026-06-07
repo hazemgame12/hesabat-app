@@ -32,6 +32,9 @@ import type {
   CostCenterUpdate,
   CreateInvitationInput,
   CreatedInvitation,
+  Currency,
+  CurrencyInput,
+  CurrencyUpdate,
   DashboardSummary,
   ErrorResponse,
   HealthStatus,
@@ -1077,6 +1080,296 @@ export const useDeleteTax = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getDeleteTaxMutationOptions(options));
+    }
+
+export const getListCurrenciesUrl = () => {
+
+
+
+
+  return `/api/currencies`
+}
+
+/**
+ * @summary List all currencies for the current company
+ */
+export const listCurrencies = async ( options?: RequestInit): Promise<Currency[]> => {
+
+  return customFetch<Currency[]>(getListCurrenciesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCurrenciesQueryKey = () => {
+    return [
+    `/api/currencies`
+    ] as const;
+    }
+
+
+export const getListCurrenciesQueryOptions = <TData = Awaited<ReturnType<typeof listCurrencies>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCurrencies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCurrenciesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCurrencies>>> = ({ signal }) => listCurrencies({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCurrencies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCurrenciesQueryResult = NonNullable<Awaited<ReturnType<typeof listCurrencies>>>
+export type ListCurrenciesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List all currencies for the current company
+ */
+
+export function useListCurrencies<TData = Awaited<ReturnType<typeof listCurrencies>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCurrencies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCurrenciesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateCurrencyUrl = () => {
+
+
+
+
+  return `/api/currencies`
+}
+
+/**
+ * @summary Create a currency
+ */
+export const createCurrency = async (currencyInput: CurrencyInput, options?: RequestInit): Promise<Currency> => {
+
+  return customFetch<Currency>(getCreateCurrencyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      currencyInput,)
+  }
+);}
+
+
+
+
+export const getCreateCurrencyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCurrency>>, TError,{data: BodyType<CurrencyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCurrency>>, TError,{data: BodyType<CurrencyInput>}, TContext> => {
+
+const mutationKey = ['createCurrency'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCurrency>>, {data: BodyType<CurrencyInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCurrency(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCurrencyMutationResult = NonNullable<Awaited<ReturnType<typeof createCurrency>>>
+    export type CreateCurrencyMutationBody = BodyType<CurrencyInput>
+    export type CreateCurrencyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a currency
+ */
+export const useCreateCurrency = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCurrency>>, TError,{data: BodyType<CurrencyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCurrency>>,
+        TError,
+        {data: BodyType<CurrencyInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCurrencyMutationOptions(options));
+    }
+
+export const getUpdateCurrencyUrl = (id: string,) => {
+
+
+
+
+  return `/api/currencies/${id}`
+}
+
+/**
+ * @summary Update a currency
+ */
+export const updateCurrency = async (id: string,
+    currencyUpdate: CurrencyUpdate, options?: RequestInit): Promise<Currency> => {
+
+  return customFetch<Currency>(getUpdateCurrencyUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      currencyUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateCurrencyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCurrency>>, TError,{id: string;data: BodyType<CurrencyUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCurrency>>, TError,{id: string;data: BodyType<CurrencyUpdate>}, TContext> => {
+
+const mutationKey = ['updateCurrency'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCurrency>>, {id: string;data: BodyType<CurrencyUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCurrency(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCurrencyMutationResult = NonNullable<Awaited<ReturnType<typeof updateCurrency>>>
+    export type UpdateCurrencyMutationBody = BodyType<CurrencyUpdate>
+    export type UpdateCurrencyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a currency
+ */
+export const useUpdateCurrency = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCurrency>>, TError,{id: string;data: BodyType<CurrencyUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCurrency>>,
+        TError,
+        {id: string;data: BodyType<CurrencyUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateCurrencyMutationOptions(options));
+    }
+
+export const getDeleteCurrencyUrl = (id: string,) => {
+
+
+
+
+  return `/api/currencies/${id}`
+}
+
+/**
+ * @summary Delete a currency
+ */
+export const deleteCurrency = async (id: string, options?: RequestInit): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getDeleteCurrencyUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCurrencyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCurrency>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCurrency>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteCurrency'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCurrency>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCurrency(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCurrencyMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCurrency>>>
+
+    export type DeleteCurrencyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a currency
+ */
+export const useDeleteCurrency = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCurrency>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCurrency>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCurrencyMutationOptions(options));
     }
 
 export const getListCostCentersUrl = () => {

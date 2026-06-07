@@ -89,7 +89,8 @@
     "logout": "Sign out",
     "member": "Member",
     "defaultInitial": "U",
-    "taxes": "Taxes"
+    "taxes": "Taxes",
+    "currencies": "Currencies & Exchange Rates"
   },
   "dashboard": {
     "connected": "Connected",
@@ -307,6 +308,52 @@
       "addError": "Could not add tax",
       "editError": "Could not update tax",
       "deleteError": "Could not delete tax"
+    }
+  },
+  "currencies": {
+    "title": "Currencies & Exchange Rates",
+    "subtitle": "Define foreign currencies and each one's rate against your base currency",
+    "addCurrency": "Add currency",
+    "baseCurrencyLabel": "Base currency",
+    "baseCurrencyHint": "Each currency's rate is the value of one unit in your base currency ({{base}}). E.g. 1 USD = 50 {{base}}.",
+    "code": "Code",
+    "name": "Currency",
+    "exchangeRate": "Exchange rate",
+    "ratePerBase": "1 {{code}} = {{rate}} {{base}}",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "noCurrencies": "No currencies yet",
+    "noCurrenciesHint": "Add the currencies your company deals with so they appear automatically in journal entries.",
+    "createTitle": "New currency",
+    "editTitle": "Edit currency",
+    "codeLabel": "Currency code",
+    "codePlaceholder": "e.g. USD",
+    "nameAr": "Currency name (Arabic)",
+    "nameEn": "Currency name (English)",
+    "optional": "optional",
+    "namePlaceholder": "e.g. US Dollar",
+    "namePlaceholderEn": "e.g. US Dollar",
+    "rateLabel": "Exchange rate vs {{base}}",
+    "ratePlaceholder": "50",
+    "isActive": "Active currency",
+    "save": "Save currency",
+    "deleteTitle": "Delete currency",
+    "deleteBody": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
+    "deleting": "Deleting…",
+    "confirmDelete": "Confirm delete",
+    "validation": {
+      "codeRequired": "Currency code is required",
+      "nameRequired": "Currency name is required",
+      "rateRequired": "Exchange rate must be greater than zero"
+    },
+    "toast": {
+      "added": "Currency added",
+      "edited": "Currency updated",
+      "deleted": "Currency deleted",
+      "addError": "Could not add currency",
+      "editError": "Could not update currency",
+      "deleteError": "Could not delete currency"
     }
   },
   "costCenters": {

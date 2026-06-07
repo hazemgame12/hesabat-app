@@ -39,6 +39,10 @@ export const CAPABILITIES = [
   "costCenters:create",
   "costCenters:update",
   "costCenters:delete",
+  "currencies:read",
+  "currencies:create",
+  "currencies:update",
+  "currencies:delete",
   "journal:read",
   "journal:create",
   "journal:update",
@@ -69,6 +73,13 @@ const COST_CENTERS_FULL: Capability[] = [
   "costCenters:delete",
 ];
 
+const CURRENCIES_FULL: Capability[] = [
+  "currencies:read",
+  "currencies:create",
+  "currencies:update",
+  "currencies:delete",
+];
+
 const JOURNAL_FULL: Capability[] = [
   "journal:read",
   "journal:create",
@@ -84,6 +95,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...ACCOUNTS_FULL,
     ...TAXES_FULL,
     ...COST_CENTERS_FULL,
+    ...CURRENCIES_FULL,
     ...JOURNAL_FULL,
   ],
   manager: [
@@ -91,6 +103,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...ACCOUNTS_FULL,
     ...TAXES_FULL,
     ...COST_CENTERS_FULL,
+    ...CURRENCIES_FULL,
     ...JOURNAL_FULL,
   ],
   accountant: [
@@ -103,6 +116,9 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "costCenters:read",
     "costCenters:create",
     "costCenters:update",
+    "currencies:read",
+    "currencies:create",
+    "currencies:update",
     "journal:read",
     "journal:create",
     "journal:update",
@@ -114,6 +130,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "taxes:read",
     "costCenters:read",
     "costCenters:create",
+    "currencies:read",
     "journal:read",
     "journal:create",
   ],
@@ -121,6 +138,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "accounts:read",
     "taxes:read",
     "costCenters:read",
+    "currencies:read",
     "journal:read",
   ],
 };

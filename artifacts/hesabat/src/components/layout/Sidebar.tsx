@@ -17,7 +17,8 @@ import {
   Users,
   ShieldCheck,
   Building2,
-  Percent
+  Percent,
+  Coins
 } from "lucide-react";
 
 type NavItem = {
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { labelKey: "nav.sales", icon: Users, href: "/sales" },
   { labelKey: "nav.purchases", icon: Receipt, href: "/purchases" },
   { labelKey: "nav.taxes", icon: Percent, href: "/taxes", requires: "taxes:read" },
+  { labelKey: "nav.currencies", icon: Coins, href: "/currencies", requires: "currencies:read" },
   { labelKey: "nav.costCenters", icon: Boxes, href: "/cost-centers", requires: "costCenters:read" },
   { labelKey: "nav.reports", icon: FileText, href: "/reports" },
   { labelKey: "nav.team", icon: ShieldCheck, href: "/team", requires: "team:manage" },

@@ -358,6 +358,104 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /currencies:
+    get:
+      operationId: listCurrencies
+      tags: [currencies]
+      summary: List all currencies for the current company
+      responses:
+        "200":
+          description: Currencies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Currency"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createCurrency
+      tags: [currencies]
+      summary: Create a currency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CurrencyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Currency"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /currencies/{id}:
+    patch:
+      operationId: updateCurrency
+      tags: [currencies]
+      summary: Update a currency
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CurrencyUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Currency"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCurrency
+      tags: [currencies]
+      summary: Delete a currency
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /cost-centers:
     get:
       operationId: listCostCenters
@@ -1280,6 +1378,60 @@ components:
         linkedAccountId:
           type: ["string", "null"]
           format: uuid
+        isActive:
+          type: boolean
+
+    Currency:
+      type: object
+      required: [id, code, nameAr, exchangeRate, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        exchangeRate:
+          type: number
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    CurrencyInput:
+      type: object
+      required: [code, nameAr, exchangeRate]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        exchangeRate:
+          type: number
+          exclusiveMinimum: 0
+        isActive:
+          type: boolean
+
+    CurrencyUpdate:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        exchangeRate:
+          type: number
+          exclusiveMinimum: 0
         isActive:
           type: boolean
 

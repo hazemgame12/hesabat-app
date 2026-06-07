@@ -11,6 +11,7 @@ import {
   useListAccounts,
   useListTaxes,
   useListCostCenters,
+  useListCurrencies,
   useGetCurrentUser,
   useGetCompany,
   getListJournalEntriesQueryKey,
@@ -369,6 +370,16 @@ function JournalEditor({
   const { data: accounts = [] } = useListAccounts();
   const { data: taxes = [] } = useListTaxes();
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: currencies = [] } = useListCurrencies();
+  const currencyOptions = useMemo(() => {
+    const opts: { code: string; rate: string }[] = [{ code: baseCurrency, rate: "1" }];
+    for (const c of currencies) {
+      if (c.isActive && c.code !== baseCurrency) {
+        opts.push({ code: c.code, rate: String(c.exchangeRate) });
+      }
+    }
+    return opts;
+  }, [currencies, baseCurrency]);
   const postableAccounts = useMemo(
     () => accounts.filter((a: Account) => !a.isGroup),
     [accounts],
@@ -721,12 +732,32 @@ function JournalEditor({
                         </select>
                       </td>
                       <td className="px-2 py-1.5">
-                        <input
-                          value={l.currency}
+                        <select
+                          value={
+                            currencyOptions.some((o) => o.code === l.currency)
+                              ? l.currency
+                              : l.currency || baseCurrency
+                          }
                           disabled={readOnly}
-                          onChange={(e) => updateLine(l.key, { currency: e.target.value.toUpperCase() })}
+                          onChange={(e) => {
+                            const code = e.target.value;
+                            const opt = currencyOptions.find((o) => o.code === code);
+                            updateLine(l.key, {
+                              currency: code,
+                              ...(opt ? { exchangeRate: opt.rate } : {}),
+                            });
+                          }}
                           className="w-full bg-background border rounded-lg h-9 px-2 text-xs font-sans text-center focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
-                        />
+                        >
+                          {!currencyOptions.some((o) => o.code === l.currency) && l.currency && (
+                            <option value={l.currency}>{l.currency}</option>
+                          )}
+                          {currencyOptions.map((o) => (
+                            <option key={o.code} value={o.code}>
+                              {o.code}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-2 py-1.5">
                         <input

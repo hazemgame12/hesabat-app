@@ -89,7 +89,8 @@
     "logout": "تسجيل الخروج",
     "member": "عضو",
     "defaultInitial": "ح",
-    "taxes": "الضرائب"
+    "taxes": "الضرائب",
+    "currencies": "العملات وأسعار الصرف"
   },
   "dashboard": {
     "connected": "متصل بالنظام",
@@ -307,6 +308,52 @@
       "addError": "تعذّر إضافة الضريبة",
       "editError": "تعذّر تعديل الضريبة",
       "deleteError": "تعذّر حذف الضريبة"
+    }
+  },
+  "currencies": {
+    "title": "العملات وأسعار الصرف",
+    "subtitle": "عرّف العملات الأجنبية وسعر صرف كل عملة مقابل عملتك الأساسية",
+    "addCurrency": "أضف عملة",
+    "baseCurrencyLabel": "العملة الأساسية",
+    "baseCurrencyHint": "سعر الصرف لكل عملة هو قيمة وحدة واحدة منها بالعملة الأساسية ({{base}}). مثال: 1 دولار = 50 {{base}}.",
+    "code": "رمز العملة",
+    "name": "اسم العملة",
+    "exchangeRate": "سعر الصرف",
+    "ratePerBase": "1 {{code}} = {{rate}} {{base}}",
+    "status": "الحالة",
+    "active": "نشطة",
+    "inactive": "متوقفة",
+    "noCurrencies": "لا توجد عملات بعد",
+    "noCurrenciesHint": "أضف العملات التي تتعامل بها الشركة لتظهر تلقائيًا في القيود اليومية.",
+    "createTitle": "تعريف عملة جديدة",
+    "editTitle": "تعديل العملة",
+    "codeLabel": "رمز العملة",
+    "codePlaceholder": "مثال: USD",
+    "nameAr": "اسم العملة (عربي)",
+    "nameEn": "اسم العملة (إنجليزي)",
+    "optional": "اختياري",
+    "namePlaceholder": "مثال: دولار أمريكي",
+    "namePlaceholderEn": "e.g. US Dollar",
+    "rateLabel": "سعر الصرف مقابل {{base}}",
+    "ratePlaceholder": "50",
+    "isActive": "عملة نشطة",
+    "save": "حفظ العملة",
+    "deleteTitle": "حذف العملة",
+    "deleteBody": "هل أنت متأكد من حذف «{{name}}»؟ لا يمكن التراجع عن هذا الإجراء.",
+    "deleting": "جارٍ الحذف…",
+    "confirmDelete": "تأكيد الحذف",
+    "validation": {
+      "codeRequired": "رمز العملة مطلوب",
+      "nameRequired": "اسم العملة مطلوب",
+      "rateRequired": "سعر الصرف يجب أن يكون أكبر من صفر"
+    },
+    "toast": {
+      "added": "تمت إضافة العملة",
+      "edited": "تم تعديل العملة",
+      "deleted": "تم حذف العملة",
+      "addError": "تعذّر إضافة العملة",
+      "editError": "تعذّر تعديل العملة",
+      "deleteError": "تعذّر حذف العملة"
     }
   },
   "costCenters": {

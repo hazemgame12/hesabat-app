@@ -239,6 +239,83 @@ export const DeleteTaxResponse = zod.object({
 
 
 /**
+ * @summary List all currencies for the current company
+ */
+export const ListCurrenciesResponseItem = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "exchangeRate": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListCurrenciesResponse = zod.array(ListCurrenciesResponseItem)
+
+
+/**
+ * @summary Create a currency
+ */
+
+
+export const createCurrencyBodyExchangeRateExclusiveMin = 0;
+
+
+
+export const CreateCurrencyBody = zod.object({
+  "code": zod.string().min(1),
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "exchangeRate": zod.number().gt(createCurrencyBodyExchangeRateExclusiveMin),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a currency
+ */
+export const UpdateCurrencyParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+export const updateCurrencyBodyExchangeRateExclusiveMin = 0;
+
+
+
+export const UpdateCurrencyBody = zod.object({
+  "code": zod.string().min(1).optional(),
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "exchangeRate": zod.number().gt(updateCurrencyBodyExchangeRateExclusiveMin).optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateCurrencyResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "exchangeRate": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a currency
+ */
+export const DeleteCurrencyParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCurrencyResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
  * @summary List all cost centers for the current company
  */
 export const ListCostCentersResponseItem = zod.object({

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { 
   useListAccounts, 
@@ -42,6 +42,45 @@ const TYPE_COLORS: Record<AccountType, string> = {
 };
 
 const ALL_TAB = "all";
+
+const TYPE_PREFIX: Record<AccountType, string> = {
+  asset: "1",
+  liability: "2",
+  equity: "3",
+  revenue: "4",
+  expense: "5",
+};
+
+// Suggests the next account code based on existing siblings, mirroring the
+// hierarchical scheme of the default chart (parentCode + next digit, e.g.
+// "11" → "111" → "1111"). The suffix is incremented within the parent prefix
+// so it never escapes the hierarchy (the 9th child of "11" becomes "1110",
+// not "120"). Editable by the user afterwards.
+function computeNextCode(
+  parentId: string | null,
+  type: AccountType,
+  accounts: Account[],
+): string {
+  const parent = parentId ? accounts.find((a) => a.id === parentId) : null;
+  const prefix = parent ? parent.code : TYPE_PREFIX[type];
+
+  const siblings = parentId
+    ? accounts.filter((a) => a.parentId === parentId)
+    : accounts.filter((a) => !a.parentId && a.type === type);
+
+  const suffixes = siblings
+    .filter((a) => a.code.startsWith(prefix) && a.code.length > prefix.length)
+    .map((a) => a.code.slice(prefix.length))
+    .filter((s) => /^\d+$/.test(s));
+
+  if (suffixes.length > 0) {
+    const max = suffixes.reduce((m, s) => Math.max(m, Number(s)), 0);
+    const width = Math.max(...suffixes.map((s) => s.length));
+    return prefix + String(max + 1).padStart(width, "0");
+  }
+
+  return `${prefix}1`;
+}
 
 const accountSchema = z.object({
   code: z.string().min(1, "codeRequired"),
@@ -135,6 +174,14 @@ export function Accounts() {
   });
 
   const isGroup = watch("isGroup");
+  const watchedParentId = watch("parentId");
+  const watchedType = watch("type");
+
+  useEffect(() => {
+    if (modalMode !== "create") return;
+    setValue("code", computeNextCode(watchedParentId ?? null, watchedType, accounts));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalMode, watchedParentId, watchedType, accounts]);
 
   const openCreateModal = () => {
     reset({

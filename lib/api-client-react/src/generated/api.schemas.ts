@@ -255,6 +255,41 @@ export interface TaxUpdate {
   isActive?: boolean;
 }
 
+export interface Currency {
+  id: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  exchangeRate: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CurrencyInput {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @exclusiveMinimum 0 */
+  exchangeRate: number;
+  isActive?: boolean;
+}
+
+export interface CurrencyUpdate {
+  /** @minLength 1 */
+  code?: string;
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @exclusiveMinimum 0 */
+  exchangeRate?: number;
+  isActive?: boolean;
+}
+
 export type CostCenterType = typeof CostCenterType[keyof typeof CostCenterType];
 
 
