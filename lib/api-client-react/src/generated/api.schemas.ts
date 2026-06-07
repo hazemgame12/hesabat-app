@@ -982,6 +982,240 @@ export interface AcceptInvitationInput {
   password: string;
 }
 
+export type CustomerType = typeof CustomerType[keyof typeof CustomerType];
+
+
+export const CustomerType = {
+  individual: 'individual',
+  company: 'company',
+} as const;
+
+export interface Customer {
+  id: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: CustomerType;
+  /** @nullable */
+  taxNumber?: string | null;
+  /** @nullable */
+  commercialRegistration?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /** @nullable */
+  creditLimit?: number | null;
+  /** @nullable */
+  creditPeriodDays?: number | null;
+  controlAccountId: string;
+  accountId: string;
+  accountCode: string;
+  balance: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type CustomerInputType = typeof CustomerInputType[keyof typeof CustomerInputType];
+
+
+export const CustomerInputType = {
+  individual: 'individual',
+  company: 'company',
+} as const;
+
+export interface CustomerInput {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: CustomerInputType;
+  /** @nullable */
+  taxNumber?: string | null;
+  /** @nullable */
+  commercialRegistration?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  creditLimit?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  creditPeriodDays?: number | null;
+  controlAccountId: string;
+  isActive?: boolean;
+}
+
+export type CustomerUpdateType = typeof CustomerUpdateType[keyof typeof CustomerUpdateType];
+
+
+export const CustomerUpdateType = {
+  individual: 'individual',
+  company: 'company',
+} as const;
+
+export interface CustomerUpdate {
+  /** @minLength 1 */
+  code?: string;
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type?: CustomerUpdateType;
+  /** @nullable */
+  taxNumber?: string | null;
+  /** @nullable */
+  commercialRegistration?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  creditLimit?: number | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  creditPeriodDays?: number | null;
+  controlAccountId?: string;
+  isActive?: boolean;
+}
+
+export type SupplierType = typeof SupplierType[keyof typeof SupplierType];
+
+
+export const SupplierType = {
+  individual: 'individual',
+  company: 'company',
+} as const;
+
+export interface Supplier {
+  id: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: SupplierType;
+  /** @nullable */
+  taxNumber?: string | null;
+  /** @nullable */
+  commercialRegistration?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /** @nullable */
+  creditPeriodDays?: number | null;
+  controlAccountId: string;
+  accountId: string;
+  accountCode: string;
+  balance: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type SupplierInputType = typeof SupplierInputType[keyof typeof SupplierInputType];
+
+
+export const SupplierInputType = {
+  individual: 'individual',
+  company: 'company',
+} as const;
+
+export interface SupplierInput {
+  /** @minLength 1 */
+  code: string;
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: SupplierInputType;
+  /** @nullable */
+  taxNumber?: string | null;
+  /** @nullable */
+  commercialRegistration?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  creditPeriodDays?: number | null;
+  controlAccountId: string;
+  isActive?: boolean;
+}
+
+export type SupplierUpdateType = typeof SupplierUpdateType[keyof typeof SupplierUpdateType];
+
+
+export const SupplierUpdateType = {
+  individual: 'individual',
+  company: 'company',
+} as const;
+
+export interface SupplierUpdate {
+  /** @minLength 1 */
+  code?: string;
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type?: SupplierUpdateType;
+  /** @nullable */
+  taxNumber?: string | null;
+  /** @nullable */
+  commercialRegistration?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+  /** @nullable */
+  currency?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  creditPeriodDays?: number | null;
+  controlAccountId?: string;
+  isActive?: boolean;
+}
+
 export type ListInventoryMovementsParams = {
 itemId?: string;
 };

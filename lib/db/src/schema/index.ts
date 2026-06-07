@@ -37,3 +37,4 @@ export * from "./journal-entries";
 export * from "./fixed-assets";
 export * from "./inventory";
 export * from "./payroll";
+export * from "./customers-suppliers";

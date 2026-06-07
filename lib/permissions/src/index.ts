@@ -60,6 +60,14 @@ export const CAPABILITIES = [
   "payroll:create",
   "payroll:update",
   "payroll:delete",
+  "customers:read",
+  "customers:create",
+  "customers:update",
+  "customers:delete",
+  "suppliers:read",
+  "suppliers:create",
+  "suppliers:update",
+  "suppliers:delete",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -121,6 +129,20 @@ const PAYROLL_FULL: Capability[] = [
   "payroll:delete",
 ];
 
+const CUSTOMERS_FULL: Capability[] = [
+  "customers:read",
+  "customers:create",
+  "customers:update",
+  "customers:delete",
+];
+
+const SUPPLIERS_FULL: Capability[] = [
+  "suppliers:read",
+  "suppliers:create",
+  "suppliers:update",
+  "suppliers:delete",
+];
+
 export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
   owner: [
     "team:manage",
@@ -133,6 +155,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...ASSETS_FULL,
     ...INVENTORY_FULL,
     ...PAYROLL_FULL,
+    ...CUSTOMERS_FULL,
+    ...SUPPLIERS_FULL,
   ],
   manager: [
     "company:manage",
@@ -144,6 +168,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...ASSETS_FULL,
     ...INVENTORY_FULL,
     ...PAYROLL_FULL,
+    ...CUSTOMERS_FULL,
+    ...SUPPLIERS_FULL,
   ],
   accountant: [
     "accounts:read",
@@ -171,6 +197,12 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "payroll:read",
     "payroll:create",
     "payroll:update",
+    "customers:read",
+    "customers:create",
+    "customers:update",
+    "suppliers:read",
+    "suppliers:create",
+    "suppliers:update",
   ],
   data_entry: [
     "accounts:read",
@@ -187,6 +219,10 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "inventory:create",
     "payroll:read",
     "payroll:create",
+    "customers:read",
+    "customers:create",
+    "suppliers:read",
+    "suppliers:create",
   ],
   viewer: [
     "accounts:read",
@@ -197,6 +233,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "assets:read",
     "inventory:read",
     "payroll:read",
+    "customers:read",
+    "suppliers:read",
   ],
 };
 

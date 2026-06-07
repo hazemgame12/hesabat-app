@@ -12,6 +12,8 @@ import { Journal } from "@/pages/journal";
 import { FixedAssets } from "@/pages/fixed-assets";
 import { Inventory } from "@/pages/inventory";
 import { Payroll } from "@/pages/payroll";
+import { Customers } from "@/pages/customers";
+import { Suppliers } from "@/pages/suppliers";
 import { Settings } from "@/pages/settings";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { ComingSoon } from "@/pages/coming-soon";
@@ -54,8 +56,8 @@ function ProtectedRoutes() {
         </Route>
         <Route path="/bank" component={ComingSoon} />
         <Route path="/advances" component={ComingSoon} />
-        <Route path="/sales" component={ComingSoon} />
-        <Route path="/purchases" component={ComingSoon} />
+        <Route path="/sales" component={Customers} />
+        <Route path="/purchases" component={Suppliers} />
         <Route path="/reports" component={ComingSoon} />
         <Route path="/" component={Dashboard} />
         <Route component={NotFound} />

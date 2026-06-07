@@ -1328,3 +1328,241 @@ export const GetPayrollRunResponse = zod.object({
 })
 
 
+/**
+ * @summary List all customers for the current company
+ */
+export const ListCustomersResponseItem = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['individual', 'company']),
+  "taxNumber": zod.string().nullish(),
+  "commercialRegistration": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "creditLimit": zod.number().nullish(),
+  "creditPeriodDays": zod.number().nullish(),
+  "controlAccountId": zod.string(),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "balance": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListCustomersResponse = zod.array(ListCustomersResponseItem)
+
+
+/**
+ * @summary Create a customer (auto-creates its subsidiary account)
+ */
+
+
+export const createCustomerBodyCreditLimitMin = 0;
+
+export const createCustomerBodyCreditPeriodDaysMin = 0;
+
+
+
+export const CreateCustomerBody = zod.object({
+  "code": zod.string().min(1),
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['individual', 'company']),
+  "taxNumber": zod.string().nullish(),
+  "commercialRegistration": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "creditLimit": zod.number().min(createCustomerBodyCreditLimitMin).nullish(),
+  "creditPeriodDays": zod.number().min(createCustomerBodyCreditPeriodDaysMin).nullish(),
+  "controlAccountId": zod.string().uuid(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a customer
+ */
+export const UpdateCustomerParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+export const updateCustomerBodyCreditLimitMin = 0;
+
+export const updateCustomerBodyCreditPeriodDaysMin = 0;
+
+
+
+export const UpdateCustomerBody = zod.object({
+  "code": zod.string().min(1).optional(),
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['individual', 'company']).optional(),
+  "taxNumber": zod.string().nullish(),
+  "commercialRegistration": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "creditLimit": zod.number().min(updateCustomerBodyCreditLimitMin).nullish(),
+  "creditPeriodDays": zod.number().min(updateCustomerBodyCreditPeriodDaysMin).nullish(),
+  "controlAccountId": zod.string().uuid().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateCustomerResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['individual', 'company']),
+  "taxNumber": zod.string().nullish(),
+  "commercialRegistration": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "creditLimit": zod.number().nullish(),
+  "creditPeriodDays": zod.number().nullish(),
+  "controlAccountId": zod.string(),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "balance": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a customer (blocked if it has journal activity)
+ */
+export const DeleteCustomerParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCustomerResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List all suppliers for the current company
+ */
+export const ListSuppliersResponseItem = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['individual', 'company']),
+  "taxNumber": zod.string().nullish(),
+  "commercialRegistration": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "creditPeriodDays": zod.number().nullish(),
+  "controlAccountId": zod.string(),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "balance": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
+
+
+/**
+ * @summary Create a supplier (auto-creates its subsidiary account)
+ */
+
+
+export const createSupplierBodyCreditPeriodDaysMin = 0;
+
+
+
+export const CreateSupplierBody = zod.object({
+  "code": zod.string().min(1),
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['individual', 'company']),
+  "taxNumber": zod.string().nullish(),
+  "commercialRegistration": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "creditPeriodDays": zod.number().min(createSupplierBodyCreditPeriodDaysMin).nullish(),
+  "controlAccountId": zod.string().uuid(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a supplier
+ */
+export const UpdateSupplierParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+export const updateSupplierBodyCreditPeriodDaysMin = 0;
+
+
+
+export const UpdateSupplierBody = zod.object({
+  "code": zod.string().min(1).optional(),
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['individual', 'company']).optional(),
+  "taxNumber": zod.string().nullish(),
+  "commercialRegistration": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "creditPeriodDays": zod.number().min(updateSupplierBodyCreditPeriodDaysMin).nullish(),
+  "controlAccountId": zod.string().uuid().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateSupplierResponse = zod.object({
+  "id": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.enum(['individual', 'company']),
+  "taxNumber": zod.string().nullish(),
+  "commercialRegistration": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish(),
+  "currency": zod.string().nullish(),
+  "creditPeriodDays": zod.number().nullish(),
+  "controlAccountId": zod.string(),
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "balance": zod.number(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a supplier (blocked if it has journal activity)
+ */
+export const DeleteSupplierParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteSupplierResponse = zod.object({
+  "status": zod.string()
+})
+
+

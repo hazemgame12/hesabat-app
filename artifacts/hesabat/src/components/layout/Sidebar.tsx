@@ -36,8 +36,8 @@ const navItems: NavItem[] = [
   { labelKey: "nav.payroll", icon: Wallet, href: "/payroll", requires: "payroll:read" },
   { labelKey: "nav.bank", icon: Landmark, href: "/bank" },
   { labelKey: "nav.advances", icon: HandCoins, href: "/advances" },
-  { labelKey: "nav.sales", icon: Users, href: "/sales" },
-  { labelKey: "nav.purchases", icon: Receipt, href: "/purchases" },
+  { labelKey: "nav.sales", icon: Users, href: "/sales", requires: "customers:read" },
+  { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
   { labelKey: "nav.reports", icon: FileText, href: "/reports" },
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];

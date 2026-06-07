@@ -28,6 +28,10 @@ tags:
     description: Team members, roles, and invitations management
   - name: invitations
     description: Public invitation acceptance
+  - name: customers
+    description: Customers (receivables) master data
+  - name: suppliers
+    description: Suppliers (payables) master data
 paths:
   /healthz:
     get:
@@ -1701,6 +1705,226 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: List all customers for the current company
+      responses:
+        "200":
+          description: Customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Customer"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create a customer (auto-creates its subsidiary account)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate customer code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /customers/{id}:
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      summary: Update a customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      summary: Delete a customer (blocked if it has journal activity)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "400":
+          description: Customer has journal activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /suppliers:
+    get:
+      operationId: listSuppliers
+      tags: [suppliers]
+      summary: List all suppliers for the current company
+      responses:
+        "200":
+          description: Suppliers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Supplier"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createSupplier
+      tags: [suppliers]
+      summary: Create a supplier (auto-creates its subsidiary account)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Duplicate supplier code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /suppliers/{id}:
+    patch:
+      operationId: updateSupplier
+      tags: [suppliers]
+      summary: Update a supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSupplier
+      tags: [suppliers]
+      summary: Delete a supplier (blocked if it has journal activity)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "400":
+          description: Supplier has journal activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -2914,3 +3138,261 @@ components:
         password:
           type: string
           minLength: 8
+
+    Customer:
+      type: object
+      required:
+        [
+          id,
+          code,
+          nameAr,
+          type,
+          controlAccountId,
+          accountId,
+          accountCode,
+          balance,
+          isActive,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [individual, company]
+        taxNumber:
+          type: ["string", "null"]
+        commercialRegistration:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        creditLimit:
+          type: ["number", "null"]
+        creditPeriodDays:
+          type: ["integer", "null"]
+        controlAccountId:
+          type: string
+        accountId:
+          type: string
+        accountCode:
+          type: string
+        balance:
+          type: number
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    CustomerInput:
+      type: object
+      required: [code, nameAr, type, controlAccountId]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [individual, company]
+        taxNumber:
+          type: ["string", "null"]
+        commercialRegistration:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        creditLimit:
+          type: ["number", "null"]
+          minimum: 0
+        creditPeriodDays:
+          type: ["integer", "null"]
+          minimum: 0
+        controlAccountId:
+          type: string
+          format: uuid
+        isActive:
+          type: boolean
+
+    CustomerUpdate:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [individual, company]
+        taxNumber:
+          type: ["string", "null"]
+        commercialRegistration:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        creditLimit:
+          type: ["number", "null"]
+          minimum: 0
+        creditPeriodDays:
+          type: ["integer", "null"]
+          minimum: 0
+        controlAccountId:
+          type: string
+          format: uuid
+        isActive:
+          type: boolean
+
+    Supplier:
+      type: object
+      required:
+        [
+          id,
+          code,
+          nameAr,
+          type,
+          controlAccountId,
+          accountId,
+          accountCode,
+          balance,
+          isActive,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [individual, company]
+        taxNumber:
+          type: ["string", "null"]
+        commercialRegistration:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        creditPeriodDays:
+          type: ["integer", "null"]
+        controlAccountId:
+          type: string
+        accountId:
+          type: string
+        accountCode:
+          type: string
+        balance:
+          type: number
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    SupplierInput:
+      type: object
+      required: [code, nameAr, type, controlAccountId]
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [individual, company]
+        taxNumber:
+          type: ["string", "null"]
+        commercialRegistration:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        creditPeriodDays:
+          type: ["integer", "null"]
+          minimum: 0
+        controlAccountId:
+          type: string
+          format: uuid
+        isActive:
+          type: boolean
+
+    SupplierUpdate:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+          enum: [individual, company]
+        taxNumber:
+          type: ["string", "null"]
+        commercialRegistration:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        email:
+          type: ["string", "null"]
+        address:
+          type: ["string", "null"]
+        currency:
+          type: ["string", "null"]
+        creditPeriodDays:
+          type: ["integer", "null"]
+          minimum: 0
+        controlAccountId:
+          type: string
+          format: uuid
+        isActive:
+          type: boolean
