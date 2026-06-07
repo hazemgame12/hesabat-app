@@ -878,11 +878,11 @@ router.post(
 
         const rate = Number(inv.exchangeRate);
 
-        await lockCompanyEntryNo(tx, companyId);
-
-        // Re-read inventory items FOR UPDATE so stock math uses fresh values and
-        // concurrent stock-moving operations on the same item serialize. A
-        // running liveState threads qty/avg across multiple lines of one item.
+        // GLOBAL LOCK ORDER (see memory hesabat-lock-ordering.md): lock ALL
+        // business rows first — invoice row (already locked above) then the
+        // inventory item rows, in deterministic id order so this can't deadlock
+        // against the inventory-movement flow (which locks an item row then the
+        // entry advisory lock) — and ONLY THEN take lockCompanyEntryNo.
         const liveState = new Map<string, { qty: number; avg: number }>();
         const itemMap = new Map<
           string,
@@ -898,6 +898,7 @@ router.post(
                 inArray(inventoryItemsTable.id, itemIds),
               ),
             )
+            .orderBy(asc(inventoryItemsTable.id))
             .for("update");
           for (const it of lockedItems) {
             itemMap.set(it.id, it);
@@ -927,6 +928,10 @@ router.post(
         }
         const accErr = await validateLeafAccounts(accountIds, companyId, tx);
         if (accErr) throw new ApproveError(400, accErr);
+
+        // All business rows are now locked; safe to take the per-company entry
+        // advisory lock and mint the journal entry number.
+        await lockCompanyEntryNo(tx, companyId);
 
         const entryLines: {
           accountId: string;

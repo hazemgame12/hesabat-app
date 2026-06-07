@@ -525,18 +525,39 @@ router.delete(
         .select()
         .from(paymentAllocationsTable)
         .where(eq(paymentAllocationsTable.paymentId, id));
+      // Aggregate the reversal amount per invoice (a payment may hold several
+      // allocation rows for one invoice) so each invoice is locked + reversed
+      // exactly once.
+      const reverseByInvoice = new Map<string, number>();
+      for (const a of allocs) {
+        reverseByInvoice.set(
+          a.invoiceId,
+          round2((reverseByInvoice.get(a.invoiceId) ?? 0) + Number(a.amount)),
+        );
+      }
       await db.transaction(async (tx) => {
-        // Reverse each allocation against its invoice.
-        for (const a of allocs) {
+        // Lock each affected invoice FOR UPDATE in deterministic (sorted id)
+        // order, then read-modify-write its balance so a concurrent payment
+        // create/delete on the same invoice can't clobber amountPaid/status.
+        for (const [invoiceId, amount] of [...reverseByInvoice].sort((a, b) =>
+          a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0,
+        )) {
           const [inv] = await tx
-            .select()
+            .select({
+              total: invoicesTable.total,
+              amountPaid: invoicesTable.amountPaid,
+            })
             .from(invoicesTable)
-            .where(eq(invoicesTable.id, a.invoiceId))
+            .where(
+              and(
+                eq(invoicesTable.id, invoiceId),
+                eq(invoicesTable.companyId, companyId),
+              ),
+            )
+            .for("update")
             .limit(1);
           if (inv) {
-            const newPaid = round2(
-              Number(inv.amountPaid) - Number(a.amount),
-            );
+            const newPaid = round2(Number(inv.amountPaid) - amount);
             const clamped = newPaid < 0 ? 0 : newPaid;
             await tx
               .update(invoicesTable)
@@ -544,7 +565,12 @@ router.delete(
                 amountPaid: String(clamped),
                 status: invoiceStatusFor(Number(inv.total), clamped),
               })
-              .where(eq(invoicesTable.id, a.invoiceId));
+              .where(
+                and(
+                  eq(invoicesTable.id, invoiceId),
+                  eq(invoicesTable.companyId, companyId),
+                ),
+              );
           }
         }
         // Delete the payment (allocations cascade).
