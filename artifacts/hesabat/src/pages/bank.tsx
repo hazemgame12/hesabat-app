@@ -1602,6 +1602,7 @@ function ReconciliationDetail({
 
   const [uploading, setUploading] = useState(false);
   const [cleared, setCleared] = useState<Record<string, boolean>>({});
+  const [matched, setMatched] = useState<Record<string, string>>({});
   const [clearedInit, setClearedInit] = useState<string | null>(null);
   const [adjType, setAdjType] = useState<(typeof ADJUSTMENT_TYPES)[number]>(
     "bank_charge",
@@ -1630,6 +1631,10 @@ function ReconciliationDetail({
       const init: Record<string, boolean> = {};
       for (const m of detail.movements) init[m.id] = m.isCleared;
       setCleared(init);
+      const initMatched: Record<string, string> = {};
+      for (const s of detail.statementLines)
+        initMatched[s.id] = s.matchedMovementId ?? "";
+      setMatched(initMatched);
       setClearedInit(reconciliationId);
     }
   }, [detail, reconciliationId, clearedInit]);
@@ -1670,8 +1675,14 @@ function ReconciliationDetail({
     const movementIds = Object.entries(cleared)
       .filter(([, v]) => v)
       .map(([k]) => k);
+    const statementLineMatches = Object.entries(matched).map(
+      ([statementLineId, movementId]) => ({
+        statementLineId,
+        movementId: movementId || null,
+      }),
+    );
     matchRec.mutate(
-      { id: reconciliationId, data: { movementIds } },
+      { id: reconciliationId, data: { movementIds, statementLineMatches } },
       {
         onSuccess: () => {
           invalidate();
@@ -1761,6 +1772,16 @@ function ReconciliationDetail({
     "w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
   const labelCls = "text-xs font-bold text-muted-foreground mb-1 block";
   const balanced = Math.abs(detail.reconciledDifference) < 0.005;
+  const depositsInTransit = detail.outstanding.filter(
+    (m) => m.direction === "in",
+  );
+  const outstandingChecks = detail.outstanding.filter(
+    (m) => m.direction === "out",
+  );
+  const outstandingNet =
+    depositsInTransit.reduce((s, m) => s + m.amount, 0) -
+    outstandingChecks.reduce((s, m) => s + m.amount, 0);
+  const adjustments = detail.movements.filter((m) => m.isAdjustment);
 
   return (
     <div className="flex flex-col gap-6">
@@ -1920,31 +1941,226 @@ function ReconciliationDetail({
                 <th className="text-end px-6 py-3">
                   {t("bank.movementsTable.amount")}
                 </th>
+                <th className="text-start px-3 py-3">
+                  {t("bank.reconciliation.matchColumn")}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {detail.statementLines.map((s) => (
-                <tr key={s.id} className="border-t hover:bg-muted/40">
-                  <td className="px-6 py-3 tabular-nums text-foreground/80" dir="ltr">
-                    {s.date}
-                  </td>
-                  <td className="px-3 py-3 text-foreground/80">
-                    {s.description}
-                  </td>
-                  <td
-                    className={`px-6 py-3 text-end font-bold tabular-nums ${
-                      s.direction === "in" ? "text-success" : "text-destructive"
-                    }`}
-                    dir="ltr"
-                  >
-                    {s.direction === "in" ? "+" : "−"}
-                    {fmt(s.amount)}
-                  </td>
-                </tr>
-              ))}
+              {detail.statementLines.map((s) => {
+                const matchedMv = detail.movements.find(
+                  (m) => m.id === (matched[s.id] || s.matchedMovementId),
+                );
+                return (
+                  <tr key={s.id} className="border-t hover:bg-muted/40">
+                    <td className="px-6 py-3 tabular-nums text-foreground/80" dir="ltr">
+                      {s.date}
+                    </td>
+                    <td className="px-3 py-3 text-foreground/80">
+                      {s.description}
+                    </td>
+                    <td
+                      className={`px-6 py-3 text-end font-bold tabular-nums ${
+                        s.direction === "in"
+                          ? "text-success"
+                          : "text-destructive"
+                      }`}
+                      dir="ltr"
+                    >
+                      {s.direction === "in" ? "+" : "−"}
+                      {fmt(s.amount)}
+                    </td>
+                    <td className="px-3 py-3 text-foreground/80">
+                      {editable ? (
+                        <select
+                          className="w-full max-w-[14rem] px-2 py-1.5 rounded-lg border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                          value={matched[s.id] ?? ""}
+                          onChange={(e) =>
+                            setMatched((mm) => ({
+                              ...mm,
+                              [s.id]: e.target.value,
+                            }))
+                          }
+                        >
+                          <option value="">
+                            {t("bank.reconciliation.unmatched")}
+                          </option>
+                          {detail.movements.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.date} · {t(`bank.movementTypes.${m.type}`)} ·{" "}
+                              {m.direction === "in" ? "+" : "−"}
+                              {fmt(m.amount)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : matchedMv ? (
+                        <span className="text-xs font-bold text-success">
+                          {matchedMv.date} ·{" "}
+                          {t(`bank.movementTypes.${matchedMv.type}`)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {t("bank.reconciliation.unmatched")}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Outstanding items (uncleared movements) */}
+      <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b">
+          <h3 className="font-bold text-foreground">
+            {t("bank.reconciliation.outstandingTitle")}
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {t("bank.reconciliation.outstandingHint")}
+          </p>
+        </div>
+        {detail.outstanding.length === 0 ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            {t("bank.reconciliation.noOutstanding")}
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
+                <th className="text-start px-6 py-3">
+                  {t("bank.movementsTable.date")}
+                </th>
+                <th className="text-start px-3 py-3">
+                  {t("bank.movementsTable.type")}
+                </th>
+                <th className="text-start px-3 py-3">
+                  {t("bank.movement.description")}
+                </th>
+                <th className="text-end px-6 py-3">
+                  {t("bank.movementsTable.amount")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.outstanding.map((m) => (
+                <tr key={m.id} className="border-t hover:bg-muted/40">
+                  <td className="px-6 py-3 tabular-nums text-foreground/80" dir="ltr">
+                    {m.date}
+                  </td>
+                  <td className="px-3 py-3 text-foreground/80">
+                    {t(`bank.movementTypes.${m.type}`)}
+                    <span className="ms-2 text-[11px] text-muted-foreground">
+                      {m.direction === "in"
+                        ? t("bank.reconciliation.depositInTransit")
+                        : t("bank.reconciliation.outstandingChecks")}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-foreground/80">
+                    {m.description ?? "—"}
+                  </td>
+                  <td
+                    className={`px-6 py-3 text-end font-bold tabular-nums ${
+                      m.direction === "in" ? "text-success" : "text-destructive"
+                    }`}
+                    dir="ltr"
+                  >
+                    {m.direction === "in" ? "+" : "−"}
+                    {fmt(m.amount)}
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-t bg-muted/30 font-bold">
+                <td className="px-6 py-3" colSpan={3}>
+                  {t("bank.reconciliation.outstandingTotal")}
+                </td>
+                <td className="px-6 py-3 text-end tabular-nums" dir="ltr">
+                  {fmt(outstandingNet)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Reconciliation report */}
+      <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b">
+          <h3 className="font-bold text-foreground">
+            {t("bank.reconciliation.report")}
+          </h3>
+        </div>
+        <div className="p-6 flex flex-col gap-2 text-sm">
+          <ReportRow
+            label={t("bank.reconciliation.bookBalance")}
+            value={fmt(r.bookBalance)}
+          />
+          <ReportRow
+            label={t("bank.reconciliation.outstandingTotal")}
+            value={fmt(outstandingNet)}
+          />
+          <ReportRow
+            label={t("bank.reconciliation.clearedBalance")}
+            value={fmt(detail.clearedBookBalance)}
+          />
+          <div className="border-t my-1" />
+          <ReportRow
+            label={t("bank.reconciliation.statementBalance")}
+            value={fmt(r.statementBalance)}
+          />
+          <ReportRow
+            label={t("bank.reconciliation.reconciledDifference")}
+            value={fmt(detail.reconciledDifference)}
+            highlight={balanced ? "success" : "destructive"}
+          />
+          <div className="border-t my-1" />
+          <ReportRow
+            label={t("bank.reconciliation.postReconciliationBalance")}
+            value={fmt(detail.clearedBookBalance)}
+            bold
+          />
+          {/* Adjusting entries created during this reconciliation */}
+          <div className="mt-4">
+            <div className="text-xs font-bold text-muted-foreground mb-2">
+              {t("bank.reconciliation.entriesCreated")}
+            </div>
+            {adjustments.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {t("bank.reconciliation.noEntriesCreated")}
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1">
+                {adjustments.map((m) => (
+                  <li
+                    key={m.id}
+                    className="flex items-center justify-between gap-3 text-xs border rounded-lg px-3 py-2"
+                  >
+                    <span className="text-foreground/80">
+                      <span dir="ltr">{m.date}</span> ·{" "}
+                      {t(`bank.movementTypes.${m.type}`)}
+                      {m.counterpartAccountName
+                        ? ` · ${m.counterpartAccountName}`
+                        : ""}
+                    </span>
+                    <span
+                      className={`font-bold tabular-nums ${
+                        m.direction === "in"
+                          ? "text-success"
+                          : "text-destructive"
+                      }`}
+                      dir="ltr"
+                    >
+                      {m.direction === "in" ? "+" : "−"}
+                      {fmt(m.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Adjustment + complete */}
@@ -2048,6 +2264,37 @@ function ReconciliationDetail({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ReportRow({
+  label,
+  value,
+  highlight,
+  bold,
+}: {
+  label: string;
+  value: string;
+  highlight?: "success" | "destructive";
+  bold?: boolean;
+}) {
+  const color =
+    highlight === "success"
+      ? "text-success"
+      : highlight === "destructive"
+        ? "text-destructive"
+        : "text-foreground";
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span
+        className={`${bold ? "font-bold text-foreground" : "text-muted-foreground"}`}
+      >
+        {label}
+      </span>
+      <span className={`tabular-nums ${bold ? "font-bold" : ""} ${color}`} dir="ltr">
+        {value}
+      </span>
     </div>
   );
 }

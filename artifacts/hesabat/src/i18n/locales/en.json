@@ -1043,7 +1043,20 @@
       "back": "Back to list",
       "noStatementLines": "No statement uploaded yet.",
       "balanced": "Balanced ✓",
-      "selectAccountFirst": "Select an account to create a reconciliation"
+      "selectAccountFirst": "Select an account to create a reconciliation",
+      "matchTo": "Match to movement",
+      "matchColumn": "Match",
+      "unmatched": "Unmatched",
+      "outstandingTitle": "Outstanding items",
+      "outstandingHint": "Movements in your books not yet on the bank statement (outstanding checks, deposits in transit).",
+      "outstandingTotal": "Total outstanding",
+      "noOutstanding": "No outstanding items.",
+      "report": "Reconciliation report",
+      "entriesCreated": "Adjusting entries created",
+      "noEntriesCreated": "No adjusting entries created.",
+      "postReconciliationBalance": "Post-reconciliation balance",
+      "depositInTransit": "Deposits in transit",
+      "outstandingChecks": "Outstanding checks/withdrawals"
     },
     "validation": {
       "amountPositive": "Amount must be greater than zero",

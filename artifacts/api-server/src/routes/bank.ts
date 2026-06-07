@@ -242,6 +242,7 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
     journalEntryId: r.journalEntryId,
     reconciliationId: r.reconciliationId,
     isCleared: r.isCleared,
+    isAdjustment: r.isAdjustment,
     createdAt: r.createdAt.toISOString(),
   }));
 }
@@ -1437,6 +1438,7 @@ router.post(
             // Adjusting entries are cleared + tied to this reconciliation.
             reconciliationId: id,
             isCleared: true,
+            isAdjustment: true,
             createdBy: req.auth!.userId,
           });
         }

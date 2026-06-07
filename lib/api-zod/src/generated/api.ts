@@ -2193,6 +2193,7 @@ export const ListBankMovementsResponseItem = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 export const ListBankMovementsResponse = zod.array(ListBankMovementsResponseItem)
@@ -2315,6 +2316,7 @@ export const GetBankReconciliationResponse = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })),
   "outstanding": zod.array(zod.object({
@@ -2337,6 +2339,7 @@ export const GetBankReconciliationResponse = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })),
   "clearedBookBalance": zod.number(),
@@ -2407,6 +2410,7 @@ export const UploadBankStatementResponse = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })),
   "outstanding": zod.array(zod.object({
@@ -2429,6 +2433,7 @@ export const UploadBankStatementResponse = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })),
   "clearedBookBalance": zod.number(),
@@ -2495,6 +2500,7 @@ export const MatchBankReconciliationResponse = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })),
   "outstanding": zod.array(zod.object({
@@ -2517,6 +2523,7 @@ export const MatchBankReconciliationResponse = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })),
   "clearedBookBalance": zod.number(),
@@ -2593,6 +2600,7 @@ export const CompleteBankReconciliationResponse = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })),
   "outstanding": zod.array(zod.object({
@@ -2615,6 +2623,7 @@ export const CompleteBankReconciliationResponse = zod.object({
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
   "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
   "createdAt": zod.string()
 })),
   "clearedBookBalance": zod.number(),

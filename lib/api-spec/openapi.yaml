@@ -4752,6 +4752,8 @@ components:
           type: ["string", "null"]
         isCleared:
           type: boolean
+        isAdjustment:
+          type: boolean
         createdAt:
           type: string
 

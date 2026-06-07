@@ -1043,7 +1043,20 @@
       "back": "رجوع للقائمة",
       "noStatementLines": "لم يتم رفع كشف حساب بعد.",
       "balanced": "متوازنة ✓",
-      "selectAccountFirst": "اختر الحساب لإنشاء تسوية"
+      "selectAccountFirst": "اختر الحساب لإنشاء تسوية",
+      "matchTo": "مطابقة مع حركة",
+      "matchColumn": "المطابقة",
+      "unmatched": "بدون مطابقة",
+      "outstandingTitle": "الحركات غير المسوّاة",
+      "outstandingHint": "حركات في دفاترك لم تظهر بعد في كشف البنك (شيكات معلقة، إيداعات بالطريق).",
+      "outstandingTotal": "إجمالي غير المسوّى",
+      "noOutstanding": "لا توجد حركات غير مسوّاة.",
+      "report": "تقرير التسوية",
+      "entriesCreated": "قيود التسوية المُنشأة",
+      "noEntriesCreated": "لم يتم إنشاء قيود تسوية.",
+      "postReconciliationBalance": "الرصيد بعد التسوية",
+      "depositInTransit": "إيداعات بالطريق",
+      "outstandingChecks": "شيكات/سحوبات معلقة"
     },
     "validation": {
       "amountPositive": "المبلغ يجب أن يكون أكبر من صفر",

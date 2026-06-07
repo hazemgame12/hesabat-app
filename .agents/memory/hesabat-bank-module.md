@@ -14,3 +14,5 @@ description: Banks, Cash & Reconciliation design constraints worth keeping consi
 - **bookBalance = openingBalance + Σ posted movement effects ≤ periodEnd.** Opening balance is NOT posted as an opening JE (GL = movements only) — deferred limitation.
 - **Reconciliation match** must validate each `statementLineMatches.movementId` belongs to THIS reconciliation's account+period set (tenant isolation) before writing `matchedMovementId`.
 - Hard-delete of the JE on movement delete is the established convention (payments module does the same) — not a reversal entry.
+
+- **`isAdjustment` flag distinguishes adjust-created movements.** Regular cleared movements and adjust-created movements both get `isCleared=true`+`reconciliationId`, so they are otherwise indistinguishable. The reconciliation report's "entries created" relies on `bank_movements.isAdjustment`.

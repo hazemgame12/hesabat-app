@@ -97,6 +97,10 @@ export const bankMovementsTable = pgTable("bank_movements", {
     { onDelete: "set null" },
   ),
   isCleared: boolean("is_cleared").notNull().default(false),
+  // True when the movement was created by the reconciliation "adjust" action
+  // (a bank charge/interest/etc. recorded while reconciling). Used to surface
+  // "entries created" in the reconciliation report.
+  isAdjustment: boolean("is_adjustment").notNull().default(false),
   createdBy: uuid("created_by").references(() => usersTable.id, {
     onDelete: "set null",
   }),

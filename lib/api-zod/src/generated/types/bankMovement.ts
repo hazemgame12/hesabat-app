@@ -38,5 +38,6 @@ export interface BankMovement {
   /** @nullable */
   reconciliationId?: string | null;
   isCleared: boolean;
+  isAdjustment?: boolean;
   createdAt: string;
 }
