@@ -81,6 +81,14 @@ export const CAPABILITIES = [
   "bank:create",
   "bank:update",
   "bank:delete",
+  "advances:read",
+  "advances:create",
+  "advances:update",
+  "advances:delete",
+  "custodies:read",
+  "custodies:create",
+  "custodies:update",
+  "custodies:delete",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -178,6 +186,20 @@ const BANK_FULL: Capability[] = [
   "bank:delete",
 ];
 
+const ADVANCES_FULL: Capability[] = [
+  "advances:read",
+  "advances:create",
+  "advances:update",
+  "advances:delete",
+];
+
+const CUSTODIES_FULL: Capability[] = [
+  "custodies:read",
+  "custodies:create",
+  "custodies:update",
+  "custodies:delete",
+];
+
 export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
   owner: [
     "team:manage",
@@ -195,6 +217,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...INVOICES_FULL,
     ...PAYMENTS_FULL,
     ...BANK_FULL,
+    ...ADVANCES_FULL,
+    ...CUSTODIES_FULL,
   ],
   manager: [
     "company:manage",
@@ -211,6 +235,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...INVOICES_FULL,
     ...PAYMENTS_FULL,
     ...BANK_FULL,
+    ...ADVANCES_FULL,
+    ...CUSTODIES_FULL,
   ],
   accountant: [
     "accounts:read",
@@ -254,6 +280,12 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "bank:read",
     "bank:create",
     "bank:update",
+    "advances:read",
+    "advances:create",
+    "advances:update",
+    "custodies:read",
+    "custodies:create",
+    "custodies:update",
   ],
   data_entry: [
     "accounts:read",
@@ -280,6 +312,10 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "payments:create",
     "bank:read",
     "bank:create",
+    "advances:read",
+    "advances:create",
+    "custodies:read",
+    "custodies:create",
   ],
   viewer: [
     "accounts:read",
@@ -295,6 +331,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "invoices:read",
     "payments:read",
     "bank:read",
+    "advances:read",
+    "custodies:read",
   ],
 };
 

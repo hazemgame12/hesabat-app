@@ -9,10 +9,13 @@ import {
   accountsTable,
   companiesTable,
   journalEntriesTable,
+  advancesTable,
+  advanceInstallmentsTable,
   type Employee,
   type EmployeePayComponent,
   type PayrollRun,
   type PayrollRunLine,
+  type Advance,
 } from "@workspace/db";
 import {
   CreateEmployeeBody,
@@ -21,12 +24,18 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
-import { createDraftJournalEntry } from "../lib/journal-posting";
+import {
+  createDraftJournalEntry,
+  lockCompanyEntryNo,
+} from "../lib/journal-posting";
 
 const router = Router();
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const EPS = 0.005;
+
+// Thrown inside the payroll transaction to surface a 400 to the client.
+class PayrollError extends Error {}
 
 function isUniqueViolation(err: unknown): boolean {
   return (
@@ -574,18 +583,24 @@ router.post(
         companyId,
       );
 
-      const runLines: {
-        employeeId: string;
-        employeeName: string;
-        baseSalary: number;
-        totalAllowances: number;
-        totalDeductions: number;
-        netPay: number;
-      }[] = [];
-      let totalGross = 0;
-      let totalDeductions = 0;
-      let totalNet = 0;
+      // Period end date (last day) — used to gate advances whose deduction
+      // hasn't started yet (startDate after the period).
+      const [yy, mm] = period.split("-").map(Number);
+      const lastDayNum = new Date(yy!, mm!, 0).getDate();
+      const periodEnd = `${period}-${String(lastDayNum).padStart(2, "0")}`;
 
+      // Per-employee pay independent of advances (base + active allowances/
+      // deductions). Advance installments are computed later INSIDE the tx
+      // against freshly row-locked balances to avoid lost updates.
+      type EmpPay = {
+        id: string;
+        nameAr: string;
+        base: number;
+        allowances: number;
+        regularDeductions: number;
+        gross: number;
+      };
+      const empPays: EmpPay[] = [];
       for (const e of employees) {
         const comps = (compMap.get(e.id) ?? []).filter((c) => c.isActive);
         const base = round2(Number(e.baseSalary));
@@ -597,77 +612,183 @@ router.post(
           else if (c.kind === "deduction") deductions = round2(deductions + amt);
         }
         const gross = round2(base + allowances);
-        const net = round2(gross - deductions);
         if (gross <= EPS) continue; // skip employees with nothing to pay
-        runLines.push({
-          employeeId: e.id,
-          employeeName: e.nameAr,
-          baseSalary: base,
-          totalAllowances: allowances,
-          totalDeductions: deductions,
-          netPay: net,
+        empPays.push({
+          id: e.id,
+          nameAr: e.nameAr,
+          base,
+          allowances,
+          regularDeductions: deductions,
+          gross,
         });
-        totalGross = round2(totalGross + gross);
-        totalDeductions = round2(totalDeductions + deductions);
-        totalNet = round2(totalNet + net);
       }
 
-      if (runLines.length === 0) {
+      if (empPays.length === 0) {
         res.status(400).json({ error: "لا يوجد موظفون نشطون للصرف" });
         return;
       }
 
-      // Deductions must never exceed gross for any employee (negative net pay).
-      const negativeNet = runLines.find((l) => l.netPay < -EPS);
-      if (negativeNet) {
-        res.status(400).json({
-          error: `الخصومات تتجاوز إجمالي الراتب للموظف ${negativeNet.employeeName}`,
-        });
-        return;
-      }
+      const totalRegularDeductions = round2(
+        empPays.reduce((s, e) => s + e.regularDeductions, 0),
+      );
 
-      if (totalDeductions > EPS && !d.deductionsAccountId) {
+      // Only *regular* deductions need a deductions account; advance
+      // installments are credited to their own advances account(s).
+      if (totalRegularDeductions > EPS && !d.deductionsAccountId) {
         res.status(400).json({
           error: "يوجد خصومات — يجب تحديد حساب الخصومات",
         });
         return;
       }
 
-      // Posting lines: Dr expense (gross) / Cr deductions / Cr net payable.
-      const postingLines: {
-        accountId: string;
-        description?: string | null;
-        debit: number;
-        credit: number;
-      }[] = [
-        {
-          accountId: d.salaryExpenseAccountId,
-          description: `رواتب ${period}`,
-          debit: totalGross,
-          credit: 0,
-        },
-      ];
-      if (totalDeductions > EPS && d.deductionsAccountId) {
-        postingLines.push({
-          accountId: d.deductionsAccountId,
-          description: `خصومات رواتب ${period}`,
-          debit: 0,
-          credit: totalDeductions,
-        });
-      }
-      postingLines.push({
-        accountId: d.netPayableAccountId,
-        description: `صافي رواتب ${period}`,
-        debit: 0,
-        credit: totalNet,
-      });
+      // Consolidated draft entry is dated the last day of the period.
+      const entryDate = periodEnd;
 
-      // Post the consolidated draft entry dated the last day of the period.
-      const [y, m] = period.split("-").map(Number);
-      const lastDay = new Date(y!, m!, 0).getDate();
-      const entryDate = `${period}-${String(lastDay).padStart(2, "0")}`;
+      type AdvanceDeduction = {
+        advance: Advance;
+        amount: number;
+        willFinish: boolean;
+      };
 
       const result = await db.transaction(async (tx) => {
+        // Serialize advance allocation per company FIRST (re-entrant with the
+        // lock createDraftJournalEntry takes) so concurrent runs on different
+        // periods can't lost-update advances.totalRepaid.
+        await lockCompanyEntryNo(tx, companyId);
+
+        // Re-read active advances FOR UPDATE under the lock — fresh balances.
+        const empIds = empPays.map((e) => e.id);
+        const advanceRows =
+          empIds.length > 0
+            ? await tx
+                .select()
+                .from(advancesTable)
+                .where(
+                  and(
+                    eq(advancesTable.companyId, companyId),
+                    eq(advancesTable.status, "active"),
+                    inArray(advancesTable.employeeId, empIds),
+                  ),
+                )
+                .for("update")
+            : [];
+
+        const advancesByEmp = new Map<string, AdvanceDeduction[]>();
+        for (const a of advanceRows) {
+          if (a.startDate > periodEnd) continue; // not started yet
+          const remaining = round2(Number(a.amount) - Number(a.totalRepaid));
+          if (remaining <= EPS) continue; // already repaid
+          const installment = round2(
+            Math.min(Number(a.monthlyInstallment), remaining),
+          );
+          if (installment <= EPS) continue;
+          const list = advancesByEmp.get(a.employeeId) ?? [];
+          list.push({
+            advance: a,
+            amount: installment,
+            willFinish: round2(remaining - installment) <= EPS,
+          });
+          advancesByEmp.set(a.employeeId, list);
+        }
+
+        // Assemble run lines + totals using the fresh advance balances.
+        const runLines: {
+          employeeId: string;
+          employeeName: string;
+          baseSalary: number;
+          totalAllowances: number;
+          totalDeductions: number;
+          netPay: number;
+        }[] = [];
+        let totalGross = 0;
+        let totalNet = 0;
+        let totalAdvanceInstallments = 0;
+        const advanceCreditByAccount = new Map<string, number>();
+        const installmentsToApply: AdvanceDeduction[] = [];
+        for (const e of empPays) {
+          const empAdvances = advancesByEmp.get(e.id) ?? [];
+          const advanceTotal = round2(
+            empAdvances.reduce((s, x) => s + x.amount, 0),
+          );
+          const lineDeductions = round2(e.regularDeductions + advanceTotal);
+          const net = round2(e.gross - lineDeductions);
+          if (net < -EPS) {
+            throw new PayrollError(
+              `الخصومات تتجاوز إجمالي الراتب للموظف ${e.nameAr}`,
+            );
+          }
+          runLines.push({
+            employeeId: e.id,
+            employeeName: e.nameAr,
+            baseSalary: e.base,
+            totalAllowances: e.allowances,
+            totalDeductions: lineDeductions,
+            netPay: net,
+          });
+          totalGross = round2(totalGross + e.gross);
+          totalNet = round2(totalNet + net);
+          totalAdvanceInstallments = round2(
+            totalAdvanceInstallments + advanceTotal,
+          );
+          for (const ad of empAdvances) {
+            installmentsToApply.push(ad);
+            const accId = ad.advance.advancesAccountId;
+            advanceCreditByAccount.set(
+              accId,
+              round2((advanceCreditByAccount.get(accId) ?? 0) + ad.amount),
+            );
+          }
+        }
+        const totalDeductions = round2(
+          totalRegularDeductions + totalAdvanceInstallments,
+        );
+
+        // Advance accounts being credited must still be valid leaf accounts.
+        const advAccErr = await validatePayrollAccounts(
+          [...advanceCreditByAccount.keys()],
+          companyId,
+        );
+        if (advAccErr) throw new PayrollError(advAccErr);
+
+        // Posting lines: Dr expense (gross) / Cr deductions / Cr advances / Cr net.
+        const postingLines: {
+          accountId: string;
+          description?: string | null;
+          debit: number;
+          credit: number;
+        }[] = [
+          {
+            accountId: d.salaryExpenseAccountId,
+            description: `رواتب ${period}`,
+            debit: totalGross,
+            credit: 0,
+          },
+        ];
+        if (totalRegularDeductions > EPS && d.deductionsAccountId) {
+          postingLines.push({
+            accountId: d.deductionsAccountId,
+            description: `خصومات رواتب ${period}`,
+            debit: 0,
+            credit: totalRegularDeductions,
+          });
+        }
+        // Advance installments lower the advances asset account(s).
+        for (const [accountId, amount] of advanceCreditByAccount) {
+          if (amount <= EPS) continue;
+          postingLines.push({
+            accountId,
+            description: `سداد أقساط سلف ${period}`,
+            debit: 0,
+            credit: amount,
+          });
+        }
+        postingLines.push({
+          accountId: d.netPayableAccountId,
+          description: `صافي رواتب ${period}`,
+          debit: 0,
+          credit: totalNet,
+        });
+
         const entry = await createDraftJournalEntry(tx, {
           companyId,
           baseCurrency,
@@ -707,6 +828,33 @@ router.post(
             netPay: String(l.netPay),
           })),
         );
+        // Persist each advance installment + bump totalRepaid arithmetically
+        // (concurrent runs accumulate) and flip to 'finished' when fully repaid.
+        if (installmentsToApply.length > 0) {
+          await tx.insert(advanceInstallmentsTable).values(
+            installmentsToApply.map((ad) => ({
+              companyId,
+              advanceId: ad.advance.id,
+              payrollRunId: run!.id,
+              period,
+              amount: String(ad.amount),
+            })),
+          );
+          for (const ad of installmentsToApply) {
+            await tx
+              .update(advancesTable)
+              .set({
+                totalRepaid: sql`${advancesTable.totalRepaid} + ${ad.amount}`,
+                status: ad.willFinish ? "finished" : "active",
+              })
+              .where(
+                and(
+                  eq(advancesTable.id, ad.advance.id),
+                  eq(advancesTable.companyId, companyId),
+                ),
+              );
+          }
+        }
         return { run: run!, entryNo: entry.entryNo };
       });
 
@@ -722,6 +870,12 @@ router.post(
         .orderBy(asc(payrollRunLinesTable.employeeName));
       res.status(201).json(toRun(result.run, lines, result.entryNo));
     } catch (err) {
+      // Validation failures discovered inside the tx (negative net / invalid
+      // advance account) surface as a 400.
+      if (err instanceof PayrollError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
       // Concurrent runs can both pass the pre-check and race on the
       // unique(company_id, period) constraint; map that to a deterministic 409.
       if (isUniqueViolation(err)) {

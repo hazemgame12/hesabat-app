@@ -35,6 +35,8 @@ export type DraftPostingLine = {
   // Amounts are already expressed in the company base currency.
   debit: number;
   credit: number;
+  // Optional cost-center/project tag (caller must validate company ownership).
+  costCenterId?: string | null;
 };
 
 export type CreateDraftEntryOptions = {
@@ -121,6 +123,7 @@ export async function createDraftJournalEntry(
       credit: String(computed[i]!.credit),
       debitBase: String(computed[i]!.debit),
       creditBase: String(computed[i]!.credit),
+      costCenterId: l.costCenterId ?? null,
     })),
   );
 

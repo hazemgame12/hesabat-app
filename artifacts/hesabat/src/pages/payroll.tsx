@@ -8,6 +8,7 @@ import {
   useListPayrollRuns,
   useGetPayrollRun,
   useCreatePayrollRun,
+  useListCustodies,
   useListAccounts,
   useGetCurrentUser,
   getListEmployeesQueryKey,
@@ -101,6 +102,11 @@ export function Payroll() {
   const { data: employees = [], isLoading: employeesLoading } =
     useListEmployees();
   const { data: runs = [], isLoading: runsLoading } = useListPayrollRuns();
+  const { data: custodies = [] } = useListCustodies();
+  const openCustodies = useMemo(
+    () => custodies.filter((c) => c.status === "open"),
+    [custodies],
+  );
   const { data: accounts = [] } = useListAccounts();
   const postableAccounts = useMemo(
     () => accounts.filter((a: Account) => !a.isGroup),
@@ -925,6 +931,13 @@ export function Payroll() {
             </div>
 
             <div className="p-6 flex flex-col gap-4">
+              {openCustodies.length > 0 && (
+                <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  {t("payroll.run.custodyAlert", {
+                    count: openCustodies.length,
+                  })}
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <label className={labelCls}>{t("payroll.run.period")}</label>
                 <input

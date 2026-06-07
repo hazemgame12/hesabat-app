@@ -15,6 +15,7 @@ import { Payroll } from "@/pages/payroll";
 import { Customers } from "@/pages/customers";
 import { Suppliers } from "@/pages/suppliers";
 import { Bank } from "@/pages/bank";
+import { Advances } from "@/pages/advances";
 import SalesInvoicesPage from "@/pages/sales-invoices";
 import PurchaseInvoicesPage from "@/pages/purchase-invoices";
 import { Settings } from "@/pages/settings";
@@ -58,7 +59,7 @@ function ProtectedRoutes() {
           <Redirect to="/settings/company" />
         </Route>
         <Route path="/bank" component={Bank} />
-        <Route path="/advances" component={ComingSoon} />
+        <Route path="/advances" component={Advances} />
         <Route path="/sales" component={Customers} />
         <Route path="/purchases" component={Suppliers} />
         <Route path="/invoices/sales" component={SalesInvoicesPage} />

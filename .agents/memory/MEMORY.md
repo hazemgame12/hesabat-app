@@ -12,3 +12,4 @@
 - [Subsidiary-ledger parties](subsidiary-ledger-parties.md) — customers/suppliers store NO balance; auto-create a leaf account under a control group; derive balance from posted lines; advisory-lock child-code allocation.
 - [Hesabat lock-order contract](hesabat-lock-ordering.md) — any tx taking BOTH a row FOR UPDATE and lockCompanyEntryNo must lock rows first (sorted), THEN the advisory lock; reverse order deadlocks approve vs payment.
 - [Hesabat bank module](hesabat-bank-module.md) — bank/cash accts link to EXISTING leaf chart acct (not auto-created); movements post POSTED JEs; transfer = 2 linked rows + 1 JE; delete blocks if ANY transfer-group row cleared.
+- [Hesabat payroll/advances concurrency](hesabat-payroll-advances-concurrency.md) — running-balance mutations (totalRepaid) must be in-tx under company lock + FOR UPDATE + SQL arithmetic; JE-backed statuses (settled) rejected in BOTH create+update.

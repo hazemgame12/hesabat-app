@@ -1329,6 +1329,317 @@ export const GetPayrollRunResponse = zod.object({
 
 
 /**
+ * @summary List employee advances for the current company
+ */
+export const ListAdvancesResponseItem = zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "date": zod.string(),
+  "amount": zod.number(),
+  "repaymentMonths": zod.number(),
+  "monthlyInstallment": zod.number(),
+  "startDate": zod.string(),
+  "endDate": zod.string().nullish(),
+  "status": zod.enum(['active', 'finished', 'suspended']),
+  "advancesAccountId": zod.string(),
+  "totalRepaid": zod.number(),
+  "remaining": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const ListAdvancesResponse = zod.array(ListAdvancesResponseItem)
+
+
+/**
+ * @summary Create an employee advance
+ */
+
+export const createAdvanceBodyAmountMin = 0;
+
+
+export const createAdvanceBodyMonthlyInstallmentMin = 0;
+
+
+
+
+export const CreateAdvanceBody = zod.object({
+  "employeeId": zod.string().uuid(),
+  "date": zod.string().min(1),
+  "amount": zod.number().min(createAdvanceBodyAmountMin),
+  "repaymentMonths": zod.number().min(1),
+  "monthlyInstallment": zod.number().min(createAdvanceBodyMonthlyInstallmentMin),
+  "startDate": zod.string().min(1),
+  "endDate": zod.string().nullish(),
+  "status": zod.enum(['active', 'finished', 'suspended']).optional(),
+  "advancesAccountId": zod.string().uuid(),
+  "notes": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get a single advance
+ */
+export const GetAdvanceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetAdvanceResponse = zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "date": zod.string(),
+  "amount": zod.number(),
+  "repaymentMonths": zod.number(),
+  "monthlyInstallment": zod.number(),
+  "startDate": zod.string(),
+  "endDate": zod.string().nullish(),
+  "status": zod.enum(['active', 'finished', 'suspended']),
+  "advancesAccountId": zod.string(),
+  "totalRepaid": zod.number(),
+  "remaining": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update an advance
+ */
+export const UpdateAdvanceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+export const updateAdvanceBodyAmountMin = 0;
+
+
+export const updateAdvanceBodyMonthlyInstallmentMin = 0;
+
+
+
+
+export const UpdateAdvanceBody = zod.object({
+  "date": zod.string().min(1).optional(),
+  "amount": zod.number().min(updateAdvanceBodyAmountMin).optional(),
+  "repaymentMonths": zod.number().min(1).optional(),
+  "monthlyInstallment": zod.number().min(updateAdvanceBodyMonthlyInstallmentMin).optional(),
+  "startDate": zod.string().min(1).optional(),
+  "endDate": zod.string().nullish(),
+  "status": zod.enum(['active', 'finished', 'suspended']).optional(),
+  "advancesAccountId": zod.string().uuid().optional(),
+  "notes": zod.string().nullish()
+})
+
+export const UpdateAdvanceResponse = zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "date": zod.string(),
+  "amount": zod.number(),
+  "repaymentMonths": zod.number(),
+  "monthlyInstallment": zod.number(),
+  "startDate": zod.string(),
+  "endDate": zod.string().nullish(),
+  "status": zod.enum(['active', 'finished', 'suspended']),
+  "advancesAccountId": zod.string(),
+  "totalRepaid": zod.number(),
+  "remaining": zod.number(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete an advance (blocked if installments were deducted)
+ */
+export const DeleteAdvanceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteAdvanceResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List employee custodies for the current company
+ */
+export const ListCustodiesResponseItem = zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "type": zod.enum(['cash', 'tools', 'devices', 'documents', 'other']),
+  "amount": zod.number(),
+  "receiptDate": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['open', 'settled', 'closed']),
+  "settlementJournalEntryId": zod.string().nullish(),
+  "settlementJournalEntryNo": zod.number().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number(),
+  "createdAt": zod.string()
+})),
+  "createdAt": zod.string()
+})
+export const ListCustodiesResponse = zod.array(ListCustodiesResponseItem)
+
+
+/**
+ * @summary Create an employee custody
+ */
+export const createCustodyBodyAmountMin = 0;
+
+
+
+
+export const CreateCustodyBody = zod.object({
+  "employeeId": zod.string().uuid(),
+  "type": zod.enum(['cash', 'tools', 'devices', 'documents', 'other']),
+  "amount": zod.number().min(createCustodyBodyAmountMin),
+  "receiptDate": zod.string().min(1),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['open', 'settled', 'closed']).optional()
+})
+
+
+/**
+ * @summary Get a single custody with attachments
+ */
+export const GetCustodyParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetCustodyResponse = zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "type": zod.enum(['cash', 'tools', 'devices', 'documents', 'other']),
+  "amount": zod.number(),
+  "receiptDate": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['open', 'settled', 'closed']),
+  "settlementJournalEntryId": zod.string().nullish(),
+  "settlementJournalEntryNo": zod.number().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number(),
+  "createdAt": zod.string()
+})),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update a custody
+ */
+export const UpdateCustodyParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateCustodyBodyAmountMin = 0;
+
+
+
+
+export const UpdateCustodyBody = zod.object({
+  "type": zod.enum(['cash', 'tools', 'devices', 'documents', 'other']).optional(),
+  "amount": zod.number().min(updateCustodyBodyAmountMin).optional(),
+  "receiptDate": zod.string().min(1).optional(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['open', 'settled', 'closed']).optional()
+})
+
+export const UpdateCustodyResponse = zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "type": zod.enum(['cash', 'tools', 'devices', 'documents', 'other']),
+  "amount": zod.number(),
+  "receiptDate": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['open', 'settled', 'closed']),
+  "settlementJournalEntryId": zod.string().nullish(),
+  "settlementJournalEntryNo": zod.number().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number(),
+  "createdAt": zod.string()
+})),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a custody
+ */
+export const DeleteCustodyParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteCustodyResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Settle a custody via Excel upload (multipart/form-data, field "file") — posts a draft journal entry
+ */
+export const SettleCustodyParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SettleCustodyResponse = zod.object({
+  "id": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "type": zod.enum(['cash', 'tools', 'devices', 'documents', 'other']),
+  "amount": zod.number(),
+  "receiptDate": zod.string(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['open', 'settled', 'closed']),
+  "settlementJournalEntryId": zod.string().nullish(),
+  "settlementJournalEntryNo": zod.number().nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number(),
+  "createdAt": zod.string()
+})),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Attach a file to a custody (multipart/form-data, field "file")
+ */
+export const UploadCustodyAttachmentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+/**
+ * @summary Delete a custody attachment
+ */
+export const DeleteCustodyAttachmentParams = zod.object({
+  "id": zod.coerce.string(),
+  "attachmentId": zod.coerce.string()
+})
+
+export const DeleteCustodyAttachmentResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
  * @summary List all customers for the current company
  */
 export const ListCustomersResponseItem = zod.object({

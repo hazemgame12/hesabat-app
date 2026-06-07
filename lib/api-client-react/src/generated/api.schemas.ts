@@ -706,6 +706,202 @@ export interface PayrollRunInput {
   notes?: string | null;
 }
 
+export type AdvanceStatus = typeof AdvanceStatus[keyof typeof AdvanceStatus];
+
+
+export const AdvanceStatus = {
+  active: 'active',
+  finished: 'finished',
+  suspended: 'suspended',
+} as const;
+
+export interface Advance {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  amount: number;
+  repaymentMonths: number;
+  monthlyInstallment: number;
+  startDate: string;
+  /** @nullable */
+  endDate?: string | null;
+  status: AdvanceStatus;
+  advancesAccountId: string;
+  totalRepaid: number;
+  remaining: number;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type AdvanceInputStatus = typeof AdvanceInputStatus[keyof typeof AdvanceInputStatus];
+
+
+export const AdvanceInputStatus = {
+  active: 'active',
+  finished: 'finished',
+  suspended: 'suspended',
+} as const;
+
+export interface AdvanceInput {
+  employeeId: string;
+  /** @minLength 1 */
+  date: string;
+  /** @minimum 0 */
+  amount: number;
+  /** @minimum 1 */
+  repaymentMonths: number;
+  /** @minimum 0 */
+  monthlyInstallment: number;
+  /** @minLength 1 */
+  startDate: string;
+  /** @nullable */
+  endDate?: string | null;
+  status?: AdvanceInputStatus;
+  advancesAccountId: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export type AdvanceUpdateStatus = typeof AdvanceUpdateStatus[keyof typeof AdvanceUpdateStatus];
+
+
+export const AdvanceUpdateStatus = {
+  active: 'active',
+  finished: 'finished',
+  suspended: 'suspended',
+} as const;
+
+export interface AdvanceUpdate {
+  /** @minLength 1 */
+  date?: string;
+  /** @minimum 0 */
+  amount?: number;
+  /** @minimum 1 */
+  repaymentMonths?: number;
+  /** @minimum 0 */
+  monthlyInstallment?: number;
+  /** @minLength 1 */
+  startDate?: string;
+  /** @nullable */
+  endDate?: string | null;
+  status?: AdvanceUpdateStatus;
+  advancesAccountId?: string;
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface CustodyAttachment {
+  id: string;
+  fileName: string;
+  /** @nullable */
+  contentType?: string | null;
+  size: number;
+  createdAt: string;
+}
+
+export type CustodyType = typeof CustodyType[keyof typeof CustodyType];
+
+
+export const CustodyType = {
+  cash: 'cash',
+  tools: 'tools',
+  devices: 'devices',
+  documents: 'documents',
+  other: 'other',
+} as const;
+
+export type CustodyStatus = typeof CustodyStatus[keyof typeof CustodyStatus];
+
+
+export const CustodyStatus = {
+  open: 'open',
+  settled: 'settled',
+  closed: 'closed',
+} as const;
+
+export interface Custody {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  type: CustodyType;
+  amount: number;
+  receiptDate: string;
+  /** @nullable */
+  description?: string | null;
+  status: CustodyStatus;
+  /** @nullable */
+  settlementJournalEntryId?: string | null;
+  /** @nullable */
+  settlementJournalEntryNo?: number | null;
+  attachments: CustodyAttachment[];
+  createdAt: string;
+}
+
+export type CustodyInputType = typeof CustodyInputType[keyof typeof CustodyInputType];
+
+
+export const CustodyInputType = {
+  cash: 'cash',
+  tools: 'tools',
+  devices: 'devices',
+  documents: 'documents',
+  other: 'other',
+} as const;
+
+export type CustodyInputStatus = typeof CustodyInputStatus[keyof typeof CustodyInputStatus];
+
+
+export const CustodyInputStatus = {
+  open: 'open',
+  settled: 'settled',
+  closed: 'closed',
+} as const;
+
+export interface CustodyInput {
+  employeeId: string;
+  type: CustodyInputType;
+  /** @minimum 0 */
+  amount: number;
+  /** @minLength 1 */
+  receiptDate: string;
+  /** @nullable */
+  description?: string | null;
+  status?: CustodyInputStatus;
+}
+
+export type CustodyUpdateType = typeof CustodyUpdateType[keyof typeof CustodyUpdateType];
+
+
+export const CustodyUpdateType = {
+  cash: 'cash',
+  tools: 'tools',
+  devices: 'devices',
+  documents: 'documents',
+  other: 'other',
+} as const;
+
+export type CustodyUpdateStatus = typeof CustodyUpdateStatus[keyof typeof CustodyUpdateStatus];
+
+
+export const CustodyUpdateStatus = {
+  open: 'open',
+  settled: 'settled',
+  closed: 'closed',
+} as const;
+
+export interface CustodyUpdate {
+  type?: CustodyUpdateType;
+  /** @minimum 0 */
+  amount?: number;
+  /** @minLength 1 */
+  receiptDate?: string;
+  /** @nullable */
+  description?: string | null;
+  status?: CustodyUpdateStatus;
+}
+
 export type CostCenterType = typeof CostCenterType[keyof typeof CostCenterType];
 
 

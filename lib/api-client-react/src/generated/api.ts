@@ -25,6 +25,9 @@ import type {
   AccountInput,
   AccountUpdate,
   AdjustReconciliationInput,
+  Advance,
+  AdvanceInput,
+  AdvanceUpdate,
   AgingReport,
   AuthUser,
   BankAccount,
@@ -45,6 +48,10 @@ import type {
   Currency,
   CurrencyInput,
   CurrencyUpdate,
+  Custody,
+  CustodyAttachment,
+  CustodyInput,
+  CustodyUpdate,
   Customer,
   CustomerInput,
   CustomerUpdate,
@@ -4710,6 +4717,952 @@ export function useGetPayrollRun<TData = Awaited<ReturnType<typeof getPayrollRun
 
 
 
+
+export const getListAdvancesUrl = () => {
+
+
+
+
+  return `/api/advances`
+}
+
+/**
+ * @summary List employee advances for the current company
+ */
+export const listAdvances = async ( options?: RequestInit): Promise<Advance[]> => {
+
+  return customFetch<Advance[]>(getListAdvancesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdvancesQueryKey = () => {
+    return [
+    `/api/advances`
+    ] as const;
+    }
+
+
+export const getListAdvancesQueryOptions = <TData = Awaited<ReturnType<typeof listAdvances>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdvances>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdvancesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdvances>>> = ({ signal }) => listAdvances({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdvances>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdvancesQueryResult = NonNullable<Awaited<ReturnType<typeof listAdvances>>>
+export type ListAdvancesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List employee advances for the current company
+ */
+
+export function useListAdvances<TData = Awaited<ReturnType<typeof listAdvances>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdvances>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdvancesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateAdvanceUrl = () => {
+
+
+
+
+  return `/api/advances`
+}
+
+/**
+ * @summary Create an employee advance
+ */
+export const createAdvance = async (advanceInput: AdvanceInput, options?: RequestInit): Promise<Advance> => {
+
+  return customFetch<Advance>(getCreateAdvanceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      advanceInput,)
+  }
+);}
+
+
+
+
+export const getCreateAdvanceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdvance>>, TError,{data: BodyType<AdvanceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdvance>>, TError,{data: BodyType<AdvanceInput>}, TContext> => {
+
+const mutationKey = ['createAdvance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdvance>>, {data: BodyType<AdvanceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdvance(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdvanceMutationResult = NonNullable<Awaited<ReturnType<typeof createAdvance>>>
+    export type CreateAdvanceMutationBody = BodyType<AdvanceInput>
+    export type CreateAdvanceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create an employee advance
+ */
+export const useCreateAdvance = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdvance>>, TError,{data: BodyType<AdvanceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdvance>>,
+        TError,
+        {data: BodyType<AdvanceInput>},
+        TContext
+      > => {
+      return useMutation(getCreateAdvanceMutationOptions(options));
+    }
+
+export const getGetAdvanceUrl = (id: string,) => {
+
+
+
+
+  return `/api/advances/${id}`
+}
+
+/**
+ * @summary Get a single advance
+ */
+export const getAdvance = async (id: string, options?: RequestInit): Promise<Advance> => {
+
+  return customFetch<Advance>(getGetAdvanceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdvanceQueryKey = (id: string,) => {
+    return [
+    `/api/advances/${id}`
+    ] as const;
+    }
+
+
+export const getGetAdvanceQueryOptions = <TData = Awaited<ReturnType<typeof getAdvance>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdvance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdvanceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdvance>>> = ({ signal }) => getAdvance(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdvance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdvanceQueryResult = NonNullable<Awaited<ReturnType<typeof getAdvance>>>
+export type GetAdvanceQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get a single advance
+ */
+
+export function useGetAdvance<TData = Awaited<ReturnType<typeof getAdvance>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdvance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdvanceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateAdvanceUrl = (id: string,) => {
+
+
+
+
+  return `/api/advances/${id}`
+}
+
+/**
+ * @summary Update an advance
+ */
+export const updateAdvance = async (id: string,
+    advanceUpdate: AdvanceUpdate, options?: RequestInit): Promise<Advance> => {
+
+  return customFetch<Advance>(getUpdateAdvanceUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      advanceUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateAdvanceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdvance>>, TError,{id: string;data: BodyType<AdvanceUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdvance>>, TError,{id: string;data: BodyType<AdvanceUpdate>}, TContext> => {
+
+const mutationKey = ['updateAdvance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdvance>>, {id: string;data: BodyType<AdvanceUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateAdvance(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdvanceMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdvance>>>
+    export type UpdateAdvanceMutationBody = BodyType<AdvanceUpdate>
+    export type UpdateAdvanceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update an advance
+ */
+export const useUpdateAdvance = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdvance>>, TError,{id: string;data: BodyType<AdvanceUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdvance>>,
+        TError,
+        {id: string;data: BodyType<AdvanceUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateAdvanceMutationOptions(options));
+    }
+
+export const getDeleteAdvanceUrl = (id: string,) => {
+
+
+
+
+  return `/api/advances/${id}`
+}
+
+/**
+ * @summary Delete an advance (blocked if installments were deducted)
+ */
+export const deleteAdvance = async (id: string, options?: RequestInit): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getDeleteAdvanceUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteAdvanceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdvance>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteAdvance>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteAdvance'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteAdvance>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteAdvance(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteAdvanceMutationResult = NonNullable<Awaited<ReturnType<typeof deleteAdvance>>>
+
+    export type DeleteAdvanceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete an advance (blocked if installments were deducted)
+ */
+export const useDeleteAdvance = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteAdvance>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteAdvance>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteAdvanceMutationOptions(options));
+    }
+
+export const getListCustodiesUrl = () => {
+
+
+
+
+  return `/api/custodies`
+}
+
+/**
+ * @summary List employee custodies for the current company
+ */
+export const listCustodies = async ( options?: RequestInit): Promise<Custody[]> => {
+
+  return customFetch<Custody[]>(getListCustodiesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCustodiesQueryKey = () => {
+    return [
+    `/api/custodies`
+    ] as const;
+    }
+
+
+export const getListCustodiesQueryOptions = <TData = Awaited<ReturnType<typeof listCustodies>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCustodies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCustodiesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustodies>>> = ({ signal }) => listCustodies({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCustodies>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCustodiesQueryResult = NonNullable<Awaited<ReturnType<typeof listCustodies>>>
+export type ListCustodiesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List employee custodies for the current company
+ */
+
+export function useListCustodies<TData = Awaited<ReturnType<typeof listCustodies>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCustodies>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCustodiesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateCustodyUrl = () => {
+
+
+
+
+  return `/api/custodies`
+}
+
+/**
+ * @summary Create an employee custody
+ */
+export const createCustody = async (custodyInput: CustodyInput, options?: RequestInit): Promise<Custody> => {
+
+  return customFetch<Custody>(getCreateCustodyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      custodyInput,)
+  }
+);}
+
+
+
+
+export const getCreateCustodyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustody>>, TError,{data: BodyType<CustodyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCustody>>, TError,{data: BodyType<CustodyInput>}, TContext> => {
+
+const mutationKey = ['createCustody'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCustody>>, {data: BodyType<CustodyInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createCustody(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCustodyMutationResult = NonNullable<Awaited<ReturnType<typeof createCustody>>>
+    export type CreateCustodyMutationBody = BodyType<CustodyInput>
+    export type CreateCustodyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create an employee custody
+ */
+export const useCreateCustody = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCustody>>, TError,{data: BodyType<CustodyInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createCustody>>,
+        TError,
+        {data: BodyType<CustodyInput>},
+        TContext
+      > => {
+      return useMutation(getCreateCustodyMutationOptions(options));
+    }
+
+export const getGetCustodyUrl = (id: string,) => {
+
+
+
+
+  return `/api/custodies/${id}`
+}
+
+/**
+ * @summary Get a single custody with attachments
+ */
+export const getCustody = async (id: string, options?: RequestInit): Promise<Custody> => {
+
+  return customFetch<Custody>(getGetCustodyUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCustodyQueryKey = (id: string,) => {
+    return [
+    `/api/custodies/${id}`
+    ] as const;
+    }
+
+
+export const getGetCustodyQueryOptions = <TData = Awaited<ReturnType<typeof getCustody>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustody>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCustodyQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustody>>> = ({ signal }) => getCustody(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCustody>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCustodyQueryResult = NonNullable<Awaited<ReturnType<typeof getCustody>>>
+export type GetCustodyQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get a single custody with attachments
+ */
+
+export function useGetCustody<TData = Awaited<ReturnType<typeof getCustody>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCustody>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCustodyQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateCustodyUrl = (id: string,) => {
+
+
+
+
+  return `/api/custodies/${id}`
+}
+
+/**
+ * @summary Update a custody
+ */
+export const updateCustody = async (id: string,
+    custodyUpdate: CustodyUpdate, options?: RequestInit): Promise<Custody> => {
+
+  return customFetch<Custody>(getUpdateCustodyUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      custodyUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateCustodyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCustody>>, TError,{id: string;data: BodyType<CustodyUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCustody>>, TError,{id: string;data: BodyType<CustodyUpdate>}, TContext> => {
+
+const mutationKey = ['updateCustody'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCustody>>, {id: string;data: BodyType<CustodyUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateCustody(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCustodyMutationResult = NonNullable<Awaited<ReturnType<typeof updateCustody>>>
+    export type UpdateCustodyMutationBody = BodyType<CustodyUpdate>
+    export type UpdateCustodyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update a custody
+ */
+export const useUpdateCustody = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCustody>>, TError,{id: string;data: BodyType<CustodyUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateCustody>>,
+        TError,
+        {id: string;data: BodyType<CustodyUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateCustodyMutationOptions(options));
+    }
+
+export const getDeleteCustodyUrl = (id: string,) => {
+
+
+
+
+  return `/api/custodies/${id}`
+}
+
+/**
+ * @summary Delete a custody
+ */
+export const deleteCustody = async (id: string, options?: RequestInit): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getDeleteCustodyUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCustodyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCustody>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCustody>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteCustody'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCustody>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteCustody(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCustodyMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCustody>>>
+
+    export type DeleteCustodyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a custody
+ */
+export const useDeleteCustody = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCustody>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCustody>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCustodyMutationOptions(options));
+    }
+
+export const getSettleCustodyUrl = (id: string,) => {
+
+
+
+
+  return `/api/custodies/${id}/settle`
+}
+
+/**
+ * @summary Settle a custody via Excel upload (multipart/form-data, field "file") — posts a draft journal entry
+ */
+export const settleCustody = async (id: string, options?: RequestInit): Promise<Custody> => {
+
+  return customFetch<Custody>(getSettleCustodyUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSettleCustodyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settleCustody>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof settleCustody>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['settleCustody'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof settleCustody>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  settleCustody(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SettleCustodyMutationResult = NonNullable<Awaited<ReturnType<typeof settleCustody>>>
+
+    export type SettleCustodyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Settle a custody via Excel upload (multipart/form-data, field "file") — posts a draft journal entry
+ */
+export const useSettleCustody = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof settleCustody>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof settleCustody>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getSettleCustodyMutationOptions(options));
+    }
+
+export const getUploadCustodyAttachmentUrl = (id: string,) => {
+
+
+
+
+  return `/api/custodies/${id}/attachments`
+}
+
+/**
+ * @summary Attach a file to a custody (multipart/form-data, field "file")
+ */
+export const uploadCustodyAttachment = async (id: string, options?: RequestInit): Promise<CustodyAttachment> => {
+
+  return customFetch<CustodyAttachment>(getUploadCustodyAttachmentUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getUploadCustodyAttachmentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCustodyAttachment>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadCustodyAttachment>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['uploadCustodyAttachment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadCustodyAttachment>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  uploadCustodyAttachment(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadCustodyAttachmentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadCustodyAttachment>>>
+
+    export type UploadCustodyAttachmentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Attach a file to a custody (multipart/form-data, field "file")
+ */
+export const useUploadCustodyAttachment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadCustodyAttachment>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadCustodyAttachment>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getUploadCustodyAttachmentMutationOptions(options));
+    }
+
+export const getDeleteCustodyAttachmentUrl = (id: string,
+    attachmentId: string,) => {
+
+
+
+
+  return `/api/custodies/${id}/attachments/${attachmentId}`
+}
+
+/**
+ * @summary Delete a custody attachment
+ */
+export const deleteCustodyAttachment = async (id: string,
+    attachmentId: string, options?: RequestInit): Promise<HealthStatus> => {
+
+  return customFetch<HealthStatus>(getDeleteCustodyAttachmentUrl(id,attachmentId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteCustodyAttachmentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCustodyAttachment>>, TError,{id: string;attachmentId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCustodyAttachment>>, TError,{id: string;attachmentId: string}, TContext> => {
+
+const mutationKey = ['deleteCustodyAttachment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCustodyAttachment>>, {id: string;attachmentId: string}> = (props) => {
+          const {id,attachmentId} = props ?? {};
+
+          return  deleteCustodyAttachment(id,attachmentId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCustodyAttachmentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCustodyAttachment>>>
+
+    export type DeleteCustodyAttachmentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete a custody attachment
+ */
+export const useDeleteCustodyAttachment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCustodyAttachment>>, TError,{id: string;attachmentId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCustodyAttachment>>,
+        TError,
+        {id: string;attachmentId: string},
+        TContext
+      > => {
+      return useMutation(getDeleteCustodyAttachmentMutationOptions(options));
+    }
 
 export const getListCustomersUrl = () => {
 
