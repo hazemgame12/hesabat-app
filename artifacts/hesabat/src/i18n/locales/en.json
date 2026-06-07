@@ -987,6 +987,7 @@
     "selectItem": "Select item",
     "warehouse": "Warehouse",
     "cogsAccount": "COGS account",
+    "revenueAccount": "Revenue account",
     "quantity": "Qty",
     "unitPrice": "Unit price",
     "discount": "Discount",

@@ -2008,6 +2008,7 @@ export const GetOutstandingInvoicesResponseItem = zod.object({
   "invoiceNo": zod.number(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
+  "partyId": zod.string(),
   "partyName": zod.string(),
   "total": zod.number(),
   "amountPaid": zod.number(),

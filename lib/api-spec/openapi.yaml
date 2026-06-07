@@ -4165,7 +4165,7 @@ components:
 
     OutstandingInvoice:
       type: object
-      required: [id, invoiceNo, date, partyName, total, amountPaid, balance, status, overdue]
+      required: [id, invoiceNo, date, partyId, partyName, total, amountPaid, balance, status, overdue]
       properties:
         id:
           type: string
@@ -4175,6 +4175,8 @@ components:
           type: string
         dueDate:
           type: ["string", "null"]
+        partyId:
+          type: string
         partyName:
           type: string
         total:

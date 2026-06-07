@@ -196,7 +196,10 @@ export function InvoiceEditor({
     const it = itemById.get(itemId);
     const patch: Partial<LineDraft> = { itemId };
     if (it) {
-      patch.accountId = it.inventoryAccountId;
+      // Purchase inventory lines post to the item's inventory account (Dr stock),
+      // so auto-fill it. Sales inventory lines credit a REVENUE account chosen by
+      // the user (stock/COGS are handled server-side via the item), so leave it.
+      if (kind === "purchase") patch.accountId = it.inventoryAccountId;
       if (!lines[idx]!.description) patch.description = displayName(it, lang);
       if (kind === "purchase" && !lines[idx]!.unitPrice) {
         patch.unitPrice = String(it.averageCost || "");
@@ -597,9 +600,13 @@ export function InvoiceEditor({
                     )}
 
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
-                      {l.lineType !== "inventory" && (
+                      {!(l.lineType === "inventory" && kind === "purchase") && (
                         <div className="col-span-2">
-                          <label className={labelCls}>{t("invoices.account")}</label>
+                          <label className={labelCls}>
+                            {l.lineType === "inventory" && kind === "sales"
+                              ? t("invoices.revenueAccount")
+                              : t("invoices.account")}
+                          </label>
                           <select
                             className={inputCls}
                             value={l.accountId}

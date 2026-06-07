@@ -56,14 +56,12 @@ export function PaymentModal({
       maximumFractionDigits: 2,
     }).format(n);
 
-  // Filter outstanding invoices to those of the selected party.
+  // Filter outstanding invoices to those of the selected party (by stable id,
+  // never by localized display name).
   const partyInvoices = useMemo(() => {
     if (!partyId) return [];
-    return outstanding.filter((inv) => {
-      const found = parties.find((p) => p.id === partyId);
-      return found && inv.partyName === displayName(found, lang);
-    });
-  }, [outstanding, partyId, parties, lang]);
+    return outstanding.filter((inv) => inv.partyId === partyId);
+  }, [outstanding, partyId]);
 
   const allocSum = useMemo(
     () =>

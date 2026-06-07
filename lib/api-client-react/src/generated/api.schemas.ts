@@ -1531,6 +1531,7 @@ export interface OutstandingInvoice {
   date: string;
   /** @nullable */
   dueDate?: string | null;
+  partyId: string;
   partyName: string;
   total: number;
   amountPaid: number;

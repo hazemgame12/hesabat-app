@@ -317,6 +317,7 @@ router.get(
             invoiceNo: inv.invoiceNo,
             date: inv.date,
             dueDate: inv.dueDate ?? null,
+            partyId: pid,
             partyName: nameMap.get(pid) ?? "—",
             total: round2(Number(inv.total)),
             amountPaid: round2(Number(inv.amountPaid)),
