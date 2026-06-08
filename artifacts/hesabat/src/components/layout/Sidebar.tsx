@@ -21,7 +21,8 @@ import {
   Wallet,
   Scale,
   Settings,
-  History
+  History,
+  CalendarRange
 } from "lucide-react";
 
 type NavItem = {
@@ -47,6 +48,7 @@ const navItems: NavItem[] = [
   { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
   { labelKey: "nav.reports", icon: FileText, href: "/reports" },
   { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
+  { labelKey: "nav.fiscalYears", icon: CalendarRange, href: "/fiscal-years", requires: "fiscalyear:read" },
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 

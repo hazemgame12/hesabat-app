@@ -48,6 +48,8 @@ tags:
     description: Company opening balances posted as a single journal entry
   - name: audit
     description: Append-only audit trail of user actions
+  - name: fiscalYears
+    description: Fiscal year definitions, year-end closing, and period locking
 paths:
   /healthz:
     get:
@@ -2932,6 +2934,110 @@ paths:
                 items:
                   $ref: "#/components/schemas/AuditLogEntry"
 
+  /fiscal-years:
+    get:
+      operationId: listFiscalYears
+      tags: [fiscalYears]
+      summary: List fiscal years, most recent first
+      responses:
+        "200":
+          description: Fiscal years
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FiscalYear"
+    post:
+      operationId: createFiscalYear
+      tags: [fiscalYears]
+      summary: Define a new fiscal year
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FiscalYearInput"
+      responses:
+        "201":
+          description: Created fiscal year
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FiscalYear"
+
+  /fiscal-years/{id}/close:
+    post:
+      operationId: closeFiscalYear
+      tags: [fiscalYears]
+      summary: Close a fiscal year and post the carry-forward closing entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Year closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                  closingEntryId:
+                    type: string
+                    nullable: true
+
+  /fiscal-years/{id}/reopen:
+    post:
+      operationId: reopenFiscalYear
+      tags: [fiscalYears]
+      summary: Reopen a closed fiscal year and remove its closing entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Year reopened
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+
+  /fiscal-years/{id}:
+    delete:
+      operationId: deleteFiscalYear
+      tags: [fiscalYears]
+      summary: Delete an open fiscal year
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Year deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+
   /reports/trial-balance:
     get:
       operationId: getTrialBalance
@@ -3673,6 +3779,44 @@ components:
           type: string
           nullable: true
         createdAt:
+          type: string
+
+    FiscalYear:
+      type: object
+      required: [id, name, startDate, endDate, status]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        status:
+          type: string
+          enum: [open, closed]
+        closingEntryId:
+          type: string
+          nullable: true
+        closingEntryNumber:
+          type: string
+          nullable: true
+        closedAt:
+          type: string
+          nullable: true
+
+    FiscalYearInput:
+      type: object
+      required: [name, startDate, endDate]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        startDate:
+          type: string
+        endDate:
           type: string
 
     AuthUser:

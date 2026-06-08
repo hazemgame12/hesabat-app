@@ -21,10 +21,13 @@ import { CreateJournalEntryBody, UpdateJournalEntryBody } from "@workspace/api-z
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { uploadsDir } from "./uploads";
-import { lockCompanyEntryNo } from "../lib/journal-posting";
+import { lockCompanyEntryNo, allocateEntryNo } from "../lib/journal-posting";
+import { isPeriodClosed } from "../lib/fiscal-year";
 import { safeAudit } from "../lib/audit";
 
 const router = Router();
+
+const PERIOD_CLOSED_MSG = "لا يمكن إجراء العملية: التاريخ يقع داخل سنة مالية مقفلة";
 
 // Money values use 2 decimals; treat sub-cent differences as balanced.
 const BALANCE_TOLERANCE = 0.005;
@@ -477,19 +480,17 @@ router.post(
         res.status(400).json({ error: refErr });
         return;
       }
+      if (await isPeriodClosed(db, companyId, parsed.data.date)) {
+        res.status(400).json({ error: PERIOD_CLOSED_MSG });
+        return;
+      }
       const detail = await db.transaction(async (tx) => {
-        await lockCompanyEntryNo(tx, companyId);
-        const [{ maxNo }] = await tx
-          .select({
-            maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,
-          })
-          .from(journalEntriesTable)
-          .where(eq(journalEntriesTable.companyId, companyId));
+        const entryNo = await allocateEntryNo(tx, companyId, parsed.data.date);
         const [entry] = await tx
           .insert(journalEntriesTable)
           .values({
             companyId,
-            entryNo: Number(maxNo) + 1,
+            entryNo,
             date: parsed.data.date,
             reference: parsed.data.reference ?? null,
             notes: parsed.data.notes ?? null,
@@ -581,6 +582,15 @@ router.patch(
         res
           .status(400)
           .json({ error: "لا يمكن تعديل القيد إلا وهو مسودة" });
+        return;
+      }
+      // Block both the entry's current date and the requested new date from
+      // falling inside a closed period.
+      if (
+        (await isPeriodClosed(db, companyId, existing.date)) ||
+        (await isPeriodClosed(db, companyId, parsed.data.date))
+      ) {
+        res.status(400).json({ error: PERIOD_CLOSED_MSG });
         return;
       }
       const refErr = await validateLineRefs(lines, companyId);
@@ -693,6 +703,10 @@ router.post(
           .json({ error: "لا يمكن ترحيل القيد قبل اعتماده" });
         return;
       }
+      if (await isPeriodClosed(db, companyId, existing.date)) {
+        res.status(400).json({ error: PERIOD_CLOSED_MSG });
+        return;
+      }
       const lines = await db
         .select()
         .from(journalEntryLinesTable)
@@ -764,7 +778,10 @@ router.delete(
       // Only draft entries may be deleted; once an entry enters the approval
       // workflow (pending/approved/posted) it is immutable.
       const [existing] = await db
-        .select({ status: journalEntriesTable.status })
+        .select({
+          status: journalEntriesTable.status,
+          date: journalEntriesTable.date,
+        })
         .from(journalEntriesTable)
         .where(
           and(
@@ -781,6 +798,10 @@ router.delete(
         res
           .status(400)
           .json({ error: "لا يمكن حذف القيد إلا وهو مسودة" });
+        return;
+      }
+      if (await isPeriodClosed(db, companyId, existing.date)) {
+        res.status(400).json({ error: PERIOD_CLOSED_MSG });
         return;
       }
       // Capture the on-disk keys before the cascade removes the rows, so the
@@ -1119,6 +1140,10 @@ router.post(
         )
         .orderBy(asc(journalEntryLinesTable.lineNo));
       const today = new Date().toISOString().slice(0, 10);
+      if (await isPeriodClosed(db, companyId, today)) {
+        res.status(400).json({ error: PERIOD_CLOSED_MSG });
+        return;
+      }
       const detail = await db.transaction(async (tx) => {
         await lockCompanyEntryNo(tx, companyId);
         // Re-check inside the lock: lockCompanyEntryNo serializes entry creation
@@ -1135,17 +1160,12 @@ router.post(
           )
           .limit(1);
         if (existingReversal) return null;
-        const [{ maxNo }] = await tx
-          .select({
-            maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,
-          })
-          .from(journalEntriesTable)
-          .where(eq(journalEntriesTable.companyId, companyId));
+        const entryNo = await allocateEntryNo(tx, companyId, today);
         const [entry] = await tx
           .insert(journalEntriesTable)
           .values({
             companyId,
-            entryNo: Number(maxNo) + 1,
+            entryNo,
             date: today,
             reference: original.reference,
             notes: `قيد عكسي للقيد ${formatEntryNumber(
@@ -1540,18 +1560,22 @@ router.post(
         resolved.push({ group: g, lines: lineInputs, computed: calc.computed });
       }
 
-      // Persist all entries in a single transaction.
+      // Reject the whole import if any entry falls in a CLOSED period.
+      for (const r of resolved) {
+        if (await isPeriodClosed(db, companyId, r.group.date)) {
+          res.status(400).json({
+            error: `القيد ${r.group.entryNo}: التاريخ يقع داخل سنة مالية مقفلة`,
+          });
+          return;
+        }
+      }
+
+      // Persist all entries in a single transaction. Entry numbers reset per
+      // calendar year of each entry's date (allocateEntryNo takes the per-company
+      // lock), matching the JV-{YYYY}-NNNNNN numbering used everywhere else.
       const created = await db.transaction(async (tx) => {
-        await lockCompanyEntryNo(tx, companyId);
-        const [{ maxNo }] = await tx
-          .select({
-            maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,
-          })
-          .from(journalEntriesTable)
-          .where(eq(journalEntriesTable.companyId, companyId));
-        let next = Number(maxNo);
         for (const r of resolved) {
-          next += 1;
+          const next = await allocateEntryNo(tx, companyId, r.group.date);
           const [entry] = await tx
             .insert(journalEntriesTable)
             .values({

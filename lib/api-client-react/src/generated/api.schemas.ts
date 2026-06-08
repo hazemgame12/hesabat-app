@@ -78,6 +78,35 @@ export interface AuditLogEntry {
   createdAt: string;
 }
 
+export type FiscalYearStatus = typeof FiscalYearStatus[keyof typeof FiscalYearStatus];
+
+
+export const FiscalYearStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export interface FiscalYear {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: FiscalYearStatus;
+  closingEntryId?: string | null;
+  closingEntryNumber?: string | null;
+  closedAt?: string | null;
+}
+
+export interface FiscalYearInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -2420,6 +2449,19 @@ userId?: string;
 from?: string;
 to?: string;
 limit?: number;
+};
+
+export type CloseFiscalYear200 = {
+  status: string;
+  closingEntryId?: string | null;
+};
+
+export type ReopenFiscalYear200 = {
+  status: string;
+};
+
+export type DeleteFiscalYear200 = {
+  status: string;
 };
 
 export type GetTrialBalanceParams = {

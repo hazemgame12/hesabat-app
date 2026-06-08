@@ -34,6 +34,7 @@ export * from "./taxes";
 export * from "./cost-centers";
 export * from "./currencies";
 export * from "./journal-entries";
+export * from "./fiscal-years";
 export * from "./fixed-assets";
 export * from "./inventory";
 export * from "./payroll";

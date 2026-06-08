@@ -92,6 +92,8 @@ export const CAPABILITIES = [
   "custodies:update",
   "custodies:delete",
   "audit:read",
+  "fiscalyear:read",
+  "fiscalyear:manage",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -225,6 +227,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...ADVANCES_FULL,
     ...CUSTODIES_FULL,
     "audit:read",
+    "fiscalyear:read",
+    "fiscalyear:manage",
   ],
   manager: [
     "company:manage",
@@ -244,6 +248,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...ADVANCES_FULL,
     ...CUSTODIES_FULL,
     "audit:read",
+    "fiscalyear:read",
+    "fiscalyear:manage",
   ],
   accountant: [
     "accounts:read",
@@ -294,6 +300,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "custodies:read",
     "custodies:create",
     "custodies:update",
+    "fiscalyear:read",
   ],
   data_entry: [
     "accounts:read",
@@ -325,6 +332,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "advances:create",
     "custodies:read",
     "custodies:create",
+    "fiscalyear:read",
   ],
   viewer: [
     "accounts:read",
@@ -342,6 +350,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "bank:read",
     "advances:read",
     "custodies:read",
+    "fiscalyear:read",
   ],
 };
 

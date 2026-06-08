@@ -2654,6 +2654,73 @@ export const GetAuditLogResponse = zod.array(GetAuditLogResponseItem)
 
 
 /**
+ * @summary List fiscal years, most recent first
+ */
+export const ListFiscalYearsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "startDate": zod.string(),
+  "endDate": zod.string(),
+  "status": zod.enum(['open', 'closed']),
+  "closingEntryId": zod.string().nullish(),
+  "closingEntryNumber": zod.string().nullish(),
+  "closedAt": zod.string().nullish()
+})
+export const ListFiscalYearsResponse = zod.array(ListFiscalYearsResponseItem)
+
+
+/**
+ * @summary Define a new fiscal year
+ */
+export const createFiscalYearBodyNameMax = 120;
+
+
+
+export const CreateFiscalYearBody = zod.object({
+  "name": zod.string().min(1).max(createFiscalYearBodyNameMax),
+  "startDate": zod.string(),
+  "endDate": zod.string()
+})
+
+
+/**
+ * @summary Close a fiscal year and post the carry-forward closing entry
+ */
+export const CloseFiscalYearParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const CloseFiscalYearResponse = zod.object({
+  "status": zod.string(),
+  "closingEntryId": zod.string().nullish()
+})
+
+
+/**
+ * @summary Reopen a closed fiscal year and remove its closing entry
+ */
+export const ReopenFiscalYearParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReopenFiscalYearResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary Delete an open fiscal year
+ */
+export const DeleteFiscalYearParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteFiscalYearResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
  * @summary Trial balance from posted journal lines
  */
 export const GetTrialBalanceQueryParams = zod.object({

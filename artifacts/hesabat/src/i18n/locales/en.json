@@ -4,6 +4,7 @@
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
+    "close": "Close",
     "edit": "Edit",
     "delete": "Delete",
     "remove": "Remove",
@@ -102,7 +103,8 @@
     "payroll": "Payroll & Employees",
     "invoicesSales": "Sales Invoices",
     "invoicesPurchases": "Purchase Invoices",
-    "audit": "Activity Log"
+    "audit": "Activity Log",
+    "fiscalYears": "Fiscal Years"
   },
   "auditPage": {
     "title": "Activity Log",
@@ -134,6 +136,51 @@
       "approve": "Approve",
       "reject": "Reject",
       "reverse": "Reverse"
+    }
+  },
+  "fiscalYearsPage": {
+    "title": "Fiscal Years",
+    "subtitle": "Define your fiscal years and close them at year-end to carry profit forward",
+    "empty": "No fiscal years yet",
+    "new": "New fiscal year",
+    "close": "Close",
+    "reopen": "Reopen",
+    "delete": "Delete",
+    "closingEntry": "Closing entry",
+    "status": {
+      "open": "Open",
+      "closed": "Closed"
+    },
+    "form": {
+      "name": "Year name",
+      "namePlaceholder": "e.g. Fiscal Year 2025",
+      "startDate": "Start date",
+      "endDate": "End date"
+    },
+    "errors": {
+      "nameRequired": "Year name is required",
+      "startRequired": "Start date is required",
+      "endRequired": "End date is required",
+      "rangeInvalid": "End date must be after the start date"
+    },
+    "confirmClose": {
+      "title": "Close this fiscal year?",
+      "description": "A closing entry will carry the net profit or loss into the retained earnings account, and posting into this period will be blocked. You can reopen it later."
+    },
+    "confirmReopen": {
+      "title": "Reopen this fiscal year?",
+      "description": "The closing entry will be deleted and the period unlocked so it can be edited again."
+    },
+    "confirmDelete": {
+      "title": "Delete this fiscal year?",
+      "description": "The fiscal year definition will be permanently removed. This cannot be undone."
+    },
+    "toast": {
+      "created": "Fiscal year created",
+      "closed": "Fiscal year closed",
+      "reopened": "Fiscal year reopened",
+      "deleted": "Fiscal year deleted",
+      "error": "Could not complete the operation"
     }
   },
   "settings": {

@@ -1,9 +1,10 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   db,
   journalEntriesTable,
   journalEntryLinesTable,
 } from "@workspace/db";
+import { assertOpenPeriod } from "./fiscal-year";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -22,6 +23,34 @@ export async function lockCompanyEntryNo(
   companyId: string,
 ): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${companyId}))`);
+}
+
+/**
+ * Allocates the next entry number for a company, RESET PER CALENDAR YEAR of the
+ * entry date (matching the `JV-{YYYY}-NNNNNN` display format). Takes the
+ * per-company advisory lock first, then computes max(entry_no)+1 scoped to the
+ * year of `date`. Every path that mints an entry number must use this (or take
+ * the lock + replicate the year-scoped max) inside the same transaction.
+ */
+export async function allocateEntryNo(
+  tx: Tx,
+  companyId: string,
+  date: string,
+): Promise<number> {
+  await lockCompanyEntryNo(tx, companyId);
+  const year = Number(date.slice(0, 4));
+  const [row] = await tx
+    .select({
+      maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,
+    })
+    .from(journalEntriesTable)
+    .where(
+      and(
+        eq(journalEntriesTable.companyId, companyId),
+        sql`extract(year from ${journalEntriesTable.date}) = ${year}`,
+      ),
+    );
+  return Number(row?.maxNo ?? 0) + 1;
 }
 
 // Money values use 2 decimals; treat sub-cent differences as balanced. Kept in
@@ -90,20 +119,16 @@ export async function createDraftJournalEntry(
     throw new Error("DRAFT_ENTRY_UNBALANCED");
   }
 
-  await lockCompanyEntryNo(tx, opts.companyId);
-  const [{ maxNo }] = await tx
-    .select({
-      maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,
-    })
-    .from(journalEntriesTable)
-    .where(eq(journalEntriesTable.companyId, opts.companyId));
+  // Safety net: no posting module may write into a CLOSED fiscal period.
+  await assertOpenPeriod(tx, opts.companyId, opts.date);
+  const entryNo = await allocateEntryNo(tx, opts.companyId, opts.date);
 
   const status = opts.status ?? "draft";
   const [entry] = await tx
     .insert(journalEntriesTable)
     .values({
       companyId: opts.companyId,
-      entryNo: Number(maxNo) + 1,
+      entryNo,
       date: opts.date,
       reference: opts.reference ?? null,
       notes: opts.notes ?? null,

@@ -41,6 +41,7 @@ import type {
   BankReconciliationDetail,
   BankReconciliationInput,
   BankReconciliationReport,
+  CloseFiscalYear200,
   Company,
   CompanyUpdate,
   CostCenter,
@@ -59,11 +60,14 @@ import type {
   CustomerInput,
   CustomerUpdate,
   DashboardSummary,
+  DeleteFiscalYear200,
   Employee,
   EmployeeInput,
   EmployeeStatement,
   EmployeeUpdate,
   ErrorResponse,
+  FiscalYear,
+  FiscalYearInput,
   FixedAsset,
   FixedAssetInput,
   FixedAssetUpdate,
@@ -111,6 +115,7 @@ import type {
   PayrollRun,
   PayrollRunInput,
   RefreshRatesResult,
+  ReopenFiscalYear200,
   RoleUpdateInput,
   RunDepreciationInput,
   RunDepreciationResult,
@@ -7882,6 +7887,364 @@ export function useGetAuditLog<TData = Awaited<ReturnType<typeof getAuditLog>>, 
 
 
 
+
+export const getListFiscalYearsUrl = () => {
+
+
+
+
+  return `/api/fiscal-years`
+}
+
+/**
+ * @summary List fiscal years, most recent first
+ */
+export const listFiscalYears = async ( options?: RequestInit): Promise<FiscalYear[]> => {
+
+  return customFetch<FiscalYear[]>(getListFiscalYearsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFiscalYearsQueryKey = () => {
+    return [
+    `/api/fiscal-years`
+    ] as const;
+    }
+
+
+export const getListFiscalYearsQueryOptions = <TData = Awaited<ReturnType<typeof listFiscalYears>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFiscalYears>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFiscalYearsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFiscalYears>>> = ({ signal }) => listFiscalYears({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFiscalYears>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFiscalYearsQueryResult = NonNullable<Awaited<ReturnType<typeof listFiscalYears>>>
+export type ListFiscalYearsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List fiscal years, most recent first
+ */
+
+export function useListFiscalYears<TData = Awaited<ReturnType<typeof listFiscalYears>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFiscalYears>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFiscalYearsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateFiscalYearUrl = () => {
+
+
+
+
+  return `/api/fiscal-years`
+}
+
+/**
+ * @summary Define a new fiscal year
+ */
+export const createFiscalYear = async (fiscalYearInput: FiscalYearInput, options?: RequestInit): Promise<FiscalYear> => {
+
+  return customFetch<FiscalYear>(getCreateFiscalYearUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      fiscalYearInput,)
+  }
+);}
+
+
+
+
+export const getCreateFiscalYearMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFiscalYear>>, TError,{data: BodyType<FiscalYearInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createFiscalYear>>, TError,{data: BodyType<FiscalYearInput>}, TContext> => {
+
+const mutationKey = ['createFiscalYear'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createFiscalYear>>, {data: BodyType<FiscalYearInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createFiscalYear(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateFiscalYearMutationResult = NonNullable<Awaited<ReturnType<typeof createFiscalYear>>>
+    export type CreateFiscalYearMutationBody = BodyType<FiscalYearInput>
+    export type CreateFiscalYearMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Define a new fiscal year
+ */
+export const useCreateFiscalYear = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createFiscalYear>>, TError,{data: BodyType<FiscalYearInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createFiscalYear>>,
+        TError,
+        {data: BodyType<FiscalYearInput>},
+        TContext
+      > => {
+      return useMutation(getCreateFiscalYearMutationOptions(options));
+    }
+
+export const getCloseFiscalYearUrl = (id: string,) => {
+
+
+
+
+  return `/api/fiscal-years/${id}/close`
+}
+
+/**
+ * @summary Close a fiscal year and post the carry-forward closing entry
+ */
+export const closeFiscalYear = async (id: string, options?: RequestInit): Promise<CloseFiscalYear200> => {
+
+  return customFetch<CloseFiscalYear200>(getCloseFiscalYearUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getCloseFiscalYearMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeFiscalYear>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof closeFiscalYear>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['closeFiscalYear'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof closeFiscalYear>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  closeFiscalYear(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CloseFiscalYearMutationResult = NonNullable<Awaited<ReturnType<typeof closeFiscalYear>>>
+
+    export type CloseFiscalYearMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Close a fiscal year and post the carry-forward closing entry
+ */
+export const useCloseFiscalYear = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof closeFiscalYear>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof closeFiscalYear>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getCloseFiscalYearMutationOptions(options));
+    }
+
+export const getReopenFiscalYearUrl = (id: string,) => {
+
+
+
+
+  return `/api/fiscal-years/${id}/reopen`
+}
+
+/**
+ * @summary Reopen a closed fiscal year and remove its closing entry
+ */
+export const reopenFiscalYear = async (id: string, options?: RequestInit): Promise<ReopenFiscalYear200> => {
+
+  return customFetch<ReopenFiscalYear200>(getReopenFiscalYearUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getReopenFiscalYearMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenFiscalYear>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reopenFiscalYear>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['reopenFiscalYear'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reopenFiscalYear>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  reopenFiscalYear(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReopenFiscalYearMutationResult = NonNullable<Awaited<ReturnType<typeof reopenFiscalYear>>>
+
+    export type ReopenFiscalYearMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Reopen a closed fiscal year and remove its closing entry
+ */
+export const useReopenFiscalYear = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reopenFiscalYear>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reopenFiscalYear>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getReopenFiscalYearMutationOptions(options));
+    }
+
+export const getDeleteFiscalYearUrl = (id: string,) => {
+
+
+
+
+  return `/api/fiscal-years/${id}`
+}
+
+/**
+ * @summary Delete an open fiscal year
+ */
+export const deleteFiscalYear = async (id: string, options?: RequestInit): Promise<DeleteFiscalYear200> => {
+
+  return customFetch<DeleteFiscalYear200>(getDeleteFiscalYearUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteFiscalYearMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFiscalYear>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteFiscalYear>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteFiscalYear'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteFiscalYear>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteFiscalYear(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteFiscalYearMutationResult = NonNullable<Awaited<ReturnType<typeof deleteFiscalYear>>>
+
+    export type DeleteFiscalYearMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete an open fiscal year
+ */
+export const useDeleteFiscalYear = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteFiscalYear>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteFiscalYear>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteFiscalYearMutationOptions(options));
+    }
 
 export const getGetTrialBalanceUrl = (params?: GetTrialBalanceParams,) => {
   const normalizedParams = new URLSearchParams();

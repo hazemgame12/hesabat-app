@@ -17,3 +17,4 @@
 - [Hesabat bank reconciliation](hesabat-bank-reconciliation.md) — canonical difference = statement − clearedBookBalance everywhere (persist on create/match/adjust/complete); report pairs adjustedStatementBalance with FULL book balance.
 - [Hesabat Excel import/export](hesabat-excel-io.md) — raw routes (no codegen), mirror journal.ts; import all-or-nothing tx + company-scoped FK resolution; import=master-data only; shared ExcelToolbar + common.* i18n keys.
 - [Audit log design](audit-log.md) — append-only (no write/delete route); safeAudit writes are best-effort post-commit and must never break the business tx; GET /audit is owner/manager only, company-scoped.
+- [Fiscal Year close/period-lock](fiscal-year.md) — carry-forward = year-end CLOSING entry (cumulative-from-genesis, no opening entry); lock FY row + WHERE status='open' on close; per-calendar-year JV numbering via allocateEntryNo on EVERY mint path (incl. Excel import).

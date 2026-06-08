@@ -33,6 +33,7 @@ import companyRouter from "./company";
 import teamRouter from "./team";
 import invitationsRouter from "./invitations";
 import auditRouter from "./audit";
+import fiscalYearsRouter from "./fiscal-years";
 
 const router: IRouter = Router();
 
@@ -61,6 +62,7 @@ router.use(companyRouter);
 router.use(teamRouter);
 router.use(invitationsRouter);
 router.use(auditRouter);
+router.use(fiscalYearsRouter);
 router.use(articlesRouter);
 router.use(settingsRouter);
 router.use(servicesRouter);
