@@ -4,6 +4,11 @@ import { db, currenciesTable, companiesTable, type Currency } from "@workspace/d
 import { CreateCurrencyBody, UpdateCurrencyBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
+import {
+  exportWorkbook,
+  handleXlsxUpload,
+  parseSheet,
+} from "../lib/excel";
 
 const router = Router();
 
@@ -259,6 +264,149 @@ router.delete(
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete currency");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Excel export / import -------------------------------------------------
+
+// Streams all of the company's currencies as an .xlsx workbook (round-trips the
+// import format).
+router.get(
+  "/currencies/export",
+  requireAuth,
+  requireCapability("currencies:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select()
+        .from(currenciesTable)
+        .where(eq(currenciesTable.companyId, companyId))
+        .orderBy(asc(currenciesTable.code));
+      await exportWorkbook(res, {
+        sheetName: "Currencies",
+        fileName: "currencies-export",
+        columns: [
+          { header: "code", value: (r) => r.code },
+          { header: "nameAr", value: (r) => r.nameAr },
+          { header: "nameEn", value: (r) => r.nameEn ?? "" },
+          { header: "exchangeRate", value: (r) => Number(r.exchangeRate) },
+          { header: "isActive", value: (r) => (r.isActive ? "true" : "false") },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export currencies");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Bulk-creates currencies from an .xlsx (round-trips the export format). All-or-
+// nothing: any invalid row aborts the whole import.
+router.post(
+  "/currencies/import",
+  requireAuth,
+  requireCapability("currencies:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      if (!sheet.has("code") || !sheet.has("nameAr") || !sheet.has("exchangeRate")) {
+        res.status(400).json({
+          error: "صيغة الملف غير صحيحة. الأعمدة المطلوبة: code, nameAr, exchangeRate",
+        });
+        return;
+      }
+
+      const existing = await db
+        .select({ code: currenciesTable.code })
+        .from(currenciesTable)
+        .where(eq(currenciesTable.companyId, companyId));
+      const existingCodes = new Set(existing.map((e) => e.code));
+
+      type Row = {
+        code: string;
+        nameAr: string;
+        nameEn: string | null;
+        exchangeRate: number;
+        isActive: boolean;
+      };
+      const parsed: Row[] = [];
+      const seen = new Set<string>();
+      for (const { rowNo, row } of sheet.rows) {
+        const codeRaw = sheet.str(row, "code");
+        const nameAr = sheet.str(row, "nameAr");
+        const rateRaw = sheet.str(row, "exchangeRate");
+        if (!codeRaw && !nameAr && !rateRaw) continue; // skip blank rows
+        const code = codeRaw.trim().toUpperCase();
+        if (!code || !nameAr) {
+          res.status(400).json({ error: `السطر ${rowNo}: code و nameAr مطلوبان` });
+          return;
+        }
+        if (seen.has(code) || existingCodes.has(code)) {
+          res.status(400).json({ error: `السطر ${rowNo}: رمز العملة ${code} مكرر` });
+          return;
+        }
+        if (!rateRaw) {
+          res.status(400).json({ error: `السطر ${rowNo}: exchangeRate مطلوب` });
+          return;
+        }
+        const exchangeRate = sheet.num(row, "exchangeRate");
+        if (!Number.isFinite(exchangeRate) || exchangeRate <= 0) {
+          res.status(400).json({ error: `السطر ${rowNo}: exchangeRate غير صحيح` });
+          return;
+        }
+        const activeStr = sheet.str(row, "isActive").toLowerCase();
+        seen.add(code);
+        parsed.push({
+          code,
+          nameAr,
+          nameEn: sheet.str(row, "nameEn") || null,
+          exchangeRate,
+          isActive: activeStr === "" ? true : activeStr !== "false" && activeStr !== "0",
+        });
+      }
+      if (parsed.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على عملات" });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        for (const r of parsed) {
+          await tx.insert(currenciesTable).values({
+            companyId,
+            code: r.code,
+            nameAr: r.nameAr,
+            nameEn: r.nameEn,
+            exchangeRate: String(r.exchangeRate),
+            isActive: r.isActive,
+          });
+        }
+      });
+      res.json({ imported: parsed.length });
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === "object" &&
+        "code" in err &&
+        (err as { code?: string }).code === "23505"
+      ) {
+        res.status(409).json({ error: "يوجد رمز عملة مكرر في الملف" });
+        return;
+      }
+      req.log.error({ err }, "Failed to import currencies");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

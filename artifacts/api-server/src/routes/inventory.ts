@@ -18,6 +18,7 @@ import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { createDraftJournalEntry } from "../lib/journal-posting";
 import { computeMovement, round2, round4 } from "../lib/inventory-posting";
+import { exportWorkbook, handleXlsxUpload, parseSheet } from "../lib/excel";
 
 const router = Router();
 
@@ -266,6 +267,201 @@ router.delete(
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete inventory item");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Excel export / import -------------------------------------------------
+
+// Streams all of the company's inventory items as an .xlsx workbook (round-trips
+// the import format; quantity/value are informational extras, never imported).
+router.get(
+  "/inventory/items/export",
+  requireAuth,
+  requireCapability("inventory:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select({
+          item: inventoryItemsTable,
+          accountCode: accountsTable.code,
+        })
+        .from(inventoryItemsTable)
+        .innerJoin(
+          accountsTable,
+          and(
+            eq(accountsTable.id, inventoryItemsTable.inventoryAccountId),
+            eq(accountsTable.companyId, companyId),
+          ),
+        )
+        .where(eq(inventoryItemsTable.companyId, companyId))
+        .orderBy(asc(inventoryItemsTable.code));
+      await exportWorkbook(res, {
+        sheetName: "Inventory",
+        fileName: "inventory-items-export",
+        columns: [
+          { header: "code", value: (r) => r.item.code },
+          { header: "nameAr", value: (r) => r.item.nameAr },
+          { header: "nameEn", value: (r) => r.item.nameEn ?? "" },
+          { header: "unit", value: (r) => r.item.unit },
+          { header: "category", value: (r) => r.item.category ?? "" },
+          {
+            header: "inventoryAccountCode",
+            value: (r) => r.accountCode ?? "",
+          },
+          { header: "isActive", value: (r) => (r.item.isActive ? "true" : "false") },
+          { header: "quantityOnHand", value: (r) => round4(Number(r.item.quantityOnHand)) },
+          { header: "averageCost", value: (r) => round4(Number(r.item.averageCost)) },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export inventory items");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Bulk-creates inventory items from an .xlsx (round-trips the export format).
+// Only the item master is imported (never stock quantities/movements).
+// All-or-nothing: any invalid row aborts the whole import.
+router.post(
+  "/inventory/items/import",
+  requireAuth,
+  requireCapability("inventory:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      if (!sheet.has("code") || !sheet.has("nameAr")) {
+        res.status(400).json({
+          error:
+            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: code, nameAr, unit, inventoryAccountCode",
+        });
+        return;
+      }
+
+      // Resolve inventory accounts by code (must be leaf, same company).
+      const companyAccounts = await db
+        .select({
+          id: accountsTable.id,
+          code: accountsTable.code,
+          isGroup: accountsTable.isGroup,
+        })
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId));
+      const accByCode = new Map(companyAccounts.map((a) => [a.code, a]));
+      const existing = await db
+        .select({ code: inventoryItemsTable.code })
+        .from(inventoryItemsTable)
+        .where(eq(inventoryItemsTable.companyId, companyId));
+      const existingCodes = new Set(existing.map((e) => e.code));
+
+      type Row = {
+        code: string;
+        nameAr: string;
+        nameEn: string | null;
+        unit: string;
+        category: string | null;
+        isActive: boolean;
+        inventoryAccountId: string;
+      };
+      const parsed: Row[] = [];
+      const seen = new Set<string>();
+      for (const { rowNo, row } of sheet.rows) {
+        const code = sheet.str(row, "code");
+        const nameAr = sheet.str(row, "nameAr");
+        const unit = sheet.str(row, "unit");
+        if (!code && !nameAr && !unit) continue; // skip blank rows
+        if (!code || !nameAr) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: code و nameAr مطلوبان` });
+          return;
+        }
+        if (!unit) {
+          res.status(400).json({ error: `السطر ${rowNo}: unit مطلوب` });
+          return;
+        }
+        if (seen.has(code) || existingCodes.has(code)) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: كود الصنف ${code} مكرر` });
+          return;
+        }
+        const accountCode = sheet.str(row, "inventoryAccountCode");
+        if (!accountCode) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: inventoryAccountCode مطلوب`,
+          });
+          return;
+        }
+        const account = accByCode.get(accountCode);
+        if (!account) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: الحساب ${accountCode} غير موجود`,
+          });
+          return;
+        }
+        if (account.isGroup) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: ${accountCode} حساب رئيسي ولا يمكن الترحيل إليه`,
+          });
+          return;
+        }
+        const activeRaw = sheet.has("isActive")
+          ? sheet.str(row, "isActive").toLowerCase()
+          : "";
+        const isActive = !(
+          activeRaw === "false" ||
+          activeRaw === "0" ||
+          activeRaw === "no" ||
+          activeRaw === "غير نشط"
+        );
+        seen.add(code);
+        parsed.push({
+          code,
+          nameAr,
+          nameEn: sheet.str(row, "nameEn") || null,
+          unit,
+          category: sheet.str(row, "category") || null,
+          isActive,
+          inventoryAccountId: account.id,
+        });
+      }
+      if (parsed.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على أصناف" });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        for (const r of parsed) {
+          await tx.insert(inventoryItemsTable).values({
+            companyId,
+            code: r.code,
+            nameAr: r.nameAr,
+            nameEn: r.nameEn,
+            unit: r.unit,
+            category: r.category,
+            isActive: r.isActive,
+            inventoryAccountId: r.inventoryAccountId,
+          });
+        }
+      });
+      res.json({ imported: parsed.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to import inventory items");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

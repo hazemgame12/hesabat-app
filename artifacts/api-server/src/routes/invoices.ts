@@ -24,6 +24,7 @@ import {
   lockCompanyEntryNo,
 } from "../lib/journal-posting";
 import { computeMovement, round2, round4 } from "../lib/inventory-posting";
+import { exportWorkbook } from "../lib/excel";
 
 const router = Router();
 
@@ -319,6 +320,66 @@ async function partyNames(
   }
   return map;
 }
+
+// ---- Excel export -------------------------------------------------------
+// Streams the company's invoices (of one kind) as an .xlsx workbook. Export
+// only: invoices post to the ledger, so there is no import counterpart.
+// Registered BEFORE the GET /invoices/:id param route so Express matches it.
+router.get(
+  "/invoices/export",
+  requireAuth,
+  requireCapability("invoices:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const kind = req.query["kind"];
+    if (kind !== "sales" && kind !== "purchase") {
+      res.status(400).json({ error: "نوع الفاتورة غير صحيح" });
+      return;
+    }
+    try {
+      const rows = await db
+        .select()
+        .from(invoicesTable)
+        .where(
+          and(
+            eq(invoicesTable.companyId, companyId),
+            eq(invoicesTable.kind, kind),
+          ),
+        )
+        .orderBy(desc(invoicesTable.invoiceNo));
+      const names = await partyNames(rows, companyId);
+      await exportWorkbook(res, {
+        sheetName: kind === "sales" ? "SalesInvoices" : "PurchaseInvoices",
+        fileName: kind === "sales" ? "sales-invoices-export" : "purchase-invoices-export",
+        columns: [
+          { header: "invoiceNo", value: (r) => r.invoiceNo },
+          { header: "date", value: (r) => r.date },
+          { header: "dueDate", value: (r) => r.dueDate ?? "" },
+          {
+            header: "party",
+            value: (r) => names.get(r.customerId ?? r.supplierId ?? "") ?? "",
+          },
+          { header: "status", value: (r) => r.status },
+          { header: "currency", value: (r) => r.currency ?? "" },
+          { header: "exchangeRate", value: (r) => Number(r.exchangeRate) },
+          { header: "subtotal", value: (r) => Number(r.subtotal) },
+          { header: "discountTotal", value: (r) => Number(r.discountTotal) },
+          { header: "taxTotal", value: (r) => Number(r.taxTotal) },
+          { header: "total", value: (r) => Number(r.total) },
+          { header: "amountPaid", value: (r) => Number(r.amountPaid) },
+          {
+            header: "balance",
+            value: (r) => round2(Number(r.total) - Number(r.amountPaid)),
+          },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export invoices");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
 
 // ---- Get one with lines ----
 router.get(

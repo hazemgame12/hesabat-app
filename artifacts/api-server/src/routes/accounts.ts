@@ -5,6 +5,16 @@ import { CreateAccountBody, UpdateAccountBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { seedDefaultAccounts } from "../lib/seed-accounts";
+import { exportWorkbook, handleXlsxUpload, parseSheet } from "../lib/excel";
+
+const ACCOUNT_TYPES = [
+  "asset",
+  "liability",
+  "equity",
+  "revenue",
+  "expense",
+] as const;
+type AccountTypeEnum = (typeof ACCOUNT_TYPES)[number];
 
 const router = Router();
 
@@ -217,5 +227,231 @@ router.delete("/accounts/:id", requireAuth, requireCapability("accounts:delete")
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });
+
+// ---- Excel export / import -------------------------------------------------
+
+// Streams all of the company's accounts as an .xlsx workbook (round-trips the
+// import format; parentCode resolves the parent's code, blank for roots).
+router.get(
+  "/accounts/export",
+  requireAuth,
+  requireCapability("accounts:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select()
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId))
+        .orderBy(asc(accountsTable.code));
+      const idToCode = new Map(rows.map((r) => [r.id, r.code]));
+      await exportWorkbook(res, {
+        sheetName: "Accounts",
+        fileName: "accounts-export",
+        columns: [
+          { header: "code", value: (r) => r.code },
+          { header: "nameAr", value: (r) => r.nameAr },
+          { header: "nameEn", value: (r) => r.nameEn ?? "" },
+          { header: "type", value: (r) => r.type },
+          { header: "isGroup", value: (r) => (r.isGroup ? "true" : "false") },
+          {
+            header: "parentCode",
+            value: (r) => (r.parentId ? idToCode.get(r.parentId) ?? "" : ""),
+          },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export accounts");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Bulk-creates accounts from an .xlsx (round-trips the export format). Rows are
+// topologically ordered so a parent (existing or earlier in the file) is always
+// inserted before its children. All-or-nothing: any invalid row aborts.
+router.post(
+  "/accounts/import",
+  requireAuth,
+  requireCapability("accounts:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      if (!sheet.has("code") || !sheet.has("nameAr") || !sheet.has("type")) {
+        res.status(400).json({
+          error: "صيغة الملف غير صحيحة. الأعمدة المطلوبة: code, nameAr, type",
+        });
+        return;
+      }
+
+      // Existing accounts of this company (for duplicate + parent resolution).
+      const existingAccounts = await db
+        .select({
+          id: accountsTable.id,
+          code: accountsTable.code,
+          isGroup: accountsTable.isGroup,
+        })
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId));
+      const existingByCode = new Map(existingAccounts.map((a) => [a.code, a]));
+
+      const truthy = (v: string) =>
+        ["true", "1", "yes", "y", "نعم"].includes(v.trim().toLowerCase());
+
+      type Row = {
+        rowNo: number;
+        code: string;
+        nameAr: string;
+        nameEn: string | null;
+        type: AccountTypeEnum;
+        isGroup: boolean;
+        parentCode: string | null;
+      };
+      const parsed: Row[] = [];
+      const byCode = new Map<string, Row>();
+      for (const { rowNo, row } of sheet.rows) {
+        const code = sheet.str(row, "code");
+        const nameAr = sheet.str(row, "nameAr");
+        const typeRaw = sheet.str(row, "type");
+        if (!code && !nameAr && !typeRaw) continue; // skip blank rows
+        if (!code || !nameAr) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: code و nameAr مطلوبان` });
+          return;
+        }
+        if (!ACCOUNT_TYPES.includes(typeRaw as AccountTypeEnum)) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: نوع الحساب ${typeRaw} غير صحيح`,
+          });
+          return;
+        }
+        if (byCode.has(code) || existingByCode.has(code)) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: رمز الحساب ${code} مكرر` });
+          return;
+        }
+        const parentCode = sheet.str(row, "parentCode") || null;
+        const r: Row = {
+          rowNo,
+          code,
+          nameAr,
+          nameEn: sheet.str(row, "nameEn") || null,
+          type: typeRaw as AccountTypeEnum,
+          isGroup: sheet.has("isGroup") ? truthy(sheet.str(row, "isGroup")) : false,
+          parentCode,
+        };
+        parsed.push(r);
+        byCode.set(code, r);
+      }
+      if (parsed.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على حسابات" });
+        return;
+      }
+
+      // Validate parent references (must exist in file or DB, and be a group).
+      for (const r of parsed) {
+        if (!r.parentCode) continue;
+        if (r.parentCode === r.code) {
+          res.status(400).json({
+            error: `السطر ${r.rowNo}: لا يمكن أن يكون الحساب رئيساً لنفسه`,
+          });
+          return;
+        }
+        const fileParent = byCode.get(r.parentCode);
+        const dbParent = existingByCode.get(r.parentCode);
+        if (!fileParent && !dbParent) {
+          res.status(400).json({
+            error: `السطر ${r.rowNo}: الحساب الرئيسي ${r.parentCode} غير موجود`,
+          });
+          return;
+        }
+        const parentIsGroup = fileParent ? fileParent.isGroup : dbParent!.isGroup;
+        if (!parentIsGroup) {
+          res.status(400).json({
+            error: `السطر ${r.rowNo}: ${r.parentCode} ليس حسابًا تجميعيًا`,
+          });
+          return;
+        }
+      }
+
+      // Topological depth so parents always precede children at insert time.
+      const depthCache = new Map<string, number>();
+      const depthOf = (code: string, stack: Set<string>): number => {
+        const cached = depthCache.get(code);
+        if (cached !== undefined) return cached;
+        const r = byCode.get(code);
+        // Not in the file → an existing DB account, treat as a root for ordering.
+        if (!r || !r.parentCode || !byCode.has(r.parentCode)) {
+          depthCache.set(code, 0);
+          return 0;
+        }
+        if (stack.has(code)) {
+          throw new Error(`CYCLE:${r.rowNo}`);
+        }
+        stack.add(code);
+        const d = 1 + depthOf(r.parentCode, stack);
+        stack.delete(code);
+        depthCache.set(code, d);
+        return d;
+      };
+      try {
+        for (const r of parsed) depthOf(r.code, new Set());
+      } catch (e) {
+        if (e instanceof Error && e.message.startsWith("CYCLE:")) {
+          const rowNo = e.message.slice("CYCLE:".length);
+          res.status(400).json({
+            error: `السطر ${rowNo}: يوجد تسلسل دائري في الحسابات الرئيسية`,
+          });
+          return;
+        }
+        throw e;
+      }
+      const ordered = [...parsed].sort(
+        (a, b) => depthCache.get(a.code)! - depthCache.get(b.code)!,
+      );
+
+      await db.transaction(async (tx) => {
+        const codeToId = new Map<string, string>(
+          existingAccounts.map((a) => [a.code, a.id]),
+        );
+        for (const r of ordered) {
+          const parentId = r.parentCode
+            ? codeToId.get(r.parentCode) ?? null
+            : null;
+          const [account] = await tx
+            .insert(accountsTable)
+            .values({
+              companyId,
+              code: r.code,
+              nameAr: r.nameAr,
+              nameEn: r.nameEn,
+              type: r.type,
+              parentId,
+              isGroup: r.isGroup,
+            })
+            .returning();
+          codeToId.set(r.code, account!.id);
+        }
+      });
+      res.json({ imported: parsed.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to import accounts");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
 
 export default router;

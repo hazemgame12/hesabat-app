@@ -17,6 +17,7 @@ import {
   isUniqueViolation,
   isForeignKeyViolation,
 } from "../lib/party-ledger";
+import { exportWorkbook, handleXlsxUpload, parseSheet } from "../lib/excel";
 
 const router = Router();
 
@@ -363,6 +364,236 @@ router.delete(
         return;
       }
       req.log.error({ err }, "Failed to delete supplier");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Excel export / import -------------------------------------------------
+
+router.get(
+  "/suppliers/export",
+  requireAuth,
+  requireCapability("suppliers:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select({
+          supplier: suppliersTable,
+          accountCode: accountsTable.code,
+          controlCode: sql<string>`(
+            select c.code from ${accountsTable} c
+            where c.id = ${suppliersTable.controlAccountId}
+          )`,
+        })
+        .from(suppliersTable)
+        .innerJoin(
+          accountsTable,
+          and(
+            eq(accountsTable.id, suppliersTable.accountId),
+            eq(accountsTable.companyId, companyId),
+          ),
+        )
+        .where(eq(suppliersTable.companyId, companyId))
+        .orderBy(asc(suppliersTable.code));
+      const balances = await postedBalancesByAccount(companyId);
+      await exportWorkbook(res, {
+        sheetName: "Suppliers",
+        fileName: "suppliers-export",
+        columns: [
+          { header: "code", value: (r) => r.supplier.code },
+          { header: "nameAr", value: (r) => r.supplier.nameAr },
+          { header: "nameEn", value: (r) => r.supplier.nameEn ?? "" },
+          { header: "type", value: (r) => r.supplier.type },
+          { header: "taxNumber", value: (r) => r.supplier.taxNumber ?? "" },
+          {
+            header: "commercialRegistration",
+            value: (r) => r.supplier.commercialRegistration ?? "",
+          },
+          { header: "phone", value: (r) => r.supplier.phone ?? "" },
+          { header: "email", value: (r) => r.supplier.email ?? "" },
+          { header: "address", value: (r) => r.supplier.address ?? "" },
+          { header: "currency", value: (r) => r.supplier.currency ?? "" },
+          {
+            header: "creditPeriodDays",
+            value: (r) => r.supplier.creditPeriodDays ?? "",
+          },
+          { header: "controlAccountCode", value: (r) => r.controlCode ?? "" },
+          {
+            header: "balance",
+            value: (r) => {
+              const b = balances.get(r.supplier.accountId);
+              return round2(b ? b.credit - b.debit : 0);
+            },
+          },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export suppliers");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+router.post(
+  "/suppliers/import",
+  requireAuth,
+  requireCapability("suppliers:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      if (!sheet.has("code") || !sheet.has("nameAr")) {
+        res.status(400).json({
+          error: "صيغة الملف غير صحيحة. الأعمدة المطلوبة: code, nameAr, controlAccountCode",
+        });
+        return;
+      }
+
+      const groupAccounts = await db
+        .select({
+          id: accountsTable.id,
+          code: accountsTable.code,
+          type: accountsTable.type,
+          isGroup: accountsTable.isGroup,
+        })
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId));
+      const accByCode = new Map(groupAccounts.map((a) => [a.code, a]));
+      const existing = await db
+        .select({ code: suppliersTable.code })
+        .from(suppliersTable)
+        .where(eq(suppliersTable.companyId, companyId));
+      const existingCodes = new Set(existing.map((e) => e.code));
+
+      type Row = {
+        code: string;
+        nameAr: string;
+        nameEn: string | null;
+        type: "individual" | "company";
+        taxNumber: string | null;
+        commercialRegistration: string | null;
+        phone: string | null;
+        email: string | null;
+        address: string | null;
+        currency: string | null;
+        creditPeriodDays: number | null;
+        control: { id: string; code: string; type: string };
+      };
+      const parsed: Row[] = [];
+      const seen = new Set<string>();
+      for (const { rowNo, row } of sheet.rows) {
+        const code = sheet.str(row, "code");
+        const nameAr = sheet.str(row, "nameAr");
+        if (!code && !nameAr) continue;
+        if (!code || !nameAr) {
+          res.status(400).json({ error: `السطر ${rowNo}: code و nameAr مطلوبان` });
+          return;
+        }
+        if (seen.has(code) || existingCodes.has(code)) {
+          res.status(400).json({ error: `السطر ${rowNo}: كود المورد ${code} مكرر` });
+          return;
+        }
+        const controlCode = sheet.str(row, "controlAccountCode");
+        if (!controlCode) {
+          res.status(400).json({ error: `السطر ${rowNo}: controlAccountCode مطلوب` });
+          return;
+        }
+        const control = accByCode.get(controlCode);
+        if (!control) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: الحساب الرئيسي ${controlCode} غير موجود`,
+          });
+          return;
+        }
+        if (!control.isGroup) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: ${controlCode} ليس حسابًا تجميعيًا`,
+          });
+          return;
+        }
+        const typeRaw = sheet.str(row, "type");
+        const creditPeriod = sheet.has("creditPeriodDays")
+          ? sheet.str(row, "creditPeriodDays")
+          : "";
+        seen.add(code);
+        parsed.push({
+          code,
+          nameAr,
+          nameEn: sheet.str(row, "nameEn") || null,
+          type: typeRaw === "individual" ? "individual" : "company",
+          taxNumber: sheet.str(row, "taxNumber") || null,
+          commercialRegistration: sheet.str(row, "commercialRegistration") || null,
+          phone: sheet.str(row, "phone") || null,
+          email: sheet.str(row, "email") || null,
+          address: sheet.str(row, "address") || null,
+          currency: sheet.str(row, "currency") || null,
+          creditPeriodDays: creditPeriod ? sheet.num(row, "creditPeriodDays") : null,
+          control: { id: control.id, code: control.code, type: control.type },
+        });
+      }
+      if (parsed.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على موردين" });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        for (const r of parsed) {
+          const childCode = await generateChildAccountCode(
+            tx,
+            companyId,
+            r.control.id,
+            r.control.code,
+          );
+          const [account] = await tx
+            .insert(accountsTable)
+            .values({
+              companyId,
+              code: childCode,
+              nameAr: r.nameAr,
+              nameEn: r.nameEn,
+              type: r.control.type,
+              parentId: r.control.id,
+              isGroup: false,
+            })
+            .returning();
+          await tx.insert(suppliersTable).values({
+            companyId,
+            code: r.code,
+            nameAr: r.nameAr,
+            nameEn: r.nameEn,
+            type: r.type,
+            taxNumber: r.taxNumber,
+            commercialRegistration: r.commercialRegistration,
+            phone: r.phone,
+            email: r.email,
+            address: r.address,
+            currency: r.currency,
+            creditPeriodDays: r.creditPeriodDays,
+            controlAccountId: r.control.id,
+            accountId: account!.id,
+            isActive: true,
+          });
+        }
+      });
+      res.json({ imported: parsed.length });
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        res.status(409).json({ error: "يوجد كود مورد مكرر في الملف" });
+        return;
+      }
+      req.log.error({ err }, "Failed to import suppliers");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

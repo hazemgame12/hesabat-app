@@ -139,6 +139,42 @@ async function movementSums(
 async function serializeAccounts(rows: BankAccount[], companyId: string) {
   if (rows.length === 0) return [];
   const sums = await movementSums(companyId);
+  // Latest reconciliation per bank account → drives the per-account book vs
+  // statement summary in the accounts list.
+  const bankAcctIds = rows.map((r) => r.id);
+  const recRows = await db
+    .select({
+      bankAccountId: bankReconciliationsTable.bankAccountId,
+      statementBalance: bankReconciliationsTable.statementBalance,
+      difference: bankReconciliationsTable.difference,
+      periodEnd: bankReconciliationsTable.periodEnd,
+      status: bankReconciliationsTable.status,
+      createdAt: bankReconciliationsTable.createdAt,
+    })
+    .from(bankReconciliationsTable)
+    .where(
+      and(
+        eq(bankReconciliationsTable.companyId, companyId),
+        inArray(bankReconciliationsTable.bankAccountId, bankAcctIds),
+      ),
+    )
+    .orderBy(
+      desc(bankReconciliationsTable.periodEnd),
+      desc(bankReconciliationsTable.createdAt),
+    );
+  const latestRec = new Map<
+    string,
+    { statementBalance: number; difference: number; periodEnd: string; status: string }
+  >();
+  for (const rc of recRows) {
+    if (latestRec.has(rc.bankAccountId)) continue;
+    latestRec.set(rc.bankAccountId, {
+      statementBalance: Number(rc.statementBalance),
+      difference: Number(rc.difference),
+      periodEnd: rc.periodEnd,
+      status: rc.status,
+    });
+  }
   const chartIds = [...new Set(rows.map((r) => r.accountId))];
   const chartMap = new Map<string, { code: string; name: string }>();
   if (chartIds.length) {
@@ -172,6 +208,8 @@ async function serializeAccounts(rows: BankAccount[], companyId: string) {
     accountName: chartMap.get(r.accountId)?.name ?? null,
     isActive: r.isActive,
     currentBalance: round2(Number(r.openingBalance) + (sums.get(r.id) ?? 0)),
+    latestStatementBalance: latestRec.get(r.id)?.statementBalance ?? null,
+    latestDifference: latestRec.get(r.id)?.difference ?? null,
     createdAt: r.createdAt.toISOString(),
   }));
 }
@@ -356,16 +394,31 @@ async function buildReconciliationDetail(
     )
     .orderBy(bankMovementsTable.date);
 
-  const outstanding = movementRows.filter((m) => !m.isCleared);
+  // Outstanding items must cover ALL uncleared movements up to periodEnd (not
+  // just in-period), including ones brought forward from before periodStart that
+  // still haven't cleared. This keeps the report identity exact:
+  // adjustedStatementBalance − fullBookBalance == statement − clearedBookBalance,
+  // because the net of these outstanding items == fullBookBalance −
+  // clearedBookBalance (both computed up to periodEnd).
+  const outstanding = await db
+    .select()
+    .from(bankMovementsTable)
+    .where(
+      and(
+        eq(bankMovementsTable.companyId, companyId),
+        eq(bankMovementsTable.bankAccountId, rec.bankAccountId),
+        lte(bankMovementsTable.date, rec.periodEnd),
+        eq(bankMovementsTable.isCleared, false),
+      ),
+    )
+    .orderBy(bankMovementsTable.date);
   const opening = Number(bank?.openingBalance ?? 0);
   // Cleared book balance: opening + cleared movements up to period end.
-  const clearedSums = await movementSums(companyId, {
-    bankAccountId: rec.bankAccountId,
-    upToDate: rec.periodEnd,
-    clearedOnly: true,
-  });
-  const clearedBookBalance = round2(
-    opening + (clearedSums.get(rec.bankAccountId) ?? 0),
+  const clearedBookBalance = await clearedBookBalanceUpTo(
+    companyId,
+    rec.bankAccountId,
+    opening,
+    rec.periodEnd,
   );
   const reconciledDifference = round2(
     Number(rec.statementBalance) - clearedBookBalance,
@@ -381,6 +434,56 @@ async function buildReconciliationDetail(
   };
 }
 
+// Builds a formatted reconciliation report: starts from the bank statement
+// balance, adds outstanding (uncleared) deposits, subtracts outstanding
+// withdrawals/checks to reach an adjusted statement balance, and compares it to
+// the cleared book balance. A reconciliation "balances" when the difference is 0.
+async function buildReconciliationReport(
+  reconciliationId: string,
+  companyId: string,
+) {
+  const detail = await buildReconciliationDetail(reconciliationId, companyId);
+  if (!detail) return null;
+  const rec = detail.reconciliation;
+  const outstandingDeposits = detail.outstanding.filter(
+    (m) => m.direction === "in",
+  );
+  const outstandingWithdrawals = detail.outstanding.filter(
+    (m) => m.direction === "out",
+  );
+  const depositsTotal = round2(
+    outstandingDeposits.reduce((s, m) => s + m.amount, 0),
+  );
+  const withdrawalsTotal = round2(
+    outstandingWithdrawals.reduce((s, m) => s + m.amount, 0),
+  );
+  const adjustedStatementBalance = round2(
+    rec.statementBalance + depositsTotal - withdrawalsTotal,
+  );
+  const reconciledLines = detail.statementLines.filter(
+    (l) => l.matchedMovementId,
+  );
+  const unreconciledStatementLines = detail.statementLines.filter(
+    (l) => !l.matchedMovementId,
+  );
+  return {
+    reconciliation: rec,
+    statementBalance: rec.statementBalance,
+    bookBalance: rec.bookBalance,
+    clearedBookBalance: detail.clearedBookBalance,
+    outstandingDeposits,
+    depositsTotal,
+    outstandingWithdrawals,
+    withdrawalsTotal,
+    adjustedStatementBalance,
+    difference: detail.reconciledDifference,
+    isBalanced: Math.abs(detail.reconciledDifference) < 0.005,
+    reconciledCount: reconciledLines.length,
+    unreconciledCount: unreconciledStatementLines.length,
+    unreconciledStatementLines,
+  };
+}
+
 // Computes the book balance (opening + posted movements up to a date) for an
 // account, in the account's own currency.
 async function bookBalanceUpTo(
@@ -390,6 +493,25 @@ async function bookBalanceUpTo(
   upToDate: string,
 ): Promise<number> {
   const sums = await movementSums(companyId, { bankAccountId, upToDate });
+  return round2(opening + (sums.get(bankAccountId) ?? 0));
+}
+
+// Cleared book balance = opening + cleared (reconciled) movements up to a date.
+// This is the canonical basis for a reconciliation's `difference`
+// (statementBalance − clearedBookBalance) so that the persisted value matches
+// what buildReconciliationDetail/report compute live, and goes to zero as the
+// user clears items. Keep create/complete/match in sync via this helper.
+async function clearedBookBalanceUpTo(
+  companyId: string,
+  bankAccountId: string,
+  opening: number,
+  upToDate: string,
+): Promise<number> {
+  const sums = await movementSums(companyId, {
+    bankAccountId,
+    upToDate,
+    clearedOnly: true,
+  });
   return round2(opening + (sums.get(bankAccountId) ?? 0));
 }
 
@@ -982,7 +1104,17 @@ router.post(
         Number(bank.openingBalance),
         d.periodEnd,
       );
-      const difference = round2(d.statementBalance - bookBalance);
+      // Difference is measured against the CLEARED book balance (canonical),
+      // so it matches buildReconciliationDetail and trends to zero as the user
+      // clears items. At create nothing is cleared yet, so this is statement −
+      // opening (full draft gap).
+      const clearedBookBalance = await clearedBookBalanceUpTo(
+        companyId,
+        bank.id,
+        Number(bank.openingBalance),
+        d.periodEnd,
+      );
+      const difference = round2(d.statementBalance - clearedBookBalance);
       const [created] = await db
         .insert(bankReconciliationsTable)
         .values({
@@ -1002,6 +1134,112 @@ router.post(
       res.status(201).json(detail);
     } catch (err) {
       req.log.error({ err }, "Failed to create reconciliation");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Formatted reconciliation report (statement → adjusted → book difference).
+router.get(
+  "/bank/reconciliations/:id/report",
+  requireAuth,
+  requireCapability("bank:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    try {
+      const report = await buildReconciliationReport(id, companyId);
+      if (!report) {
+        res.status(404).json({ error: "التسوية غير موجودة" });
+        return;
+      }
+      res.json(report);
+    } catch (err) {
+      req.log.error({ err }, "Failed to build reconciliation report");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Reconciliation report as a formatted .xlsx (raw, no codegen).
+router.get(
+  "/bank/reconciliations/:id/report/export",
+  requireAuth,
+  requireCapability("bank:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    try {
+      const report = await buildReconciliationReport(id, companyId);
+      if (!report) {
+        res.status(404).json({ error: "التسوية غير موجودة" });
+        return;
+      }
+      const rec = report.reconciliation;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Reconciliation");
+      ws.views = [{ rightToLeft: true }];
+      const titleRow = ws.addRow(["تقرير التسوية البنكية"]);
+      titleRow.font = { bold: true, size: 14 };
+      ws.addRow([
+        "الحساب البنكي",
+        rec.bankAccountName ?? "",
+      ]);
+      ws.addRow(["الفترة", `${rec.periodStart} — ${rec.periodEnd}`]);
+      ws.addRow([
+        "الحالة",
+        rec.status === "completed" ? "مكتملة" : "مسودة",
+      ]);
+      ws.addRow([]);
+      const money = (n: number) => round2(n);
+      ws.addRow(["الرصيد حسب كشف البنك", money(report.statementBalance)]);
+      ws.addRow([
+        `يضاف: إيداعات معلقة (${report.outstandingDeposits.length})`,
+        money(report.depositsTotal),
+      ]);
+      for (const m of report.outstandingDeposits) {
+        ws.addRow([`   ${m.date ?? ""} ${m.description ?? ""}`, money(m.amount)]);
+      }
+      ws.addRow([
+        `يخصم: سحوبات/شيكات معلقة (${report.outstandingWithdrawals.length})`,
+        money(report.withdrawalsTotal),
+      ]);
+      for (const m of report.outstandingWithdrawals) {
+        ws.addRow([`   ${m.date ?? ""} ${m.description ?? ""}`, money(m.amount)]);
+      }
+      const adjRow = ws.addRow([
+        "الرصيد المعدّل حسب الكشف",
+        money(report.adjustedStatementBalance),
+      ]);
+      adjRow.font = { bold: true };
+      ws.addRow([]);
+      const bookRow = ws.addRow([
+        "الرصيد حسب الدفاتر",
+        money(report.bookBalance),
+      ]);
+      bookRow.font = { bold: true };
+      const diffRow = ws.addRow(["الفرق", money(report.difference)]);
+      diffRow.font = { bold: true };
+      ws.addRow([
+        "الحالة",
+        report.isBalanced ? "متطابقة ✓" : "غير متطابقة",
+      ]);
+      ws.getColumn(1).width = 48;
+      ws.getColumn(2).width = 20;
+
+      const fileName = `reconciliation-report-${rec.periodEnd}`;
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${fileName}.xlsx"`,
+      );
+      await wb.xlsx.write(res);
+      res.end();
+    } catch (err) {
+      req.log.error({ err }, "Failed to export reconciliation report");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
@@ -1327,6 +1565,46 @@ router.post(
         res.status(400).json({ error: "حركة غير صالحة للمطابقة" });
         return;
       }
+      // Clearing/un-clearing movements changes the cleared book balance, so the
+      // persisted difference must be refreshed to stay consistent with the
+      // detail/report and the account-list `latestDifference` column.
+      const [bankAcct] = await db
+        .select({ openingBalance: bankAccountsTable.openingBalance })
+        .from(bankAccountsTable)
+        .where(
+          and(
+            eq(bankAccountsTable.id, rec.bankAccountId),
+            eq(bankAccountsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      const opening = Number(bankAcct?.openingBalance ?? 0);
+      const bookBalance = await bookBalanceUpTo(
+        companyId,
+        rec.bankAccountId,
+        opening,
+        rec.periodEnd,
+      );
+      const clearedBookBalance = await clearedBookBalanceUpTo(
+        companyId,
+        rec.bankAccountId,
+        opening,
+        rec.periodEnd,
+      );
+      await db
+        .update(bankReconciliationsTable)
+        .set({
+          bookBalance: String(bookBalance),
+          difference: String(
+            round2(Number(rec.statementBalance) - clearedBookBalance),
+          ),
+        })
+        .where(
+          and(
+            eq(bankReconciliationsTable.id, id),
+            eq(bankReconciliationsTable.companyId, companyId),
+          ),
+        );
       const detail = await buildReconciliationDetail(id, companyId);
       res.json(detail);
     } catch (err) {
@@ -1447,6 +1725,35 @@ router.post(
           });
         }
       });
+      // Adjusting entries are cleared, so they shift the cleared book balance;
+      // refresh the persisted bookBalance/difference to stay canonical.
+      const opening = Number(bank.openingBalance);
+      const bookBalance = await bookBalanceUpTo(
+        companyId,
+        bank.id,
+        opening,
+        rec.periodEnd,
+      );
+      const clearedBookBalance = await clearedBookBalanceUpTo(
+        companyId,
+        bank.id,
+        opening,
+        rec.periodEnd,
+      );
+      await db
+        .update(bankReconciliationsTable)
+        .set({
+          bookBalance: String(bookBalance),
+          difference: String(
+            round2(Number(rec.statementBalance) - clearedBookBalance),
+          ),
+        })
+        .where(
+          and(
+            eq(bankReconciliationsTable.id, id),
+            eq(bankReconciliationsTable.companyId, companyId),
+          ),
+        );
       const detail = await buildReconciliationDetail(id, companyId);
       res.status(201).json(detail);
     } catch (err) {
@@ -1499,7 +1806,15 @@ router.post(
         Number(bank?.openingBalance ?? 0),
         rec.periodEnd,
       );
-      const difference = round2(Number(rec.statementBalance) - bookBalance);
+      const clearedBookBalance = await clearedBookBalanceUpTo(
+        companyId,
+        rec.bankAccountId,
+        Number(bank?.openingBalance ?? 0),
+        rec.periodEnd,
+      );
+      const difference = round2(
+        Number(rec.statementBalance) - clearedBookBalance,
+      );
       await db
         .update(bankReconciliationsTable)
         .set({

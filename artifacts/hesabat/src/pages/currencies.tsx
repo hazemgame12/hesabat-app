@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 
 const currencySchema = z.object({
   code: z.string().min(1, "codeRequired"),
@@ -215,6 +216,12 @@ export function Currencies() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ExcelToolbar
+            exportPath="/api/currencies/export"
+            importPath="/api/currencies/import"
+            canImport={canCreate}
+            onImported={invalidate}
+          />
           {canUpdate && currencies.length > 0 && (
             <button
               onClick={handleRefreshRates}

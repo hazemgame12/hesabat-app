@@ -41,6 +41,7 @@ import {
 import { InvoiceEditor } from "./InvoiceEditor";
 import { PaymentModal } from "./PaymentModal";
 import { InvoiceReports } from "./InvoiceReports";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 
 type Kind = "sales" | "purchase";
 type Tab = "invoices" | "payments" | "reports";
@@ -231,6 +232,11 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {tab === "invoices" && (
+            <ExcelToolbar
+              exportPath={`/api/invoices/export?kind=${kind}`}
+            />
+          )}
           {tab === "payments" && canPay && (
             <button
               onClick={() => setPaymentOpen(true)}

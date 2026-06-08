@@ -41,6 +41,7 @@ export * from './bankMovementType';
 export * from './bankReconciliation';
 export * from './bankReconciliationDetail';
 export * from './bankReconciliationInput';
+export * from './bankReconciliationReport';
 export * from './bankReconciliationStatus';
 export * from './bankStatementLine';
 export * from './bankStatementLineDirection';

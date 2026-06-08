@@ -14,7 +14,11 @@
     "error": "خطأ",
     "you": "أنت",
     "all": "الكل",
-    "view": "عرض"
+    "view": "عرض",
+    "exportExcel": "تصدير Excel",
+    "importExcel": "استيراد Excel",
+    "importSuccess": "تم استيراد {{count}} سجل",
+    "importError": "تعذّر استيراد الملف"
   },
   "lang": {
     "switch": "اللغة",
@@ -1082,6 +1086,9 @@
       "number": "رقم الحساب",
       "currency": "العملة",
       "balance": "الرصيد",
+      "statementBalance": "رصيد كشف الحساب",
+      "difference": "الفرق",
+      "balanced": "متوازن",
       "status": "الحالة"
     },
     "active": "نشط",
@@ -1158,6 +1165,7 @@
       "adjustmentDesc": "البيان",
       "saveAdjustment": "حفظ القيد",
       "back": "رجوع للقائمة",
+      "exportReport": "تصدير التقرير",
       "noStatementLines": "لم يتم رفع كشف حساب بعد.",
       "balanced": "متوازنة ✓",
       "selectAccountFirst": "اختر الحساب لإنشاء تسوية",

@@ -15,6 +15,14 @@ import {
   lockCompanyRow,
   companyHasTaxesTx,
 } from "../lib/seed-taxes";
+import {
+  exportWorkbook,
+  handleXlsxUpload,
+  parseSheet,
+} from "../lib/excel";
+
+const TAX_KINDS = ["vat", "wht", "income", "payroll", "zakat"] as const;
+type TaxKind = (typeof TAX_KINDS)[number];
 
 const router = Router();
 
@@ -211,5 +219,175 @@ router.delete("/taxes/:id", requireAuth, requireCapability("taxes:delete"), asyn
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });
+
+// ---- Excel export / import -------------------------------------------------
+
+// Streams all of the company's taxes as an .xlsx workbook (round-trips the
+// import format; linkedAccountCode references the chart of accounts by code).
+router.get(
+  "/taxes/export",
+  requireAuth,
+  requireCapability("taxes:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select({
+          tax: taxesTable,
+          linkedAccountCode: accountsTable.code,
+        })
+        .from(taxesTable)
+        .leftJoin(
+          accountsTable,
+          and(
+            eq(accountsTable.id, taxesTable.linkedAccountId),
+            eq(accountsTable.companyId, companyId),
+          ),
+        )
+        .where(eq(taxesTable.companyId, companyId))
+        .orderBy(asc(taxesTable.createdAt));
+      await exportWorkbook(res, {
+        sheetName: "Taxes",
+        fileName: "taxes-export",
+        columns: [
+          { header: "nameAr", value: (r) => r.tax.nameAr },
+          { header: "nameEn", value: (r) => r.tax.nameEn ?? "" },
+          { header: "kind", value: (r) => r.tax.kind },
+          { header: "rate", value: (r) => Number(r.tax.rate) },
+          {
+            header: "serviceNature",
+            value: (r) => r.tax.serviceNature ?? "",
+          },
+          {
+            header: "linkedAccountCode",
+            value: (r) => r.linkedAccountCode ?? "",
+          },
+          { header: "isActive", value: (r) => (r.tax.isActive ? "true" : "false") },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export taxes");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Bulk-creates taxes from an .xlsx (round-trips the export format). All-or-
+// nothing: any invalid row aborts the whole import.
+router.post(
+  "/taxes/import",
+  requireAuth,
+  requireCapability("taxes:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      if (!sheet.has("nameAr") || !sheet.has("kind") || !sheet.has("rate")) {
+        res.status(400).json({
+          error: "صيغة الملف غير صحيحة. الأعمدة المطلوبة: nameAr, kind, rate",
+        });
+        return;
+      }
+
+      // Resolve linked accounts by code (scoped to this company).
+      const accounts = await db
+        .select({ id: accountsTable.id, code: accountsTable.code })
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId));
+      const accByCode = new Map(accounts.map((a) => [a.code, a.id]));
+
+      type Row = {
+        nameAr: string;
+        nameEn: string | null;
+        kind: TaxKind;
+        rate: number;
+        serviceNature: string | null;
+        linkedAccountId: string | null;
+        isActive: boolean;
+      };
+      const parsed: Row[] = [];
+      for (const { rowNo, row } of sheet.rows) {
+        const nameAr = sheet.str(row, "nameAr");
+        const kindRaw = sheet.str(row, "kind");
+        const rateRaw = sheet.str(row, "rate");
+        if (!nameAr && !kindRaw && !rateRaw) continue; // skip blank rows
+        if (!nameAr) {
+          res.status(400).json({ error: `السطر ${rowNo}: nameAr مطلوب` });
+          return;
+        }
+        if (!TAX_KINDS.includes(kindRaw as TaxKind)) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: نوع الضريبة ${kindRaw} غير صحيح`,
+          });
+          return;
+        }
+        if (!rateRaw) {
+          res.status(400).json({ error: `السطر ${rowNo}: rate مطلوب` });
+          return;
+        }
+        const rate = sheet.num(row, "rate");
+        if (!Number.isFinite(rate) || rate < 0) {
+          res.status(400).json({ error: `السطر ${rowNo}: rate غير صحيح` });
+          return;
+        }
+        const linkedCode = sheet.str(row, "linkedAccountCode");
+        let linkedAccountId: string | null = null;
+        if (linkedCode) {
+          const accId = accByCode.get(linkedCode);
+          if (!accId) {
+            res.status(400).json({
+              error: `السطر ${rowNo}: الحساب المرتبط ${linkedCode} غير موجود`,
+            });
+            return;
+          }
+          linkedAccountId = accId;
+        }
+        const activeStr = sheet.str(row, "isActive").toLowerCase();
+        parsed.push({
+          nameAr,
+          nameEn: sheet.str(row, "nameEn") || null,
+          kind: kindRaw as TaxKind,
+          rate,
+          serviceNature: sheet.str(row, "serviceNature") || null,
+          linkedAccountId,
+          isActive: activeStr === "" ? true : activeStr !== "false" && activeStr !== "0",
+        });
+      }
+      if (parsed.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على ضرائب" });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        for (const r of parsed) {
+          await tx.insert(taxesTable).values({
+            companyId,
+            nameAr: r.nameAr,
+            nameEn: r.nameEn,
+            kind: r.kind,
+            rate: String(r.rate),
+            serviceNature: r.serviceNature,
+            linkedAccountId: r.linkedAccountId,
+            isActive: r.isActive,
+          });
+        }
+      });
+      res.json({ imported: parsed.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to import taxes");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
 
 export default router;

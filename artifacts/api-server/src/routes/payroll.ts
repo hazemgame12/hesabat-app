@@ -28,6 +28,11 @@ import {
   createDraftJournalEntry,
   lockCompanyEntryNo,
 } from "../lib/journal-posting";
+import {
+  exportWorkbook,
+  handleXlsxUpload,
+  parseSheet,
+} from "../lib/excel";
 
 const router = Router();
 
@@ -172,6 +177,166 @@ router.get(
       res.json(rows.map((r) => toEmployee(r, compMap.get(r.id) ?? [])));
     } catch (err) {
       req.log.error({ err }, "Failed to list employees");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Excel export / import (employees) ------------------------------------
+
+// Streams all of the company's employees as an .xlsx workbook (round-trips the
+// import format; pay components are managed separately and not included here).
+router.get(
+  "/employees/export",
+  requireAuth,
+  requireCapability("payroll:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select()
+        .from(employeesTable)
+        .where(eq(employeesTable.companyId, companyId))
+        .orderBy(asc(employeesTable.code));
+      await exportWorkbook(res, {
+        sheetName: "Employees",
+        fileName: "employees-export",
+        columns: [
+          { header: "code", value: (r) => r.code },
+          { header: "nameAr", value: (r) => r.nameAr },
+          { header: "nameEn", value: (r) => r.nameEn ?? "" },
+          { header: "jobTitle", value: (r) => r.jobTitle ?? "" },
+          { header: "hireDate", value: (r) => r.hireDate },
+          { header: "status", value: (r) => r.status },
+          { header: "baseSalary", value: (r) => Number(r.baseSalary) },
+          { header: "notes", value: (r) => r.notes ?? "" },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export employees");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Bulk-creates employees from an .xlsx (round-trips the export format).
+// All-or-nothing: any invalid/duplicate row aborts the whole import.
+router.post(
+  "/employees/import",
+  requireAuth,
+  requireCapability("payroll:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      if (!sheet.has("code") || !sheet.has("nameAr")) {
+        res.status(400).json({
+          error:
+            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: code, nameAr, hireDate, baseSalary",
+        });
+        return;
+      }
+
+      const existing = await db
+        .select({ code: employeesTable.code })
+        .from(employeesTable)
+        .where(eq(employeesTable.companyId, companyId));
+      const existingCodes = new Set(existing.map((e) => e.code));
+
+      type Row = {
+        code: string;
+        nameAr: string;
+        nameEn: string | null;
+        jobTitle: string | null;
+        hireDate: string;
+        status: "active" | "terminated";
+        baseSalary: number;
+        notes: string | null;
+      };
+      const parsed: Row[] = [];
+      const seen = new Set<string>();
+      for (const { rowNo, row } of sheet.rows) {
+        const code = sheet.str(row, "code");
+        const nameAr = sheet.str(row, "nameAr");
+        if (!code && !nameAr) continue; // skip blank rows
+        if (!code || !nameAr) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: code و nameAr مطلوبان` });
+          return;
+        }
+        if (seen.has(code) || existingCodes.has(code)) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: كود الموظف ${code} مكرر` });
+          return;
+        }
+        const hireDate = sheet.str(row, "hireDate");
+        if (!hireDate) {
+          res.status(400).json({ error: `السطر ${rowNo}: hireDate مطلوب` });
+          return;
+        }
+        const baseStr = sheet.has("baseSalary")
+          ? sheet.str(row, "baseSalary")
+          : "";
+        const baseSalary = baseStr ? sheet.num(row, "baseSalary") : 0;
+        if (baseSalary < 0) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: الراتب الأساسي غير صحيح` });
+          return;
+        }
+        const statusRaw = sheet.has("status") ? sheet.str(row, "status") : "";
+        const status = statusRaw === "terminated" ? "terminated" : "active";
+        seen.add(code);
+        parsed.push({
+          code,
+          nameAr,
+          nameEn: sheet.str(row, "nameEn") || null,
+          jobTitle: sheet.str(row, "jobTitle") || null,
+          hireDate,
+          status,
+          baseSalary,
+          notes: sheet.str(row, "notes") || null,
+        });
+      }
+      if (parsed.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على موظفين" });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        for (const r of parsed) {
+          await tx.insert(employeesTable).values({
+            companyId,
+            code: r.code,
+            nameAr: r.nameAr,
+            nameEn: r.nameEn,
+            jobTitle: r.jobTitle,
+            hireDate: r.hireDate,
+            status: r.status,
+            baseSalary: String(r.baseSalary),
+            notes: r.notes,
+          });
+        }
+      });
+      res.json({ imported: parsed.length });
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        res.status(409).json({ error: "يوجد كود موظف مكرر في الملف" });
+        return;
+      }
+      req.log.error({ err }, "Failed to import employees");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
@@ -446,6 +611,55 @@ router.get(
       res.json(rows.map((r) => toRun(r.run, [], r.entryNo ?? null)));
     } catch (err) {
       req.log.error({ err }, "Failed to list payroll runs");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Excel export (payroll runs) ------------------------------------------
+
+// Streams all of the company's payroll runs as an .xlsx workbook. Export only:
+// payroll runs are transactional (each run posts a consolidated journal entry)
+// and are created exclusively via POST /payroll/runs — never imported.
+router.get(
+  "/payroll/runs/export",
+  requireAuth,
+  requireCapability("payroll:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select({
+          run: payrollRunsTable,
+          entryNo: journalEntriesTable.entryNo,
+        })
+        .from(payrollRunsTable)
+        .leftJoin(
+          journalEntriesTable,
+          eq(payrollRunsTable.journalEntryId, journalEntriesTable.id),
+        )
+        .where(eq(payrollRunsTable.companyId, companyId))
+        .orderBy(desc(payrollRunsTable.period));
+      await exportWorkbook(res, {
+        sheetName: "PayrollRuns",
+        fileName: "payroll-runs-export",
+        columns: [
+          { header: "period", value: (r) => r.run.period },
+          { header: "status", value: (r) => r.run.status },
+          { header: "employeeCount", value: (r) => r.run.employeeCount },
+          { header: "totalGross", value: (r) => Number(r.run.totalGross) },
+          {
+            header: "totalDeductions",
+            value: (r) => Number(r.run.totalDeductions),
+          },
+          { header: "totalNet", value: (r) => Number(r.run.totalNet) },
+          { header: "journalEntryNo", value: (r) => r.entryNo ?? "" },
+          { header: "notes", value: (r) => r.run.notes ?? "" },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export payroll runs");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

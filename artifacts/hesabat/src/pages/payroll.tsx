@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -386,6 +387,19 @@ export function Payroll() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {tab === "employees" ? (
+            <ExcelToolbar
+              exportPath="/api/employees/export"
+              importPath="/api/employees/import"
+              canImport={canCreate}
+              invalidateKeys={[getListEmployeesQueryKey()]}
+            />
+          ) : (
+            <ExcelToolbar
+              exportPath="/api/payroll/runs/export"
+              invalidateKeys={[getListPayrollRunsQueryKey()]}
+            />
+          )}
           {canCreate && employees.length > 0 && (
             <button
               onClick={openRunModal}

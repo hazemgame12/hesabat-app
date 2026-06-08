@@ -29,6 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 
 const ACCOUNT_TYPES = ["asset", "liability", "equity", "revenue", "expense"] as const;
 type AccountType = (typeof ACCOUNT_TYPES)[number];
@@ -350,8 +351,14 @@ export function Accounts() {
           </div>
         </div>
 
-        {canCreate && (
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
+          <ExcelToolbar
+            exportPath="/api/accounts/export"
+            importPath="/api/accounts/import"
+            canImport={canCreate}
+            invalidateKeys={[getListAccountsQueryKey(), getGetDashboardSummaryQueryKey()]}
+          />
+          {canCreate && (
             <button
               onClick={openCreateModal}
               className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
@@ -359,8 +366,8 @@ export function Accounts() {
               <Plus className="w-4 h-4" />
               {t("accounts.addAccount")}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
       <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">

@@ -17,6 +17,7 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 import {
   Package,
   Plus,
@@ -392,6 +393,12 @@ export function Inventory() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ExcelToolbar
+            exportPath="/api/inventory/items/export"
+            importPath="/api/inventory/items/import"
+            canImport={canCreate}
+            onImported={invalidateItems}
+          />
           {canCreate && items.length > 0 && (
             <button
               onClick={() => openMovementModal()}

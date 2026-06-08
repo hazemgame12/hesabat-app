@@ -28,5 +28,9 @@ export interface BankAccount {
   accountName?: string | null;
   isActive: boolean;
   currentBalance: number;
+  /** @nullable */
+  latestStatementBalance?: number | null;
+  /** @nullable */
+  latestDifference?: number | null;
   createdAt: string;
 }

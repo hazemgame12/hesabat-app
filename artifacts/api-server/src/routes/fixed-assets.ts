@@ -16,11 +16,19 @@ import {
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { createDraftJournalEntry } from "../lib/journal-posting";
+import {
+  exportWorkbook,
+  handleXlsxUpload,
+  parseSheet,
+} from "../lib/excel";
 
 const router = Router();
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const EPS = 0.005;
+
+// Thrown while validating an import row to surface a row-specific 400.
+class ImportRowError extends Error {}
 
 function toAsset(row: FixedAsset, accumulated: number) {
   const cost = Number(row.cost);
@@ -479,6 +487,270 @@ router.post(
       });
     } catch (err) {
       req.log.error({ err }, "Failed to run depreciation");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Excel export / import -------------------------------------------------
+
+// Streams all of the company's fixed assets as an .xlsx workbook (round-trips
+// the import format; accumulatedDepreciation/netBookValue are informational).
+router.get(
+  "/assets/export",
+  requireAuth,
+  requireCapability("assets:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select()
+        .from(fixedAssetsTable)
+        .where(eq(fixedAssetsTable.companyId, companyId))
+        .orderBy(asc(fixedAssetsTable.createdAt));
+      const accMap = await accumulatedByAsset(
+        rows.map((r) => r.id),
+        companyId,
+      );
+      const accounts = await db
+        .select({ id: accountsTable.id, code: accountsTable.code })
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId));
+      const codeById = new Map(accounts.map((a) => [a.id, a.code]));
+      await exportWorkbook(res, {
+        sheetName: "Assets",
+        fileName: "assets-export",
+        columns: [
+          { header: "nameAr", value: (r) => r.nameAr },
+          { header: "nameEn", value: (r) => r.nameEn ?? "" },
+          { header: "category", value: (r) => r.category ?? "" },
+          { header: "acquisitionDate", value: (r) => r.acquisitionDate },
+          { header: "cost", value: (r) => Number(r.cost) },
+          { header: "salvageValue", value: (r) => Number(r.salvageValue) },
+          { header: "usefulLifeMonths", value: (r) => r.usefulLifeMonths },
+          { header: "method", value: (r) => r.method },
+          { header: "status", value: (r) => r.status },
+          {
+            header: "assetAccountCode",
+            value: (r) => codeById.get(r.assetAccountId) ?? "",
+          },
+          {
+            header: "accumulatedAccountCode",
+            value: (r) => codeById.get(r.accumulatedAccountId) ?? "",
+          },
+          {
+            header: "expenseAccountCode",
+            value: (r) => codeById.get(r.expenseAccountId) ?? "",
+          },
+          {
+            header: "accumulatedDepreciation",
+            value: (r) => round2(accMap.get(r.id) ?? 0),
+          },
+          {
+            header: "netBookValue",
+            value: (r) => round2(Number(r.cost) - (accMap.get(r.id) ?? 0)),
+          },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export fixed assets");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Bulk-creates fixed assets from an .xlsx (round-trips the export format). Each
+// row's account columns are resolved by code (must be leaf accounts in the same
+// company). All-or-nothing: any invalid row aborts the whole import.
+router.post(
+  "/assets/import",
+  requireAuth,
+  requireCapability("assets:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      if (!sheet.has("nameAr") || !sheet.has("assetAccountCode")) {
+        res.status(400).json({
+          error:
+            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: nameAr, acquisitionDate, cost, usefulLifeMonths, assetAccountCode, accumulatedAccountCode, expenseAccountCode",
+        });
+        return;
+      }
+
+      // Resolve account codes → leaf accounts in this company.
+      const accounts = await db
+        .select({
+          id: accountsTable.id,
+          code: accountsTable.code,
+          isGroup: accountsTable.isGroup,
+        })
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId));
+      const accByCode = new Map(accounts.map((a) => [a.code, a]));
+
+      const resolveAccount = (
+        rowNo: number,
+        code: string,
+        label: string,
+      ): string => {
+        const acc = accByCode.get(code);
+        if (!acc) {
+          throw new ImportRowError(
+            `السطر ${rowNo}: الحساب ${label} (${code}) غير موجود`,
+          );
+        }
+        if (acc.isGroup) {
+          throw new ImportRowError(
+            `السطر ${rowNo}: الحساب ${label} (${code}) حساب رئيسي ولا يقبل الترحيل`,
+          );
+        }
+        return acc.id;
+      };
+
+      type Row = {
+        nameAr: string;
+        nameEn: string | null;
+        category: string | null;
+        acquisitionDate: string;
+        cost: number;
+        salvageValue: number;
+        usefulLifeMonths: number;
+        method: string;
+        status: string;
+        assetAccountId: string;
+        accumulatedAccountId: string;
+        expenseAccountId: string;
+      };
+      const parsed: Row[] = [];
+      for (const { rowNo, row } of sheet.rows) {
+        const nameAr = sheet.str(row, "nameAr");
+        const acquisitionDate = sheet.str(row, "acquisitionDate");
+        const costStr = sheet.str(row, "cost");
+        const assetCode = sheet.str(row, "assetAccountCode");
+        // Skip fully-blank rows.
+        if (!nameAr && !acquisitionDate && !costStr && !assetCode) continue;
+        if (!nameAr) {
+          res.status(400).json({ error: `السطر ${rowNo}: nameAr مطلوب` });
+          return;
+        }
+        if (!acquisitionDate) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: acquisitionDate مطلوب` });
+          return;
+        }
+        const cost = sheet.num(row, "cost");
+        if (!(cost > 0)) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: التكلفة يجب أن تكون أكبر من صفر` });
+          return;
+        }
+        const usefulLifeMonths = sheet.num(row, "usefulLifeMonths");
+        if (!Number.isInteger(usefulLifeMonths) || usefulLifeMonths <= 0) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: العمر الإنتاجي (بالأشهر) يجب أن يكون عددًا صحيحًا موجبًا`,
+          });
+          return;
+        }
+        const salvageStr = sheet.has("salvageValue")
+          ? sheet.str(row, "salvageValue")
+          : "";
+        const salvageValue = salvageStr ? sheet.num(row, "salvageValue") : 0;
+        if (salvageValue < 0) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: قيمة الخردة غير صحيحة` });
+          return;
+        }
+        if (salvageValue >= cost) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: قيمة الخردة يجب أن تكون أقل من التكلفة`,
+          });
+          return;
+        }
+        const methodRaw = sheet.has("method") ? sheet.str(row, "method") : "";
+        if (methodRaw && methodRaw !== "straight_line") {
+          res.status(400).json({
+            error: `السطر ${rowNo}: طريقة الإهلاك ${methodRaw} غير مدعومة`,
+          });
+          return;
+        }
+        const statusRaw = sheet.has("status") ? sheet.str(row, "status") : "";
+        const status = statusRaw === "disposed" ? "disposed" : "active";
+        const accumulatedCode = sheet.str(row, "accumulatedAccountCode");
+        const expenseCode = sheet.str(row, "expenseAccountCode");
+        if (!accumulatedCode || !expenseCode || !assetCode) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: أكواد الحسابات (assetAccountCode, accumulatedAccountCode, expenseAccountCode) مطلوبة`,
+          });
+          return;
+        }
+        try {
+          parsed.push({
+            nameAr,
+            nameEn: sheet.str(row, "nameEn") || null,
+            category: sheet.str(row, "category") || null,
+            acquisitionDate,
+            cost,
+            salvageValue,
+            usefulLifeMonths,
+            method: "straight_line",
+            status,
+            assetAccountId: resolveAccount(rowNo, assetCode, "الأصل"),
+            accumulatedAccountId: resolveAccount(
+              rowNo,
+              accumulatedCode,
+              "مجمع الإهلاك",
+            ),
+            expenseAccountId: resolveAccount(rowNo, expenseCode, "المصروف"),
+          });
+        } catch (e) {
+          if (e instanceof ImportRowError) {
+            res.status(400).json({ error: e.message });
+            return;
+          }
+          throw e;
+        }
+      }
+      if (parsed.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على أصول" });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        for (const r of parsed) {
+          await tx.insert(fixedAssetsTable).values({
+            companyId,
+            nameAr: r.nameAr,
+            nameEn: r.nameEn,
+            category: r.category,
+            acquisitionDate: r.acquisitionDate,
+            cost: String(r.cost),
+            salvageValue: String(r.salvageValue),
+            usefulLifeMonths: r.usefulLifeMonths,
+            method: r.method,
+            status: r.status,
+            assetAccountId: r.assetAccountId,
+            accumulatedAccountId: r.accumulatedAccountId,
+            expenseAccountId: r.expenseAccountId,
+          });
+        }
+      });
+      res.json({ imported: parsed.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to import fixed assets");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

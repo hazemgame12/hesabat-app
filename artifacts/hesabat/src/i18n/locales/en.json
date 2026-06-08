@@ -14,7 +14,11 @@
     "error": "Error",
     "you": "You",
     "all": "All",
-    "view": "View"
+    "view": "View",
+    "exportExcel": "Export Excel",
+    "importExcel": "Import Excel",
+    "importSuccess": "Imported {{count}} record(s)",
+    "importError": "Failed to import file"
   },
   "lang": {
     "switch": "Language",
@@ -1082,6 +1086,9 @@
       "number": "Account no.",
       "currency": "Currency",
       "balance": "Balance",
+      "statementBalance": "Statement balance",
+      "difference": "Difference",
+      "balanced": "Balanced",
       "status": "Status"
     },
     "active": "Active",
@@ -1158,6 +1165,7 @@
       "adjustmentDesc": "Description",
       "saveAdjustment": "Save entry",
       "back": "Back to list",
+      "exportReport": "Export report",
       "noStatementLines": "No statement uploaded yet.",
       "balanced": "Balanced ✓",
       "selectAccountFirst": "Select an account to create a reconciliation",

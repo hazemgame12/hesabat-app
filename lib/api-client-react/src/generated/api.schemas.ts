@@ -1864,6 +1864,10 @@ export interface BankAccount {
   accountName?: string | null;
   isActive: boolean;
   currentBalance: number;
+  /** @nullable */
+  latestStatementBalance?: number | null;
+  /** @nullable */
+  latestDifference?: number | null;
   createdAt: string;
 }
 
@@ -2068,6 +2072,23 @@ export interface BankReconciliationDetail {
   outstanding: BankMovement[];
   clearedBookBalance: number;
   reconciledDifference: number;
+}
+
+export interface BankReconciliationReport {
+  reconciliation: BankReconciliation;
+  statementBalance: number;
+  bookBalance: number;
+  clearedBookBalance: number;
+  outstandingDeposits: BankMovement[];
+  depositsTotal: number;
+  outstandingWithdrawals: BankMovement[];
+  withdrawalsTotal: number;
+  adjustedStatementBalance: number;
+  difference: number;
+  isBalanced: boolean;
+  reconciledCount: number;
+  unreconciledCount: number;
+  unreconciledStatementLines: BankStatementLine[];
 }
 
 export type MatchReconciliationInputStatementLineMatchesItem = {

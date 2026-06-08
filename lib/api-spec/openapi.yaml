@@ -3097,6 +3097,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /bank/reconciliations/{id}/report:
+    get:
+      operationId: getBankReconciliationReport
+      tags: [bank]
+      summary: Formatted reconciliation report (statement → adjusted → book difference)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reconciliation report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankReconciliationReport"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /bank/reconciliations/{id}/statement:
     post:
       operationId: uploadBankStatement
@@ -5515,6 +5540,10 @@ components:
           type: boolean
         currentBalance:
           type: number
+        latestStatementBalance:
+          type: ["number", "null"]
+        latestDifference:
+          type: ["number", "null"]
         createdAt:
           type: string
 
@@ -5721,6 +5750,46 @@ components:
           type: number
         reconciledDifference:
           type: number
+
+    BankReconciliationReport:
+      type: object
+      required:
+        [reconciliation, statementBalance, bookBalance, clearedBookBalance, outstandingDeposits, depositsTotal, outstandingWithdrawals, withdrawalsTotal, adjustedStatementBalance, difference, isBalanced, reconciledCount, unreconciledCount, unreconciledStatementLines]
+      properties:
+        reconciliation:
+          $ref: "#/components/schemas/BankReconciliation"
+        statementBalance:
+          type: number
+        bookBalance:
+          type: number
+        clearedBookBalance:
+          type: number
+        outstandingDeposits:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankMovement"
+        depositsTotal:
+          type: number
+        outstandingWithdrawals:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankMovement"
+        withdrawalsTotal:
+          type: number
+        adjustedStatementBalance:
+          type: number
+        difference:
+          type: number
+        isBalanced:
+          type: boolean
+        reconciledCount:
+          type: integer
+        unreconciledCount:
+          type: integer
+        unreconciledStatementLines:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankStatementLine"
 
     MatchReconciliationInput:
       type: object

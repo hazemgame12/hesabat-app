@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 import { Boxes, Plus, X, Check, ChevronDown, Building2, Trash2, Edit2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
@@ -145,15 +146,23 @@ export function CostCenters() {
             <p className="text-sm text-muted-foreground font-medium">{t("costCenters.subtitle")}</p>
           </div>
         </div>
-        {canCreate && (
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            {t("costCenters.addCenter")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <ExcelToolbar
+            exportPath="/api/cost-centers/export"
+            importPath="/api/cost-centers/import"
+            canImport={canCreate}
+            invalidateKeys={[getListCostCentersQueryKey()]}
+          />
+          {canCreate && (
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              {t("costCenters.addCenter")}
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">

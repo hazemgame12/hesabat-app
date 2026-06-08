@@ -39,6 +39,7 @@ import type {
   BankReconciliation,
   BankReconciliationDetail,
   BankReconciliationInput,
+  BankReconciliationReport,
   Company,
   CompanyUpdate,
   CostCenter,
@@ -8493,6 +8494,83 @@ export const useDeleteBankReconciliation = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getDeleteBankReconciliationMutationOptions(options));
     }
+
+export const getGetBankReconciliationReportUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/reconciliations/${id}/report`
+}
+
+/**
+ * @summary Formatted reconciliation report (statement → adjusted → book difference)
+ */
+export const getBankReconciliationReport = async (id: string, options?: RequestInit): Promise<BankReconciliationReport> => {
+
+  return customFetch<BankReconciliationReport>(getGetBankReconciliationReportUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankReconciliationReportQueryKey = (id: string,) => {
+    return [
+    `/api/bank/reconciliations/${id}/report`
+    ] as const;
+    }
+
+
+export const getGetBankReconciliationReportQueryOptions = <TData = Awaited<ReturnType<typeof getBankReconciliationReport>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankReconciliationReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankReconciliationReportQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankReconciliationReport>>> = ({ signal }) => getBankReconciliationReport(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankReconciliationReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBankReconciliationReportQueryResult = NonNullable<Awaited<ReturnType<typeof getBankReconciliationReport>>>
+export type GetBankReconciliationReportQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Formatted reconciliation report (statement → adjusted → book difference)
+ */
+
+export function useGetBankReconciliationReport<TData = Awaited<ReturnType<typeof getBankReconciliationReport>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankReconciliationReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBankReconciliationReportQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getUploadBankStatementUrl = (id: string,) => {
 

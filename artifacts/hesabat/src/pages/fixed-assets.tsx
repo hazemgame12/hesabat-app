@@ -21,6 +21,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -289,6 +290,12 @@ export function FixedAssets() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ExcelToolbar
+            exportPath="/api/assets/export"
+            importPath="/api/assets/import"
+            canImport={canCreate}
+            invalidateKeys={[getListAssetsQueryKey()]}
+          />
           {canCreate && assets.length > 0 && (
             <button
               onClick={() => {

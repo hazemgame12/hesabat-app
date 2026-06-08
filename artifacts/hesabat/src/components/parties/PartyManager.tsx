@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -367,15 +368,23 @@ export function PartyManager({
             </p>
           </div>
         </div>
-        {canCreate && (
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            {t(`${ns}.add`)}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <ExcelToolbar
+            exportPath={`/api/${ns}/export`}
+            importPath={`/api/${ns}/import`}
+            canImport={canCreate}
+            onImported={invalidate}
+          />
+          {canCreate && (
+            <button
+              onClick={openCreate}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              {t(`${ns}.add`)}
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">

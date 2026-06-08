@@ -41,6 +41,7 @@ import {
   Upload,
   CheckCircle2,
   ChevronLeft,
+  Download,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -367,6 +368,12 @@ function AccountsTable({
                 {t("bank.table.currency")}
               </th>
               <th className="text-end px-3 py-3">{t("bank.table.balance")}</th>
+              <th className="text-end px-3 py-3">
+                {t("bank.table.statementBalance")}
+              </th>
+              <th className="text-end px-3 py-3">
+                {t("bank.table.difference")}
+              </th>
               <th className="text-center px-3 py-3">{t("bank.table.status")}</th>
               {(canUpdate || canDelete) && <th className="w-20 px-6 py-3" />}
             </tr>
@@ -404,6 +411,28 @@ function AccountsTable({
                   dir="ltr"
                 >
                   {fmt(a.currentBalance)}
+                </td>
+                <td
+                  className="px-3 py-3.5 text-end font-sans tabular-nums text-foreground/80"
+                  dir="ltr"
+                >
+                  {a.latestStatementBalance == null
+                    ? "—"
+                    : fmt(a.latestStatementBalance)}
+                </td>
+                <td className="px-3 py-3.5 text-end" dir="ltr">
+                  {a.latestDifference == null ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : Math.abs(a.latestDifference) < 0.005 ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-success bg-success/10 px-2.5 py-1 rounded-full">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {t("bank.table.balanced")}
+                    </span>
+                  ) : (
+                    <span className="font-bold font-sans tabular-nums text-destructive">
+                      {fmt(a.latestDifference)}
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-3.5 text-center">
                   {a.isActive ? (
@@ -1836,6 +1865,7 @@ function ReconciliationDetail({
         />
       </div>
 
+
       {/* Movements + matching */}
       <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -2095,10 +2125,22 @@ function ReconciliationDetail({
 
       {/* Reconciliation report */}
       <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
           <h3 className="font-bold text-foreground">
             {t("bank.reconciliation.report")}
           </h3>
+          <button
+            onClick={() =>
+              window.open(
+                `/api/bank/reconciliations/${reconciliationId}/report/export`,
+                "_blank",
+              )
+            }
+            className="flex items-center gap-2 text-sm font-bold text-primary hover:opacity-80"
+          >
+            <Download className="w-4 h-4" />
+            {t("bank.reconciliation.exportReport")}
+          </button>
         </div>
         <div className="p-6 flex flex-col gap-2 text-sm">
           <ReportRow
@@ -2336,3 +2378,4 @@ function SummaryCard({
     </div>
   );
 }
+
