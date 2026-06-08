@@ -122,7 +122,20 @@
     "distributionHint": "نسبة أنواع الحسابات في الشجرة",
     "accountsCount": "عدد الحسابات",
     "sectionsSummary": "ملخص الأقسام",
-    "noAccounts": "لا توجد حسابات بعد"
+    "noAccounts": "لا توجد حسابات بعد",
+    "financialOverview": "نظرة مالية عامة",
+    "fiscalYearHint": "للسنة المالية {{year}}",
+    "netProfit": "صافي الربح",
+    "netLoss": "صافي الخسارة",
+    "totalRevenue": "إجمالي الإيرادات",
+    "totalExpenses": "إجمالي المصروفات",
+    "cashBalance": "النقدية والبنوك",
+    "cashBalanceHint": "أرصدة الخزائن والحسابات البنكية",
+    "outstandingReceivables": "مستحقات العملاء",
+    "outstandingReceivablesHint": "فواتير مبيعات غير محصلة",
+    "outstandingPayables": "مستحقات الموردين",
+    "outstandingPayablesHint": "فواتير مشتريات غير مسددة",
+    "viewReports": "عرض التقارير"
   },
   "accountTypes": {
     "asset": "الأصول",
@@ -1323,5 +1336,89 @@
     "confirmDeleteInvoice": "هل أنت متأكد من حذف هذه الفاتورة؟",
     "confirmDeletePayment": "هل أنت متأكد من حذف هذا السند؟",
     "confirmApprove": "سيتم ترحيل قيد محاسبي معتمد ولا يمكن تعديل الفاتورة بعدها. متابعة؟"
+  },
+  "reportsPage": {
+    "title": "التقارير المالية",
+    "subtitle": "تقارير مبنية على القيود المُرحَّلة فقط",
+    "tabs": {
+      "trialBalance": "ميزان المراجعة",
+      "incomeStatement": "الأرباح والخسائر",
+      "balanceSheet": "الميزانية العمومية",
+      "generalLedger": "دفتر الأستاذ",
+      "partyStatement": "كشف حساب",
+      "aging": "أعمار الديون",
+      "outstanding": "الفواتير المستحقة"
+    },
+    "filters": {
+      "from": "من تاريخ",
+      "to": "إلى تاريخ",
+      "asOf": "حتى تاريخ",
+      "account": "الحساب",
+      "selectAccount": "اختر الحساب",
+      "party": "الطرف",
+      "selectParty": "اختر الطرف",
+      "type": "النوع",
+      "ar": "مدينون (عملاء)",
+      "ap": "دائنون (موردون)",
+      "customer": "عميل",
+      "supplier": "مورد",
+      "sales": "مبيعات",
+      "purchases": "مشتريات",
+      "all": "كل الفترات"
+    },
+    "table": {
+      "code": "الكود",
+      "account": "الحساب",
+      "debit": "مدين",
+      "credit": "دائن",
+      "amount": "المبلغ",
+      "date": "التاريخ",
+      "entryNo": "رقم القيد",
+      "reference": "المرجع",
+      "description": "البيان",
+      "balance": "الرصيد",
+      "total": "الإجمالي",
+      "invoiceNo": "رقم الفاتورة",
+      "dueDate": "تاريخ الاستحقاق",
+      "paid": "المسدد",
+      "status": "الحالة"
+    },
+    "trialBalance": {
+      "totalDebit": "إجمالي المدين",
+      "totalCredit": "إجمالي الدائن",
+      "balanced": "متوازن",
+      "unbalanced": "غير متوازن"
+    },
+    "incomeStatement": {
+      "revenue": "الإيرادات",
+      "expenses": "المصروفات",
+      "totalRevenue": "إجمالي الإيرادات",
+      "totalExpenses": "إجمالي المصروفات",
+      "netProfit": "صافي الربح",
+      "netLoss": "صافي الخسارة"
+    },
+    "balanceSheet": {
+      "assets": "الأصول",
+      "liabilities": "الخصوم",
+      "equity": "حقوق الملكية",
+      "netResult": "نتيجة الفترة (ربح/خسارة)",
+      "totalAssets": "إجمالي الأصول",
+      "totalLiabilities": "إجمالي الخصوم",
+      "totalEquity": "إجمالي حقوق الملكية",
+      "totalLiabilitiesAndEquity": "إجمالي الخصوم وحقوق الملكية"
+    },
+    "ledger": {
+      "openingBalance": "رصيد افتتاحي",
+      "closingBalance": "رصيد ختامي"
+    },
+    "aging": {
+      "current": "حالية",
+      "d30": "1-30 يوم",
+      "d60": "31-60 يوم",
+      "d90": "61-90 يوم",
+      "d90plus": "أكثر من 90 يوم"
+    },
+    "overdue": "متأخرة",
+    "noData": "لا توجد بيانات لعرضها"
   }
 }

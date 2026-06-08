@@ -641,7 +641,14 @@ export const GetDashboardSummaryResponse = zod.object({
   "accountsByType": zod.array(zod.object({
   "type": zod.string(),
   "count": zod.number()
-}))
+})),
+  "fiscalYear": zod.number(),
+  "totalRevenue": zod.number(),
+  "totalExpenses": zod.number(),
+  "netProfit": zod.number(),
+  "cashBalance": zod.number(),
+  "outstandingReceivables": zod.number(),
+  "outstandingPayables": zod.number()
 })
 
 
@@ -2382,6 +2389,132 @@ export const GetPaymentsSummaryReportResponseItem = zod.object({
   "createdAt": zod.string()
 })
 export const GetPaymentsSummaryReportResponse = zod.array(GetPaymentsSummaryReportResponseItem)
+
+
+/**
+ * @summary Trial balance from posted journal lines
+ */
+export const GetTrialBalanceQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetTrialBalanceResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "rows": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.string(),
+  "debit": zod.number(),
+  "credit": zod.number()
+})),
+  "totalDebit": zod.number(),
+  "totalCredit": zod.number(),
+  "balanced": zod.boolean()
+})
+
+
+/**
+ * @summary Income statement (profit and loss)
+ */
+export const GetIncomeStatementQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetIncomeStatementResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "revenue": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "expenses": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "totalRevenue": zod.number(),
+  "totalExpenses": zod.number(),
+  "netProfit": zod.number()
+})
+
+
+/**
+ * @summary Balance sheet as of a date
+ */
+export const GetBalanceSheetQueryParams = zod.object({
+  "asOf": zod.coerce.string().optional()
+})
+
+export const GetBalanceSheetResponse = zod.object({
+  "asOf": zod.string().nullish(),
+  "assets": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "liabilities": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "equity": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "netResult": zod.number(),
+  "totalAssets": zod.number(),
+  "totalLiabilities": zod.number(),
+  "totalEquity": zod.number(),
+  "totalLiabilitiesAndEquity": zod.number(),
+  "balanced": zod.boolean()
+})
+
+
+/**
+ * @summary General ledger of one account with running balance
+ */
+export const GetGeneralLedgerQueryParams = zod.object({
+  "accountId": zod.coerce.string(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetGeneralLedgerResponse = zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "accountType": zod.string(),
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "openingBalance": zod.number(),
+  "closingBalance": zod.number(),
+  "entries": zod.array(zod.object({
+  "date": zod.string(),
+  "entryNo": zod.number(),
+  "ref": zod.string().nullish(),
+  "description": zod.string(),
+  "debit": zod.number(),
+  "credit": zod.number(),
+  "balance": zod.number()
+}))
+})
 
 
 /**

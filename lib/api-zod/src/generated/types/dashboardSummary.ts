@@ -10,4 +10,11 @@ import type { AccountTypeCount } from './accountTypeCount';
 export interface DashboardSummary {
   totalAccounts: number;
   accountsByType: AccountTypeCount[];
+  fiscalYear: number;
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  cashBalance: number;
+  outstandingReceivables: number;
+  outstandingPayables: number;
 }

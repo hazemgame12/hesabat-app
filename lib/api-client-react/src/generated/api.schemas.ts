@@ -1077,6 +1077,13 @@ export interface AccountTypeCount {
 export interface DashboardSummary {
   totalAccounts: number;
   accountsByType: AccountTypeCount[];
+  fiscalYear: number;
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  cashBalance: number;
+  outstandingReceivables: number;
+  outstandingPayables: number;
 }
 
 export type TeamMemberRole = typeof TeamMemberRole[keyof typeof TeamMemberRole];
@@ -1744,6 +1751,88 @@ export interface SummaryRow {
   total: number;
 }
 
+export interface TrialBalanceRow {
+  accountId: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  type: string;
+  debit: number;
+  credit: number;
+}
+
+export interface TrialBalance {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  rows: TrialBalanceRow[];
+  totalDebit: number;
+  totalCredit: number;
+  balanced: boolean;
+}
+
+export interface PnlLine {
+  accountId: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  amount: number;
+}
+
+export interface IncomeStatement {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  revenue: PnlLine[];
+  expenses: PnlLine[];
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+}
+
+export interface BalanceSheet {
+  /** @nullable */
+  asOf?: string | null;
+  assets: PnlLine[];
+  liabilities: PnlLine[];
+  equity: PnlLine[];
+  netResult: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+  totalLiabilitiesAndEquity: number;
+  balanced: boolean;
+}
+
+export interface GeneralLedgerEntry {
+  date: string;
+  entryNo: number;
+  /** @nullable */
+  ref?: string | null;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+}
+
+export interface GeneralLedger {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  accountType: string;
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  openingBalance: number;
+  closingBalance: number;
+  entries: GeneralLedgerEntry[];
+}
+
 export type BankAccountType = typeof BankAccountType[keyof typeof BankAccountType];
 
 
@@ -2128,6 +2217,26 @@ export const GetPaymentsSummaryReportKind = {
   collection: 'collection',
   payment: 'payment',
 } as const;
+
+export type GetTrialBalanceParams = {
+from?: string;
+to?: string;
+};
+
+export type GetIncomeStatementParams = {
+from?: string;
+to?: string;
+};
+
+export type GetBalanceSheetParams = {
+asOf?: string;
+};
+
+export type GetGeneralLedgerParams = {
+accountId: string;
+from?: string;
+to?: string;
+};
 
 export type ListBankMovementsParams = {
 bankAccountId: string;

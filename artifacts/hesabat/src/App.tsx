@@ -18,9 +18,9 @@ import { Bank } from "@/pages/bank";
 import { Advances } from "@/pages/advances";
 import SalesInvoicesPage from "@/pages/sales-invoices";
 import PurchaseInvoicesPage from "@/pages/purchase-invoices";
+import { Reports } from "@/pages/reports";
 import { Settings } from "@/pages/settings";
 import { AcceptInvite } from "@/pages/accept-invite";
-import { ComingSoon } from "@/pages/coming-soon";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 const queryClient = new QueryClient({
@@ -64,7 +64,7 @@ function ProtectedRoutes() {
         <Route path="/purchases" component={Suppliers} />
         <Route path="/invoices/sales" component={SalesInvoicesPage} />
         <Route path="/invoices/purchases" component={PurchaseInvoicesPage} />
-        <Route path="/reports" component={ComingSoon} />
+        <Route path="/reports" component={Reports} />
         <Route path="/" component={Dashboard} />
         <Route component={NotFound} />
       </Switch>

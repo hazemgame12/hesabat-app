@@ -122,7 +122,20 @@
     "distributionHint": "Share of account types in the tree",
     "accountsCount": "Accounts count",
     "sectionsSummary": "Sections summary",
-    "noAccounts": "No accounts yet"
+    "noAccounts": "No accounts yet",
+    "financialOverview": "Financial overview",
+    "fiscalYearHint": "For fiscal year {{year}}",
+    "netProfit": "Net profit",
+    "netLoss": "Net loss",
+    "totalRevenue": "Total revenue",
+    "totalExpenses": "Total expenses",
+    "cashBalance": "Cash & banks",
+    "cashBalanceHint": "Cash and bank account balances",
+    "outstandingReceivables": "Receivables",
+    "outstandingReceivablesHint": "Uncollected sales invoices",
+    "outstandingPayables": "Payables",
+    "outstandingPayablesHint": "Unpaid purchase invoices",
+    "viewReports": "View reports"
   },
   "accountTypes": {
     "asset": "Assets",
@@ -1323,5 +1336,89 @@
     "confirmDeleteInvoice": "Are you sure you want to delete this invoice?",
     "confirmDeletePayment": "Are you sure you want to delete this voucher?",
     "confirmApprove": "A posted journal entry will be created and the invoice can no longer be edited. Continue?"
+  },
+  "reportsPage": {
+    "title": "Financial Reports",
+    "subtitle": "Reports built from posted journal entries only",
+    "tabs": {
+      "trialBalance": "Trial Balance",
+      "incomeStatement": "Income Statement",
+      "balanceSheet": "Balance Sheet",
+      "generalLedger": "General Ledger",
+      "partyStatement": "Statement of Account",
+      "aging": "Aging",
+      "outstanding": "Outstanding Invoices"
+    },
+    "filters": {
+      "from": "From",
+      "to": "To",
+      "asOf": "As of",
+      "account": "Account",
+      "selectAccount": "Select account",
+      "party": "Party",
+      "selectParty": "Select party",
+      "type": "Type",
+      "ar": "Receivables (customers)",
+      "ap": "Payables (suppliers)",
+      "customer": "Customer",
+      "supplier": "Supplier",
+      "sales": "Sales",
+      "purchases": "Purchases",
+      "all": "All periods"
+    },
+    "table": {
+      "code": "Code",
+      "account": "Account",
+      "debit": "Debit",
+      "credit": "Credit",
+      "amount": "Amount",
+      "date": "Date",
+      "entryNo": "Entry #",
+      "reference": "Reference",
+      "description": "Description",
+      "balance": "Balance",
+      "total": "Total",
+      "invoiceNo": "Invoice #",
+      "dueDate": "Due date",
+      "paid": "Paid",
+      "status": "Status"
+    },
+    "trialBalance": {
+      "totalDebit": "Total debit",
+      "totalCredit": "Total credit",
+      "balanced": "Balanced",
+      "unbalanced": "Not balanced"
+    },
+    "incomeStatement": {
+      "revenue": "Revenue",
+      "expenses": "Expenses",
+      "totalRevenue": "Total revenue",
+      "totalExpenses": "Total expenses",
+      "netProfit": "Net profit",
+      "netLoss": "Net loss"
+    },
+    "balanceSheet": {
+      "assets": "Assets",
+      "liabilities": "Liabilities",
+      "equity": "Equity",
+      "netResult": "Period result (profit/loss)",
+      "totalAssets": "Total assets",
+      "totalLiabilities": "Total liabilities",
+      "totalEquity": "Total equity",
+      "totalLiabilitiesAndEquity": "Total liabilities and equity"
+    },
+    "ledger": {
+      "openingBalance": "Opening balance",
+      "closingBalance": "Closing balance"
+    },
+    "aging": {
+      "current": "Current",
+      "d30": "1-30 days",
+      "d60": "31-60 days",
+      "d90": "61-90 days",
+      "d90plus": "90+ days"
+    },
+    "overdue": "Overdue",
+    "noData": "No data to display"
   }
 }

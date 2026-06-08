@@ -2700,6 +2700,108 @@ paths:
                 items:
                   $ref: "#/components/schemas/Payment"
 
+  /reports/trial-balance:
+    get:
+      operationId: getTrialBalance
+      tags: [financialReports]
+      summary: Trial balance from posted journal lines
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Trial balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrialBalance"
+
+  /reports/income-statement:
+    get:
+      operationId: getIncomeStatement
+      tags: [financialReports]
+      summary: Income statement (profit and loss)
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Income statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncomeStatement"
+
+  /reports/balance-sheet:
+    get:
+      operationId: getBalanceSheet
+      tags: [financialReports]
+      summary: Balance sheet as of a date
+      parameters:
+        - name: asOf
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Balance sheet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceSheet"
+
+  /reports/general-ledger:
+    get:
+      operationId: getGeneralLedger
+      tags: [financialReports]
+      summary: General ledger of one account with running balance
+      parameters:
+        - name: accountId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: General ledger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneralLedger"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /bank/accounts:
     get:
       operationId: listBankAccounts
@@ -4437,7 +4539,18 @@ components:
 
     DashboardSummary:
       type: object
-      required: [totalAccounts, accountsByType]
+      required:
+        [
+          totalAccounts,
+          accountsByType,
+          fiscalYear,
+          totalRevenue,
+          totalExpenses,
+          netProfit,
+          cashBalance,
+          outstandingReceivables,
+          outstandingPayables,
+        ]
       properties:
         totalAccounts:
           type: integer
@@ -4445,6 +4558,20 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AccountTypeCount"
+        fiscalYear:
+          type: integer
+        totalRevenue:
+          type: number
+        totalExpenses:
+          type: number
+        netProfit:
+          type: number
+        cashBalance:
+          type: number
+        outstandingReceivables:
+          type: number
+        outstandingPayables:
+          type: number
 
     AccountTypeCount:
       type: object
@@ -5200,6 +5327,159 @@ components:
           type: integer
         total:
           type: number
+
+    TrialBalanceRow:
+      type: object
+      required: [accountId, code, nameAr, type, debit, credit]
+      properties:
+        accountId:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        type:
+          type: string
+        debit:
+          type: number
+        credit:
+          type: number
+
+    TrialBalance:
+      type: object
+      required: [rows, totalDebit, totalCredit, balanced]
+      properties:
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrialBalanceRow"
+        totalDebit:
+          type: number
+        totalCredit:
+          type: number
+        balanced:
+          type: boolean
+
+    PnlLine:
+      type: object
+      required: [accountId, code, nameAr, amount]
+      properties:
+        accountId:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        amount:
+          type: number
+
+    IncomeStatement:
+      type: object
+      required: [revenue, expenses, totalRevenue, totalExpenses, netProfit]
+      properties:
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        revenue:
+          type: array
+          items:
+            $ref: "#/components/schemas/PnlLine"
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/PnlLine"
+        totalRevenue:
+          type: number
+        totalExpenses:
+          type: number
+        netProfit:
+          type: number
+
+    BalanceSheet:
+      type: object
+      required:
+        [assets, liabilities, equity, netResult, totalAssets, totalLiabilities, totalEquity, totalLiabilitiesAndEquity, balanced]
+      properties:
+        asOf:
+          type: ["string", "null"]
+        assets:
+          type: array
+          items:
+            $ref: "#/components/schemas/PnlLine"
+        liabilities:
+          type: array
+          items:
+            $ref: "#/components/schemas/PnlLine"
+        equity:
+          type: array
+          items:
+            $ref: "#/components/schemas/PnlLine"
+        netResult:
+          type: number
+        totalAssets:
+          type: number
+        totalLiabilities:
+          type: number
+        totalEquity:
+          type: number
+        totalLiabilitiesAndEquity:
+          type: number
+        balanced:
+          type: boolean
+
+    GeneralLedgerEntry:
+      type: object
+      required: [date, entryNo, description, debit, credit, balance]
+      properties:
+        date:
+          type: string
+        entryNo:
+          type: integer
+        ref:
+          type: ["string", "null"]
+        description:
+          type: string
+        debit:
+          type: number
+        credit:
+          type: number
+        balance:
+          type: number
+
+    GeneralLedger:
+      type: object
+      required:
+        [accountId, accountCode, accountName, accountType, openingBalance, closingBalance, entries]
+      properties:
+        accountId:
+          type: string
+        accountCode:
+          type: string
+        accountName:
+          type: string
+        accountType:
+          type: string
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        openingBalance:
+          type: number
+        closingBalance:
+          type: number
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeneralLedgerEntry"
 
     BankAccount:
       type: object

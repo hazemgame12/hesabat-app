@@ -5,7 +5,7 @@ import { useGetDashboardSummary, useGetCurrentUser, useGetCompany } from "@works
 import { countryLabel, currencyLabel, intlLocale, type Lang } from "@workspace/locale";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Hash, Tag, PieChart as PieChartIcon, Globe, Coins, Pencil, ImageOff } from "lucide-react";
+import { Building2, Hash, Tag, PieChart as PieChartIcon, Globe, Coins, Pencil, ImageOff, TrendingUp, TrendingDown, Wallet, ArrowDownCircle, ArrowUpCircle, FileBarChart } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -39,6 +39,17 @@ export function Dashboard() {
     value: item.count,
     color: COLORS[item.type as keyof typeof COLORS] || "hsl(var(--muted-foreground))"
   })) || [];
+
+  const currency = company?.baseCurrency ?? "EGP";
+  const fmt = (n: number) =>
+    new Intl.NumberFormat(intlLocale(lang), {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(n);
+
+  const netProfit = summary?.netProfit ?? 0;
+  const isProfit = netProfit >= 0;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -128,6 +139,88 @@ export function Dashboard() {
                 {summary?.accountsByType?.length || 0}
               </div>
               <p className="text-xs text-muted-foreground mt-2">{t("dashboard.mainSectionsHint")}</p>
+            </div>
+          </Card>
+        </div>
+
+        {/* Financial Overview */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold">{t("dashboard.financialOverview")}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t("dashboard.fiscalYearHint", { year: summary?.fiscalYear ?? new Date().getFullYear() })}
+            </p>
+          </div>
+          <Button variant="outline" className="gap-2" onClick={() => setLocation("/reports")}>
+            <FileBarChart className="w-4 h-4" />
+            {t("dashboard.viewReports")}
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="p-5 flex flex-col gap-3">
+            <div className={`p-3 rounded-xl w-fit ${isProfit ? "bg-success/10" : "bg-destructive/10"}`}>
+              {isProfit ? (
+                <TrendingUp className="w-6 h-6 text-success" />
+              ) : (
+                <TrendingDown className="w-6 h-6 text-destructive" />
+              )}
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-1">
+                {isProfit ? t("dashboard.netProfit") : t("dashboard.netLoss")}
+              </h3>
+              <div className={`text-2xl font-bold font-sans tabular-nums ${isProfit ? "text-success" : "text-destructive"}`}>
+                {fmt(Math.abs(netProfit))}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+                <span className="flex items-center gap-1">
+                  <ArrowUpCircle className="w-3.5 h-3.5 text-success" />
+                  {fmt(summary?.totalRevenue ?? 0)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <ArrowDownCircle className="w-3.5 h-3.5 text-destructive" />
+                  {fmt(summary?.totalExpenses ?? 0)}
+                </span>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5 flex flex-col gap-3">
+            <div className="bg-primary/5 p-3 rounded-xl w-fit">
+              <Wallet className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.cashBalance")}</h3>
+              <div className="text-2xl font-bold text-foreground font-sans tabular-nums">
+                {fmt(summary?.cashBalance ?? 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{t("dashboard.cashBalanceHint")}</p>
+            </div>
+          </Card>
+
+          <Card className="p-5 flex flex-col gap-3">
+            <div className="bg-success/10 p-3 rounded-xl w-fit">
+              <ArrowDownCircle className="w-6 h-6 text-success" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.outstandingReceivables")}</h3>
+              <div className="text-2xl font-bold text-foreground font-sans tabular-nums">
+                {fmt(summary?.outstandingReceivables ?? 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{t("dashboard.outstandingReceivablesHint")}</p>
+            </div>
+          </Card>
+
+          <Card className="p-5 flex flex-col gap-3">
+            <div className="bg-destructive/10 p-3 rounded-xl w-fit">
+              <ArrowUpCircle className="w-6 h-6 text-destructive" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.outstandingPayables")}</h3>
+              <div className="text-2xl font-bold text-foreground font-sans tabular-nums">
+                {fmt(summary?.outstandingPayables ?? 0)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">{t("dashboard.outstandingPayablesHint")}</p>
             </div>
           </Card>
         </div>
