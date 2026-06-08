@@ -46,6 +46,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: "31", nameAr: "حقوق الملكية", nameEn: "Equity", type: "equity", isGroup: true, parentCode: null },
   { code: "311", nameAr: "رأس المال", nameEn: "Capital", type: "equity", isGroup: false, parentCode: "31" },
   { code: "312", nameAr: "الأرباح المحتجزة", nameEn: "Retained Earnings", type: "equity", isGroup: false, parentCode: "31" },
+  { code: "313", nameAr: "رصيد افتتاحي", nameEn: "Opening Balance Equity", type: "equity", isGroup: false, parentCode: "31" },
 
   // ---- Revenue ----
   { code: "41", nameAr: "الإيرادات", nameEn: "Revenue", type: "revenue", isGroup: true, parentCode: null },

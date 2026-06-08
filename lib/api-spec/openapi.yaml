@@ -44,6 +44,8 @@ tags:
     description: Employee advances (salary loans) with auto-deducted installments
   - name: custodies
     description: Employee custodies (entrusted cash/assets) with Excel settlement
+  - name: openingBalances
+    description: Company opening balances posted as a single journal entry
 paths:
   /healthz:
     get:
@@ -3240,8 +3242,169 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /opening-balances:
+    get:
+      operationId: getOpeningBalances
+      tags: [openingBalances]
+      summary: Get the saved opening balances for the current company
+      responses:
+        "200":
+          description: Saved opening balances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpeningBalances"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: saveOpeningBalances
+      tags: [openingBalances]
+      summary: Replace the company's opening-balance journal entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpeningBalancesInput"
+      responses:
+        "200":
+          description: Opening balances saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveOpeningBalancesResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
+    OpeningBalanceAccountLine:
+      type: object
+      required: [accountId, debit, credit]
+      properties:
+        accountId:
+          type: string
+        debit:
+          type: number
+        credit:
+          type: number
+    OpeningBalanceBankLine:
+      type: object
+      required: [bankAccountId, balance]
+      properties:
+        bankAccountId:
+          type: string
+        balance:
+          type: number
+    OpeningBalanceCustomerLine:
+      type: object
+      required: [customerId, balance]
+      properties:
+        customerId:
+          type: string
+        balance:
+          type: number
+    OpeningBalanceSupplierLine:
+      type: object
+      required: [supplierId, balance]
+      properties:
+        supplierId:
+          type: string
+        balance:
+          type: number
+    OpeningBalanceInventoryLine:
+      type: object
+      required: [itemId, quantity, unitCost]
+      properties:
+        itemId:
+          type: string
+        quantity:
+          type: number
+        unitCost:
+          type: number
+    OpeningBalances:
+      type: object
+      required:
+        [hasOpeningEntry, accounts, banks, customers, suppliers, inventory]
+      properties:
+        date:
+          type: string
+          nullable: true
+        hasOpeningEntry:
+          type: boolean
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceAccountLine"
+        banks:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceBankLine"
+        customers:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceCustomerLine"
+        suppliers:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceSupplierLine"
+        inventory:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceInventoryLine"
+    OpeningBalancesInput:
+      type: object
+      required: [date]
+      properties:
+        date:
+          type: string
+          description: Opening date (YYYY-MM-DD)
+        accounts:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceAccountLine"
+        banks:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceBankLine"
+        customers:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceCustomerLine"
+        suppliers:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceSupplierLine"
+        inventory:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpeningBalanceInventoryLine"
+    SaveOpeningBalancesResult:
+      type: object
+      required: [balanced]
+      properties:
+        entryId:
+          type: string
+          nullable: true
+        entryNo:
+          type: number
+          nullable: true
+        balanced:
+          type: boolean
     HealthStatus:
       type: object
       properties:

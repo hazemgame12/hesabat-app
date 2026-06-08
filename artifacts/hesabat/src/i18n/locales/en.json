@@ -82,6 +82,7 @@
     "dashboard": "Dashboard",
     "accounts": "Chart of Accounts",
     "journal": "Journal Entries",
+    "openingBalances": "Opening Balances",
     "assets": "Fixed Assets",
     "inventory": "Inventory",
     "bank": "Banks & Cash",
@@ -747,6 +748,45 @@
       "addError": "Could not add center",
       "editError": "Could not update center",
       "deleteError": "Could not delete center"
+    }
+  },
+  "openingBalances": {
+    "title": "Opening Balances",
+    "subtitle": "Enter the starting balances for accounts, banks, customers, suppliers and inventory. They post as one balanced opening journal entry.",
+    "date": "Opening date",
+    "existingNote": "A saved opening entry exists — it will be replaced on save",
+    "balanced": "Entry is balanced",
+    "equityAbsorbs": "Difference of {{amount}} will post to Opening Balance Equity",
+    "save": "Save opening balances",
+    "saved": "Opening balances saved",
+    "saveError": "Could not save opening balances",
+    "sections": {
+      "accounts": "General accounts",
+      "banks": "Banks & cash",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "inventory": "Inventory"
+    },
+    "cols": {
+      "account": "Account",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "customer": "Customer",
+      "supplier": "Supplier",
+      "receivable": "Receivable (debit)",
+      "payable": "Payable (credit)",
+      "item": "Item",
+      "quantity": "Quantity",
+      "unitCost": "Unit cost",
+      "value": "Value"
+    },
+    "empty": {
+      "accounts": "No accounts available for entry here.",
+      "banks": "No bank or cash accounts. Add them from the Banks & Cash screen.",
+      "customers": "No customers. Add them from the Sales & Customers screen.",
+      "suppliers": "No suppliers. Add them from the Purchases & Suppliers screen.",
+      "inventory": "No inventory items. Add them from the Inventory screen."
     }
   },
   "journal": {

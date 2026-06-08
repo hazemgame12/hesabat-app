@@ -19,6 +19,7 @@ import {
   Boxes,
   Package,
   Wallet,
+  Scale,
   Settings
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { labelKey: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
   { labelKey: "nav.journal", icon: FileText, href: "/journal" },
+  { labelKey: "nav.openingBalances", icon: Scale, href: "/opening-balances", requires: "journal:read" },
   { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
   { labelKey: "nav.inventory", icon: Package, href: "/inventory", requires: "inventory:read" },
   { labelKey: "nav.payroll", icon: Wallet, href: "/payroll", requires: "payroll:read" },

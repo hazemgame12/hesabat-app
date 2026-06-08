@@ -97,6 +97,8 @@ import type {
   ListPaymentsParams,
   LoginInput,
   MatchReconciliationInput,
+  OpeningBalances,
+  OpeningBalancesInput,
   OutstandingInvoice,
   PartyStatement,
   Payment,
@@ -107,6 +109,7 @@ import type {
   RoleUpdateInput,
   RunDepreciationInput,
   RunDepreciationResult,
+  SaveOpeningBalancesResult,
   SignupInput,
   SummaryRow,
   Supplier,
@@ -8854,5 +8857,153 @@ export const useCompleteBankReconciliation = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCompleteBankReconciliationMutationOptions(options));
+    }
+
+export const getGetOpeningBalancesUrl = () => {
+
+
+
+
+  return `/api/opening-balances`
+}
+
+/**
+ * @summary Get the saved opening balances for the current company
+ */
+export const getOpeningBalances = async ( options?: RequestInit): Promise<OpeningBalances> => {
+
+  return customFetch<OpeningBalances>(getGetOpeningBalancesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOpeningBalancesQueryKey = () => {
+    return [
+    `/api/opening-balances`
+    ] as const;
+    }
+
+
+export const getGetOpeningBalancesQueryOptions = <TData = Awaited<ReturnType<typeof getOpeningBalances>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpeningBalances>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOpeningBalancesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOpeningBalances>>> = ({ signal }) => getOpeningBalances({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOpeningBalances>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOpeningBalancesQueryResult = NonNullable<Awaited<ReturnType<typeof getOpeningBalances>>>
+export type GetOpeningBalancesQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the saved opening balances for the current company
+ */
+
+export function useGetOpeningBalances<TData = Awaited<ReturnType<typeof getOpeningBalances>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOpeningBalances>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOpeningBalancesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getSaveOpeningBalancesUrl = () => {
+
+
+
+
+  return `/api/opening-balances`
+}
+
+/**
+ * @summary Replace the company's opening-balance journal entry
+ */
+export const saveOpeningBalances = async (openingBalancesInput: OpeningBalancesInput, options?: RequestInit): Promise<SaveOpeningBalancesResult> => {
+
+  return customFetch<SaveOpeningBalancesResult>(getSaveOpeningBalancesUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      openingBalancesInput,)
+  }
+);}
+
+
+
+
+export const getSaveOpeningBalancesMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveOpeningBalances>>, TError,{data: BodyType<OpeningBalancesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveOpeningBalances>>, TError,{data: BodyType<OpeningBalancesInput>}, TContext> => {
+
+const mutationKey = ['saveOpeningBalances'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveOpeningBalances>>, {data: BodyType<OpeningBalancesInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveOpeningBalances(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveOpeningBalancesMutationResult = NonNullable<Awaited<ReturnType<typeof saveOpeningBalances>>>
+    export type SaveOpeningBalancesMutationBody = BodyType<OpeningBalancesInput>
+    export type SaveOpeningBalancesMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Replace the company's opening-balance journal entry
+ */
+export const useSaveOpeningBalances = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveOpeningBalances>>, TError,{data: BodyType<OpeningBalancesInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveOpeningBalances>>,
+        TError,
+        {data: BodyType<OpeningBalancesInput>},
+        TContext
+      > => {
+      return useMutation(getSaveOpeningBalancesMutationOptions(options));
     }
 

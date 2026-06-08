@@ -50,6 +50,9 @@ export type CreateDraftEntryOptions = {
   // module passes 'posted' because party (AR/AP) balances are derived from
   // POSTED journal activity only.
   status?: "draft" | "posted";
+  // Flags the entry as the company's single opening-balances entry. Used by the
+  // Opening Balances module so the entry can be located and replaced as a unit.
+  isOpeningBalance?: boolean;
   lines: DraftPostingLine[];
 };
 
@@ -105,6 +108,7 @@ export async function createDraftJournalEntry(
       reference: opts.reference ?? null,
       notes: opts.notes ?? null,
       status,
+      isOpeningBalance: opts.isOpeningBalance ?? false,
       postedAt: status === "posted" ? new Date() : null,
       createdBy: opts.createdBy ?? null,
     })

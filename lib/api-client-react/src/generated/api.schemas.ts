@@ -5,6 +5,59 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface OpeningBalanceAccountLine {
+  accountId: string;
+  debit: number;
+  credit: number;
+}
+
+export interface OpeningBalanceBankLine {
+  bankAccountId: string;
+  balance: number;
+}
+
+export interface OpeningBalanceCustomerLine {
+  customerId: string;
+  balance: number;
+}
+
+export interface OpeningBalanceSupplierLine {
+  supplierId: string;
+  balance: number;
+}
+
+export interface OpeningBalanceInventoryLine {
+  itemId: string;
+  quantity: number;
+  unitCost: number;
+}
+
+export interface OpeningBalances {
+  date?: string | null;
+  hasOpeningEntry: boolean;
+  accounts: OpeningBalanceAccountLine[];
+  banks: OpeningBalanceBankLine[];
+  customers: OpeningBalanceCustomerLine[];
+  suppliers: OpeningBalanceSupplierLine[];
+  inventory: OpeningBalanceInventoryLine[];
+}
+
+export interface OpeningBalancesInput {
+  /** Opening date (YYYY-MM-DD) */
+  date: string;
+  accounts?: OpeningBalanceAccountLine[];
+  banks?: OpeningBalanceBankLine[];
+  customers?: OpeningBalanceCustomerLine[];
+  suppliers?: OpeningBalanceSupplierLine[];
+  inventory?: OpeningBalanceInventoryLine[];
+}
+
+export interface SaveOpeningBalancesResult {
+  entryId?: string | null;
+  entryNo?: number | null;
+  balanced: boolean;
+}
+
 export interface HealthStatus {
   status: string;
 }

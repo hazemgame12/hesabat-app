@@ -6,7 +6,10 @@ import {
   integer,
   timestamp,
   date,
+  boolean,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { companiesTable } from "./companies";
@@ -15,28 +18,39 @@ import { accountsTable } from "./accounts";
 import { taxesTable } from "./taxes";
 import { costCentersTable } from "./cost-centers";
 
-export const journalEntriesTable = pgTable("journal_entries", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  companyId: uuid("company_id")
-    .notNull()
-    .references(() => companiesTable.id, { onDelete: "cascade" }),
-  entryNo: integer("entry_no").notNull(),
-  date: date("date").notNull(),
-  reference: text("reference"),
-  notes: text("notes"),
-  status: text("status").notNull().default("draft"), // 'draft' | 'posted'
-  createdBy: uuid("created_by").references(() => usersTable.id, {
-    onDelete: "set null",
-  }),
-  postedAt: timestamp("posted_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+export const journalEntriesTable = pgTable(
+  "journal_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companiesTable.id, { onDelete: "cascade" }),
+    entryNo: integer("entry_no").notNull(),
+    date: date("date").notNull(),
+    reference: text("reference"),
+    notes: text("notes"),
+    status: text("status").notNull().default("draft"), // 'draft' | 'posted'
+    isOpeningBalance: boolean("is_opening_balance").notNull().default(false),
+    createdBy: uuid("created_by").references(() => usersTable.id, {
+      onDelete: "set null",
+    }),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    // At most one opening-balance entry per company (DB-level guard against
+    // concurrent saves creating duplicates).
+    uniqueIndex("journal_entries_one_opening_per_company")
+      .on(table.companyId)
+      .where(sql`${table.isOpeningBalance} = true`),
+  ],
+);
 
 export const journalEntryLinesTable = pgTable("journal_entry_lines", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -100,6 +114,7 @@ export const insertJournalEntrySchema = createInsertSchema(
   id: true,
   companyId: true,
   entryNo: true,
+  isOpeningBalance: true,
   createdBy: true,
   postedAt: true,
   createdAt: true,

@@ -3169,3 +3169,70 @@ export const CompleteBankReconciliationResponse = zod.object({
 })
 
 
+/**
+ * @summary Get the saved opening balances for the current company
+ */
+export const GetOpeningBalancesResponse = zod.object({
+  "date": zod.string().nullish(),
+  "hasOpeningEntry": zod.boolean(),
+  "accounts": zod.array(zod.object({
+  "accountId": zod.string(),
+  "debit": zod.number(),
+  "credit": zod.number()
+})),
+  "banks": zod.array(zod.object({
+  "bankAccountId": zod.string(),
+  "balance": zod.number()
+})),
+  "customers": zod.array(zod.object({
+  "customerId": zod.string(),
+  "balance": zod.number()
+})),
+  "suppliers": zod.array(zod.object({
+  "supplierId": zod.string(),
+  "balance": zod.number()
+})),
+  "inventory": zod.array(zod.object({
+  "itemId": zod.string(),
+  "quantity": zod.number(),
+  "unitCost": zod.number()
+}))
+})
+
+
+/**
+ * @summary Replace the company's opening-balance journal entry
+ */
+export const SaveOpeningBalancesBody = zod.object({
+  "date": zod.string().describe('Opening date (YYYY-MM-DD)'),
+  "accounts": zod.array(zod.object({
+  "accountId": zod.string(),
+  "debit": zod.number(),
+  "credit": zod.number()
+})).optional(),
+  "banks": zod.array(zod.object({
+  "bankAccountId": zod.string(),
+  "balance": zod.number()
+})).optional(),
+  "customers": zod.array(zod.object({
+  "customerId": zod.string(),
+  "balance": zod.number()
+})).optional(),
+  "suppliers": zod.array(zod.object({
+  "supplierId": zod.string(),
+  "balance": zod.number()
+})).optional(),
+  "inventory": zod.array(zod.object({
+  "itemId": zod.string(),
+  "quantity": zod.number(),
+  "unitCost": zod.number()
+})).optional()
+})
+
+export const SaveOpeningBalancesResponse = zod.object({
+  "entryId": zod.string().nullish(),
+  "entryNo": zod.number().nullish(),
+  "balanced": zod.boolean()
+})
+
+
