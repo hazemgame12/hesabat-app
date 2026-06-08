@@ -42,3 +42,9 @@ id = "0g7YN5fG97kWcLFi7T3pA"
 uri = "file://hg-server-update.zip"
 type = "unspecified"
 title = "تحديث السيرفر (قراءة ملف .env)"
+
+[[outputs]]
+id = "5_m9vUc4phTTDKjiM9vFL"
+uri = "file://exports/hesabat-project.tar.gz"
+type = "unspecified"
+title = "كود مشروع حسابات + HG (مضغوط)"
