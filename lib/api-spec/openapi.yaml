@@ -2702,6 +2702,65 @@ paths:
                 items:
                   $ref: "#/components/schemas/Payment"
 
+  /reports/vat:
+    get:
+      operationId: getVatReport
+      tags: [financialReports]
+      summary: VAT report (output vs input tax) over a date range
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: VAT report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VatReport"
+
+  /reports/employee-statement:
+    get:
+      operationId: getEmployeeStatement
+      tags: [financialReports]
+      summary: Payroll history and advances for one employee over a range
+      parameters:
+        - name: employeeId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Employee statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmployeeStatement"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /reports/trial-balance:
     get:
       operationId: getTrialBalance
@@ -5553,6 +5612,122 @@ components:
           type: number
         balanced:
           type: boolean
+
+    VatReportRow:
+      type: object
+      required: [taxId, taxName, rate, salesBase, outputTax, purchaseBase, inputTax]
+      properties:
+        taxId:
+          type: string
+        taxName:
+          type: string
+        rate:
+          type: number
+        salesBase:
+          type: number
+        outputTax:
+          type: number
+        purchaseBase:
+          type: number
+        inputTax:
+          type: number
+
+    VatReport:
+      type: object
+      required:
+        [salesBase, purchaseBase, outputTax, inputTax, netVat, rows]
+      properties:
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        salesBase:
+          type: number
+        purchaseBase:
+          type: number
+        outputTax:
+          type: number
+        inputTax:
+          type: number
+        netVat:
+          type: number
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/VatReportRow"
+
+    EmployeeStatementPayrollRow:
+      type: object
+      required: [period, baseSalary, totalAllowances, totalDeductions, netPay]
+      properties:
+        period:
+          type: string
+        baseSalary:
+          type: number
+        totalAllowances:
+          type: number
+        totalDeductions:
+          type: number
+        netPay:
+          type: number
+
+    EmployeeStatementTotals:
+      type: object
+      required: [baseSalary, totalAllowances, totalDeductions, netPay]
+      properties:
+        baseSalary:
+          type: number
+        totalAllowances:
+          type: number
+        totalDeductions:
+          type: number
+        netPay:
+          type: number
+
+    EmployeeStatementAdvanceRow:
+      type: object
+      required: [date, amount, repaymentMonths, monthlyInstallment, totalRepaid, status]
+      properties:
+        date:
+          type: string
+        amount:
+          type: number
+        repaymentMonths:
+          type: integer
+        monthlyInstallment:
+          type: number
+        totalRepaid:
+          type: number
+        status:
+          type: string
+
+    EmployeeStatement:
+      type: object
+      required:
+        [employeeId, employeeCode, employeeName, payrollLines, totals, advances, totalAdvances]
+      properties:
+        employeeId:
+          type: string
+        employeeCode:
+          type: string
+        employeeName:
+          type: string
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        payrollLines:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmployeeStatementPayrollRow"
+        totals:
+          $ref: "#/components/schemas/EmployeeStatementTotals"
+        advances:
+          type: array
+          items:
+            $ref: "#/components/schemas/EmployeeStatementAdvanceRow"
+        totalAdvances:
+          type: number
 
     PnlLine:
       type: object

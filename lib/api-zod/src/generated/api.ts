@@ -2392,6 +2392,74 @@ export const GetPaymentsSummaryReportResponse = zod.array(GetPaymentsSummaryRepo
 
 
 /**
+ * @summary VAT report (output vs input tax) over a date range
+ */
+export const GetVatReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetVatReportResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "salesBase": zod.number(),
+  "purchaseBase": zod.number(),
+  "outputTax": zod.number(),
+  "inputTax": zod.number(),
+  "netVat": zod.number(),
+  "rows": zod.array(zod.object({
+  "taxId": zod.string(),
+  "taxName": zod.string(),
+  "rate": zod.number(),
+  "salesBase": zod.number(),
+  "outputTax": zod.number(),
+  "purchaseBase": zod.number(),
+  "inputTax": zod.number()
+}))
+})
+
+
+/**
+ * @summary Payroll history and advances for one employee over a range
+ */
+export const GetEmployeeStatementQueryParams = zod.object({
+  "employeeId": zod.coerce.string(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetEmployeeStatementResponse = zod.object({
+  "employeeId": zod.string(),
+  "employeeCode": zod.string(),
+  "employeeName": zod.string(),
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "payrollLines": zod.array(zod.object({
+  "period": zod.string(),
+  "baseSalary": zod.number(),
+  "totalAllowances": zod.number(),
+  "totalDeductions": zod.number(),
+  "netPay": zod.number()
+})),
+  "totals": zod.object({
+  "baseSalary": zod.number(),
+  "totalAllowances": zod.number(),
+  "totalDeductions": zod.number(),
+  "netPay": zod.number()
+}),
+  "advances": zod.array(zod.object({
+  "date": zod.string(),
+  "amount": zod.number(),
+  "repaymentMonths": zod.number(),
+  "monthlyInstallment": zod.number(),
+  "totalRepaid": zod.number(),
+  "status": zod.string()
+})),
+  "totalAdvances": zod.number()
+})
+
+
+/**
  * @summary Trial balance from posted journal lines
  */
 export const GetTrialBalanceQueryParams = zod.object({

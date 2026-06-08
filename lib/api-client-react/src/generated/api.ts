@@ -60,6 +60,7 @@ import type {
   DashboardSummary,
   Employee,
   EmployeeInput,
+  EmployeeStatement,
   EmployeeUpdate,
   ErrorResponse,
   FixedAsset,
@@ -68,6 +69,7 @@ import type {
   GeneralLedger,
   GetAgingReportParams,
   GetBalanceSheetParams,
+  GetEmployeeStatementParams,
   GetGeneralLedgerParams,
   GetIncomeStatementParams,
   GetInvoiceSummaryReportParams,
@@ -75,6 +77,7 @@ import type {
   GetPartyStatementParams,
   GetPaymentsSummaryReportParams,
   GetTrialBalanceParams,
+  GetVatReportParams,
   HealthStatus,
   IncomeStatement,
   InventoryItem,
@@ -120,7 +123,8 @@ import type {
   TaxUpdate,
   TeamInvitation,
   TeamMember,
-  TrialBalance
+  TrialBalance,
+  VatReport
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -7333,6 +7337,174 @@ export function useGetPaymentsSummaryReport<TData = Awaited<ReturnType<typeof ge
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPaymentsSummaryReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetVatReportUrl = (params?: GetVatReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/vat?${stringifiedParams}` : `/api/reports/vat`
+}
+
+/**
+ * @summary VAT report (output vs input tax) over a date range
+ */
+export const getVatReport = async (params?: GetVatReportParams, options?: RequestInit): Promise<VatReport> => {
+
+  return customFetch<VatReport>(getGetVatReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetVatReportQueryKey = (params?: GetVatReportParams,) => {
+    return [
+    `/api/reports/vat`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetVatReportQueryOptions = <TData = Awaited<ReturnType<typeof getVatReport>>, TError = ErrorType<unknown>>(params?: GetVatReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVatReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetVatReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getVatReport>>> = ({ signal }) => getVatReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getVatReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetVatReportQueryResult = NonNullable<Awaited<ReturnType<typeof getVatReport>>>
+export type GetVatReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary VAT report (output vs input tax) over a date range
+ */
+
+export function useGetVatReport<TData = Awaited<ReturnType<typeof getVatReport>>, TError = ErrorType<unknown>>(
+ params?: GetVatReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getVatReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetVatReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetEmployeeStatementUrl = (params: GetEmployeeStatementParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/employee-statement?${stringifiedParams}` : `/api/reports/employee-statement`
+}
+
+/**
+ * @summary Payroll history and advances for one employee over a range
+ */
+export const getEmployeeStatement = async (params: GetEmployeeStatementParams, options?: RequestInit): Promise<EmployeeStatement> => {
+
+  return customFetch<EmployeeStatement>(getGetEmployeeStatementUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEmployeeStatementQueryKey = (params?: GetEmployeeStatementParams,) => {
+    return [
+    `/api/reports/employee-statement`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetEmployeeStatementQueryOptions = <TData = Awaited<ReturnType<typeof getEmployeeStatement>>, TError = ErrorType<ErrorResponse>>(params: GetEmployeeStatementParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeeStatement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEmployeeStatementQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEmployeeStatement>>> = ({ signal }) => getEmployeeStatement(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEmployeeStatement>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEmployeeStatementQueryResult = NonNullable<Awaited<ReturnType<typeof getEmployeeStatement>>>
+export type GetEmployeeStatementQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Payroll history and advances for one employee over a range
+ */
+
+export function useGetEmployeeStatement<TData = Awaited<ReturnType<typeof getEmployeeStatement>>, TError = ErrorType<ErrorResponse>>(
+ params: GetEmployeeStatementParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEmployeeStatement>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEmployeeStatementQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

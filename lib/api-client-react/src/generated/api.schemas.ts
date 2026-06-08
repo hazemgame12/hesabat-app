@@ -1826,6 +1826,67 @@ export interface TrialBalance {
   balanced: boolean;
 }
 
+export interface VatReportRow {
+  taxId: string;
+  taxName: string;
+  rate: number;
+  salesBase: number;
+  outputTax: number;
+  purchaseBase: number;
+  inputTax: number;
+}
+
+export interface VatReport {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  salesBase: number;
+  purchaseBase: number;
+  outputTax: number;
+  inputTax: number;
+  netVat: number;
+  rows: VatReportRow[];
+}
+
+export interface EmployeeStatementPayrollRow {
+  period: string;
+  baseSalary: number;
+  totalAllowances: number;
+  totalDeductions: number;
+  netPay: number;
+}
+
+export interface EmployeeStatementTotals {
+  baseSalary: number;
+  totalAllowances: number;
+  totalDeductions: number;
+  netPay: number;
+}
+
+export interface EmployeeStatementAdvanceRow {
+  date: string;
+  amount: number;
+  repaymentMonths: number;
+  monthlyInstallment: number;
+  totalRepaid: number;
+  status: string;
+}
+
+export interface EmployeeStatement {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  payrollLines: EmployeeStatementPayrollRow[];
+  totals: EmployeeStatementTotals;
+  advances: EmployeeStatementAdvanceRow[];
+  totalAdvances: number;
+}
+
 export interface PnlLine {
   accountId: string;
   code: string;
@@ -2291,6 +2352,17 @@ export const GetPaymentsSummaryReportKind = {
   collection: 'collection',
   payment: 'payment',
 } as const;
+
+export type GetVatReportParams = {
+from?: string;
+to?: string;
+};
+
+export type GetEmployeeStatementParams = {
+employeeId: string;
+from?: string;
+to?: string;
+};
 
 export type GetTrialBalanceParams = {
 from?: string;
