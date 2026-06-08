@@ -48,3 +48,9 @@ id = "5_m9vUc4phTTDKjiM9vFL"
 uri = "file://exports/hesabat-project.tar.gz"
 type = "unspecified"
 title = "كود مشروع حسابات + HG (مضغوط)"
+
+[[outputs]]
+id = "8PiN0gZUp4GxJZplqGvpp"
+uri = "file://exports/hesabat-project.zip"
+type = "unspecified"
+title = "كود مشروع حسابات + HG (ZIP)"
