@@ -1,0 +1,122 @@
+# Hesabat ERP – Phase 2 Development Strategy
+
+First, congratulations on completing Phase 1.
+
+Before moving to additional modules, we need to align Hesabat with proven accounting ERP workflows instead of inventing new workflows from scratch.
+
+## Development Direction
+
+Use ERPNext and Odoo as functional references only.
+
+Do NOT copy source code directly.
+
+Instead, analyze their workflows, business logic, accounting relationships, document lifecycle, reports and posting behavior, then implement similar functionality inside Hesabat using our own codebase.
+
+The objective is:
+
+Build a simple, modern and easy-to-use accounting system for SMEs, not a complex enterprise ERP.
+
+---
+
+## Product Vision
+
+Hesabat should focus on:
+
+* Simplicity
+* Fast data entry
+* Excellent accounting reports
+* Easy bank reconciliation
+* Excel import/export
+* Modern dashboard
+* Clean user experience
+
+Avoid unnecessary ERP complexity.
+
+---
+
+## Compare Current System Against ERPNext
+
+Review the following modules and identify missing business logic:
+
+### Accounting
+
+* Chart of Accounts
+* Journal Entries
+* General Ledger
+* Trial Balance
+* Profit & Loss
+* Balance Sheet
+
+### Customers
+
+* Customer Master
+* Customer Statement
+* Receipts Collection Cycle
+* Accounts Receivable Workflow
+
+### Suppliers
+
+* Supplier Master
+* Supplier Statement
+* Payment Cycle
+* Accounts Payable Workflow
+
+### Inventory (Simple Version)
+
+Inventory must remain simple:
+
+Required:
+
+* Item Master
+* Units of Measure
+* Goods Receipt
+* Goods Issue
+* Stock Balance
+* Stock Movement Report
+
+Not Required:
+
+* Manufacturing
+* BOM
+* MRP
+* Complex Warehouse Operations
+* Advanced Inventory Planning
+
+### Banking
+
+Priority Module
+
+Implement:
+
+* Bank Accounts
+* Cash Accounts
+* Payment Vouchers
+* Receipt Vouchers
+* Bank Statement Excel Import
+* Automatic Matching Engine
+* Bank Reconciliation Report
+
+This is one of the key competitive advantages of Hesabat.
+
+---
+
+## Deliverables Required
+
+Before development starts:
+
+1. Gap Analysis between Hesabat and ERPNext workflows.
+2. Missing business logic list.
+3. Database changes required.
+4. APIs required.
+5. Screen changes required.
+6. Development roadmap by module.
+
+---
+
+## Important Rule
+
+Do not create new screens unless they serve a real accounting workflow.
+
+Priority is accounting functionality, usability and automation, not increasing the number of pages.
+
+The goal is to make Hesabat feel easier than ERPNext and Odoo while keeping the most important accounting capabilities.
