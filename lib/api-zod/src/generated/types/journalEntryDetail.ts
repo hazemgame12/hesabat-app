@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { JournalEntryAttachment } from './journalEntryAttachment';
+import type { JournalEntryDetailEntryType } from './journalEntryDetailEntryType';
 import type { JournalEntryDetailStatus } from './journalEntryDetailStatus';
 import type { JournalEntryLine } from './journalEntryLine';
 
@@ -17,9 +18,17 @@ export interface JournalEntryDetail {
   reference?: string | null;
   /** @nullable */
   notes?: string | null;
+  entryNumber?: string;
   status: JournalEntryDetailStatus;
+  entryType?: JournalEntryDetailEntryType;
+  /** @nullable */
+  reversedEntryId?: string | null;
   totalDebitBase: number;
   totalCreditBase: number;
+  /** @nullable */
+  submittedAt?: string | null;
+  /** @nullable */
+  approvedAt?: string | null;
   /** @nullable */
   postedAt?: string | null;
   createdAt: string;

@@ -2313,6 +2313,286 @@ export const usePostJournalEntry = <TError = ErrorType<ErrorResponse>,
       return useMutation(getPostJournalEntryMutationOptions(options));
     }
 
+export const getSubmitJournalEntryUrl = (id: string,) => {
+
+
+
+
+  return `/api/journal/${id}/submit`
+}
+
+/**
+ * @summary Submit a draft journal entry for approval
+ */
+export const submitJournalEntry = async (id: string, options?: RequestInit): Promise<JournalEntryDetail> => {
+
+  return customFetch<JournalEntryDetail>(getSubmitJournalEntryUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSubmitJournalEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitJournalEntry>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitJournalEntry>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['submitJournalEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitJournalEntry>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  submitJournalEntry(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitJournalEntryMutationResult = NonNullable<Awaited<ReturnType<typeof submitJournalEntry>>>
+
+    export type SubmitJournalEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Submit a draft journal entry for approval
+ */
+export const useSubmitJournalEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitJournalEntry>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitJournalEntry>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getSubmitJournalEntryMutationOptions(options));
+    }
+
+export const getApproveJournalEntryUrl = (id: string,) => {
+
+
+
+
+  return `/api/journal/${id}/approve`
+}
+
+/**
+ * @summary Approve a submitted journal entry
+ */
+export const approveJournalEntry = async (id: string, options?: RequestInit): Promise<JournalEntryDetail> => {
+
+  return customFetch<JournalEntryDetail>(getApproveJournalEntryUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getApproveJournalEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveJournalEntry>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof approveJournalEntry>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['approveJournalEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof approveJournalEntry>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  approveJournalEntry(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ApproveJournalEntryMutationResult = NonNullable<Awaited<ReturnType<typeof approveJournalEntry>>>
+
+    export type ApproveJournalEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Approve a submitted journal entry
+ */
+export const useApproveJournalEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof approveJournalEntry>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof approveJournalEntry>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getApproveJournalEntryMutationOptions(options));
+    }
+
+export const getRejectJournalEntryUrl = (id: string,) => {
+
+
+
+
+  return `/api/journal/${id}/reject`
+}
+
+/**
+ * @summary Reject a submitted journal entry back to draft
+ */
+export const rejectJournalEntry = async (id: string, options?: RequestInit): Promise<JournalEntryDetail> => {
+
+  return customFetch<JournalEntryDetail>(getRejectJournalEntryUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRejectJournalEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectJournalEntry>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof rejectJournalEntry>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['rejectJournalEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectJournalEntry>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  rejectJournalEntry(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RejectJournalEntryMutationResult = NonNullable<Awaited<ReturnType<typeof rejectJournalEntry>>>
+
+    export type RejectJournalEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Reject a submitted journal entry back to draft
+ */
+export const useRejectJournalEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof rejectJournalEntry>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof rejectJournalEntry>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRejectJournalEntryMutationOptions(options));
+    }
+
+export const getReverseJournalEntryUrl = (id: string,) => {
+
+
+
+
+  return `/api/journal/${id}/reverse`
+}
+
+/**
+ * @summary Create a reversing draft entry for a posted journal entry
+ */
+export const reverseJournalEntry = async (id: string, options?: RequestInit): Promise<JournalEntryDetail> => {
+
+  return customFetch<JournalEntryDetail>(getReverseJournalEntryUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getReverseJournalEntryMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reverseJournalEntry>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reverseJournalEntry>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['reverseJournalEntry'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reverseJournalEntry>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  reverseJournalEntry(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReverseJournalEntryMutationResult = NonNullable<Awaited<ReturnType<typeof reverseJournalEntry>>>
+
+    export type ReverseJournalEntryMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create a reversing draft entry for a posted journal entry
+ */
+export const useReverseJournalEntry = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reverseJournalEntry>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reverseJournalEntry>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getReverseJournalEntryMutationOptions(options));
+    }
+
 export const getUploadJournalAttachmentUrl = (id: string,) => {
 
 

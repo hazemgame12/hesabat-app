@@ -843,7 +843,15 @@
       "deleted": "Entry deleted",
       "saveError": "Failed to save entry",
       "postError": "Failed to post entry",
-      "deleteError": "Failed to delete entry"
+      "deleteError": "Failed to delete entry",
+      "submitted": "Entry submitted for approval",
+      "approved": "Entry approved",
+      "rejected": "Entry returned to draft",
+      "reversed": "Reversing draft entry created",
+      "submitError": "Failed to submit entry",
+      "approveError": "Failed to approve entry",
+      "rejectError": "Failed to reject entry",
+      "reverseError": "Failed to reverse entry"
     },
     "deleteTitle": "Delete entry",
     "deleteBody": "Are you sure you want to delete entry #{{no}}? This action cannot be undone.",
@@ -871,7 +879,18 @@
       "import": "Import Excel",
       "imported": "Imported {{count}} entries",
       "importError": "Failed to import file"
-    }
+    },
+    "pendingApproval": "Pending approval",
+    "approved": "Approved",
+    "submit": "Submit for approval",
+    "saveAndSubmit": "Save & submit",
+    "approve": "Approve",
+    "reject": "Reject",
+    "reverse": "Reverse entry",
+    "reversalBadge": "Reversal",
+    "adjustmentBadge": "Adjustment",
+    "submitLockHint": "This entry is awaiting approval and cannot be edited",
+    "approvedLockHint": "This entry is approved and ready to post"
   },
   "payroll": {
     "title": "Payroll & Employees",

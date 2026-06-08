@@ -11,5 +11,7 @@ export type JournalEntryStatus = typeof JournalEntryStatus[keyof typeof JournalE
 
 export const JournalEntryStatus = {
   draft: 'draft',
+  pending_approval: 'pending_approval',
+  approved: 'approved',
   posted: 'posted',
 } as const;

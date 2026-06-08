@@ -788,6 +788,134 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /journal/{id}/submit:
+    post:
+      operationId: submitJournalEntry
+      tags: [journal]
+      summary: Submit a draft journal entry for approval
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryDetail"
+        "400":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /journal/{id}/approve:
+    post:
+      operationId: approveJournalEntry
+      tags: [journal]
+      summary: Approve a submitted journal entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryDetail"
+        "400":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /journal/{id}/reject:
+    post:
+      operationId: rejectJournalEntry
+      tags: [journal]
+      summary: Reject a submitted journal entry back to draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryDetail"
+        "400":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /journal/{id}/reverse:
+    post:
+      operationId: reverseJournalEntry
+      tags: [journal]
+      summary: Create a reversing draft entry for a posted journal entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Reversal created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntryDetail"
+        "400":
+          description: Invalid state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /journal/{id}/attachments:
     post:
       operationId: uploadJournalAttachment
@@ -4721,6 +4849,8 @@ components:
           type: string
         entryNo:
           type: integer
+        entryNumber:
+          type: string
         date:
           type: string
         reference:
@@ -4729,11 +4859,20 @@ components:
           type: ["string", "null"]
         status:
           type: string
-          enum: [draft, posted]
+          enum: [draft, pending_approval, approved, posted]
+        entryType:
+          type: string
+          enum: [normal, reversal, adjustment]
+        reversedEntryId:
+          type: ["string", "null"]
         totalDebitBase:
           type: number
         totalCreditBase:
           type: number
+        submittedAt:
+          type: ["string", "null"]
+        approvedAt:
+          type: ["string", "null"]
         postedAt:
           type: ["string", "null"]
         createdAt:
@@ -4764,13 +4903,24 @@ components:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]
+        entryNumber:
+          type: string
         status:
           type: string
-          enum: [draft, posted]
+          enum: [draft, pending_approval, approved, posted]
+        entryType:
+          type: string
+          enum: [normal, reversal, adjustment]
+        reversedEntryId:
+          type: ["string", "null"]
         totalDebitBase:
           type: number
         totalCreditBase:
           type: number
+        submittedAt:
+          type: ["string", "null"]
+        approvedAt:
+          type: ["string", "null"]
         postedAt:
           type: ["string", "null"]
         createdAt:

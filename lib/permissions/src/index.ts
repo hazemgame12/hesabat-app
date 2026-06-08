@@ -48,6 +48,8 @@ export const CAPABILITIES = [
   "journal:update",
   "journal:delete",
   "journal:post",
+  "journal:submit",
+  "journal:approve",
   "assets:read",
   "assets:create",
   "assets:update",
@@ -127,6 +129,8 @@ const JOURNAL_FULL: Capability[] = [
   "journal:update",
   "journal:delete",
   "journal:post",
+  "journal:submit",
+  "journal:approve",
 ];
 
 const ASSETS_FULL: Capability[] = [
@@ -255,6 +259,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "journal:create",
     "journal:update",
     "journal:post",
+    "journal:submit",
     "assets:read",
     "assets:create",
     "assets:update",
@@ -296,6 +301,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "currencies:read",
     "journal:read",
     "journal:create",
+    "journal:submit",
     "assets:read",
     "assets:create",
     "inventory:read",

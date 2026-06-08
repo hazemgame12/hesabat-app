@@ -8,6 +8,7 @@ import {
   date,
   boolean,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -29,11 +30,27 @@ export const journalEntriesTable = pgTable(
     date: date("date").notNull(),
     reference: text("reference"),
     notes: text("notes"),
-    status: text("status").notNull().default("draft"), // 'draft' | 'posted'
+    // 'draft' | 'pending_approval' | 'approved' | 'posted'
+    status: text("status").notNull().default("draft"),
+    // 'normal' | 'reversal' | 'adjustment'
+    entryType: text("entry_type").notNull().default("normal"),
+    // For reversal/adjustment entries: the original entry they relate to.
+    reversedEntryId: uuid("reversed_entry_id").references(
+      (): AnyPgColumn => journalEntriesTable.id,
+      { onDelete: "set null" },
+    ),
     isOpeningBalance: boolean("is_opening_balance").notNull().default(false),
     createdBy: uuid("created_by").references(() => usersTable.id, {
       onDelete: "set null",
     }),
+    submittedBy: uuid("submitted_by").references(() => usersTable.id, {
+      onDelete: "set null",
+    }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedBy: uuid("approved_by").references(() => usersTable.id, {
+      onDelete: "set null",
+    }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
     postedAt: timestamp("posted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -49,6 +66,11 @@ export const journalEntriesTable = pgTable(
     uniqueIndex("journal_entries_one_opening_per_company")
       .on(table.companyId)
       .where(sql`${table.isOpeningBalance} = true`),
+    // At most one reversal per source entry (DB-level guard against concurrent
+    // reverse requests creating duplicate reversal entries).
+    uniqueIndex("journal_entries_one_reversal_per_source")
+      .on(table.companyId, table.reversedEntryId)
+      .where(sql`${table.entryType} = 'reversal'`),
   ],
 );
 
@@ -114,8 +136,15 @@ export const insertJournalEntrySchema = createInsertSchema(
   id: true,
   companyId: true,
   entryNo: true,
+  status: true,
+  entryType: true,
+  reversedEntryId: true,
   isOpeningBalance: true,
   createdBy: true,
+  submittedBy: true,
+  submittedAt: true,
+  approvedBy: true,
+  approvedAt: true,
   postedAt: true,
   createdAt: true,
   updatedAt: true,

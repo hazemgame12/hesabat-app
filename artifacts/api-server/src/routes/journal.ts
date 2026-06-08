@@ -140,6 +140,13 @@ function toAttachment(row: JournalEntryAttachment) {
   };
 }
 
+// Human-facing entry number, e.g. JV-2026-000123. The underlying integer
+// `entryNo` (concurrency-safe via lockCompanyEntryNo) stays the source of truth.
+function formatEntryNumber(entryNo: number, date: string): string {
+  const year = date.slice(0, 4);
+  return `JV-${year}-${String(entryNo).padStart(6, "0")}`;
+}
+
 function toEntrySummary(
   row: JournalEntry,
   totals: { debit: number; credit: number },
@@ -147,12 +154,17 @@ function toEntrySummary(
   return {
     id: row.id,
     entryNo: row.entryNo,
+    entryNumber: formatEntryNumber(row.entryNo, row.date),
     date: row.date,
     reference: row.reference,
     notes: row.notes,
     status: row.status,
+    entryType: row.entryType,
+    reversedEntryId: row.reversedEntryId,
     totalDebitBase: round2(totals.debit),
     totalCreditBase: round2(totals.credit),
+    submittedAt: row.submittedAt ? row.submittedAt.toISOString() : null,
+    approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
     postedAt: row.postedAt ? row.postedAt.toISOString() : null,
     createdAt: row.createdAt.toISOString(),
   };
@@ -547,8 +559,10 @@ router.patch(
         res.status(404).json({ error: "القيد غير موجود" });
         return;
       }
-      if (existing.status === "posted") {
-        res.status(400).json({ error: "لا يمكن تعديل قيد مرحَّل" });
+      if (existing.status !== "draft") {
+        res
+          .status(400)
+          .json({ error: "لا يمكن تعديل القيد إلا وهو مسودة" });
         return;
       }
       const refErr = await validateLineRefs(lines, companyId);
@@ -634,10 +648,21 @@ router.post(
         res.status(400).json({ error: "القيد مرحَّل بالفعل" });
         return;
       }
+      if (existing.status !== "approved") {
+        res
+          .status(400)
+          .json({ error: "لا يمكن ترحيل القيد قبل اعتماده" });
+        return;
+      }
       const lines = await db
         .select()
         .from(journalEntryLinesTable)
-        .where(eq(journalEntryLinesTable.entryId, id))
+        .where(
+          and(
+            eq(journalEntryLinesTable.entryId, id),
+            eq(journalEntryLinesTable.companyId, companyId),
+          ),
+        )
         .orderBy(asc(journalEntryLinesTable.lineNo));
       if (lines.length < 2) {
         res.status(400).json({ error: "القيد يجب أن يحتوي على سطرين على الأقل" });
@@ -684,6 +709,28 @@ router.delete(
     const id = req.params["id"] as string;
     const companyId = req.auth!.companyId;
     try {
+      // Only draft entries may be deleted; once an entry enters the approval
+      // workflow (pending/approved/posted) it is immutable.
+      const [existing] = await db
+        .select({ status: journalEntriesTable.status })
+        .from(journalEntriesTable)
+        .where(
+          and(
+            eq(journalEntriesTable.id, id),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!existing) {
+        res.status(404).json({ error: "القيد غير موجود" });
+        return;
+      }
+      if (existing.status !== "draft") {
+        res
+          .status(400)
+          .json({ error: "لا يمكن حذف القيد إلا وهو مسودة" });
+        return;
+      }
       // Capture the on-disk keys before the cascade removes the rows, so the
       // files can be cleaned up once the DB delete succeeds.
       const attachmentKeys = await db
@@ -716,6 +763,330 @@ router.delete(
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete journal entry");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Workflow (submit / approve / reject / reverse) ------------------------
+
+// Loads a full entry detail (entry + ordered lines + attachments) scoped to the
+// company. Returns null when the entry does not belong to the caller.
+async function loadEntryDetail(id: string, companyId: string) {
+  const [entry] = await db
+    .select()
+    .from(journalEntriesTable)
+    .where(
+      and(
+        eq(journalEntriesTable.id, id),
+        eq(journalEntriesTable.companyId, companyId),
+      ),
+    )
+    .limit(1);
+  if (!entry) return null;
+  const lines = await db
+    .select()
+    .from(journalEntryLinesTable)
+    .where(
+      and(
+        eq(journalEntryLinesTable.entryId, id),
+        eq(journalEntryLinesTable.companyId, companyId),
+      ),
+    )
+    .orderBy(asc(journalEntryLinesTable.lineNo));
+  const attachments = await db
+    .select()
+    .from(journalEntryAttachmentsTable)
+    .where(
+      and(
+        eq(journalEntryAttachmentsTable.entryId, id),
+        eq(journalEntryAttachmentsTable.companyId, companyId),
+      ),
+    );
+  return toEntryDetail(entry, lines, attachments);
+}
+
+// Submit a draft for approval: draft → pending_approval.
+router.post(
+  "/journal/:id/submit",
+  requireAuth,
+  requireCapability("journal:submit"),
+  async (req, res) => {
+    const id = req.params["id"] as string;
+    const companyId = req.auth!.companyId;
+    try {
+      const [existing] = await db
+        .select()
+        .from(journalEntriesTable)
+        .where(
+          and(
+            eq(journalEntriesTable.id, id),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!existing) {
+        res.status(404).json({ error: "القيد غير موجود" });
+        return;
+      }
+      if (existing.status !== "draft") {
+        res
+          .status(400)
+          .json({ error: "لا يمكن إرسال القيد إلا وهو مسودة" });
+        return;
+      }
+      const lines = await db
+        .select()
+        .from(journalEntryLinesTable)
+        .where(
+          and(
+            eq(journalEntryLinesTable.entryId, id),
+            eq(journalEntryLinesTable.companyId, companyId),
+          ),
+        );
+      if (lines.length < 2) {
+        res
+          .status(400)
+          .json({ error: "القيد يجب أن يحتوي على سطرين على الأقل" });
+        return;
+      }
+      const totalDebit = lines.reduce((s, l) => s + Number(l.debitBase), 0);
+      const totalCredit = lines.reduce((s, l) => s + Number(l.creditBase), 0);
+      if (Math.abs(totalDebit - totalCredit) > BALANCE_TOLERANCE) {
+        res
+          .status(400)
+          .json({ error: "القيد غير متوازن ولا يمكن إرساله" });
+        return;
+      }
+      await db
+        .update(journalEntriesTable)
+        .set({
+          status: "pending_approval",
+          submittedBy: req.auth!.userId,
+          submittedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(journalEntriesTable.id, id),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        );
+      res.json(await loadEntryDetail(id, companyId));
+    } catch (err) {
+      req.log.error({ err }, "Failed to submit journal entry");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Approve a submitted entry: pending_approval → approved.
+router.post(
+  "/journal/:id/approve",
+  requireAuth,
+  requireCapability("journal:approve"),
+  async (req, res) => {
+    const id = req.params["id"] as string;
+    const companyId = req.auth!.companyId;
+    try {
+      const [existing] = await db
+        .select()
+        .from(journalEntriesTable)
+        .where(
+          and(
+            eq(journalEntriesTable.id, id),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!existing) {
+        res.status(404).json({ error: "القيد غير موجود" });
+        return;
+      }
+      if (existing.status !== "pending_approval") {
+        res
+          .status(400)
+          .json({ error: "لا يمكن اعتماد القيد إلا بعد إرساله للاعتماد" });
+        return;
+      }
+      await db
+        .update(journalEntriesTable)
+        .set({
+          status: "approved",
+          approvedBy: req.auth!.userId,
+          approvedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(journalEntriesTable.id, id),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        );
+      res.json(await loadEntryDetail(id, companyId));
+    } catch (err) {
+      req.log.error({ err }, "Failed to approve journal entry");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Reject a submitted entry back to draft: pending_approval → draft.
+router.post(
+  "/journal/:id/reject",
+  requireAuth,
+  requireCapability("journal:approve"),
+  async (req, res) => {
+    const id = req.params["id"] as string;
+    const companyId = req.auth!.companyId;
+    try {
+      const [existing] = await db
+        .select()
+        .from(journalEntriesTable)
+        .where(
+          and(
+            eq(journalEntriesTable.id, id),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!existing) {
+        res.status(404).json({ error: "القيد غير موجود" });
+        return;
+      }
+      if (existing.status !== "pending_approval") {
+        res
+          .status(400)
+          .json({ error: "لا يمكن رفض القيد إلا وهو قيد الاعتماد" });
+        return;
+      }
+      await db
+        .update(journalEntriesTable)
+        .set({ status: "draft", submittedBy: null, submittedAt: null })
+        .where(
+          and(
+            eq(journalEntriesTable.id, id),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        );
+      res.json(await loadEntryDetail(id, companyId));
+    } catch (err) {
+      req.log.error({ err }, "Failed to reject journal entry");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Reverse a posted entry: creates a new draft entry of type 'reversal' with
+// debit/credit swapped, linked to the source via reversedEntryId.
+router.post(
+  "/journal/:id/reverse",
+  requireAuth,
+  requireCapability("journal:create"),
+  async (req, res) => {
+    const id = req.params["id"] as string;
+    const companyId = req.auth!.companyId;
+    try {
+      const [original] = await db
+        .select()
+        .from(journalEntriesTable)
+        .where(
+          and(
+            eq(journalEntriesTable.id, id),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!original) {
+        res.status(404).json({ error: "القيد غير موجود" });
+        return;
+      }
+      if (original.status !== "posted") {
+        res
+          .status(400)
+          .json({ error: "لا يمكن عكس قيد غير مرحَّل" });
+        return;
+      }
+      const sourceLines = await db
+        .select()
+        .from(journalEntryLinesTable)
+        .where(
+          and(
+            eq(journalEntryLinesTable.entryId, id),
+            eq(journalEntryLinesTable.companyId, companyId),
+          ),
+        )
+        .orderBy(asc(journalEntryLinesTable.lineNo));
+      const today = new Date().toISOString().slice(0, 10);
+      const detail = await db.transaction(async (tx) => {
+        await lockCompanyEntryNo(tx, companyId);
+        // Re-check inside the lock: lockCompanyEntryNo serializes entry creation
+        // per company, so a concurrent reverse cannot slip a second reversal in.
+        const [existingReversal] = await tx
+          .select({ id: journalEntriesTable.id })
+          .from(journalEntriesTable)
+          .where(
+            and(
+              eq(journalEntriesTable.companyId, companyId),
+              eq(journalEntriesTable.reversedEntryId, id),
+              eq(journalEntriesTable.entryType, "reversal"),
+            ),
+          )
+          .limit(1);
+        if (existingReversal) return null;
+        const [{ maxNo }] = await tx
+          .select({
+            maxNo: sql<number>`coalesce(max(${journalEntriesTable.entryNo}), 0)`,
+          })
+          .from(journalEntriesTable)
+          .where(eq(journalEntriesTable.companyId, companyId));
+        const [entry] = await tx
+          .insert(journalEntriesTable)
+          .values({
+            companyId,
+            entryNo: Number(maxNo) + 1,
+            date: today,
+            reference: original.reference,
+            notes: `قيد عكسي للقيد ${formatEntryNumber(
+              original.entryNo,
+              original.date,
+            )}`,
+            status: "draft",
+            entryType: "reversal",
+            reversedEntryId: original.id,
+            createdBy: req.auth!.userId,
+          })
+          .returning();
+        const lineRows = await tx
+          .insert(journalEntryLinesTable)
+          .values(
+            sourceLines.map((l, i) => ({
+              entryId: entry!.id,
+              companyId,
+              lineNo: i + 1,
+              accountId: l.accountId,
+              description: l.description,
+              currency: l.currency,
+              exchangeRate: l.exchangeRate,
+              // Swap debit/credit to reverse the original entry.
+              debit: l.credit,
+              credit: l.debit,
+              debitBase: l.creditBase,
+              creditBase: l.debitBase,
+              taxId: l.taxId,
+              costCenterId: l.costCenterId,
+            })),
+          )
+          .returning();
+        return toEntryDetail(entry!, lineRows, []);
+      });
+      if (!detail) {
+        res
+          .status(400)
+          .json({ error: "تم إنشاء قيد عكسي لهذا القيد بالفعل" });
+        return;
+      }
+      res.status(201).json(detail);
+    } catch (err) {
+      req.log.error({ err }, "Failed to reverse journal entry");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
@@ -758,6 +1129,15 @@ router.post(
         res.status(404).json({ error: "القيد غير موجود" });
         return;
       }
+      if (entry.status !== "draft") {
+        fs.promises
+          .unlink(path.join(uploadsDir, req.file.filename))
+          .catch(() => {});
+        res
+          .status(400)
+          .json({ error: "لا يمكن تعديل مرفقات القيد إلا وهو مسودة" });
+        return;
+      }
       const [row] = await db
         .insert(journalEntryAttachmentsTable)
         .values({
@@ -791,6 +1171,17 @@ router.delete(
     const attachmentId = req.params["attachmentId"] as string;
     const companyId = req.auth!.companyId;
     try {
+      const entry = await loadOwnedEntry(id, companyId);
+      if (!entry) {
+        res.status(404).json({ error: "القيد غير موجود" });
+        return;
+      }
+      if (entry.status !== "draft") {
+        res
+          .status(400)
+          .json({ error: "لا يمكن تعديل مرفقات القيد إلا وهو مسودة" });
+        return;
+      }
       const deleted = await db
         .delete(journalEntryAttachmentsTable)
         .where(

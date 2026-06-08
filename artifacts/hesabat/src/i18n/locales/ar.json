@@ -843,7 +843,15 @@
       "deleted": "تم حذف القيد",
       "saveError": "تعذّر حفظ القيد",
       "postError": "تعذّر ترحيل القيد",
-      "deleteError": "تعذّر حذف القيد"
+      "deleteError": "تعذّر حذف القيد",
+      "submitted": "تم إرسال القيد للاعتماد",
+      "approved": "تم اعتماد القيد",
+      "rejected": "تمت إعادة القيد كمسودة",
+      "reversed": "تم إنشاء قيد عكسي كمسودة",
+      "submitError": "تعذّر إرسال القيد",
+      "approveError": "تعذّر اعتماد القيد",
+      "rejectError": "تعذّر رفض القيد",
+      "reverseError": "تعذّر عكس القيد"
     },
     "deleteTitle": "حذف القيد",
     "deleteBody": "هل أنت متأكد من حذف القيد رقم {{no}}؟ لا يمكن التراجع عن هذا الإجراء.",
@@ -871,7 +879,18 @@
       "import": "استيراد Excel",
       "imported": "تم استيراد {{count}} قيد",
       "importError": "تعذّر استيراد الملف"
-    }
+    },
+    "pendingApproval": "بانتظار الاعتماد",
+    "approved": "معتمد",
+    "submit": "إرسال للاعتماد",
+    "saveAndSubmit": "حفظ وإرسال للاعتماد",
+    "approve": "اعتماد",
+    "reject": "رفض",
+    "reverse": "عكس القيد",
+    "reversalBadge": "قيد عكسي",
+    "adjustmentBadge": "قيد تسوية",
+    "submitLockHint": "هذا القيد بانتظار الاعتماد ولا يمكن تعديله",
+    "approvedLockHint": "هذا القيد معتمد وجاهز للترحيل"
   },
   "payroll": {
     "title": "الرواتب والموظفين",

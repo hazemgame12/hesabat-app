@@ -1077,20 +1077,39 @@ export type JournalEntryStatus = typeof JournalEntryStatus[keyof typeof JournalE
 
 export const JournalEntryStatus = {
   draft: 'draft',
+  pending_approval: 'pending_approval',
+  approved: 'approved',
   posted: 'posted',
+} as const;
+
+export type JournalEntryEntryType = typeof JournalEntryEntryType[keyof typeof JournalEntryEntryType];
+
+
+export const JournalEntryEntryType = {
+  normal: 'normal',
+  reversal: 'reversal',
+  adjustment: 'adjustment',
 } as const;
 
 export interface JournalEntry {
   id: string;
   entryNo: number;
+  entryNumber?: string;
   date: string;
   /** @nullable */
   reference?: string | null;
   /** @nullable */
   notes?: string | null;
   status: JournalEntryStatus;
+  entryType?: JournalEntryEntryType;
+  /** @nullable */
+  reversedEntryId?: string | null;
   totalDebitBase: number;
   totalCreditBase: number;
+  /** @nullable */
+  submittedAt?: string | null;
+  /** @nullable */
+  approvedAt?: string | null;
   /** @nullable */
   postedAt?: string | null;
   createdAt: string;
@@ -1101,7 +1120,18 @@ export type JournalEntryDetailStatus = typeof JournalEntryDetailStatus[keyof typ
 
 export const JournalEntryDetailStatus = {
   draft: 'draft',
+  pending_approval: 'pending_approval',
+  approved: 'approved',
   posted: 'posted',
+} as const;
+
+export type JournalEntryDetailEntryType = typeof JournalEntryDetailEntryType[keyof typeof JournalEntryDetailEntryType];
+
+
+export const JournalEntryDetailEntryType = {
+  normal: 'normal',
+  reversal: 'reversal',
+  adjustment: 'adjustment',
 } as const;
 
 export interface JournalEntryDetail {
@@ -1112,9 +1142,17 @@ export interface JournalEntryDetail {
   reference?: string | null;
   /** @nullable */
   notes?: string | null;
+  entryNumber?: string;
   status: JournalEntryDetailStatus;
+  entryType?: JournalEntryDetailEntryType;
+  /** @nullable */
+  reversedEntryId?: string | null;
   totalDebitBase: number;
   totalCreditBase: number;
+  /** @nullable */
+  submittedAt?: string | null;
+  /** @nullable */
+  approvedAt?: string | null;
   /** @nullable */
   postedAt?: string | null;
   createdAt: string;

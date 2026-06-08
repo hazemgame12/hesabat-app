@@ -6,6 +6,10 @@ import {
   useCreateJournalEntry,
   useUpdateJournalEntry,
   usePostJournalEntry,
+  useSubmitJournalEntry,
+  useApproveJournalEntry,
+  useRejectJournalEntry,
+  useReverseJournalEntry,
   useDeleteJournalEntry,
   useDeleteJournalAttachment,
   useListAccounts,
@@ -98,6 +102,34 @@ const toNum = (s: string) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+function StatusBadge({ status }: { status: string }) {
+  const { t } = useTranslation();
+  const map: Record<string, { label: string; cls: string }> = {
+    draft: { label: t("journal.draft"), cls: "bg-amber-500/10 text-amber-600" },
+    pending_approval: {
+      label: t("journal.pendingApproval"),
+      cls: "bg-blue-500/10 text-blue-600",
+    },
+    approved: {
+      label: t("journal.approved"),
+      cls: "bg-indigo-500/10 text-indigo-600",
+    },
+    posted: {
+      label: t("journal.posted"),
+      cls: "bg-success/10 text-success",
+    },
+  };
+  const s = map[status] ?? map["draft"]!;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${s.cls}`}
+    >
+      {status === "posted" && <CheckCircle2 className="w-3 h-3" />}
+      {s.label}
+    </span>
+  );
+}
+
 export function Journal() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -111,6 +143,8 @@ export function Journal() {
   const canUpdate = hasCapability(role, "journal:update");
   const canDelete = hasCapability(role, "journal:delete");
   const canPost = hasCapability(role, "journal:post");
+  const canSubmit = hasCapability(role, "journal:submit");
+  const canApprove = hasCapability(role, "journal:approve");
 
   const [mode, setMode] = useState<"list" | "editor">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -192,8 +226,11 @@ export function Journal() {
       <JournalEditor
         entryId={editingId}
         onBack={backToList}
+        canCreate={canCreate}
         canUpdate={canUpdate}
         canPost={canPost}
+        canSubmit={canSubmit}
+        canApprove={canApprove}
       />
     );
   }
@@ -283,33 +320,31 @@ export function Journal() {
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id} className="border-t hover:bg-muted/30 transition-colors group">
-                    <td className="px-4 py-3 font-bold text-foreground font-sans">#{e.entryNo}</td>
+                    <td className="px-4 py-3 font-bold text-foreground font-sans">
+                      {e.entryNumber}
+                      {e.entryType === "reversal" && (
+                        <span className="ms-1 text-[10px] font-bold text-rose-600">
+                          ({t("journal.reversalBadge")})
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground font-sans">{e.date}</td>
                     <td className="px-4 py-3 text-foreground/80">{e.reference || "—"}</td>
                     <td className="px-4 py-3 text-foreground/80 max-w-[200px] truncate">{e.notes || "—"}</td>
                     <td className="px-4 py-3 text-end font-sans font-bold tabular-nums">{num(e.totalDebitBase)}</td>
                     <td className="px-4 py-3">
-                      {e.status === "posted" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-success/10 text-success">
-                          <CheckCircle2 className="w-3 h-3" />
-                          {t("journal.posted")}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
-                          {t("journal.draft")}
-                        </span>
-                      )}
+                      <StatusBadge status={e.status} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => openEntry(e.id)}
                           className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                          title={e.status === "posted" ? t("common.view") : t("common.edit")}
+                          title={e.status === "draft" ? t("common.edit") : t("common.view")}
                         >
-                          {e.status === "posted" ? <Eye className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
+                          {e.status === "draft" ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
-                        {canDelete && (
+                        {canDelete && e.status !== "posted" && (
                           <button
                             onClick={() => setEntryToDelete(e)}
                             className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
@@ -351,13 +386,19 @@ export function Journal() {
 function JournalEditor({
   entryId,
   onBack,
+  canCreate,
   canUpdate,
   canPost,
+  canSubmit,
+  canApprove,
 }: {
   entryId: string | null;
   onBack: () => void;
+  canCreate: boolean;
   canUpdate: boolean;
   canPost: boolean;
+  canSubmit: boolean;
+  canApprove: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -390,8 +431,13 @@ function JournalEditor({
     { query: { enabled: !!entryId, queryKey: getGetJournalEntryQueryKey(entryId ?? "") } },
   );
 
-  const isPosted = existing?.status === "posted";
-  const readOnly = isPosted || !canUpdate;
+  const status = existing?.status;
+  const isPosted = status === "posted";
+  const isPending = status === "pending_approval";
+  const isApproved = status === "approved";
+  const isDraft = !existing || status === "draft";
+  // Only drafts (or brand-new entries) are editable.
+  const readOnly = !canUpdate || (!!existing && status !== "draft");
 
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [reference, setReference] = useState("");
@@ -427,6 +473,10 @@ function JournalEditor({
   const createEntry = useCreateJournalEntry();
   const updateEntry = useUpdateJournalEntry();
   const postEntry = usePostJournalEntry();
+  const submitEntry = useSubmitJournalEntry();
+  const approveEntry = useApproveJournalEntry();
+  const rejectEntry = useRejectJournalEntry();
+  const reverseEntry = useReverseJournalEntry();
   const deleteAttachment = useDeleteJournalAttachment();
 
   const attachments: JournalEntryAttachment[] = existing?.attachments ?? [];
@@ -576,24 +626,99 @@ function JournalEditor({
     }
   };
 
-  const doSaveAndPost = () => {
+  // Save the draft then submit it for approval in one click.
+  const doSaveAndSubmit = () => {
     doSave((id) => {
-      postEntry.mutate(
+      submitEntry.mutate(
         { id },
         {
           onSuccess: () => {
             invalidate();
-            toast({ title: t("journal.toast.posted") });
+            toast({ title: t("journal.toast.submitted") });
             onBack();
           },
           onError: (e: any) =>
-            toast({ variant: "destructive", title: t("common.error"), description: e?.data?.error || t("journal.toast.postError") }),
+            toast({ variant: "destructive", title: t("common.error"), description: e?.data?.error || t("journal.toast.submitError") }),
         },
       );
     });
   };
 
-  const saving = createEntry.isPending || updateEntry.isPending || postEntry.isPending;
+  const doApprove = () => {
+    if (!entryId) return;
+    approveEntry.mutate(
+      { id: entryId },
+      {
+        onSuccess: () => {
+          invalidate();
+          refreshEntry();
+          toast({ title: t("journal.toast.approved") });
+          onBack();
+        },
+        onError: (e: any) =>
+          toast({ variant: "destructive", title: t("common.error"), description: e?.data?.error || t("journal.toast.approveError") }),
+      },
+    );
+  };
+
+  const doReject = () => {
+    if (!entryId) return;
+    rejectEntry.mutate(
+      { id: entryId },
+      {
+        onSuccess: () => {
+          invalidate();
+          refreshEntry();
+          toast({ title: t("journal.toast.rejected") });
+          onBack();
+        },
+        onError: (e: any) =>
+          toast({ variant: "destructive", title: t("common.error"), description: e?.data?.error || t("journal.toast.rejectError") }),
+      },
+    );
+  };
+
+  const doPost = () => {
+    if (!entryId) return;
+    postEntry.mutate(
+      { id: entryId },
+      {
+        onSuccess: () => {
+          invalidate();
+          refreshEntry();
+          toast({ title: t("journal.toast.posted") });
+          onBack();
+        },
+        onError: (e: any) =>
+          toast({ variant: "destructive", title: t("common.error"), description: e?.data?.error || t("journal.toast.postError") }),
+      },
+    );
+  };
+
+  const doReverse = () => {
+    if (!entryId) return;
+    reverseEntry.mutate(
+      { id: entryId },
+      {
+        onSuccess: () => {
+          invalidate();
+          toast({ title: t("journal.toast.reversed") });
+          onBack();
+        },
+        onError: (e: any) =>
+          toast({ variant: "destructive", title: t("common.error"), description: e?.data?.error || t("journal.toast.reverseError") }),
+      },
+    );
+  };
+
+  const saving =
+    createEntry.isPending ||
+    updateEntry.isPending ||
+    postEntry.isPending ||
+    submitEntry.isPending ||
+    approveEntry.isPending ||
+    rejectEntry.isPending ||
+    reverseEntry.isPending;
 
   if (entryId && loadingEntry) {
     return (
@@ -612,35 +737,92 @@ function JournalEditor({
           </button>
           <div>
             <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-              {isPosted ? t("journal.viewTitle") : entryId ? t("journal.editTitle") : t("journal.createTitle")}
-              {existing && <span className="font-sans text-muted-foreground">#{existing.entryNo}</span>}
+              {isDraft && entryId
+                ? t("journal.editTitle")
+                : !entryId
+                  ? t("journal.createTitle")
+                  : t("journal.viewTitle")}
+              {existing && (
+                <span className="font-sans text-muted-foreground">
+                  {existing.entryNumber}
+                </span>
+              )}
+              {existing && <StatusBadge status={existing.status} />}
               {isPosted && <Lock className="w-4 h-4 text-muted-foreground" />}
             </h1>
             {isPosted && <p className="text-xs text-muted-foreground">{t("journal.postedLockHint")}</p>}
+            {isPending && <p className="text-xs text-muted-foreground">{t("journal.submitLockHint")}</p>}
+            {isApproved && <p className="text-xs text-muted-foreground">{t("journal.approvedLockHint")}</p>}
           </div>
         </div>
-        {!readOnly && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => doSave()}
-              disabled={saving}
-              className="flex items-center gap-2 bg-secondary text-secondary-foreground border px-4 py-2 rounded-full text-sm font-bold hover:bg-secondary/70 transition-colors disabled:opacity-50"
-            >
-              <Check className="w-4 h-4" />
-              {t("journal.save")}
-            </button>
-            {canPost && (
+        <div className="flex items-center gap-2">
+          {/* Draft (or new): save, and optionally save & submit */}
+          {!readOnly && (
+            <>
               <button
-                onClick={doSaveAndPost}
-                disabled={saving || !totals.balanced}
+                onClick={() => doSave()}
+                disabled={saving}
+                className="flex items-center gap-2 bg-secondary text-secondary-foreground border px-4 py-2 rounded-full text-sm font-bold hover:bg-secondary/70 transition-colors disabled:opacity-50"
+              >
+                <Check className="w-4 h-4" />
+                {t("journal.save")}
+              </button>
+              {canSubmit && (
+                <button
+                  onClick={doSaveAndSubmit}
+                  disabled={saving || !totals.balanced}
+                  className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  <ArrowRight className="w-4 h-4 rtl:rotate-180" />
+                  {t("journal.saveAndSubmit")}
+                </button>
+              )}
+            </>
+          )}
+          {/* Pending approval: approve / reject */}
+          {isPending && canApprove && (
+            <>
+              <button
+                onClick={doReject}
+                disabled={saving}
+                className="flex items-center gap-2 bg-card border px-4 py-2 rounded-full text-sm font-bold text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                {t("journal.reject")}
+              </button>
+              <button
+                onClick={doApprove}
+                disabled={saving}
                 className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                {t("journal.saveAndPost")}
+                <Check className="w-4 h-4" />
+                {t("journal.approve")}
               </button>
-            )}
-          </div>
-        )}
+            </>
+          )}
+          {/* Approved: post */}
+          {isApproved && canPost && (
+            <button
+              onClick={doPost}
+              disabled={saving}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              {t("journal.post")}
+            </button>
+          )}
+          {/* Posted: reverse */}
+          {isPosted && canCreate && (
+            <button
+              onClick={doReverse}
+              disabled={saving}
+              className="flex items-center gap-2 bg-card border px-4 py-2 rounded-full text-sm font-bold text-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+            >
+              <ArrowRight className="w-4 h-4 rotate-180 rtl:rotate-0" />
+              {t("journal.reverse")}
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="p-8 flex flex-col gap-6 max-w-[1400px] mx-auto w-full">

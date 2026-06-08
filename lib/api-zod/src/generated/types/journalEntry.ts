@@ -5,19 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { JournalEntryEntryType } from './journalEntryEntryType';
 import type { JournalEntryStatus } from './journalEntryStatus';
 
 export interface JournalEntry {
   id: string;
   entryNo: number;
+  entryNumber?: string;
   date: string;
   /** @nullable */
   reference?: string | null;
   /** @nullable */
   notes?: string | null;
   status: JournalEntryStatus;
+  entryType?: JournalEntryEntryType;
+  /** @nullable */
+  reversedEntryId?: string | null;
   totalDebitBase: number;
   totalCreditBase: number;
+  /** @nullable */
+  submittedAt?: string | null;
+  /** @nullable */
+  approvedAt?: string | null;
   /** @nullable */
   postedAt?: string | null;
   createdAt: string;

@@ -404,12 +404,17 @@ export const DeleteCostCenterResponse = zod.object({
 export const ListJournalEntriesResponseItem = zod.object({
   "id": zod.string(),
   "entryNo": zod.number(),
+  "entryNumber": zod.string().optional(),
   "date": zod.string(),
   "reference": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "status": zod.enum(['draft', 'posted']),
+  "status": zod.enum(['draft', 'pending_approval', 'approved', 'posted']),
+  "entryType": zod.enum(['normal', 'reversal', 'adjustment']).optional(),
+  "reversedEntryId": zod.string().nullish(),
   "totalDebitBase": zod.number(),
   "totalCreditBase": zod.number(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
   "postedAt": zod.string().nullish(),
   "createdAt": zod.string()
 })
@@ -460,9 +465,14 @@ export const GetJournalEntryResponse = zod.object({
   "date": zod.string(),
   "reference": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "status": zod.enum(['draft', 'posted']),
+  "entryNumber": zod.string().optional(),
+  "status": zod.enum(['draft', 'pending_approval', 'approved', 'posted']),
+  "entryType": zod.enum(['normal', 'reversal', 'adjustment']).optional(),
+  "reversedEntryId": zod.string().nullish(),
   "totalDebitBase": zod.number(),
   "totalCreditBase": zod.number(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
   "postedAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "lines": zod.array(zod.object({
@@ -529,9 +539,14 @@ export const UpdateJournalEntryResponse = zod.object({
   "date": zod.string(),
   "reference": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "status": zod.enum(['draft', 'posted']),
+  "entryNumber": zod.string().optional(),
+  "status": zod.enum(['draft', 'pending_approval', 'approved', 'posted']),
+  "entryType": zod.enum(['normal', 'reversal', 'adjustment']).optional(),
+  "reversedEntryId": zod.string().nullish(),
   "totalDebitBase": zod.number(),
   "totalCreditBase": zod.number(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
   "postedAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "lines": zod.array(zod.object({
@@ -583,9 +598,14 @@ export const PostJournalEntryResponse = zod.object({
   "date": zod.string(),
   "reference": zod.string().nullish(),
   "notes": zod.string().nullish(),
-  "status": zod.enum(['draft', 'posted']),
+  "entryNumber": zod.string().optional(),
+  "status": zod.enum(['draft', 'pending_approval', 'approved', 'posted']),
+  "entryType": zod.enum(['normal', 'reversal', 'adjustment']).optional(),
+  "reversedEntryId": zod.string().nullish(),
   "totalDebitBase": zod.number(),
   "totalCreditBase": zod.number(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
   "postedAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "lines": zod.array(zod.object({
@@ -609,6 +629,155 @@ export const PostJournalEntryResponse = zod.object({
   "size": zod.number().nullish(),
   "createdAt": zod.string()
 }))
+})
+
+
+/**
+ * @summary Submit a draft journal entry for approval
+ */
+export const SubmitJournalEntryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const SubmitJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "entryNo": zod.number(),
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "entryNumber": zod.string().optional(),
+  "status": zod.enum(['draft', 'pending_approval', 'approved', 'posted']),
+  "entryType": zod.enum(['normal', 'reversal', 'adjustment']).optional(),
+  "reversedEntryId": zod.string().nullish(),
+  "totalDebitBase": zod.number(),
+  "totalCreditBase": zod.number(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "postedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "accountId": zod.string(),
+  "description": zod.string().nullish(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "debit": zod.number(),
+  "credit": zod.number(),
+  "debitBase": zod.number(),
+  "creditBase": zod.number(),
+  "taxId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish()
+})),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Approve a submitted journal entry
+ */
+export const ApproveJournalEntryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const ApproveJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "entryNo": zod.number(),
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "entryNumber": zod.string().optional(),
+  "status": zod.enum(['draft', 'pending_approval', 'approved', 'posted']),
+  "entryType": zod.enum(['normal', 'reversal', 'adjustment']).optional(),
+  "reversedEntryId": zod.string().nullish(),
+  "totalDebitBase": zod.number(),
+  "totalCreditBase": zod.number(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "postedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "accountId": zod.string(),
+  "description": zod.string().nullish(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "debit": zod.number(),
+  "credit": zod.number(),
+  "debitBase": zod.number(),
+  "creditBase": zod.number(),
+  "taxId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish()
+})),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Reject a submitted journal entry back to draft
+ */
+export const RejectJournalEntryParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const RejectJournalEntryResponse = zod.object({
+  "id": zod.string(),
+  "entryNo": zod.number(),
+  "date": zod.string(),
+  "reference": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "entryNumber": zod.string().optional(),
+  "status": zod.enum(['draft', 'pending_approval', 'approved', 'posted']),
+  "entryType": zod.enum(['normal', 'reversal', 'adjustment']).optional(),
+  "reversedEntryId": zod.string().nullish(),
+  "totalDebitBase": zod.number(),
+  "totalCreditBase": zod.number(),
+  "submittedAt": zod.string().nullish(),
+  "approvedAt": zod.string().nullish(),
+  "postedAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "accountId": zod.string(),
+  "description": zod.string().nullish(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "debit": zod.number(),
+  "credit": zod.number(),
+  "debitBase": zod.number(),
+  "creditBase": zod.number(),
+  "taxId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish()
+})),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "fileName": zod.string(),
+  "contentType": zod.string().nullish(),
+  "size": zod.number().nullish(),
+  "createdAt": zod.string()
+}))
+})
+
+
+/**
+ * @summary Create a reversing draft entry for a posted journal entry
+ */
+export const ReverseJournalEntryParams = zod.object({
+  "id": zod.coerce.string().uuid()
 })
 
 

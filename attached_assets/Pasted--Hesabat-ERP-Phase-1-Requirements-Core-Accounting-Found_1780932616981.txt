@@ -1,0 +1,236 @@
+# Hesabat ERP – Phase 1 Requirements (Core Accounting Foundation)
+
+## General Objective
+
+The UI structure is already completed.
+
+Do not create additional pages unless required to complete accounting functionality.
+
+Focus on accounting logic, database integrity, posting engine, balances, reports, security and workflows.
+
+---
+
+# 1. Company Settings
+
+## Multi Currency
+
+The system must support multiple currencies.
+
+Requirements:
+
+* Base currency selection.
+* Add/Edit/Delete currencies.
+* Exchange rates table.
+* Historical exchange rates by date.
+* Currency assignment to bank accounts, customers and suppliers.
+* Future support for foreign currency transactions.
+
+## User Profile
+
+* View user profile.
+* Change password from inside the system.
+* Upload profile image.
+
+## Authentication
+
+* Forgot Password.
+* Reset Password by email.
+* Email verification for new accounts.
+
+---
+
+# 2. Chart of Accounts
+
+The chart of accounts must become dynamic.
+
+Requirements:
+
+* Display current Debit balance.
+* Display current Credit balance.
+* Display net balance.
+* Expand/Collapse account hierarchy.
+* Search accounts by code or name.
+
+When clicking any account:
+
+Open Account Ledger showing:
+
+* Date
+* Journal Number
+* Description
+* Debit
+* Credit
+* Running Balance
+* Cost Center
+* Project
+
+Filters:
+
+* Date Range
+* Cost Center
+* Project
+
+Exports:
+
+* Excel
+* PDF
+
+---
+
+# 3. Opening Balances
+
+Requirements:
+
+* Opening balance date selection.
+* Import opening balances from Excel.
+* Export template for Excel upload.
+* Validation before posting.
+* Auto-create balanced opening journal entry.
+
+Customer opening balances must be imported from Customer Module.
+
+Supplier opening balances must be imported from Supplier Module.
+
+---
+
+# 4. Journal Entry Engine
+
+Requirements:
+
+* Draft
+* Pending Approval
+* Approved
+* Posted
+
+Only Posted entries affect reports.
+
+Posted entries cannot be edited or deleted.
+
+Corrections must be through:
+
+* Reverse Entry
+* Adjustment Entry
+
+Automatic numbering:
+
+JV-2026-000001
+
+Required fields:
+
+* Date
+* Description
+* Debit
+* Credit
+* Cost Center
+* Project
+* Attachment
+
+Attachments:
+
+* PDF
+* Excel
+* Image
+
+---
+
+# 5. General Ledger
+
+Requirements:
+
+* Auto-update from posted journals.
+* Drill down to source transaction.
+* Running balance calculation.
+* Excel export.
+* PDF export.
+
+---
+
+# 6. Trial Balance
+
+Requirements:
+
+Generated automatically from posted journals.
+
+Columns:
+
+* Opening Debit
+* Opening Credit
+* Movement Debit
+* Movement Credit
+* Ending Debit
+* Ending Credit
+
+Filters:
+
+* Date Range
+* Cost Center
+* Project
+
+Export:
+
+* Excel
+* PDF
+
+---
+
+# 7. Audit Log
+
+The system must track:
+
+* Who created.
+* Who edited.
+* Who approved.
+* Date and time.
+* Old value.
+* New value.
+
+Audit Log cannot be deleted.
+
+---
+
+# 8. Financial Year Management
+
+Requirements:
+
+* Create Fiscal Year.
+* Open Fiscal Year.
+* Close Fiscal Year.
+* Carry Forward Balances.
+
+Support multiple fiscal years.
+
+---
+
+# 9. Dashboard Improvements
+
+Dashboard must show:
+
+* Cash Balance
+* Bank Balance
+* Customer Receivables
+* Supplier Payables
+* Net Profit
+* Number of Posted Journals
+* Number of Customers
+* Number of Suppliers
+
+All figures must come from actual accounting transactions.
+
+---
+
+# Phase 1 Acceptance Test
+
+The system will not move to Phase 2 until the following works successfully:
+
+1. Create chart of accounts.
+2. Import opening balances.
+3. Create journal entry.
+4. Approve and post journal entry.
+5. Update ledger automatically.
+6. Update trial balance automatically.
+7. Open account ledger from chart of accounts.
+8. Export ledger and trial balance to Excel and PDF.
+9. Verify audit log records all actions.
+10. Verify fiscal year creation and closing.
+
+Only after successful completion of these tests can development proceed to Phase 2.
