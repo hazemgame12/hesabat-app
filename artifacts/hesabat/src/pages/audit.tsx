@@ -24,16 +24,41 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
-const ENTITY_OPTIONS = ["journal_entry"] as const;
+const ENTITY_OPTIONS = [
+  "journal_entry",
+  "customer",
+  "supplier",
+  "sales_invoice",
+  "purchase_invoice",
+  "receipt_voucher",
+  "payment_voucher",
+  "attachment",
+] as const;
 
-function formatValue(value: unknown): string {
+type TFn = (key: string, opts?: { defaultValue?: string }) => string;
+
+function formatScalar(v: unknown, t: TFn): string {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "string") {
+    return t(`auditPage.values.${v}`, { defaultValue: v });
+  }
+  return String(v);
+}
+
+function formatValue(value: unknown, t: TFn): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "object") {
     return Object.entries(value as Record<string, unknown>)
-      .map(([k, v]) => `${k}: ${v ?? "—"}`)
+      .map(
+        ([k, v]) =>
+          `${t(`auditPage.fields.${k}`, { defaultValue: k })}: ${formatScalar(
+            v,
+            t,
+          )}`,
+      )
       .join("، ");
   }
-  return String(value);
+  return formatScalar(value, t);
 }
 
 export function Audit() {
@@ -155,15 +180,24 @@ export function Audit() {
                     </span>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {t(`auditPage.entities.${row.entity}`, {
-                      defaultValue: row.entity,
-                    })}
+                    <div className="flex flex-col">
+                      <span>
+                        {t(`auditPage.entities.${row.entity}`, {
+                          defaultValue: row.entity,
+                        })}
+                      </span>
+                      {row.entityLabel ? (
+                        <span className="text-xs font-medium text-foreground">
+                          {row.entityLabel}
+                        </span>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-xs">
-                    {formatValue(row.oldValue)}
+                    {formatValue(row.oldValue, t)}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-xs">
-                    {formatValue(row.newValue)}
+                    {formatValue(row.newValue, t)}
                   </TableCell>
                 </TableRow>
               ))}

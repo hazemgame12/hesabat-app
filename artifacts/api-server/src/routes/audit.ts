@@ -51,6 +51,7 @@ router.get(
           action: auditLogTable.action,
           entity: auditLogTable.entity,
           entityId: auditLogTable.entityId,
+          entityLabel: auditLogTable.entityLabel,
           oldValue: auditLogTable.oldValue,
           newValue: auditLogTable.newValue,
           createdAt: auditLogTable.createdAt,
@@ -68,6 +69,7 @@ router.get(
           action: r.action,
           entity: r.entity,
           entityId: r.entityId,
+          entityLabel: r.entityLabel ?? null,
           oldValue: r.oldValue ?? null,
           newValue: r.newValue ?? null,
           createdAt:

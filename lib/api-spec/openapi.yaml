@@ -3516,6 +3516,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /bank/reconciliations/{id}/auto-match:
+    get:
+      operationId: autoMatchReconciliation
+      tags: [bank]
+      summary: Suggest statement-line ↔ movement matches by amount, date, and reference
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Auto-match suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutoMatchReconciliationResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /bank/reconciliations/{id}/adjust:
     post:
       operationId: adjustBankReconciliation
@@ -3768,6 +3793,9 @@ components:
         entity:
           type: string
         entityId:
+          type: string
+          nullable: true
+        entityLabel:
           type: string
           nullable: true
         oldValue: {}
@@ -5938,7 +5966,19 @@ components:
 
     TrialBalanceRow:
       type: object
-      required: [accountId, code, nameAr, type, debit, credit]
+      required:
+        [
+          accountId,
+          code,
+          nameAr,
+          type,
+          openingDebit,
+          openingCredit,
+          periodDebit,
+          periodCredit,
+          closingDebit,
+          closingCredit,
+        ]
       properties:
         accountId:
           type: string
@@ -5950,14 +5990,32 @@ components:
           type: ["string", "null"]
         type:
           type: string
-        debit:
+        openingDebit:
           type: number
-        credit:
+        openingCredit:
+          type: number
+        periodDebit:
+          type: number
+        periodCredit:
+          type: number
+        closingDebit:
+          type: number
+        closingCredit:
           type: number
 
     TrialBalance:
       type: object
-      required: [rows, totalDebit, totalCredit, balanced]
+      required:
+        [
+          rows,
+          totalOpeningDebit,
+          totalOpeningCredit,
+          totalPeriodDebit,
+          totalPeriodCredit,
+          totalClosingDebit,
+          totalClosingCredit,
+          balanced,
+        ]
       properties:
         from:
           type: ["string", "null"]
@@ -5967,9 +6025,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrialBalanceRow"
-        totalDebit:
+        totalOpeningDebit:
           type: number
-        totalCredit:
+        totalOpeningCredit:
+          type: number
+        totalPeriodDebit:
+          type: number
+        totalPeriodCredit:
+          type: number
+        totalClosingDebit:
+          type: number
+        totalClosingCredit:
           type: number
         balanced:
           type: boolean
@@ -6508,6 +6574,43 @@ components:
                 type: string
               movementId:
                 type: ["string", "null"]
+
+    AutoMatchReconciliationResult:
+      type: object
+      required:
+        [
+          suggestions,
+          unmatchedStatementLineIds,
+          unmatchedMovementIds,
+          matchedCount,
+          suggestedCount,
+        ]
+      properties:
+        suggestions:
+          type: array
+          items:
+            type: object
+            required: [statementLineId, movementId, confidence]
+            properties:
+              statementLineId:
+                type: string
+              movementId:
+                type: string
+              confidence:
+                type: string
+                enum: [exact, high, medium]
+        unmatchedStatementLineIds:
+          type: array
+          items:
+            type: string
+        unmatchedMovementIds:
+          type: array
+          items:
+            type: string
+        matchedCount:
+          type: integer
+        suggestedCount:
+          type: integer
 
     AdjustReconciliationInput:
       type: object

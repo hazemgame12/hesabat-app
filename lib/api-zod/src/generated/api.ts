@@ -2644,6 +2644,7 @@ export const GetAuditLogResponseItem = zod.object({
   "action": zod.string(),
   "entity": zod.string(),
   "entityId": zod.string().nullish(),
+  "entityLabel": zod.string().nullish(),
   "oldValue": zod.unknown().optional(),
   "newValue": zod.unknown().optional(),
   "userId": zod.string().nullish(),
@@ -2737,11 +2738,19 @@ export const GetTrialBalanceResponse = zod.object({
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
   "type": zod.string(),
-  "debit": zod.number(),
-  "credit": zod.number()
+  "openingDebit": zod.number(),
+  "openingCredit": zod.number(),
+  "periodDebit": zod.number(),
+  "periodCredit": zod.number(),
+  "closingDebit": zod.number(),
+  "closingCredit": zod.number()
 })),
-  "totalDebit": zod.number(),
-  "totalCredit": zod.number(),
+  "totalOpeningDebit": zod.number(),
+  "totalOpeningCredit": zod.number(),
+  "totalPeriodDebit": zod.number(),
+  "totalPeriodCredit": zod.number(),
+  "totalClosingDebit": zod.number(),
+  "totalClosingCredit": zod.number(),
   "balanced": zod.boolean()
 })
 
@@ -3395,6 +3404,26 @@ export const MatchBankReconciliationResponse = zod.object({
 })),
   "clearedBookBalance": zod.number(),
   "reconciledDifference": zod.number()
+})
+
+
+/**
+ * @summary Suggest statement-line ↔ movement matches by amount, date, and reference
+ */
+export const AutoMatchReconciliationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AutoMatchReconciliationResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "statementLineId": zod.string(),
+  "movementId": zod.string(),
+  "confidence": zod.enum(['exact', 'high', 'medium'])
+})),
+  "unmatchedStatementLineIds": zod.array(zod.string()),
+  "unmatchedMovementIds": zod.array(zod.string()),
+  "matchedCount": zod.number(),
+  "suggestedCount": zod.number()
 })
 
 

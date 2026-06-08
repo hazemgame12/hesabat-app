@@ -28,6 +28,10 @@ export const auditLogTable = pgTable(
     entity: text("entity").notNull(),
     // The affected row id (kept as text so non-uuid ids are also supported).
     entityId: text("entity_id"),
+    // Human-readable label for the affected row, e.g. "JV-2026-000001" or a
+    // customer/invoice number — shown in the UI so the reviewer knows exactly
+    // which document changed without resolving the raw id.
+    entityLabel: text("entity_label"),
     oldValue: jsonb("old_value"),
     newValue: jsonb("new_value"),
     createdAt: timestamp("created_at", { withTimezone: true })

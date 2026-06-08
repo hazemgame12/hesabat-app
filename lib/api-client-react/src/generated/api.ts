@@ -31,6 +31,7 @@ import type {
   AgingReport,
   AuditLogEntry,
   AuthUser,
+  AutoMatchReconciliationResult,
   BalanceSheet,
   BankAccount,
   BankAccountInput,
@@ -9617,6 +9618,83 @@ export const useMatchBankReconciliation = <TError = ErrorType<ErrorResponse>,
       > => {
       return useMutation(getMatchBankReconciliationMutationOptions(options));
     }
+
+export const getAutoMatchReconciliationUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/reconciliations/${id}/auto-match`
+}
+
+/**
+ * @summary Suggest statement-line ↔ movement matches by amount, date, and reference
+ */
+export const autoMatchReconciliation = async (id: string, options?: RequestInit): Promise<AutoMatchReconciliationResult> => {
+
+  return customFetch<AutoMatchReconciliationResult>(getAutoMatchReconciliationUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getAutoMatchReconciliationQueryKey = (id: string,) => {
+    return [
+    `/api/bank/reconciliations/${id}/auto-match`
+    ] as const;
+    }
+
+
+export const getAutoMatchReconciliationQueryOptions = <TData = Awaited<ReturnType<typeof autoMatchReconciliation>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof autoMatchReconciliation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getAutoMatchReconciliationQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof autoMatchReconciliation>>> = ({ signal }) => autoMatchReconciliation(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof autoMatchReconciliation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type AutoMatchReconciliationQueryResult = NonNullable<Awaited<ReturnType<typeof autoMatchReconciliation>>>
+export type AutoMatchReconciliationQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Suggest statement-line ↔ movement matches by amount, date, and reference
+ */
+
+export function useAutoMatchReconciliation<TData = Awaited<ReturnType<typeof autoMatchReconciliation>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof autoMatchReconciliation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getAutoMatchReconciliationQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getAdjustBankReconciliationUrl = (id: string,) => {
 

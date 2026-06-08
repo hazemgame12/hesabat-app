@@ -13,6 +13,10 @@ export interface TrialBalanceRow {
   /** @nullable */
   nameEn?: string | null;
   type: string;
-  debit: number;
-  credit: number;
+  openingDebit: number;
+  openingCredit: number;
+  periodDebit: number;
+  periodCredit: number;
+  closingDebit: number;
+  closingCredit: number;
 }

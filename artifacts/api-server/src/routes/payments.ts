@@ -15,6 +15,7 @@ import {
 import { CreatePaymentBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
+import { safeAudit } from "../lib/audit";
 import {
   createDraftJournalEntry,
   lockCompanyEntryNo,
@@ -474,6 +475,27 @@ router.post(
         return payment!;
       });
       const [serialized] = await serializePayments([created], companyId);
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "create",
+          entity:
+            created.kind === "collection" ? "receipt_voucher" : "payment_voucher",
+          entityId: created.id,
+          entityLabel: `${
+            created.kind === "collection" ? "سند قبض" : "سند صرف"
+          } #${created.paymentNo}`,
+          newValue: {
+            paymentNo: created.paymentNo,
+            date: created.date,
+            amount: created.amount,
+            method: created.method,
+          },
+        },
+        req.log,
+      );
       res.status(201).json(serialized);
     } catch (err) {
       if (err instanceof Error && err.message === "OVER_ALLOCATION") {
@@ -590,6 +612,22 @@ router.delete(
             .where(eq(journalEntriesTable.id, payment.journalEntryId));
         }
       });
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "reverse",
+          entity:
+            payment.kind === "collection" ? "receipt_voucher" : "payment_voucher",
+          entityId: payment.id,
+          entityLabel: `${
+            payment.kind === "collection" ? "سند قبض" : "سند صرف"
+          } #${payment.paymentNo}`,
+          oldValue: { paymentNo: payment.paymentNo, amount: payment.amount },
+        },
+        req.log,
+      );
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete payment");

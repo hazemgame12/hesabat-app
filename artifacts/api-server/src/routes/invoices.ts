@@ -19,6 +19,7 @@ import {
 import { CreateInvoiceBody, UpdateInvoiceBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
+import { safeAudit } from "../lib/audit";
 import {
   createDraftJournalEntry,
   lockCompanyEntryNo,
@@ -654,6 +655,27 @@ router.post(
         .from(invoiceLinesTable)
         .where(eq(invoiceLinesTable.invoiceId, created.id))
         .orderBy(asc(invoiceLinesTable.lineNo));
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "create",
+          entity:
+            created.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          entityId: created.id,
+          entityLabel: `${
+            created.kind === "sales" ? "فاتورة مبيعات" : "فاتورة مشتريات"
+          } #${created.invoiceNo}`,
+          newValue: {
+            invoiceNo: created.invoiceNo,
+            date: created.date,
+            total: created.total,
+            status: created.status,
+          },
+        },
+        req.log,
+      );
       res.status(201).json(toDetail(created, party.name, lines));
     } catch (err) {
       req.log.error({ err }, "Failed to create invoice");
@@ -792,6 +814,23 @@ router.patch(
         .from(invoiceLinesTable)
         .where(eq(invoiceLinesTable.invoiceId, id))
         .orderBy(asc(invoiceLinesTable.lineNo));
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "update",
+          entity:
+            updated.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          entityId: updated.id,
+          entityLabel: `${
+            updated.kind === "sales" ? "فاتورة مبيعات" : "فاتورة مشتريات"
+          } #${updated.invoiceNo}`,
+          oldValue: { total: inv.total, status: inv.status },
+          newValue: { total: updated.total, status: updated.status },
+        },
+        req.log,
+      );
       res.json(toDetail(updated, party.name, lines));
     } catch (err) {
       if (err instanceof ApproveError) {
@@ -838,6 +877,21 @@ router.delete(
         res.status(400).json({ error: "لا يمكن حذف فاتورة معتمدة" });
         return;
       }
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "delete",
+          entity: inv.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          entityId: inv.id,
+          entityLabel: `${
+            inv.kind === "sales" ? "فاتورة مبيعات" : "فاتورة مشتريات"
+          } #${inv.invoiceNo}`,
+          oldValue: { invoiceNo: inv.invoiceNo, status: inv.status },
+        },
+        req.log,
+      );
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete invoice");
@@ -1234,6 +1288,23 @@ router.post(
         .from(invoiceLinesTable)
         .where(eq(invoiceLinesTable.invoiceId, id))
         .orderBy(asc(invoiceLinesTable.lineNo));
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "approve",
+          entity:
+            result.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          entityId: result.id,
+          entityLabel: `${
+            result.kind === "sales" ? "فاتورة مبيعات" : "فاتورة مشتريات"
+          } #${result.invoiceNo}`,
+          oldValue: { status: "draft" },
+          newValue: { status: result.status },
+        },
+        req.log,
+      );
       res.json(toDetail(result, partyName, freshLines));
     } catch (err) {
       if (err instanceof ApproveError) {

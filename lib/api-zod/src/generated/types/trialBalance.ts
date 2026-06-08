@@ -13,7 +13,11 @@ export interface TrialBalance {
   /** @nullable */
   to?: string | null;
   rows: TrialBalanceRow[];
-  totalDebit: number;
-  totalCredit: number;
+  totalOpeningDebit: number;
+  totalOpeningCredit: number;
+  totalPeriodDebit: number;
+  totalPeriodCredit: number;
+  totalClosingDebit: number;
+  totalClosingCredit: number;
   balanced: boolean;
 }

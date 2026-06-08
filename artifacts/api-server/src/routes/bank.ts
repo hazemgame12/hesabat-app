@@ -516,6 +516,140 @@ async function clearedBookBalanceUpTo(
 }
 
 // ---------------------------------------------------------------------------
+// Auto-match engine
+// ---------------------------------------------------------------------------
+
+type AutoMatchConfidence = "exact" | "high" | "medium";
+
+interface AutoMatchLine {
+  id: string;
+  date: string | null;
+  description: string | null;
+  amount: number;
+  direction: "in" | "out";
+}
+
+interface AutoMatchMovement {
+  id: string;
+  date: string | null;
+  description: string | null;
+  reference: string | null;
+  amount: number;
+  direction: "in" | "out";
+}
+
+interface AutoMatchSuggestion {
+  statementLineId: string;
+  movementId: string;
+  confidence: AutoMatchConfidence;
+}
+
+// Whole-day difference between two YYYY-MM-DD dates; null when either is missing
+// or unparseable.
+function dayDiff(a: string | null, b: string | null): number | null {
+  if (!a || !b) return null;
+  const da = Date.parse(a);
+  const db = Date.parse(b);
+  if (!Number.isFinite(da) || !Number.isFinite(db)) return null;
+  return Math.abs(Math.round((da - db) / 86_400_000));
+}
+
+// Tokenize a free-text reference/description into normalized words (>=3 chars),
+// keeping latin + arabic letters and digits.
+function refTokens(s: string | null): Set<string> {
+  if (!s) return new Set();
+  return new Set(
+    s
+      .toLowerCase()
+      .split(/[^0-9a-z\u0600-\u06ff]+/)
+      .filter((t) => t.length >= 3),
+  );
+}
+
+function refOverlap(line: string | null, movementRef: string | null): boolean {
+  const a = refTokens(line);
+  if (a.size === 0) return false;
+  const b = refTokens(movementRef);
+  if (b.size === 0) return false;
+  for (const t of a) if (b.has(t)) return true;
+  return false;
+}
+
+// Pure auto-match: pairs statement lines to bank movements by direction + amount,
+// then ranks by date proximity and reference overlap. Greedy unique assignment
+// (each line and each movement used at most once). Returns suggestions plus the
+// statement lines / movements left unmatched.
+function computeAutoMatch(
+  lines: AutoMatchLine[],
+  movements: AutoMatchMovement[],
+): {
+  suggestions: AutoMatchSuggestion[];
+  unmatchedStatementLineIds: string[];
+  unmatchedMovementIds: string[];
+} {
+  type Candidate = {
+    lineId: string;
+    movementId: string;
+    score: number;
+    confidence: AutoMatchConfidence;
+  };
+  const candidates: Candidate[] = [];
+  for (const line of lines) {
+    for (const mv of movements) {
+      if (line.direction !== mv.direction) continue;
+      if (Math.abs(line.amount - mv.amount) > MONEY_EPS) continue;
+      const diff = dayDiff(line.date, mv.date);
+      const ref = refOverlap(line.description, mv.reference ?? mv.description);
+      // Amount + direction always match here; rank the rest.
+      let score = 100;
+      let confidence: AutoMatchConfidence;
+      if (diff === 0) {
+        score += 60;
+        confidence = "exact";
+      } else if (ref && (diff === null || diff <= 3)) {
+        score += 50;
+        confidence = "exact";
+      } else if (diff !== null && diff <= 3) {
+        score += 30;
+        confidence = "high";
+      } else if (diff === null || diff <= 14) {
+        score += 10;
+        confidence = "medium";
+      } else {
+        // Amount matches but dates are far apart and references don't overlap:
+        // too weak to suggest.
+        continue;
+      }
+      if (ref) score += 25;
+      candidates.push({ lineId: line.id, movementId: mv.id, score, confidence });
+    }
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  const usedLines = new Set<string>();
+  const usedMovements = new Set<string>();
+  const suggestions: AutoMatchSuggestion[] = [];
+  for (const c of candidates) {
+    if (usedLines.has(c.lineId) || usedMovements.has(c.movementId)) continue;
+    usedLines.add(c.lineId);
+    usedMovements.add(c.movementId);
+    suggestions.push({
+      statementLineId: c.lineId,
+      movementId: c.movementId,
+      confidence: c.confidence,
+    });
+  }
+  return {
+    suggestions,
+    unmatchedStatementLineIds: lines
+      .filter((l) => !usedLines.has(l.id))
+      .map((l) => l.id),
+    unmatchedMovementIds: movements
+      .filter((m) => !usedMovements.has(m.id))
+      .map((m) => m.id),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Bank accounts CRUD
 // ---------------------------------------------------------------------------
 
@@ -1520,12 +1654,28 @@ router.post(
         // A statement line may only be matched to a movement that belongs to
         // THIS reconciliation's account+period (tenant-isolation: never link an
         // arbitrary movement id from another company/account).
-        const validMovementIds = new Set(periodMovements.map((m) => m.id));
+        const movementById = new Map(periodMovements.map((m) => [m.id, m]));
+        // A movement may be linked to at most ONE statement line, and only if it
+        // is unclaimed or already claimed by THIS reconciliation. This guards the
+        // one movement ↔ one statement-line invariant (auto-match suggestions can
+        // be merged with stale local selections client-side, so re-validate here).
+        const claimedHere = new Set<string>();
         for (const sm of d.statementLineMatches ?? []) {
-          if (sm.movementId && !validMovementIds.has(sm.movementId)) {
+          if (!sm.movementId) continue;
+          const mv = movementById.get(sm.movementId);
+          if (!mv) {
             invalidMatch = true;
             return;
           }
+          if (mv.reconciliationId && mv.reconciliationId !== id) {
+            invalidMatch = true;
+            return;
+          }
+          if (claimedHere.has(sm.movementId)) {
+            invalidMatch = true;
+            return;
+          }
+          claimedHere.add(sm.movementId);
         }
         for (const m of periodMovements) {
           if (m.reconciliationId && m.reconciliationId !== id) continue;
@@ -1609,6 +1759,85 @@ router.post(
       res.json(detail);
     } catch (err) {
       req.log.error({ err }, "Failed to match reconciliation");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Auto-match (suggest statement line ↔ movement pairs) ----
+router.get(
+  "/bank/reconciliations/:id/auto-match",
+  requireAuth,
+  requireCapability("bank:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    try {
+      const [rec] = await db
+        .select()
+        .from(bankReconciliationsTable)
+        .where(
+          and(
+            eq(bankReconciliationsTable.id, id),
+            eq(bankReconciliationsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!rec) {
+        res.status(404).json({ error: "التسوية غير موجودة" });
+        return;
+      }
+      // Only unmatched statement lines are candidates.
+      const statementRows = await db
+        .select()
+        .from(bankStatementLinesTable)
+        .where(
+          and(
+            eq(bankStatementLinesTable.companyId, companyId),
+            eq(bankStatementLinesTable.reconciliationId, id),
+          ),
+        );
+      // Candidate movements: this account's in-period movements that are not yet
+      // cleared and not claimed by another reconciliation (tenant + scope safe).
+      const movementRows = await db
+        .select()
+        .from(bankMovementsTable)
+        .where(
+          and(
+            eq(bankMovementsTable.companyId, companyId),
+            eq(bankMovementsTable.bankAccountId, rec.bankAccountId),
+            gte(bankMovementsTable.date, rec.periodStart),
+            lte(bankMovementsTable.date, rec.periodEnd),
+            eq(bankMovementsTable.isCleared, false),
+          ),
+        );
+      const lines: AutoMatchLine[] = statementRows
+        .filter((s) => !s.matchedMovementId)
+        .map((s) => ({
+          id: s.id,
+          date: s.date,
+          description: s.description,
+          amount: Number(s.amount),
+          direction: s.direction as "in" | "out",
+        }));
+      const movements: AutoMatchMovement[] = movementRows
+        .filter((m) => !m.reconciliationId || m.reconciliationId === id)
+        .map((m) => ({
+          id: m.id,
+          date: m.date,
+          description: m.description,
+          reference: m.reference,
+          amount: Number(m.amount),
+          direction: m.direction as "in" | "out",
+        }));
+      const result = computeAutoMatch(lines, movements);
+      const matchedCount = result.suggestions.filter(
+        (s) => s.confidence === "exact" || s.confidence === "high",
+      ).length;
+      const suggestedCount = result.suggestions.length - matchedCount;
+      res.json({ ...result, matchedCount, suggestedCount });
+    } catch (err) {
+      req.log.error({ err }, "Failed to auto-match reconciliation");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

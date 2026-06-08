@@ -528,6 +528,7 @@ router.post(
           action: "create",
           entity: "journal_entry",
           entityId: detail.id,
+          entityLabel: formatEntryNumber(detail.entryNo, detail.date),
           newValue: {
             entryNo: detail.entryNo,
             date: detail.date,
@@ -650,6 +651,7 @@ router.patch(
           action: "update",
           entity: "journal_entry",
           entityId: id,
+          entityLabel: formatEntryNumber(detail.entryNo, detail.date),
           oldValue: {
             date: existing.date,
             reference: existing.reference,
@@ -754,6 +756,7 @@ router.post(
           action: "post",
           entity: "journal_entry",
           entityId: id,
+          entityLabel: formatEntryNumber(existing.entryNo, existing.date),
           oldValue: { status: existing.status },
           newValue: { status: "posted" },
         },
@@ -781,6 +784,7 @@ router.delete(
         .select({
           status: journalEntriesTable.status,
           date: journalEntriesTable.date,
+          entryNo: journalEntriesTable.entryNo,
         })
         .from(journalEntriesTable)
         .where(
@@ -841,6 +845,7 @@ router.delete(
           action: "delete",
           entity: "journal_entry",
           entityId: id,
+          entityLabel: formatEntryNumber(existing.entryNo, existing.date),
           oldValue: { status: existing.status },
         },
         req.log,
@@ -964,6 +969,7 @@ router.post(
           action: "submit",
           entity: "journal_entry",
           entityId: id,
+          entityLabel: formatEntryNumber(existing.entryNo, existing.date),
           oldValue: { status: existing.status },
           newValue: { status: "pending_approval" },
         },
@@ -1027,6 +1033,7 @@ router.post(
           action: "approve",
           entity: "journal_entry",
           entityId: id,
+          entityLabel: formatEntryNumber(existing.entryNo, existing.date),
           oldValue: { status: existing.status },
           newValue: { status: "approved" },
         },
@@ -1086,6 +1093,7 @@ router.post(
           action: "reject",
           entity: "journal_entry",
           entityId: id,
+          entityLabel: formatEntryNumber(existing.entryNo, existing.date),
           oldValue: { status: existing.status },
           newValue: { status: "draft" },
         },
@@ -1215,6 +1223,7 @@ router.post(
           action: "reverse",
           entity: "journal_entry",
           entityId: original.id,
+          entityLabel: formatEntryNumber(original.entryNo, original.date),
           newValue: {
             reversalEntryId: detail.id,
             reversalEntryNo: detail.entryNo,
@@ -1287,6 +1296,22 @@ router.post(
           size: req.file.size,
         })
         .returning();
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "create",
+          entity: "attachment",
+          entityId: row!.id,
+          entityLabel: row!.fileName,
+          newValue: {
+            entry: formatEntryNumber(entry.entryNo, entry.date),
+            fileName: row!.fileName,
+          },
+        },
+        req.log,
+      );
       res.status(201).json(toAttachment(row!));
     } catch (err) {
       // Remove the orphaned upload so a failed insert never leaks disk files.
@@ -1337,6 +1362,22 @@ router.delete(
       fs.promises
         .unlink(path.join(uploadsDir, deleted[0]!.objectKey))
         .catch(() => {});
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "delete",
+          entity: "attachment",
+          entityId: attachmentId,
+          entityLabel: deleted[0]!.fileName,
+          oldValue: {
+            entry: formatEntryNumber(entry.entryNo, entry.date),
+            fileName: deleted[0]!.fileName,
+          },
+        },
+        req.log,
+      );
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete journal attachment");

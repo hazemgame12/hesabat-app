@@ -13,6 +13,7 @@ import {
   useGetBankReconciliation,
   useDeleteBankReconciliation,
   useMatchBankReconciliation,
+  autoMatchReconciliation,
   useAdjustBankReconciliation,
   useCompleteBankReconciliation,
   useListAccounts,
@@ -42,6 +43,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   Download,
+  Wand2,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -1630,8 +1632,12 @@ function ReconciliationDetail({
   const completeRec = useCompleteBankReconciliation();
 
   const [uploading, setUploading] = useState(false);
+  const [autoMatching, setAutoMatching] = useState(false);
   const [cleared, setCleared] = useState<Record<string, boolean>>({});
   const [matched, setMatched] = useState<Record<string, string>>({});
+  const [suggestedLines, setSuggestedLines] = useState<Record<string, boolean>>(
+    {},
+  );
   const [adjType, setAdjType] = useState<(typeof ADJUSTMENT_TYPES)[number]>(
     "bank_charge",
   );
@@ -1733,6 +1739,61 @@ function ReconciliationDetail({
           }),
       },
     );
+  };
+
+  const runAutoMatch = async () => {
+    setAutoMatching(true);
+    try {
+      const result = await autoMatchReconciliation(reconciliationId);
+      if (result.suggestions.length === 0) {
+        setSuggestedLines({});
+        toast({
+          title: t("bank.reconciliation.autoMatch"),
+          description: t("bank.reconciliation.autoMatchNone"),
+        });
+        return;
+      }
+      // Apply every suggestion to local state: clear the movement and link the
+      // statement line. The user reviews then clicks "Match" to persist.
+      const suggestedMovementIds = new Set(
+        result.suggestions.map((s) => s.movementId),
+      );
+      setCleared((c) => {
+        const next = { ...c };
+        for (const s of result.suggestions) next[s.movementId] = true;
+        return next;
+      });
+      setMatched((m) => {
+        // Drop any prior local assignment that points at a movement a suggestion
+        // is about to claim — a movement can only link to one statement line.
+        const next: Record<string, string> = {};
+        for (const [lineId, mvId] of Object.entries(m)) {
+          if (!suggestedMovementIds.has(mvId)) next[lineId] = mvId;
+        }
+        for (const s of result.suggestions)
+          next[s.statementLineId] = s.movementId;
+        return next;
+      });
+      const flags: Record<string, boolean> = {};
+      for (const s of result.suggestions) flags[s.statementLineId] = true;
+      setSuggestedLines(flags);
+      toast({
+        title: t("bank.reconciliation.autoMatch"),
+        description: t("bank.reconciliation.autoMatchSummary", {
+          matched: result.matchedCount,
+          suggested: result.suggestedCount,
+          unmatched: result.unmatchedStatementLineIds.length,
+        }),
+      });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: t("bank.toast.error"),
+        description: err?.data?.error ?? err?.message,
+      });
+    } finally {
+      setAutoMatching(false);
+    }
   };
 
   const saveAdjustment = () => {
@@ -1873,13 +1934,25 @@ function ReconciliationDetail({
             {t("bank.reconciliation.movements")}
           </h3>
           {editable && (
-            <button
-              onClick={saveMatch}
-              disabled={matchRec.isPending}
-              className="px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
-            >
-              {t("bank.reconciliation.match")}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={runAutoMatch}
+                disabled={autoMatching || detail.statementLines.length === 0}
+                className="flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold bg-card border text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                <Wand2 className="w-4 h-4" />
+                {autoMatching
+                  ? t("bank.reconciliation.autoMatching")
+                  : t("bank.reconciliation.autoMatch")}
+              </button>
+              <button
+                onClick={saveMatch}
+                disabled={matchRec.isPending}
+                className="px-4 py-1.5 rounded-full text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {t("bank.reconciliation.match")}
+              </button>
+            </div>
           )}
         </div>
         {detail.movements.length === 0 ? (
@@ -1990,7 +2063,14 @@ function ReconciliationDetail({
                   (m) => m.id === (matched[s.id] || s.matchedMovementId),
                 );
                 return (
-                  <tr key={s.id} className="border-t hover:bg-muted/40">
+                  <tr
+                    key={s.id}
+                    className={`border-t hover:bg-muted/40 ${
+                      suggestedLines[s.id] && matched[s.id]
+                        ? "bg-primary/5"
+                        : ""
+                    }`}
+                  >
                     <td className="px-6 py-3 tabular-nums text-foreground/80" dir="ltr">
                       {s.date}
                     </td>

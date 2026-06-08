@@ -125,7 +125,14 @@
       "after": "بعد"
     },
     "entities": {
-      "journal_entry": "قيد يومية"
+      "journal_entry": "قيد يومية",
+      "customer": "عميل",
+      "supplier": "مورد",
+      "sales_invoice": "فاتورة مبيعات",
+      "purchase_invoice": "فاتورة مشتريات",
+      "receipt_voucher": "سند قبض",
+      "payment_voucher": "سند صرف",
+      "attachment": "مرفق"
     },
     "actions": {
       "create": "إنشاء",
@@ -135,7 +142,46 @@
       "submit": "إرسال للاعتماد",
       "approve": "اعتماد",
       "reject": "رفض",
-      "reverse": "عكس"
+      "reverse": "عكس",
+      "import": "استيراد"
+    },
+    "fields": {
+      "entryNo": "رقم القيد",
+      "date": "التاريخ",
+      "reference": "المرجع",
+      "notes": "ملاحظات",
+      "status": "الحالة",
+      "code": "الكود",
+      "nameAr": "الاسم",
+      "type": "النوع",
+      "invoiceNo": "رقم الفاتورة",
+      "total": "الإجمالي",
+      "paymentNo": "رقم السند",
+      "amount": "المبلغ",
+      "method": "طريقة الدفع",
+      "reversalEntryId": "قيد العكس",
+      "reversalEntryNo": "رقم قيد العكس",
+      "imported": "عدد المستورد",
+      "entry": "القيد",
+      "fileName": "اسم الملف"
+    },
+    "values": {
+      "draft": "مسودة",
+      "pending_approval": "بانتظار الاعتماد",
+      "posted": "مُرحَّل",
+      "approved": "معتمد",
+      "rejected": "مرفوض",
+      "reversed": "معكوس",
+      "sales": "مبيعات",
+      "purchase": "مشتريات",
+      "collection": "قبض",
+      "payment": "صرف",
+      "individual": "فرد",
+      "company": "شركة",
+      "cash": "نقدي",
+      "bank": "بنك",
+      "cheque": "شيك",
+      "card": "بطاقة"
     }
   },
   "fiscalYearsPage": {
@@ -1295,6 +1341,10 @@
       "clearedBalance": "رصيد الدفاتر المسوّى",
       "reconciledDifference": "الفرق بعد التسوية",
       "match": "حفظ المطابقة",
+      "autoMatch": "مطابقة تلقائية",
+      "autoMatching": "جاري المطابقة...",
+      "autoMatchSummary": "تمت مطابقة {{matched}} حركة، {{suggested}} اقتراح للمراجعة، {{unmatched}} بدون مطابقة. راجع ثم اضغط حفظ المطابقة.",
+      "autoMatchNone": "لم نجد أي حركات مطابقة. طابق البنود يدويًا.",
       "complete": "إنهاء التسوية",
       "addAdjustment": "إضافة قيد تسوية",
       "adjustmentType": "نوع القيد",
@@ -1534,7 +1584,19 @@
       "totalDebit": "إجمالي المدين",
       "totalCredit": "إجمالي الدائن",
       "balanced": "متوازن",
-      "unbalanced": "غير متوازن"
+      "unbalanced": "غير متوازن",
+      "opening": "رصيد افتتاحي",
+      "period": "الحركة",
+      "closing": "رصيد ختامي",
+      "totalOpeningDebit": "إجمالي افتتاحي مدين",
+      "totalOpeningCredit": "إجمالي افتتاحي دائن",
+      "totalPeriodDebit": "إجمالي حركة مدين",
+      "totalPeriodCredit": "إجمالي حركة دائن",
+      "totalClosingDebit": "إجمالي ختامي مدين",
+      "totalClosingCredit": "إجمالي ختامي دائن",
+      "title": "ميزان المراجعة",
+      "periodLabel": "الفترة",
+      "preparedAt": "تاريخ الإصدار"
     },
     "incomeStatement": {
       "revenue": "الإيرادات",
@@ -1566,6 +1628,10 @@
       "d90plus": "أكثر من 90 يوم"
     },
     "overdue": "متأخرة",
-    "noData": "لا توجد بيانات لعرضها"
+    "noData": "لا توجد بيانات لعرضها",
+    "export": {
+      "excel": "تصدير Excel",
+      "pdf": "تصدير PDF"
+    }
   }
 }

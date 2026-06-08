@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, eq, gte, lt, lte, sql } from "drizzle-orm";
 import {
   db,
   accountsTable,
@@ -12,6 +12,21 @@ import { round2 } from "../lib/inventory-posting";
 import { exportWorkbook } from "../lib/excel";
 
 const router = Router();
+
+// Validate optional from/to query dates: each must be YYYY-MM-DD (a real date)
+// and from must not be after to. Returns an error string, or null when valid.
+function validateDateRange(
+  from: string | null,
+  to: string | null,
+): string | null {
+  const isValid = (d: string) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
+  if (from && !isValid(from)) return "تاريخ البداية غير صحيح";
+  if (to && !isValid(to)) return "تاريخ النهاية غير صحيح";
+  if (from && to && from > to)
+    return "تاريخ البداية يجب أن يكون قبل تاريخ النهاية";
+  return null;
+}
 
 // Account types whose natural balance is a debit (asset/expense) vs credit
 // (liability/equity/revenue). Used to sign each account's net movement.
@@ -64,6 +79,39 @@ async function postedTotals(
   return map;
 }
 
+// Sum posted debit/credit (base currency) per account STRICTLY BEFORE a date.
+// Used for the opening balance column of the trial balance.
+async function postedTotalsBefore(companyId: string, before: string) {
+  const rows = await db
+    .select({
+      accountId: journalEntryLinesTable.accountId,
+      debit: sql<string>`sum(${journalEntryLinesTable.debitBase})`,
+      credit: sql<string>`sum(${journalEntryLinesTable.creditBase})`,
+    })
+    .from(journalEntryLinesTable)
+    .innerJoin(
+      journalEntriesTable,
+      eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
+    )
+    .where(
+      and(
+        eq(journalEntriesTable.companyId, companyId),
+        eq(journalEntriesTable.status, "posted"),
+        lt(journalEntriesTable.date, before),
+      ),
+    )
+    .groupBy(journalEntryLinesTable.accountId);
+
+  const map = new Map<string, { debit: number; credit: number }>();
+  for (const r of rows) {
+    map.set(r.accountId, {
+      debit: Number(r.debit) || 0,
+      credit: Number(r.credit) || 0,
+    });
+  }
+  return map;
+}
+
 async function loadAccounts(companyId: string): Promise<AccountRow[]> {
   return db
     .select({
@@ -79,15 +127,22 @@ async function loadAccounts(companyId: string): Promise<AccountRow[]> {
     .orderBy(accountsTable.code);
 }
 
-// ---- Trial balance ----------------------------------------------------------
+// ---- Trial balance (6 columns) ---------------------------------------------
+// Opening (افتتاحي) and Closing (ختامي) are net balances placed on their natural
+// side; Period (الحركة) shows the gross debit/credit movement within [from, to].
+// Closing = Opening + Period movement.
 type TrialBalanceRow = {
   accountId: string;
   code: string;
   nameAr: string;
   nameEn: string | null;
   type: string;
-  debit: number;
-  credit: number;
+  openingDebit: number;
+  openingCredit: number;
+  periodDebit: number;
+  periodCredit: number;
+  closingDebit: number;
+  closingCredit: number;
 };
 
 async function computeTrialBalance(
@@ -95,32 +150,69 @@ async function computeTrialBalance(
   from: string | null,
   to: string | null,
 ) {
-  const [accounts, totals] = await Promise.all([
+  const [accounts, opening, period] = await Promise.all([
     loadAccounts(companyId),
+    from
+      ? postedTotalsBefore(companyId, from)
+      : Promise.resolve(new Map<string, { debit: number; credit: number }>()),
     postedTotals(companyId, from, to),
   ]);
   const byId = new Map(accounts.map((a) => [a.id, a]));
+  const accIds = new Set<string>([...opening.keys(), ...period.keys()]);
 
-  let totalDebit = 0;
-  let totalCredit = 0;
+  let totalOpeningDebit = 0;
+  let totalOpeningCredit = 0;
+  let totalPeriodDebit = 0;
+  let totalPeriodCredit = 0;
+  let totalClosingDebit = 0;
+  let totalClosingCredit = 0;
   const rows: TrialBalanceRow[] = [];
-  for (const [accId, t] of totals) {
+  for (const accId of accIds) {
     const acc = byId.get(accId);
     if (!acc) continue;
-    const net = round2(t.debit - t.credit);
-    const debit = net > 0 ? net : 0;
-    const credit = net < 0 ? -net : 0;
-    if (debit === 0 && credit === 0) continue;
-    totalDebit = round2(totalDebit + debit);
-    totalCredit = round2(totalCredit + credit);
+    const op = opening.get(accId) ?? { debit: 0, credit: 0 };
+    const pe = period.get(accId) ?? { debit: 0, credit: 0 };
+
+    const openingNet = round2(op.debit - op.credit);
+    const openingDebit = openingNet > 0 ? openingNet : 0;
+    const openingCredit = openingNet < 0 ? -openingNet : 0;
+
+    const periodDebit = round2(pe.debit);
+    const periodCredit = round2(pe.credit);
+
+    const closingNet = round2(openingNet + (pe.debit - pe.credit));
+    const closingDebit = closingNet > 0 ? closingNet : 0;
+    const closingCredit = closingNet < 0 ? -closingNet : 0;
+
+    if (
+      openingDebit === 0 &&
+      openingCredit === 0 &&
+      periodDebit === 0 &&
+      periodCredit === 0 &&
+      closingDebit === 0 &&
+      closingCredit === 0
+    )
+      continue;
+
+    totalOpeningDebit = round2(totalOpeningDebit + openingDebit);
+    totalOpeningCredit = round2(totalOpeningCredit + openingCredit);
+    totalPeriodDebit = round2(totalPeriodDebit + periodDebit);
+    totalPeriodCredit = round2(totalPeriodCredit + periodCredit);
+    totalClosingDebit = round2(totalClosingDebit + closingDebit);
+    totalClosingCredit = round2(totalClosingCredit + closingCredit);
+
     rows.push({
       accountId: acc.id,
       code: acc.code,
       nameAr: acc.nameAr,
       nameEn: acc.nameEn,
       type: acc.type,
-      debit,
-      credit,
+      openingDebit,
+      openingCredit,
+      periodDebit,
+      periodCredit,
+      closingDebit,
+      closingCredit,
     });
   }
   rows.sort((a, b) => a.code.localeCompare(b.code));
@@ -129,9 +221,16 @@ async function computeTrialBalance(
     from: from ?? null,
     to: to ?? null,
     rows,
-    totalDebit,
-    totalCredit,
-    balanced: Math.abs(totalDebit - totalCredit) < 0.005,
+    totalOpeningDebit,
+    totalOpeningCredit,
+    totalPeriodDebit,
+    totalPeriodCredit,
+    totalClosingDebit,
+    totalClosingCredit,
+    balanced:
+      Math.abs(totalOpeningDebit - totalOpeningCredit) < 0.005 &&
+      Math.abs(totalPeriodDebit - totalPeriodCredit) < 0.005 &&
+      Math.abs(totalClosingDebit - totalClosingCredit) < 0.005,
   };
 }
 
@@ -142,6 +241,11 @@ router.get(
   async (req, res) => {
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
+    const dateErr = validateDateRange(from, to);
+    if (dateErr) {
+      res.status(400).json({ error: dateErr });
+      return;
+    }
     try {
       res.json(await computeTrialBalance(req.auth!.companyId, from, to));
     } catch (err) {
@@ -158,6 +262,11 @@ router.get(
   async (req, res) => {
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
+    const dateErr = validateDateRange(from, to);
+    if (dateErr) {
+      res.status(400).json({ error: dateErr });
+      return;
+    }
     try {
       const report = await computeTrialBalance(req.auth!.companyId, from, to);
       await exportWorkbook(res, {
@@ -166,8 +275,36 @@ router.get(
         columns: [
           { header: "الكود", value: (r: TrialBalanceRow) => r.code },
           { header: "الحساب", value: (r: TrialBalanceRow) => r.nameAr, width: 32 },
-          { header: "مدين", value: (r: TrialBalanceRow) => r.debit, width: 16 },
-          { header: "دائن", value: (r: TrialBalanceRow) => r.credit, width: 16 },
+          {
+            header: "افتتاحي مدين",
+            value: (r: TrialBalanceRow) => r.openingDebit,
+            width: 16,
+          },
+          {
+            header: "افتتاحي دائن",
+            value: (r: TrialBalanceRow) => r.openingCredit,
+            width: 16,
+          },
+          {
+            header: "حركة مدين",
+            value: (r: TrialBalanceRow) => r.periodDebit,
+            width: 16,
+          },
+          {
+            header: "حركة دائن",
+            value: (r: TrialBalanceRow) => r.periodCredit,
+            width: 16,
+          },
+          {
+            header: "ختامي مدين",
+            value: (r: TrialBalanceRow) => r.closingDebit,
+            width: 16,
+          },
+          {
+            header: "ختامي دائن",
+            value: (r: TrialBalanceRow) => r.closingCredit,
+            width: 16,
+          },
         ],
         rows: report.rows,
       });

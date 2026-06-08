@@ -71,6 +71,7 @@ export interface AuditLogEntry {
   action: string;
   entity: string;
   entityId?: string | null;
+  entityLabel?: string | null;
   oldValue?: unknown;
   newValue?: unknown;
   userId?: string | null;
@@ -1890,8 +1891,12 @@ export interface TrialBalanceRow {
   /** @nullable */
   nameEn?: string | null;
   type: string;
-  debit: number;
-  credit: number;
+  openingDebit: number;
+  openingCredit: number;
+  periodDebit: number;
+  periodCredit: number;
+  closingDebit: number;
+  closingCredit: number;
 }
 
 export interface TrialBalance {
@@ -1900,8 +1905,12 @@ export interface TrialBalance {
   /** @nullable */
   to?: string | null;
   rows: TrialBalanceRow[];
-  totalDebit: number;
-  totalCredit: number;
+  totalOpeningDebit: number;
+  totalOpeningCredit: number;
+  totalPeriodDebit: number;
+  totalPeriodCredit: number;
+  totalClosingDebit: number;
+  totalClosingCredit: number;
   balanced: boolean;
 }
 
@@ -2293,6 +2302,29 @@ export type MatchReconciliationInputStatementLineMatchesItem = {
 export interface MatchReconciliationInput {
   movementIds: string[];
   statementLineMatches?: MatchReconciliationInputStatementLineMatchesItem[];
+}
+
+export type AutoMatchReconciliationResultSuggestionsItemConfidence = typeof AutoMatchReconciliationResultSuggestionsItemConfidence[keyof typeof AutoMatchReconciliationResultSuggestionsItemConfidence];
+
+
+export const AutoMatchReconciliationResultSuggestionsItemConfidence = {
+  exact: 'exact',
+  high: 'high',
+  medium: 'medium',
+} as const;
+
+export type AutoMatchReconciliationResultSuggestionsItem = {
+  statementLineId: string;
+  movementId: string;
+  confidence: AutoMatchReconciliationResultSuggestionsItemConfidence;
+};
+
+export interface AutoMatchReconciliationResult {
+  suggestions: AutoMatchReconciliationResultSuggestionsItem[];
+  unmatchedStatementLineIds: string[];
+  unmatchedMovementIds: string[];
+  matchedCount: number;
+  suggestedCount: number;
 }
 
 export type AdjustReconciliationLineType = typeof AdjustReconciliationLineType[keyof typeof AdjustReconciliationLineType];

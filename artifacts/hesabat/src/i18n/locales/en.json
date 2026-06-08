@@ -125,7 +125,14 @@
       "after": "After"
     },
     "entities": {
-      "journal_entry": "Journal entry"
+      "journal_entry": "Journal entry",
+      "customer": "Customer",
+      "supplier": "Supplier",
+      "sales_invoice": "Sales invoice",
+      "purchase_invoice": "Purchase invoice",
+      "receipt_voucher": "Receipt voucher",
+      "payment_voucher": "Payment voucher",
+      "attachment": "Attachment"
     },
     "actions": {
       "create": "Create",
@@ -135,7 +142,46 @@
       "submit": "Submit",
       "approve": "Approve",
       "reject": "Reject",
-      "reverse": "Reverse"
+      "reverse": "Reverse",
+      "import": "Import"
+    },
+    "fields": {
+      "entryNo": "Entry no.",
+      "date": "Date",
+      "reference": "Reference",
+      "notes": "Notes",
+      "status": "Status",
+      "code": "Code",
+      "nameAr": "Name",
+      "type": "Type",
+      "invoiceNo": "Invoice no.",
+      "total": "Total",
+      "paymentNo": "Voucher no.",
+      "amount": "Amount",
+      "method": "Payment method",
+      "reversalEntryId": "Reversal entry",
+      "reversalEntryNo": "Reversal entry no.",
+      "imported": "Imported count",
+      "entry": "Entry",
+      "fileName": "File name"
+    },
+    "values": {
+      "draft": "Draft",
+      "pending_approval": "Pending approval",
+      "posted": "Posted",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "reversed": "Reversed",
+      "sales": "Sales",
+      "purchase": "Purchase",
+      "collection": "Collection",
+      "payment": "Payment",
+      "individual": "Individual",
+      "company": "Company",
+      "cash": "Cash",
+      "bank": "Bank",
+      "cheque": "Cheque",
+      "card": "Card"
     }
   },
   "fiscalYearsPage": {
@@ -1295,6 +1341,10 @@
       "clearedBalance": "Cleared book balance",
       "reconciledDifference": "Reconciled difference",
       "match": "Save matching",
+      "autoMatch": "Auto-match",
+      "autoMatching": "Matching...",
+      "autoMatchSummary": "Matched {{matched}}, {{suggested}} suggestion(s) to review, {{unmatched}} unmatched. Review, then click Save matching.",
+      "autoMatchNone": "No matching movements found. Match the lines manually.",
       "complete": "Complete reconciliation",
       "addAdjustment": "Add adjustment entry",
       "adjustmentType": "Entry type",
@@ -1534,7 +1584,19 @@
       "totalDebit": "Total debit",
       "totalCredit": "Total credit",
       "balanced": "Balanced",
-      "unbalanced": "Not balanced"
+      "unbalanced": "Not balanced",
+      "opening": "Opening balance",
+      "period": "Movement",
+      "closing": "Closing balance",
+      "totalOpeningDebit": "Total opening debit",
+      "totalOpeningCredit": "Total opening credit",
+      "totalPeriodDebit": "Total movement debit",
+      "totalPeriodCredit": "Total movement credit",
+      "totalClosingDebit": "Total closing debit",
+      "totalClosingCredit": "Total closing credit",
+      "title": "Trial Balance",
+      "periodLabel": "Period",
+      "preparedAt": "Prepared at"
     },
     "incomeStatement": {
       "revenue": "Revenue",
@@ -1566,6 +1628,10 @@
       "d90plus": "90+ days"
     },
     "overdue": "Overdue",
-    "noData": "No data to display"
+    "noData": "No data to display",
+    "export": {
+      "excel": "Export Excel",
+      "pdf": "Export PDF"
+    }
   }
 }

@@ -10,6 +10,7 @@ import {
 import { CreateSupplierBody, UpdateSupplierBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
+import { safeAudit } from "../lib/audit";
 import {
   generateChildAccountCode,
   loadControlAccount,
@@ -158,6 +159,23 @@ router.post(
           .returning();
         return { supplier: supplier!, accountCode: account!.code };
       });
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "create",
+          entity: "supplier",
+          entityId: created.supplier.id,
+          entityLabel: `${created.supplier.code} - ${created.supplier.nameAr}`,
+          newValue: {
+            code: created.supplier.code,
+            nameAr: created.supplier.nameAr,
+            type: created.supplier.type,
+          },
+        },
+        req.log,
+      );
       res
         .status(201)
         .json(toSupplier(created.supplier, created.accountCode, 0));
@@ -284,6 +302,28 @@ router.patch(
       const balances = await postedBalancesByAccount(companyId);
       const b = balances.get(existing.accountId);
       const balance = b ? b.credit - b.debit : 0;
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "update",
+          entity: "supplier",
+          entityId: updated.row.id,
+          entityLabel: `${updated.row.code} - ${updated.row.nameAr}`,
+          oldValue: {
+            code: existing.code,
+            nameAr: existing.nameAr,
+            type: existing.type,
+          },
+          newValue: {
+            code: updated.row.code,
+            nameAr: updated.row.nameAr,
+            type: updated.row.type,
+          },
+        },
+        req.log,
+      );
       res.json(toSupplier(updated.row, updated.accountCode, balance));
     } catch (err) {
       if (isUniqueViolation(err)) {
@@ -355,6 +395,23 @@ router.delete(
             ),
           );
       });
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "delete",
+          entity: "supplier",
+          entityId: existing.id,
+          entityLabel: `${existing.code} - ${existing.nameAr}`,
+          oldValue: {
+            code: existing.code,
+            nameAr: existing.nameAr,
+            type: existing.type,
+          },
+        },
+        req.log,
+      );
       res.json({ status: "ok" });
     } catch (err) {
       if (isForeignKeyViolation(err)) {
@@ -587,6 +644,18 @@ router.post(
           });
         }
       });
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "import",
+          entity: "supplier",
+          entityLabel: `${parsed.length} مورد`,
+          newValue: { imported: parsed.length },
+        },
+        req.log,
+      );
       res.json({ imported: parsed.length });
     } catch (err) {
       if (isUniqueViolation(err)) {

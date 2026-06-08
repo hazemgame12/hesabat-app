@@ -12,6 +12,7 @@ export type AuditEntry = {
   action: string;
   entity: string;
   entityId?: string | null;
+  entityLabel?: string | null;
   oldValue?: unknown;
   newValue?: unknown;
 };
@@ -28,6 +29,7 @@ export async function writeAudit(
     action: entry.action,
     entity: entry.entity,
     entityId: entry.entityId ?? null,
+    entityLabel: entry.entityLabel ?? null,
     oldValue: entry.oldValue ?? null,
     newValue: entry.newValue ?? null,
   });

@@ -15,6 +15,7 @@ import {
   useListSuppliers,
   type Account,
   type PnlLine,
+  type TrialBalance,
 } from "@workspace/api-client-react";
 import { FileBarChart } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
@@ -213,7 +214,95 @@ function Empty() {
   );
 }
 
-// ---- Trial balance ----
+// ---- Trial balance (6 columns: opening / movement / closing, debit & credit) ----
+// Escape any dynamic value before it is interpolated into the print-window
+// HTML, so account names / labels containing markup cannot inject script.
+function esc(v: string | number): string {
+  return String(v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildTrialBalancePdfHtml(
+  data: TrialBalance,
+  fmt: Fmt,
+  lang: string,
+  from: string,
+  to: string,
+  labels: Record<string, string>,
+): string {
+  const rtl = !lang.startsWith("en");
+  const cell = (v: number) => (v ? esc(fmt(v)) : "—");
+  const rows = data.rows
+    .map(
+      (r) => `<tr>
+        <td class="code">${esc(r.code)}</td>
+        <td class="name">${esc(displayName(r, lang))}</td>
+        <td class="num">${cell(r.openingDebit)}</td>
+        <td class="num">${cell(r.openingCredit)}</td>
+        <td class="num">${cell(r.periodDebit)}</td>
+        <td class="num">${cell(r.periodCredit)}</td>
+        <td class="num">${cell(r.closingDebit)}</td>
+        <td class="num">${cell(r.closingCredit)}</td>
+      </tr>`,
+    )
+    .join("");
+  return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${esc(lang)}">
+<head><meta charset="utf-8"><title>${labels.title}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Cairo','Segoe UI',Tahoma,Arial,sans-serif; margin: 24px; color: #1f2937; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .meta { font-size: 12px; color: #6b7280; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 8px; }
+  thead th { background: #f3f4f6; text-align: center; }
+  td.code { font-family: monospace; }
+  td.num, th.num { text-align: ${rtl ? "left" : "right"}; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tfoot td { font-weight: 700; background: #f9fafb; }
+  .badge { display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .ok { background: #d1fae5; color: #047857; }
+  .bad { background: #fee2e2; color: #b91c1c; }
+  @media print { body { margin: 0; } }
+</style></head>
+<body onload="window.print()">
+  <h1>${esc(labels.title)}</h1>
+  <div class="meta">${esc(labels.periodLabel)}: ${esc(from || "—")} ← ${esc(to || "—")} · ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
+  <table>
+    <thead>
+      <tr>
+        <th rowspan="2">${esc(labels.code)}</th>
+        <th rowspan="2">${esc(labels.account)}</th>
+        <th colspan="2">${esc(labels.opening)}</th>
+        <th colspan="2">${esc(labels.period)}</th>
+        <th colspan="2">${esc(labels.closing)}</th>
+      </tr>
+      <tr>
+        <th class="num">${esc(labels.debit)}</th><th class="num">${esc(labels.credit)}</th>
+        <th class="num">${esc(labels.debit)}</th><th class="num">${esc(labels.credit)}</th>
+        <th class="num">${esc(labels.debit)}</th><th class="num">${esc(labels.credit)}</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2">${esc(labels.total)}</td>
+        <td class="num">${esc(fmt(data.totalOpeningDebit))}</td>
+        <td class="num">${esc(fmt(data.totalOpeningCredit))}</td>
+        <td class="num">${esc(fmt(data.totalPeriodDebit))}</td>
+        <td class="num">${esc(fmt(data.totalPeriodCredit))}</td>
+        <td class="num">${esc(fmt(data.totalClosingDebit))}</td>
+        <td class="num">${esc(fmt(data.totalClosingCredit))}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <span class="badge ${data.balanced ? "ok" : "bad"}">${esc(data.balanced ? labels.balanced : labels.unbalanced)}</span>
+</body></html>`;
+}
+
 function TrialBalanceTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -223,60 +312,157 @@ function TrialBalanceTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
     to: to || undefined,
   });
 
+  const exportExcel = () => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    // Same-origin GET download; the session cookie is sent automatically.
+    window.open(`/api/reports/trial-balance/export?${qs.toString()}`, "_blank");
+  };
+
+  const exportPdf = () => {
+    if (!data) return;
+    const html = buildTrialBalancePdfHtml(data, fmt, lang, from, to, {
+      title: t("reportsPage.trialBalance.title"),
+      periodLabel: t("reportsPage.trialBalance.periodLabel"),
+      preparedAt: t("reportsPage.trialBalance.preparedAt"),
+      code: t("reportsPage.table.code"),
+      account: t("reportsPage.table.account"),
+      opening: t("reportsPage.trialBalance.opening"),
+      period: t("reportsPage.trialBalance.period"),
+      closing: t("reportsPage.trialBalance.closing"),
+      debit: t("reportsPage.table.debit"),
+      credit: t("reportsPage.table.credit"),
+      total: t("reportsPage.table.total"),
+      balanced: t("reportsPage.trialBalance.balanced"),
+      unbalanced: t("reportsPage.trialBalance.unbalanced"),
+    });
+    // Render in an isolated window so the browser shapes Arabic correctly,
+    // then trigger the native print → "Save as PDF" dialog.
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+  };
+
+  const th = "px-4 py-2.5 font-semibold text-center";
+  const groupTh = "px-4 py-2 font-semibold text-center border-s border-border";
+
   return (
     <div>
-      <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+        {data && data.rows.length > 0 && (
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={exportExcel}
+              className="px-4 py-2 rounded-lg text-sm font-semibold border border-border bg-card hover:bg-muted"
+            >
+              {t("reportsPage.export.excel")}
+            </button>
+            <button
+              onClick={exportPdf}
+              className="px-4 py-2 rounded-lg text-sm font-semibold border border-border bg-card hover:bg-muted"
+            >
+              {t("reportsPage.export.pdf")}
+            </button>
+          </div>
+        )}
+      </div>
       {isLoading ? (
         <Loading />
       ) : !data || data.rows.length === 0 ? (
         <Empty />
       ) : (
         <Card>
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-muted-foreground">
-              <tr>
-                <th className="text-start px-4 py-3 font-semibold">
-                  {t("reportsPage.table.code")}
-                </th>
-                <th className="text-start px-4 py-3 font-semibold">
-                  {t("reportsPage.table.account")}
-                </th>
-                <th className="text-end px-4 py-3 font-semibold">
-                  {t("reportsPage.table.debit")}
-                </th>
-                <th className="text-end px-4 py-3 font-semibold">
-                  {t("reportsPage.table.credit")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.accountId} className="border-t border-border">
-                  <td className="px-4 py-2.5 font-mono text-xs">{r.code}</td>
-                  <td className="px-4 py-2.5">{displayName(r, lang)}</td>
-                  <td className="px-4 py-2.5 text-end tabular-nums">
-                    {r.debit ? fmt(r.debit) : "—"}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th rowSpan={2} className="text-start px-4 py-3 font-semibold">
+                    {t("reportsPage.table.code")}
+                  </th>
+                  <th rowSpan={2} className="text-start px-4 py-3 font-semibold">
+                    {t("reportsPage.table.account")}
+                  </th>
+                  <th colSpan={2} className={groupTh}>
+                    {t("reportsPage.trialBalance.opening")}
+                  </th>
+                  <th colSpan={2} className={groupTh}>
+                    {t("reportsPage.trialBalance.period")}
+                  </th>
+                  <th colSpan={2} className={groupTh}>
+                    {t("reportsPage.trialBalance.closing")}
+                  </th>
+                </tr>
+                <tr>
+                  <th className={`${th} border-s border-border`}>
+                    {t("reportsPage.table.debit")}
+                  </th>
+                  <th className={th}>{t("reportsPage.table.credit")}</th>
+                  <th className={`${th} border-s border-border`}>
+                    {t("reportsPage.table.debit")}
+                  </th>
+                  <th className={th}>{t("reportsPage.table.credit")}</th>
+                  <th className={`${th} border-s border-border`}>
+                    {t("reportsPage.table.debit")}
+                  </th>
+                  <th className={th}>{t("reportsPage.table.credit")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((r) => (
+                  <tr key={r.accountId} className="border-t border-border">
+                    <td className="px-4 py-2.5 font-mono text-xs">{r.code}</td>
+                    <td className="px-4 py-2.5">{displayName(r, lang)}</td>
+                    <td className="px-4 py-2.5 text-end tabular-nums border-s border-border">
+                      {r.openingDebit ? fmt(r.openingDebit) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">
+                      {r.openingCredit ? fmt(r.openingCredit) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums border-s border-border">
+                      {r.periodDebit ? fmt(r.periodDebit) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">
+                      {r.periodCredit ? fmt(r.periodCredit) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums border-s border-border">
+                      {r.closingDebit ? fmt(r.closingDebit) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">
+                      {r.closingCredit ? fmt(r.closingCredit) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/30 font-bold">
+                  <td className="px-4 py-3" colSpan={2}>
+                    {t("reportsPage.table.total")}
                   </td>
-                  <td className="px-4 py-2.5 text-end tabular-nums">
-                    {r.credit ? fmt(r.credit) : "—"}
+                  <td className="px-4 py-3 text-end tabular-nums border-s border-border">
+                    {fmt(data.totalOpeningDebit)}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums">
+                    {fmt(data.totalOpeningCredit)}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums border-s border-border">
+                    {fmt(data.totalPeriodDebit)}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums">
+                    {fmt(data.totalPeriodCredit)}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums border-s border-border">
+                    {fmt(data.totalClosingDebit)}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums">
+                    {fmt(data.totalClosingCredit)}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t-2 border-border bg-muted/30 font-bold">
-                <td className="px-4 py-3" colSpan={2}>
-                  {t("reportsPage.table.total")}
-                </td>
-                <td className="px-4 py-3 text-end tabular-nums">
-                  {fmt(data.totalDebit)}
-                </td>
-                <td className="px-4 py-3 text-end tabular-nums">
-                  {fmt(data.totalCredit)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
           <div className="px-4 py-3 border-t border-border">
             <span
               className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${

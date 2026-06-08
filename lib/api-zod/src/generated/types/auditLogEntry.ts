@@ -11,6 +11,7 @@ export interface AuditLogEntry {
   action: string;
   entity: string;
   entityId?: string | null;
+  entityLabel?: string | null;
   oldValue?: unknown;
   newValue?: unknown;
   userId?: string | null;
