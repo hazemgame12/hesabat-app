@@ -101,7 +101,40 @@
     "settings": "Company Settings",
     "payroll": "Payroll & Employees",
     "invoicesSales": "Sales Invoices",
-    "invoicesPurchases": "Purchase Invoices"
+    "invoicesPurchases": "Purchase Invoices",
+    "audit": "Activity Log"
+  },
+  "auditPage": {
+    "title": "Activity Log",
+    "subtitle": "A permanent, read-only record of all journal actions — it cannot be deleted",
+    "empty": "No activity recorded",
+    "filters": {
+      "entity": "Type",
+      "from": "From date",
+      "to": "To date",
+      "all": "All"
+    },
+    "columns": {
+      "date": "Date & time",
+      "user": "User",
+      "action": "Action",
+      "entity": "Type",
+      "before": "Before",
+      "after": "After"
+    },
+    "entities": {
+      "journal_entry": "Journal entry"
+    },
+    "actions": {
+      "create": "Create",
+      "update": "Update",
+      "post": "Post",
+      "delete": "Delete",
+      "submit": "Submit",
+      "approve": "Approve",
+      "reject": "Reject",
+      "reverse": "Reverse"
+    }
   },
   "settings": {
     "title": "Company Settings",

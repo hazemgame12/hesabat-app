@@ -91,6 +91,7 @@ export const CAPABILITIES = [
   "custodies:create",
   "custodies:update",
   "custodies:delete",
+  "audit:read",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -223,6 +224,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...BANK_FULL,
     ...ADVANCES_FULL,
     ...CUSTODIES_FULL,
+    "audit:read",
   ],
   manager: [
     "company:manage",
@@ -241,6 +243,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...BANK_FULL,
     ...ADVANCES_FULL,
     ...CUSTODIES_FULL,
+    "audit:read",
   ],
   accountant: [
     "accounts:read",

@@ -32,6 +32,7 @@ import dashboardRouter from "./dashboard";
 import companyRouter from "./company";
 import teamRouter from "./team";
 import invitationsRouter from "./invitations";
+import auditRouter from "./audit";
 
 const router: IRouter = Router();
 
@@ -59,6 +60,7 @@ router.use(dashboardRouter);
 router.use(companyRouter);
 router.use(teamRouter);
 router.use(invitationsRouter);
+router.use(auditRouter);
 router.use(articlesRouter);
 router.use(settingsRouter);
 router.use(servicesRouter);

@@ -20,7 +20,8 @@ import {
   Package,
   Wallet,
   Scale,
-  Settings
+  Settings,
+  History
 } from "lucide-react";
 
 type NavItem = {
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
   { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
   { labelKey: "nav.reports", icon: FileText, href: "/reports" },
+  { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 

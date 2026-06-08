@@ -85,15 +85,19 @@ Phase 1 shipped 12+ milestones. Confirmed present in code today:
 
 ---
 
-## 6. Roadmap by module (ordered by value, do one at a time)
+## 6. Roadmap by module (confirmed order with the user — do one at a time)
 
-1. **Banking — Automatic matching engine** (PRIORITY / competitive advantage). Builds directly on the existing Excel import + reconciliation. Suggest matches by amount + date tolerance + reference; user confirms.
-2. **Audit Log** (cross-cutting trust/integrity). Already scoped as Task #42.
-3. **Fiscal Year management** (open/close + carry-forward + period lock). Already scoped as Task #43.
-4. **Reporting completeness** — 6-column Trial Balance + PDF export across ledger/trial balance.
-5. **Credit notes & purchase returns** (AR/AP completeness).
-6. **Inventory stock ledger report** (+ optional units-of-measure master) — keep simple.
-7. **Dashboard modernization** (counts, bank vs cash split, key KPIs).
+1. **Audit Log** (cross-cutting trust/integrity). Task #42. ← starting here
+2. **Fiscal Year management** (open/close + carry-forward + period lock). Task #43.
+3. **Reporting completeness** — 6-column Trial Balance + PDF export across ledger/trial balance.
+4. **Credit notes & purchase returns** (AR/AP completeness — sales & purchase returns).
+5. **Inventory stock ledger report + units of measure** — keep it VERY simple.
+
+### Explicitly excluded (user decision)
+- FIFO / LIFO costing (weighted-average only).
+- Manufacturing / BOM / MRP / multi-warehouse.
+- **Dashboard modernization is dropped** — the dashboard already runs on existing data; no separate module.
+- Bank automatic-matching engine remains valuable but is not in this confirmed pass; revisit later.
 
 > Deferred (low priority, on request): the broader analytical reports bundle (cash flow statement, sales/purchases-by-item, monthly inventory summary, FX revaluation, cash forecast) — Task #44 context.
 

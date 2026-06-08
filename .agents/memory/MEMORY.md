@@ -16,3 +16,4 @@
 - [Hesabat payroll/advances concurrency](hesabat-payroll-advances-concurrency.md) — running-balance mutations (totalRepaid) must be in-tx under company lock + FOR UPDATE + SQL arithmetic; JE-backed statuses (settled) rejected in BOTH create+update.
 - [Hesabat bank reconciliation](hesabat-bank-reconciliation.md) — canonical difference = statement − clearedBookBalance everywhere (persist on create/match/adjust/complete); report pairs adjustedStatementBalance with FULL book balance.
 - [Hesabat Excel import/export](hesabat-excel-io.md) — raw routes (no codegen), mirror journal.ts; import all-or-nothing tx + company-scoped FK resolution; import=master-data only; shared ExcelToolbar + common.* i18n keys.
+- [Audit log design](audit-log.md) — append-only (no write/delete route); safeAudit writes are best-effort post-commit and must never break the business tx; GET /audit is owner/manager only, company-scoped.

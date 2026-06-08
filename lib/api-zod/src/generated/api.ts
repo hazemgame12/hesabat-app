@@ -2629,6 +2629,31 @@ export const GetEmployeeStatementResponse = zod.object({
 
 
 /**
+ * @summary Append-only audit trail, most recent first
+ */
+export const GetAuditLogQueryParams = zod.object({
+  "entity": zod.coerce.string().optional(),
+  "userId": zod.coerce.string().optional(),
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional(),
+  "limit": zod.coerce.number().optional()
+})
+
+export const GetAuditLogResponseItem = zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "entity": zod.string(),
+  "entityId": zod.string().nullish(),
+  "oldValue": zod.unknown().optional(),
+  "newValue": zod.unknown().optional(),
+  "userId": zod.string().nullish(),
+  "userName": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+export const GetAuditLogResponse = zod.array(GetAuditLogResponseItem)
+
+
+/**
  * @summary Trial balance from posted journal lines
  */
 export const GetTrialBalanceQueryParams = zod.object({

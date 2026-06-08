@@ -66,6 +66,18 @@ export interface ErrorResponse {
   error: string;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  action: string;
+  entity: string;
+  entityId?: string | null;
+  oldValue?: unknown;
+  newValue?: unknown;
+  userId?: string | null;
+  userName?: string | null;
+  createdAt: string;
+}
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -2400,6 +2412,14 @@ export type GetEmployeeStatementParams = {
 employeeId: string;
 from?: string;
 to?: string;
+};
+
+export type GetAuditLogParams = {
+entity?: string;
+userId?: string;
+from?: string;
+to?: string;
+limit?: number;
 };
 
 export type GetTrialBalanceParams = {

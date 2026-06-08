@@ -46,6 +46,8 @@ tags:
     description: Employee custodies (entrusted cash/assets) with Excel settlement
   - name: openingBalances
     description: Company opening balances posted as a single journal entry
+  - name: audit
+    description: Append-only audit trail of user actions
 paths:
   /healthz:
     get:
@@ -2889,6 +2891,47 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /audit:
+    get:
+      operationId: getAuditLog
+      tags: [audit]
+      summary: Append-only audit trail, most recent first
+      parameters:
+        - name: entity
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Audit log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditLogEntry"
+
   /reports/trial-balance:
     get:
       operationId: getTrialBalance
@@ -3607,6 +3650,30 @@ components:
           type: string
       required:
         - error
+
+    AuditLogEntry:
+      type: object
+      required: [id, action, entity, createdAt]
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        entity:
+          type: string
+        entityId:
+          type: string
+          nullable: true
+        oldValue: {}
+        newValue: {}
+        userId:
+          type: string
+          nullable: true
+        userName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
 
     AuthUser:
       type: object

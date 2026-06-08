@@ -22,6 +22,7 @@ import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { uploadsDir } from "./uploads";
 import { lockCompanyEntryNo } from "../lib/journal-posting";
+import { safeAudit } from "../lib/audit";
 
 const router = Router();
 
@@ -518,6 +519,23 @@ router.post(
           .returning();
         return toEntryDetail(entry!, lineRows, []);
       });
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "create",
+          entity: "journal_entry",
+          entityId: detail.id,
+          newValue: {
+            entryNo: detail.entryNo,
+            date: detail.date,
+            reference: detail.reference,
+            status: detail.status,
+          },
+        },
+        req.log,
+      );
       res.status(201).json(detail);
     } catch (err) {
       req.log.error({ err }, "Failed to create journal entry");
@@ -614,6 +632,27 @@ router.patch(
           .where(eq(journalEntryAttachmentsTable.entryId, id));
         return toEntryDetail(entry!, lineRows, attachments);
       });
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "update",
+          entity: "journal_entry",
+          entityId: id,
+          oldValue: {
+            date: existing.date,
+            reference: existing.reference,
+            notes: existing.notes,
+          },
+          newValue: {
+            date: parsed.data.date,
+            reference: parsed.data.reference ?? null,
+            notes: parsed.data.notes ?? null,
+          },
+        },
+        req.log,
+      );
       res.json(detail);
     } catch (err) {
       req.log.error({ err }, "Failed to update journal entry");
@@ -693,6 +732,19 @@ router.post(
             eq(journalEntryAttachmentsTable.companyId, companyId),
           ),
         );
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "post",
+          entity: "journal_entry",
+          entityId: id,
+          oldValue: { status: existing.status },
+          newValue: { status: "posted" },
+        },
+        req.log,
+      );
       res.json(toEntryDetail(entry!, lines, attachments));
     } catch (err) {
       req.log.error({ err }, "Failed to post journal entry");
@@ -760,6 +812,18 @@ router.delete(
           .unlink(path.join(uploadsDir, a.objectKey))
           .catch(() => {});
       }
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "delete",
+          entity: "journal_entry",
+          entityId: id,
+          oldValue: { status: existing.status },
+        },
+        req.log,
+      );
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete journal entry");
@@ -871,6 +935,19 @@ router.post(
             eq(journalEntriesTable.companyId, companyId),
           ),
         );
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "submit",
+          entity: "journal_entry",
+          entityId: id,
+          oldValue: { status: existing.status },
+          newValue: { status: "pending_approval" },
+        },
+        req.log,
+      );
       res.json(await loadEntryDetail(id, companyId));
     } catch (err) {
       req.log.error({ err }, "Failed to submit journal entry");
@@ -921,6 +998,19 @@ router.post(
             eq(journalEntriesTable.companyId, companyId),
           ),
         );
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "approve",
+          entity: "journal_entry",
+          entityId: id,
+          oldValue: { status: existing.status },
+          newValue: { status: "approved" },
+        },
+        req.log,
+      );
       res.json(await loadEntryDetail(id, companyId));
     } catch (err) {
       req.log.error({ err }, "Failed to approve journal entry");
@@ -967,6 +1057,19 @@ router.post(
             eq(journalEntriesTable.companyId, companyId),
           ),
         );
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "reject",
+          entity: "journal_entry",
+          entityId: id,
+          oldValue: { status: existing.status },
+          newValue: { status: "draft" },
+        },
+        req.log,
+      );
       res.json(await loadEntryDetail(id, companyId));
     } catch (err) {
       req.log.error({ err }, "Failed to reject journal entry");
@@ -1084,6 +1187,21 @@ router.post(
           .json({ error: "تم إنشاء قيد عكسي لهذا القيد بالفعل" });
         return;
       }
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "reverse",
+          entity: "journal_entry",
+          entityId: original.id,
+          newValue: {
+            reversalEntryId: detail.id,
+            reversalEntryNo: detail.entryNo,
+          },
+        },
+        req.log,
+      );
       res.status(201).json(detail);
     } catch (err) {
       req.log.error({ err }, "Failed to reverse journal entry");

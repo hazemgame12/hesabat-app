@@ -40,3 +40,4 @@ export * from "./payroll";
 export * from "./customers-suppliers";
 export * from "./invoices";
 export * from "./bank";
+export * from "./audit";

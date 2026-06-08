@@ -101,7 +101,40 @@
     "settings": "إعدادات الشركة",
     "payroll": "الرواتب والموظفين",
     "invoicesSales": "فواتير المبيعات",
-    "invoicesPurchases": "فواتير المشتريات"
+    "invoicesPurchases": "فواتير المشتريات",
+    "audit": "سجل النشاط"
+  },
+  "auditPage": {
+    "title": "سجل النشاط",
+    "subtitle": "سجل دائم لكل العمليات على القيود — للاطلاع فقط ولا يمكن حذفه",
+    "empty": "لا يوجد نشاط مسجَّل",
+    "filters": {
+      "entity": "النوع",
+      "from": "من تاريخ",
+      "to": "إلى تاريخ",
+      "all": "الكل"
+    },
+    "columns": {
+      "date": "التاريخ والوقت",
+      "user": "المستخدم",
+      "action": "العملية",
+      "entity": "النوع",
+      "before": "قبل",
+      "after": "بعد"
+    },
+    "entities": {
+      "journal_entry": "قيد يومية"
+    },
+    "actions": {
+      "create": "إنشاء",
+      "update": "تعديل",
+      "post": "ترحيل",
+      "delete": "حذف",
+      "submit": "إرسال للاعتماد",
+      "approve": "اعتماد",
+      "reject": "رفض",
+      "reverse": "عكس"
+    }
   },
   "settings": {
     "title": "إعدادات الشركة",
