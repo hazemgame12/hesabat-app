@@ -18,6 +18,8 @@ export interface BankMovementInput {
   /** @nullable */
   counterpartAccountId?: string | null;
   /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
   transferAccountId?: string | null;
   /** @nullable */
   description?: string | null;

@@ -1378,6 +1378,8 @@
       "bankDescription": "وصف البنك (من الكشف)",
       "descriptionPlaceholder": "اكتب البيان الذي سيظهر في القيد",
       "selectCounterpart": "اختر الحساب المقابل لإتمام التبويب",
+      "costCenter": "مركز التكلفة",
+      "noCostCenter": "بدون مركز تكلفة",
       "saved": "تم حفظ الحركة",
       "post": "حفظ وترحيل القيد"
     },

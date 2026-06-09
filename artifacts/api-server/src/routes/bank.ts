@@ -12,6 +12,7 @@ import {
   bankStatementLinesTable,
   accountsTable,
   companiesTable,
+  costCentersTable,
   journalEntriesTable,
   type BankAccount,
   type BankMovement,
@@ -73,6 +74,24 @@ async function isLeafAccount(
     )
     .limit(1);
   return !!acc && !acc.isGroup;
+}
+
+// Re-validates that a cost center belongs to the company (tenant isolation).
+async function isCompanyCostCenter(
+  costCenterId: string,
+  companyId: string,
+): Promise<boolean> {
+  const [cc] = await db
+    .select({ id: costCentersTable.id })
+    .from(costCentersTable)
+    .where(
+      and(
+        eq(costCentersTable.id, costCenterId),
+        eq(costCentersTable.companyId, companyId),
+      ),
+    )
+    .limit(1);
+  return !!cc;
 }
 
 // xlsx statement uploads come through memory storage (parsed, never persisted).
@@ -264,6 +283,24 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
       );
     for (const c of cs) counterMap.set(c.id, c.name);
   }
+  const costCenterIds = [
+    ...new Set(
+      rows.map((r) => r.costCenterId).filter((x): x is string => !!x),
+    ),
+  ];
+  const costCenterMap = new Map<string, string>();
+  if (costCenterIds.length) {
+    const ccs = await db
+      .select({ id: costCentersTable.id, name: costCentersTable.nameAr })
+      .from(costCentersTable)
+      .where(
+        and(
+          eq(costCentersTable.companyId, companyId),
+          inArray(costCentersTable.id, costCenterIds),
+        ),
+      );
+    for (const c of ccs) costCenterMap.set(c.id, c.name);
+  }
   return rows.map((r) => ({
     id: r.id,
     bankAccountId: r.bankAccountId,
@@ -277,6 +314,10 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
     counterpartAccountId: r.counterpartAccountId,
     counterpartAccountName: r.counterpartAccountId
       ? (counterMap.get(r.counterpartAccountId) ?? null)
+      : null,
+    costCenterId: r.costCenterId,
+    costCenterName: r.costCenterId
+      ? (costCenterMap.get(r.costCenterId) ?? null)
       : null,
     transferAccountId: r.transferAccountId,
     transferAccountName: r.transferAccountId
@@ -1294,6 +1335,11 @@ router.post(
         res.status(400).json({ error: "الحساب المحاسبي المرتبط غير صحيح" });
         return;
       }
+      const costCenterId = d.costCenterId ?? null;
+      if (costCenterId && !(await isCompanyCostCenter(costCenterId, companyId))) {
+        res.status(400).json({ error: "مركز التكلفة غير صحيح" });
+        return;
+      }
       const direction = MOVEMENT_DIRECTION[d.type as Exclude<BankMovementType, "transfer">];
       if (!direction) {
         res.status(400).json({ error: "نوع الحركة غير صحيح" });
@@ -1314,6 +1360,7 @@ router.post(
             counterpartAccountId: d.counterpartAccountId!,
             amountBase,
             description: d.description ?? null,
+            costCenterId,
           }),
         });
         const [row] = await tx
@@ -1328,6 +1375,7 @@ router.post(
             currency,
             exchangeRate: String(rate),
             counterpartAccountId: d.counterpartAccountId,
+            costCenterId,
             description: d.description ?? null,
             reference: d.reference ?? null,
             journalEntryId: entry.id,
@@ -1435,6 +1483,19 @@ router.patch(
         return;
       }
 
+      // costCenterId: undefined = keep, null = clear, string = set.
+      const costCenterId =
+        d.costCenterId === undefined
+          ? movement.costCenterId
+          : d.costCenterId;
+      if (
+        costCenterId &&
+        !(await isCompanyCostCenter(costCenterId, companyId))
+      ) {
+        res.status(400).json({ error: "مركز التكلفة غير صحيح" });
+        return;
+      }
+
       const description =
         d.description === undefined ? movement.description : d.description;
       const notes = d.notes === undefined ? movement.notes : d.notes;
@@ -1476,6 +1537,7 @@ router.patch(
               counterpartAccountId,
               amountBase,
               description: description ?? null,
+              costCenterId,
             }),
           });
           if (movement.journalEntryId) {
@@ -1502,6 +1564,7 @@ router.patch(
             currency,
             exchangeRate: String(effRate),
             counterpartAccountId,
+            costCenterId,
             description,
             notes,
             reference,

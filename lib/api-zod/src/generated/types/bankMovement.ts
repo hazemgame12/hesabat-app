@@ -25,6 +25,10 @@ export interface BankMovement {
   /** @nullable */
   counterpartAccountName?: string | null;
   /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  costCenterName?: string | null;
+  /** @nullable */
   transferAccountId?: string | null;
   /** @nullable */
   transferAccountName?: string | null;

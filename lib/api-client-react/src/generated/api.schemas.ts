@@ -2306,6 +2306,10 @@ export interface BankMovement {
   /** @nullable */
   counterpartAccountName?: string | null;
   /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  costCenterName?: string | null;
+  /** @nullable */
   transferAccountId?: string | null;
   /** @nullable */
   transferAccountName?: string | null;
@@ -2352,6 +2356,8 @@ export interface BankMovementUpdateInput {
   /** @nullable */
   counterpartAccountId?: string | null;
   /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;
@@ -2385,6 +2391,8 @@ export interface BankMovementInput {
   exchangeRate?: number;
   /** @nullable */
   counterpartAccountId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
   /** @nullable */
   transferAccountId?: string | null;
   /** @nullable */

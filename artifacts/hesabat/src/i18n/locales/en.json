@@ -1378,6 +1378,8 @@
       "bankDescription": "Bank description (from statement)",
       "descriptionPlaceholder": "Write the description that will appear on the entry",
       "selectCounterpart": "Pick the counterpart account to finish classifying",
+      "costCenter": "Cost center",
+      "noCostCenter": "No cost center",
       "saved": "Movement saved",
       "post": "Save & post entry"
     },

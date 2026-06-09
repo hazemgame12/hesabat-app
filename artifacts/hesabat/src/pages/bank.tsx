@@ -19,6 +19,7 @@ import {
   useAdjustBankReconciliation,
   useCompleteBankReconciliation,
   useListAccounts,
+  useListCostCenters,
   useGetCurrentUser,
   getListBankAccountsQueryKey,
   getListBankMovementsQueryKey,
@@ -1341,8 +1342,12 @@ function ClassifyMovementModal({
   const [counterpartAccountId, setCounterpartAccountId] = useState(
     movement.counterpartAccountId ?? "",
   );
+  const [costCenterId, setCostCenterId] = useState(
+    movement.costCenterId ?? "",
+  );
   const [description, setDescription] = useState(movement.description ?? "");
   const [reference, setReference] = useState(movement.reference ?? "");
+  const { data: costCenters = [] } = useListCostCenters();
   const isIn = IN_TYPES.has(type);
 
   const selectableTypes = MOVEMENT_TYPES.filter((tp) => tp !== "transfer");
@@ -1373,6 +1378,7 @@ function ClassifyMovementModal({
           type: type as Exclude<MovementType, "transfer">,
           amount: amt,
           counterpartAccountId,
+          costCenterId: costCenterId || null,
           description: description.trim() || null,
           reference: reference.trim() || null,
         },
@@ -1472,6 +1478,21 @@ function ClassifyMovementModal({
                 ? t("bank.movement.counterpartHintIn")
                 : t("bank.movement.counterpartHintOut")}
             </p>
+          </div>
+          <div className="col-span-2">
+            <label className={labelCls}>{t("bank.classify.costCenter")}</label>
+            <select
+              className={inputCls}
+              value={costCenterId}
+              onChange={(e) => setCostCenterId(e.target.value)}
+            >
+              <option value="">{t("bank.classify.noCostCenter")}</option>
+              {costCenters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nameAr}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="col-span-2">
             <label className={labelCls}>{t("bank.movement.description")}</label>

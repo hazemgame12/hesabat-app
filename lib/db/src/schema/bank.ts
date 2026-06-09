@@ -13,6 +13,7 @@ import { companiesTable } from "./companies";
 import { usersTable } from "./users";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
+import { costCentersTable } from "./cost-centers";
 
 // A cash drawer or bank/credit-card/loan account. Each is linked to an existing
 // leaf chart-of-accounts account (re-validated to the company on write). The
@@ -78,6 +79,11 @@ export const bankMovementsTable = pgTable("bank_movements", {
     () => accountsTable.id,
     { onDelete: "restrict" },
   ),
+  // Optional cost-center/project tag chosen when the movement is classified.
+  // Applied to the counterpart line of the posted journal entry.
+  costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
+    onDelete: "set null",
+  }),
   // The other bank account for transfers.
   transferAccountId: uuid("transfer_account_id").references(
     () => bankAccountsTable.id,

@@ -17,6 +17,8 @@ export interface BankMovementUpdateInput {
   /** @nullable */
   counterpartAccountId?: string | null;
   /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;

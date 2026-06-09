@@ -6815,6 +6815,10 @@ components:
           type: ["string", "null"]
         counterpartAccountName:
           type: ["string", "null"]
+        costCenterId:
+          type: ["string", "null"]
+        costCenterName:
+          type: ["string", "null"]
         transferAccountId:
           type: ["string", "null"]
         transferAccountName:
@@ -6858,6 +6862,8 @@ components:
           type: number
         counterpartAccountId:
           type: ["string", "null"]
+        costCenterId:
+          type: ["string", "null"]
         description:
           type: ["string", "null"]
         notes:
@@ -6884,6 +6890,8 @@ components:
         exchangeRate:
           type: number
         counterpartAccountId:
+          type: ["string", "null"]
+        costCenterId:
           type: ["string", "null"]
         transferAccountId:
           type: ["string", "null"]
