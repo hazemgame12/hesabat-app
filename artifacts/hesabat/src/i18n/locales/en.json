@@ -1648,7 +1648,8 @@
       "generalLedger": "General Ledger",
       "partyStatement": "Statement of Account",
       "aging": "Aging",
-      "outstanding": "Outstanding Invoices"
+      "outstanding": "Outstanding Invoices",
+      "tax": "Tax Reports"
     },
     "filters": {
       "from": "From",
@@ -1741,6 +1742,37 @@
       "label": "Report currency",
       "base": "{{code}} (base)",
       "header": "In: {{currency}} — exchange rate: {{rate}} — vs {{base}}"
+    },
+    "tax": {
+      "selectReport": "Select report",
+      "noReports": "No tax reports available for the company's country.",
+      "period": "Period",
+      "presetMonth": "Monthly",
+      "presetQuarter": "Quarterly",
+      "presetYear": "Yearly",
+      "presetCustom": "Custom",
+      "outputSection": "Output tax (sales)",
+      "inputSection": "Input tax (purchases)",
+      "taxBand": "Tax band",
+      "rate": "Rate %",
+      "salesBase": "Sales base",
+      "purchaseBase": "Purchase base",
+      "outputTax": "Output tax",
+      "inputTax": "Input tax",
+      "netPayable": "Net VAT payable",
+      "netCreditable": "Carried-forward credit",
+      "category": "Category / tax",
+      "whtBase": "Withholding base",
+      "whtAmount": "Withheld amount",
+      "whtNote": "Withholding is computed on the net value excluding VAT, and applies only when the dealing with a single supplier exceeds EGP 300.",
+      "month": "Month",
+      "employeeCount": "Employees",
+      "gross": "Gross pay",
+      "deductions": "Deductions",
+      "netPay": "Net pay",
+      "payrollNote": "Payroll tax is part of the deductions computed on salaries and is remitted monthly to the authority.",
+      "total": "Total",
+      "preparedAt": "Prepared at"
     }
   }
 }

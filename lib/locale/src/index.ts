@@ -185,3 +185,109 @@ export const TAX_TEMPLATES: Record<CountryCode, TaxTemplate[]> = {
 export function taxTemplatesFor(country: string): TaxTemplate[] {
   return isCountry(country) ? TAX_TEMPLATES[country] : TAX_TEMPLATES.EG;
 }
+
+// ---- Tax reports (country-aware) ------------------------------------------
+// Which official tax returns/reports a company can produce is driven by its
+// country. Each definition points at one of the implemented backend datasets
+// (the figures are computed from the ledger/invoices); the definition only
+// shapes the labelling/official-form framing on top of that data.
+//
+// `dataset` MUST be one of the datasets the reports API can compute:
+//   vat     → output vs input VAT (sales/purchase invoice lines, kind 'vat')
+//   wht     → withholding tax withheld on purchases (invoice lines, kind 'wht')
+//   payroll → payroll-tax (كسب العمل) summary from payroll runs
+//
+// Egypt is fully specified to its official forms (نموذج 10 / نموذج 41 / كسب
+// العمل). Other countries are derived generically from their TAX_TEMPLATES so
+// the framework already powers them; their official-form layouts (ZATCA, FTA
+// VAT 201, …) are layered on later without touching call sites.
+export const TAX_REPORT_DATASETS = ["vat", "wht", "payroll"] as const;
+export type TaxReportDataset = (typeof TAX_REPORT_DATASETS)[number];
+
+export interface TaxReportDef {
+  // Stable, country-scoped id (used as the report selector key in the UI).
+  id: string;
+  kind: TaxKind;
+  dataset: TaxReportDataset;
+  nameAr: string;
+  nameEn: string;
+  descriptionAr?: string;
+  descriptionEn?: string;
+  // Official form reference shown to the user (e.g. "نموذج 10"); optional for
+  // countries whose official layout has not been mapped yet.
+  formRefAr?: string;
+}
+
+// Egypt — mapped to the Egyptian Tax Authority (ETA) official forms.
+const EG_TAX_REPORTS: TaxReportDef[] = [
+  {
+    id: "eg-vat-form10",
+    kind: "vat",
+    dataset: "vat",
+    nameAr: "الإقرار الشهري لضريبة القيمة المضافة",
+    nameEn: "Monthly VAT Return",
+    descriptionAr: "ضريبة المخرجات على المبيعات مقابل ضريبة المدخلات على المشتريات وصافي الضريبة المستحقة، بتقسيم نموذج 10.",
+    formRefAr: "نموذج 10",
+  },
+  {
+    id: "eg-wht-form41",
+    kind: "wht",
+    dataset: "wht",
+    nameAr: "إقرار الخصم والتحصيل من المنبع",
+    nameEn: "Withholding Tax Return",
+    descriptionAr: "المبالغ المخصومة من الموردين مجمّعة حسب الفئة والنسبة (توريدات/مقاولات، خدمات، عمولات ومهن حرة) على صافي القيمة بدون ض.ق.م، بحد ٣٠٠ جنيه.",
+    formRefAr: "نموذج 41",
+  },
+  {
+    id: "eg-payroll-tax",
+    kind: "payroll",
+    dataset: "payroll",
+    nameAr: "ملخص ضريبة كسب العمل (المرتبات)",
+    nameEn: "Payroll Tax Summary",
+    descriptionAr: "إجمالي الأجور والاستقطاعات وصافي المرتبات عن الفترة من مسيّرات الرواتب.",
+    formRefAr: "كسب العمل",
+  },
+];
+
+// Generic (non-Egypt) reports derived from a country's tax templates. Only the
+// datasets that the reports API can already compute are surfaced (vat, wht);
+// other kinds (income/zakat) get official mappings in a later phase.
+function genericTaxReports(country: CountryCode): TaxReportDef[] {
+  const out: TaxReportDef[] = [];
+  for (const tpl of TAX_TEMPLATES[country]) {
+    if (tpl.kind === "vat") {
+      out.push({
+        id: `${country.toLowerCase()}-vat-return`,
+        kind: "vat",
+        dataset: "vat",
+        nameAr: "إقرار ضريبة القيمة المضافة",
+        nameEn: "VAT Return",
+        descriptionAr: "ضريبة المخرجات على المبيعات مقابل ضريبة المدخلات على المشتريات وصافي الضريبة المستحقة.",
+      });
+    } else if (tpl.kind === "wht") {
+      out.push({
+        id: `${country.toLowerCase()}-wht`,
+        kind: "wht",
+        dataset: "wht",
+        nameAr: "تقرير الخصم من المنبع",
+        nameEn: "Withholding Tax Report",
+        descriptionAr: "المبالغ المخصومة من الموردين مجمّعة حسب النسبة.",
+      });
+    }
+  }
+  return out;
+}
+
+export const TAX_REPORTS: Record<CountryCode, TaxReportDef[]> = {
+  EG: EG_TAX_REPORTS,
+  SA: genericTaxReports("SA"),
+  AE: genericTaxReports("AE"),
+  KW: genericTaxReports("KW"),
+  QA: genericTaxReports("QA"),
+  BH: genericTaxReports("BH"),
+  OM: genericTaxReports("OM"),
+};
+
+export function taxReportsFor(country: string): TaxReportDef[] {
+  return isCountry(country) ? TAX_REPORTS[country] : TAX_REPORTS.EG;
+}

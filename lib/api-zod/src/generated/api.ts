@@ -2696,6 +2696,56 @@ export const GetVatReportResponse = zod.object({
 
 
 /**
+ * @summary Withholding tax withheld from suppliers over a date range
+ */
+export const GetWhtReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetWhtReportResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "totalBase": zod.number(),
+  "totalWht": zod.number(),
+  "rows": zod.array(zod.object({
+  "taxId": zod.string(),
+  "taxName": zod.string(),
+  "rate": zod.number(),
+  "base": zod.number(),
+  "whtAmount": zod.number()
+}))
+})
+
+
+/**
+ * @summary Company-wide payroll (كسب العمل) summary over a date range
+ */
+export const GetPayrollTaxReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetPayrollTaxReportResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "rows": zod.array(zod.object({
+  "period": zod.string(),
+  "employeeCount": zod.number(),
+  "gross": zod.number(),
+  "deductions": zod.number(),
+  "netPay": zod.number()
+})),
+  "totals": zod.object({
+  "employeeCount": zod.number(),
+  "gross": zod.number(),
+  "deductions": zod.number(),
+  "netPay": zod.number()
+})
+})
+
+
+/**
  * @summary Payroll history and advances for one employee over a range
  */
 export const GetEmployeeStatementQueryParams = zod.object({

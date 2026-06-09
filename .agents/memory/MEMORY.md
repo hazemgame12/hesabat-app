@@ -20,3 +20,4 @@
 - [Fiscal Year close/period-lock](fiscal-year.md) — carry-forward = year-end CLOSING entry (cumulative-from-genesis, no opening entry); lock FY row + WHERE status='open' on close; per-calendar-year JV numbering via allocateEntryNo on EVERY mint path (incl. Excel import).
 - [Auto entity codes](auto-entity-codes.md) — server-gen PREFIX-YEAR-NNNN via code_sequences; key on year LABEL not fiscal_years.id; COA+currency stay manual; never seed auto-format codes (desync→23505 stuck).
 - [Hesabat returns & print](hesabat-returns-and-print.md) — credit/debit notes = invoice rows by kind (service-only v1, ref posted same-party source); chrome-less /print routes need their own client auth guard + error UI.
+- [drizzle `= ANY(jsArray)` bug](drizzle-any-array-bug.md) — never filter a column by a JS array via `sql\`= ANY(${arr})\`` (Postgres "requires array" error); use `inArray(col, arr)`.

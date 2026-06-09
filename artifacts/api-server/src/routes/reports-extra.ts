@@ -1,5 +1,7 @@
 import { Router } from "express";
-import { and, eq, gte, lte, asc, sql } from "drizzle-orm";
+import type { Request, Response } from "express";
+import { z } from "zod/v4";
+import { and, eq, gte, lte, asc, inArray } from "drizzle-orm";
 import {
   db,
   invoicesTable,
@@ -20,6 +22,47 @@ const router = Router();
 // Active (non-draft, non-cancelled) invoice statuses — same set the other
 // receivables reports use, so VAT figures reconcile with invoice totals.
 const POSTED_INVOICE_STATUSES = ["approved", "partially_paid", "paid"];
+
+// Shared from/to query validation for the tax reports. Both bounds are optional
+// (an open range = "all dates"), must be ISO `YYYY-MM-DD`, and `from` must not be
+// after `to`. On failure it writes a 400 and returns null so the caller bails.
+// True only for a real calendar date in `YYYY-MM-DD` form (rejects e.g. 2025-13-99).
+function isValidIsoDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const dt = new Date(`${s}T00:00:00Z`);
+  return (
+    !Number.isNaN(dt.getTime()) &&
+    dt.getUTCMonth() + 1 === Number(m[2]) &&
+    dt.getUTCDate() === Number(m[3])
+  );
+}
+
+const isoDate = z.string().refine(isValidIsoDate, { message: "invalid date" });
+
+const dateRangeQuerySchema = z
+  .object({
+    from: isoDate.optional(),
+    to: isoDate.optional(),
+  })
+  .refine((v) => !v.from || !v.to || v.from <= v.to, {
+    message: "from must be on or before to",
+  });
+
+function parseDateRange(
+  req: Request,
+  res: Response,
+): { from: string | null; to: string | null } | null {
+  const parsed = dateRangeQuerySchema.safeParse({
+    from: (req.query["from"] as string | undefined) || undefined,
+    to: (req.query["to"] as string | undefined) || undefined,
+  });
+  if (!parsed.success) {
+    res.status(400).json({ error: "صيغة التاريخ غير صحيحة" });
+    return null;
+  }
+  return { from: parsed.data.from ?? null, to: parsed.data.to ?? null };
+}
 
 // ---- VAT / tax report --------------------------------------------------------
 // Output tax = VAT charged on posted SALES invoice lines.
@@ -44,8 +87,10 @@ async function computeVatReport(
 ) {
   const conds = [
     eq(invoiceLinesTable.companyId, companyId),
+    eq(invoicesTable.companyId, companyId),
+    eq(taxesTable.companyId, companyId),
     eq(taxesTable.kind, "vat"),
-    sql`${invoicesTable.status} = ANY(${POSTED_INVOICE_STATUSES})`,
+    inArray(invoicesTable.status, POSTED_INVOICE_STATUSES),
   ];
   if (from) conds.push(gte(invoicesTable.date, from));
   if (to) conds.push(lte(invoicesTable.date, to));
@@ -116,8 +161,9 @@ router.get(
   requireCapability("invoices:read"),
   async (req, res) => {
     const companyId = req.auth!.companyId;
-    const from = (req.query["from"] as string | undefined) || null;
-    const to = (req.query["to"] as string | undefined) || null;
+    const range = parseDateRange(req, res);
+    if (!range) return;
+    const { from, to } = range;
     try {
       res.json(await computeVatReport(companyId, from, to));
     } catch (err) {
@@ -133,8 +179,9 @@ router.get(
   requireCapability("invoices:read"),
   async (req, res) => {
     const companyId = req.auth!.companyId;
-    const from = (req.query["from"] as string | undefined) || null;
-    const to = (req.query["to"] as string | undefined) || null;
+    const range = parseDateRange(req, res);
+    if (!range) return;
+    const { from, to } = range;
     try {
       const report = await computeVatReport(companyId, from, to);
       await exportWorkbook(res, {
@@ -356,6 +403,251 @@ router.get(
       });
     } catch (err) {
       req.log.error({ err }, "Failed to export employee statement");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Withholding tax (WHT) report -------------------------------------------
+// Withholding tax the company withheld from its suppliers — i.e. lines on POSTED
+// PURCHASE invoices whose linked tax is of kind 'wht'. Rows are grouped by the
+// tax (each tax carries its own rate/category, e.g. Egypt: supplies/contracting
+// 0.5–1%, services 3%, commissions/professions 5%). The base is the line value
+// excluding VAT; `whtAmount` is the amount withheld. The EGP 300 filing
+// threshold is a reporting rule surfaced in the UI, not a filter here.
+type WhtRow = {
+  taxId: string;
+  taxName: string;
+  rate: number;
+  base: number;
+  whtAmount: number;
+};
+
+async function computeWhtReport(
+  companyId: string,
+  from: string | null,
+  to: string | null,
+) {
+  const conds = [
+    eq(invoiceLinesTable.companyId, companyId),
+    eq(invoicesTable.companyId, companyId),
+    eq(taxesTable.companyId, companyId),
+    eq(taxesTable.kind, "wht"),
+    eq(invoicesTable.kind, "purchase"),
+    inArray(invoicesTable.status, POSTED_INVOICE_STATUSES),
+  ];
+  if (from) conds.push(gte(invoicesTable.date, from));
+  if (to) conds.push(lte(invoicesTable.date, to));
+
+  const lines = await db
+    .select({
+      taxId: taxesTable.id,
+      taxNameAr: taxesTable.nameAr,
+      rate: taxesTable.rate,
+      lineTotal: invoiceLinesTable.lineTotal,
+      taxAmount: invoiceLinesTable.taxAmount,
+    })
+    .from(invoiceLinesTable)
+    .innerJoin(invoicesTable, eq(invoicesTable.id, invoiceLinesTable.invoiceId))
+    .innerJoin(taxesTable, eq(taxesTable.id, invoiceLinesTable.taxId))
+    .where(and(...conds));
+
+  const rows = new Map<string, WhtRow>();
+  let totalBase = 0;
+  let totalWht = 0;
+  for (const l of lines) {
+    const base = Number(l.lineTotal) || 0;
+    const wht = Number(l.taxAmount) || 0;
+    const row = rows.get(l.taxId) ?? {
+      taxId: l.taxId,
+      taxName: l.taxNameAr,
+      rate: Number(l.rate) || 0,
+      base: 0,
+      whtAmount: 0,
+    };
+    row.base = round2(row.base + base);
+    row.whtAmount = round2(row.whtAmount + wht);
+    totalBase = round2(totalBase + base);
+    totalWht = round2(totalWht + wht);
+    rows.set(l.taxId, row);
+  }
+
+  return {
+    from: from ?? null,
+    to: to ?? null,
+    totalBase,
+    totalWht,
+    rows: [...rows.values()].sort((a, b) => b.rate - a.rate),
+  };
+}
+
+router.get(
+  "/reports/wht",
+  requireAuth,
+  requireCapability("invoices:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const range = parseDateRange(req, res);
+    if (!range) return;
+    const { from, to } = range;
+    try {
+      res.json(await computeWhtReport(companyId, from, to));
+    } catch (err) {
+      req.log.error({ err }, "Failed to build WHT report");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+router.get(
+  "/reports/wht/export",
+  requireAuth,
+  requireCapability("invoices:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const range = parseDateRange(req, res);
+    if (!range) return;
+    const { from, to } = range;
+    try {
+      const report = await computeWhtReport(companyId, from, to);
+      await exportWorkbook(res, {
+        sheetName: "WHT",
+        fileName: "wht-report",
+        columns: [
+          { header: "الضريبة/الفئة", value: (r: WhtRow) => r.taxName, width: 30 },
+          { header: "النسبة %", value: (r: WhtRow) => r.rate },
+          { header: "وعاء الخصم", value: (r: WhtRow) => r.base, width: 18 },
+          { header: "المبلغ المخصوم", value: (r: WhtRow) => r.whtAmount, width: 18 },
+        ],
+        rows: report.rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export WHT report");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Payroll-tax (كسب العمل) summary ----------------------------------------
+// Company-wide payroll summary over a period: one row per payroll run period
+// with headcount, gross (base + allowances), total deductions and net pay. The
+// payroll/income tax itself is part of `totalDeductions` (not stored as its own
+// column), so this is the filing base for كسب العمل rather than an isolated tax
+// figure — surfaced as such in the UI.
+type PayrollTaxRow = {
+  period: string;
+  employeeCount: number;
+  gross: number;
+  deductions: number;
+  netPay: number;
+};
+
+async function computePayrollTaxReport(
+  companyId: string,
+  from: string | null,
+  to: string | null,
+) {
+  const fromMonth = from ? from.slice(0, 7) : null;
+  const toMonth = to ? to.slice(0, 7) : null;
+
+  const conds = [
+    eq(payrollRunLinesTable.companyId, companyId),
+    eq(payrollRunsTable.companyId, companyId),
+  ];
+  if (fromMonth) conds.push(gte(payrollRunsTable.period, fromMonth));
+  if (toMonth) conds.push(lte(payrollRunsTable.period, toMonth));
+
+  const lines = await db
+    .select({
+      period: payrollRunsTable.period,
+      baseSalary: payrollRunLinesTable.baseSalary,
+      totalAllowances: payrollRunLinesTable.totalAllowances,
+      totalDeductions: payrollRunLinesTable.totalDeductions,
+      netPay: payrollRunLinesTable.netPay,
+    })
+    .from(payrollRunLinesTable)
+    .innerJoin(
+      payrollRunsTable,
+      eq(payrollRunsTable.id, payrollRunLinesTable.runId),
+    )
+    .where(and(...conds))
+    .orderBy(asc(payrollRunsTable.period));
+
+  const map = new Map<string, PayrollTaxRow>();
+  const totals = { employeeCount: 0, gross: 0, deductions: 0, netPay: 0 };
+  for (const l of lines) {
+    const gross = round2((Number(l.baseSalary) || 0) + (Number(l.totalAllowances) || 0));
+    const ded = Number(l.totalDeductions) || 0;
+    const net = Number(l.netPay) || 0;
+    const row = map.get(l.period) ?? {
+      period: l.period,
+      employeeCount: 0,
+      gross: 0,
+      deductions: 0,
+      netPay: 0,
+    };
+    row.employeeCount += 1;
+    row.gross = round2(row.gross + gross);
+    row.deductions = round2(row.deductions + ded);
+    row.netPay = round2(row.netPay + net);
+    map.set(l.period, row);
+    totals.employeeCount += 1;
+    totals.gross = round2(totals.gross + gross);
+    totals.deductions = round2(totals.deductions + ded);
+    totals.netPay = round2(totals.netPay + net);
+  }
+
+  return {
+    from: from ?? null,
+    to: to ?? null,
+    rows: [...map.values()].sort((a, b) => a.period.localeCompare(b.period)),
+    totals,
+  };
+}
+
+router.get(
+  "/reports/payroll-tax",
+  requireAuth,
+  requireCapability("payroll:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const range = parseDateRange(req, res);
+    if (!range) return;
+    const { from, to } = range;
+    try {
+      res.json(await computePayrollTaxReport(companyId, from, to));
+    } catch (err) {
+      req.log.error({ err }, "Failed to build payroll-tax report");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+router.get(
+  "/reports/payroll-tax/export",
+  requireAuth,
+  requireCapability("payroll:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const range = parseDateRange(req, res);
+    if (!range) return;
+    const { from, to } = range;
+    try {
+      const report = await computePayrollTaxReport(companyId, from, to);
+      await exportWorkbook(res, {
+        sheetName: "Payroll",
+        fileName: "payroll-tax-report",
+        columns: [
+          { header: "الشهر", value: (r: PayrollTaxRow) => r.period, width: 12 },
+          { header: "عدد الموظفين", value: (r: PayrollTaxRow) => r.employeeCount },
+          { header: "إجمالي الأجر", value: (r: PayrollTaxRow) => r.gross, width: 16 },
+          { header: "الاستقطاعات", value: (r: PayrollTaxRow) => r.deductions, width: 16 },
+          { header: "صافي المرتبات", value: (r: PayrollTaxRow) => r.netPay, width: 16 },
+        ],
+        rows: report.rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export payroll-tax report");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

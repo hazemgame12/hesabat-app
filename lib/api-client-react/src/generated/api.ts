@@ -84,8 +84,10 @@ import type {
   GetOutstandingInvoicesParams,
   GetPartyStatementParams,
   GetPaymentsSummaryReportParams,
+  GetPayrollTaxReportParams,
   GetTrialBalanceParams,
   GetVatReportParams,
+  GetWhtReportParams,
   HealthStatus,
   IncomeStatement,
   InventoryItem,
@@ -116,6 +118,7 @@ import type {
   PaymentInput,
   PayrollRun,
   PayrollRunInput,
+  PayrollTaxReport,
   PreviewRevaluationParams,
   RateForDate,
   RefreshRatesResult,
@@ -138,7 +141,8 @@ import type {
   TeamInvitation,
   TeamMember,
   TrialBalance,
-  VatReport
+  VatReport,
+  WhtReport
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -8108,6 +8112,174 @@ export function useGetVatReport<TData = Awaited<ReturnType<typeof getVatReport>>
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetVatReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetWhtReportUrl = (params?: GetWhtReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/wht?${stringifiedParams}` : `/api/reports/wht`
+}
+
+/**
+ * @summary Withholding tax withheld from suppliers over a date range
+ */
+export const getWhtReport = async (params?: GetWhtReportParams, options?: RequestInit): Promise<WhtReport> => {
+
+  return customFetch<WhtReport>(getGetWhtReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWhtReportQueryKey = (params?: GetWhtReportParams,) => {
+    return [
+    `/api/reports/wht`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetWhtReportQueryOptions = <TData = Awaited<ReturnType<typeof getWhtReport>>, TError = ErrorType<unknown>>(params?: GetWhtReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWhtReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWhtReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWhtReport>>> = ({ signal }) => getWhtReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWhtReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWhtReportQueryResult = NonNullable<Awaited<ReturnType<typeof getWhtReport>>>
+export type GetWhtReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Withholding tax withheld from suppliers over a date range
+ */
+
+export function useGetWhtReport<TData = Awaited<ReturnType<typeof getWhtReport>>, TError = ErrorType<unknown>>(
+ params?: GetWhtReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWhtReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWhtReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPayrollTaxReportUrl = (params?: GetPayrollTaxReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/payroll-tax?${stringifiedParams}` : `/api/reports/payroll-tax`
+}
+
+/**
+ * @summary Company-wide payroll (كسب العمل) summary over a date range
+ */
+export const getPayrollTaxReport = async (params?: GetPayrollTaxReportParams, options?: RequestInit): Promise<PayrollTaxReport> => {
+
+  return customFetch<PayrollTaxReport>(getGetPayrollTaxReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayrollTaxReportQueryKey = (params?: GetPayrollTaxReportParams,) => {
+    return [
+    `/api/reports/payroll-tax`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPayrollTaxReportQueryOptions = <TData = Awaited<ReturnType<typeof getPayrollTaxReport>>, TError = ErrorType<unknown>>(params?: GetPayrollTaxReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayrollTaxReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayrollTaxReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayrollTaxReport>>> = ({ signal }) => getPayrollTaxReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayrollTaxReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayrollTaxReportQueryResult = NonNullable<Awaited<ReturnType<typeof getPayrollTaxReport>>>
+export type GetPayrollTaxReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Company-wide payroll (كسب العمل) summary over a date range
+ */
+
+export function useGetPayrollTaxReport<TData = Awaited<ReturnType<typeof getPayrollTaxReport>>, TError = ErrorType<unknown>>(
+ params?: GetPayrollTaxReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayrollTaxReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayrollTaxReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

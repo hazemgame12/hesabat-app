@@ -55,5 +55,6 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 ## Pointers
 
 - `docs/hesabat-architecture.md` — full Hesabat architecture + all 12 milestone modules.
+- `docs/hesabat-tax-reports.md` — country-aware tax reports (EG VAT Form 10 / WHT Form 41 / payroll) + GCC framework.
 - `docs/hg-social-architecture.md` — HG website social auto-posting + OAuth detail.
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

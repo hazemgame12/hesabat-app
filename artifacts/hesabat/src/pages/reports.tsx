@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TaxReports } from "@/components/reports/TaxReports";
 
 type TabKey =
   | "trialBalance"
@@ -44,7 +45,8 @@ type TabKey =
   | "generalLedger"
   | "partyStatement"
   | "aging"
-  | "outstanding";
+  | "outstanding"
+  | "tax";
 
 function displayName(
   e: { nameAr: string; nameEn?: string | null },
@@ -123,6 +125,7 @@ export function Reports() {
           <TabsTrigger value="outstanding">
             {t("reportsPage.tabs.outstanding")}
           </TabsTrigger>
+          <TabsTrigger value="tax">{t("reportsPage.tabs.tax")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="trialBalance" className="mt-6">
@@ -150,6 +153,9 @@ export function Reports() {
         </TabsContent>
         <TabsContent value="outstanding" className="mt-6">
           <OutstandingTab fmt={fmt} />
+        </TabsContent>
+        <TabsContent value="tax" className="mt-6">
+          <TaxReports fmt={fmt} lang={lang} />
         </TabsContent>
       </Tabs>
     </div>

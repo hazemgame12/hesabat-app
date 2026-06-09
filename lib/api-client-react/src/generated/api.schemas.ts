@@ -2023,6 +2023,48 @@ export interface VatReport {
   rows: VatReportRow[];
 }
 
+export interface WhtReportRow {
+  taxId: string;
+  taxName: string;
+  rate: number;
+  base: number;
+  whtAmount: number;
+}
+
+export interface WhtReport {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  totalBase: number;
+  totalWht: number;
+  rows: WhtReportRow[];
+}
+
+export interface PayrollTaxReportRow {
+  period: string;
+  employeeCount: number;
+  gross: number;
+  deductions: number;
+  netPay: number;
+}
+
+export interface PayrollTaxReportTotals {
+  employeeCount: number;
+  gross: number;
+  deductions: number;
+  netPay: number;
+}
+
+export interface PayrollTaxReport {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  rows: PayrollTaxReportRow[];
+  totals: PayrollTaxReportTotals;
+}
+
 export interface EmployeeStatementPayrollRow {
   period: string;
   baseSalary: number;
@@ -2565,6 +2607,16 @@ export const GetPaymentsSummaryReportKind = {
 } as const;
 
 export type GetVatReportParams = {
+from?: string;
+to?: string;
+};
+
+export type GetWhtReportParams = {
+from?: string;
+to?: string;
+};
+
+export type GetPayrollTaxReportParams = {
 from?: string;
 to?: string;
 };
