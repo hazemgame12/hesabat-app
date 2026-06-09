@@ -3327,6 +3327,7 @@ export const CreateBankMovementBody = zod.object({
   "costCenterId": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
   "reference": zod.string().nullish()
 })
 

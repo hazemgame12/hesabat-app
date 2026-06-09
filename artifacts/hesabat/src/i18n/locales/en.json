@@ -1342,6 +1342,8 @@
       "counterpart": "Counterpart account",
       "transferTo": "Transfer to account",
       "description": "Description",
+      "notes": "Notes",
+      "notesPlaceholder": "A note to refer back to later (e.g. the bank statement wording).",
       "reference": "Reference",
       "counterpartHintIn": "Where the money comes from (e.g. a customer or revenue).",
       "counterpartHintOut": "Where the money goes (e.g. a supplier or expense).",

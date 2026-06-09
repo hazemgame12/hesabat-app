@@ -7188,6 +7188,8 @@ components:
           type: ["string", "null"]
         description:
           type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
         reference:
           type: ["string", "null"]
 

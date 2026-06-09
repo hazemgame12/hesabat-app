@@ -2492,6 +2492,8 @@ export interface BankMovementInput {
   /** @nullable */
   description?: string | null;
   /** @nullable */
+  notes?: string | null;
+  /** @nullable */
   reference?: string | null;
 }
 

@@ -1109,6 +1109,7 @@ function MovementModal({
   const [counterpartAccountId, setCounterpartAccountId] = useState("");
   const [transferAccountId, setTransferAccountId] = useState("");
   const [description, setDescription] = useState("");
+  const [notes, setNotes] = useState("");
   const [reference, setReference] = useState("");
 
   const isTransfer = type === "transfer";
@@ -1152,6 +1153,7 @@ function MovementModal({
           counterpartAccountId: isTransfer ? null : counterpartAccountId,
           transferAccountId: isTransfer ? transferAccountId : null,
           description: description.trim() || null,
+          notes: notes.trim() || null,
           reference: reference.trim() || null,
         },
       },
@@ -1280,6 +1282,16 @@ function MovementModal({
               className={inputCls}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className={labelCls}>{t("bank.movement.notes")}</label>
+            <textarea
+              className={inputCls}
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t("bank.movement.notesPlaceholder")}
             />
           </div>
           <div className="col-span-2">
