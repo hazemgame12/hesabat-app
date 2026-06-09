@@ -593,6 +593,7 @@ type InvSummaryRow = {
   nameAr: string;
   nameEn: string | null;
   unit: string;
+  month: string;
   openingQty: number;
   openingValue: number;
   inQty: number;
@@ -616,6 +617,29 @@ function signedValue(type: string, value: number): number {
   if (type === "issue") return -Math.abs(value);
   if (type === "adjustment") return value;
   return Math.abs(value);
+}
+
+// "YYYY-MM-DD" -> "YYYY-MM"
+function monthKeyOf(date: string): string {
+  return date.slice(0, 7);
+}
+
+// Inclusive list of "YYYY-MM" buckets between two month keys.
+function listMonths(fromYM: string, toYM: string): string[] {
+  const out: string[] = [];
+  let [y, m] = fromYM.split("-").map(Number);
+  const [ty, tm] = toYM.split("-").map(Number);
+  let guard = 0;
+  while ((y < ty || (y === ty && m <= tm)) && guard < 600) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+    guard++;
+  }
+  return out;
 }
 
 async function computeInventorySummary(
@@ -648,83 +672,139 @@ async function computeInventorySummary(
     .from(inventoryMovementsTable)
     .where(and(...moveConds));
 
-  const byItem = new Map<string, InvSummaryRow>();
-  for (const it of items) {
-    byItem.set(it.id, {
-      itemId: it.id,
-      code: it.code,
-      nameAr: it.nameAr,
-      nameEn: it.nameEn,
-      unit: it.unit,
-      openingQty: 0,
-      openingValue: 0,
-      inQty: 0,
-      inValue: 0,
-      outQty: 0,
-      outValue: 0,
-      adjQty: 0,
-      adjValue: 0,
-      closingQty: 0,
-      closingValue: 0,
-    });
-  }
-
+  // Group movements per item and track the overall date span so we can derive
+  // a sensible month range when the caller omits from/to.
+  const movByItem = new Map<string, typeof movements>();
+  let minDate: string | null = null;
+  let maxDate: string | null = null;
   for (const m of movements) {
-    const row = byItem.get(m.itemId);
-    if (!row) continue;
-    const q = Number(m.quantity) || 0;
-    const v = Number(m.totalValue) || 0;
-    const sQty = signedQty(m.type, q);
-    const sVal = signedValue(m.type, v);
-    const inPeriod = (!from || m.date >= from) && (!to || m.date <= to);
-    if (from && m.date < from) {
-      // Before the period → contributes to opening.
-      row.openingQty = round2(row.openingQty + sQty);
-      row.openingValue = round2(row.openingValue + sVal);
-    } else if (inPeriod) {
-      if (m.type === "receipt") {
-        row.inQty = round2(row.inQty + Math.abs(q));
-        row.inValue = round2(row.inValue + Math.abs(v));
-      } else if (m.type === "issue") {
-        row.outQty = round2(row.outQty + Math.abs(q));
-        row.outValue = round2(row.outValue + Math.abs(v));
-      } else {
-        row.adjQty = round2(row.adjQty + q);
-        row.adjValue = round2(row.adjValue + v);
-      }
+    let arr = movByItem.get(m.itemId);
+    if (!arr) {
+      arr = [];
+      movByItem.set(m.itemId, arr);
     }
+    arr.push(m);
+    if (!minDate || m.date < minDate) minDate = m.date;
+    if (!maxDate || m.date > maxDate) maxDate = m.date;
   }
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const effFrom = from ?? minDate ?? to ?? todayStr;
+  const effToRaw = to ?? maxDate ?? from ?? todayStr;
+  const effTo = effToRaw >= effFrom ? effToRaw : effFrom;
+  const fromYM = monthKeyOf(effFrom);
+  const toYM = monthKeyOf(effTo);
+  const months = listMonths(fromYM, toYM);
+  const firstMonthStart = `${fromYM}-01`;
+
+  const rows: InvSummaryRow[] = [];
   let totalOpeningValue = 0;
   let totalInValue = 0;
   let totalOutValue = 0;
   let totalAdjValue = 0;
   let totalClosingValue = 0;
-  const rows: InvSummaryRow[] = [];
-  for (const row of byItem.values()) {
-    row.closingQty = round2(
-      row.openingQty + row.inQty - row.outQty + row.adjQty,
-    );
-    row.closingValue = round2(
-      row.openingValue + row.inValue - row.outValue + row.adjValue,
-    );
-    const hasActivity =
-      row.openingQty !== 0 ||
-      row.openingValue !== 0 ||
-      row.inQty !== 0 ||
-      row.outQty !== 0 ||
-      row.adjQty !== 0 ||
-      row.closingQty !== 0 ||
-      row.closingValue !== 0;
-    if (!hasActivity) continue;
-    totalOpeningValue = round2(totalOpeningValue + row.openingValue);
-    totalInValue = round2(totalInValue + row.inValue);
-    totalOutValue = round2(totalOutValue + row.outValue);
-    totalAdjValue = round2(totalAdjValue + row.adjValue);
-    totalClosingValue = round2(totalClosingValue + row.closingValue);
-    rows.push(row);
+
+  for (const it of items) {
+    const ms = movByItem.get(it.id) ?? [];
+
+    // Opening balance carried into the first month = everything before it.
+    let openingQty = 0;
+    let openingValue = 0;
+    for (const m of ms) {
+      if (m.date < firstMonthStart) {
+        openingQty += signedQty(m.type, Number(m.quantity) || 0);
+        openingValue += signedValue(m.type, Number(m.totalValue) || 0);
+      }
+    }
+    openingQty = round2(openingQty);
+    openingValue = round2(openingValue);
+
+    const itemOpeningValue = openingValue;
+    let runningQty = openingQty;
+    let runningValue = openingValue;
+    let itemHasRows = false;
+
+    for (const ym of months) {
+      let inQty = 0;
+      let inValue = 0;
+      let outQty = 0;
+      let outValue = 0;
+      let adjQty = 0;
+      let adjValue = 0;
+      for (const m of ms) {
+        if (monthKeyOf(m.date) !== ym) continue;
+        const q = Number(m.quantity) || 0;
+        const v = Number(m.totalValue) || 0;
+        if (m.type === "receipt") {
+          inQty += Math.abs(q);
+          inValue += Math.abs(v);
+        } else if (m.type === "issue") {
+          outQty += Math.abs(q);
+          outValue += Math.abs(v);
+        } else {
+          adjQty += q;
+          adjValue += v;
+        }
+      }
+      inQty = round2(inQty);
+      inValue = round2(inValue);
+      outQty = round2(outQty);
+      outValue = round2(outValue);
+      adjQty = round2(adjQty);
+      adjValue = round2(adjValue);
+
+      const monthOpeningQty = runningQty;
+      const monthOpeningValue = runningValue;
+      const closingQty = round2(monthOpeningQty + inQty - outQty + adjQty);
+      const closingValue = round2(
+        monthOpeningValue + inValue - outValue + adjValue,
+      );
+      runningQty = closingQty;
+      runningValue = closingValue;
+
+      const hasActivity =
+        inQty !== 0 ||
+        inValue !== 0 ||
+        outQty !== 0 ||
+        outValue !== 0 ||
+        adjQty !== 0 ||
+        adjValue !== 0;
+      if (!hasActivity) continue;
+
+      rows.push({
+        itemId: it.id,
+        code: it.code,
+        nameAr: it.nameAr,
+        nameEn: it.nameEn,
+        unit: it.unit,
+        month: ym,
+        openingQty: monthOpeningQty,
+        openingValue: monthOpeningValue,
+        inQty,
+        inValue,
+        outQty,
+        outValue,
+        adjQty,
+        adjValue,
+        closingQty,
+        closingValue,
+      });
+      itemHasRows = true;
+      totalInValue = round2(totalInValue + inValue);
+      totalOutValue = round2(totalOutValue + outValue);
+      totalAdjValue = round2(totalAdjValue + adjValue);
+    }
+
+    const itemClosingValue = runningValue;
+    if (itemHasRows || itemOpeningValue !== 0 || itemClosingValue !== 0) {
+      totalOpeningValue = round2(totalOpeningValue + itemOpeningValue);
+      totalClosingValue = round2(totalClosingValue + itemClosingValue);
+    }
   }
-  rows.sort((a, b) => a.code.localeCompare(b.code));
+
+  rows.sort(
+    (a, b) => a.code.localeCompare(b.code) || a.month.localeCompare(b.month),
+  );
 
   return {
     from: from ?? null,
@@ -782,6 +862,7 @@ router.get(
         sheetName: "InventorySummary",
         fileName: "inventory-summary",
         columns: [
+          { header: "الشهر", value: (x: InvSummaryRow) => x.month, width: 10 },
           { header: "الكود", value: (x: InvSummaryRow) => x.code },
           { header: "الصنف", value: (x: InvSummaryRow) => x.nameAr, width: 28 },
           { header: "الوحدة", value: (x: InvSummaryRow) => x.unit, width: 10 },

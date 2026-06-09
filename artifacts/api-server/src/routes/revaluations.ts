@@ -16,6 +16,7 @@ import { allocateEntryNo } from "../lib/journal-posting";
 import { isPeriodClosed } from "../lib/fiscal-year";
 import { getRateForDate } from "../lib/currency";
 import { ensureFxAccounts } from "../lib/seed-accounts";
+import { exportWorkbook } from "../lib/excel";
 
 const router = Router();
 
@@ -80,6 +81,43 @@ router.get(
       });
     } catch (err) {
       req.log.error({ err }, "Failed to preview revaluation");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Excel export of the as-of revaluation preview (same data as the preview GET).
+router.get(
+  "/revaluations/preview/export",
+  requireAuth,
+  requireCapability("revaluation:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const asOfDate = String(req.query["asOfDate"] ?? "").trim();
+    if (!DATE_RE.test(asOfDate)) {
+      res.status(400).json({ error: "تاريخ غير صحيح" });
+      return;
+    }
+    try {
+      const base = await loadBase(companyId);
+      const result = await computeRevaluation(companyId, asOfDate, base);
+      await exportWorkbook(res, {
+        sheetName: "Revaluation",
+        fileName: `revaluation-${asOfDate}`,
+        columns: [
+          { header: "كود الحساب", value: (x: RevalLine) => x.accountCode, width: 14 },
+          { header: "الحساب", value: (x: RevalLine) => x.accountName, width: 28 },
+          { header: "العملة", value: (x: RevalLine) => x.currency, width: 10 },
+          { header: "الرصيد بالعملة الأجنبية", value: (x: RevalLine) => x.foreignBalance, width: 20 },
+          { header: "القيمة الدفترية", value: (x: RevalLine) => x.baseBook, width: 16 },
+          { header: "سعر الصرف", value: (x: RevalLine) => x.rate, width: 12 },
+          { header: "القيمة بعد التقييم", value: (x: RevalLine) => x.revaluedBase, width: 18 },
+          { header: "ربح/خسارة غير محققة", value: (x: RevalLine) => x.unrealized, width: 20 },
+        ],
+        rows: result.preview,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export revaluation preview");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

@@ -2235,6 +2235,8 @@ export interface InventorySummaryRow {
   /** @nullable */
   nameEn?: string | null;
   unit: string;
+  /** Month bucket in YYYY-MM form. */
+  month: string;
   openingQty: number;
   openingValue: number;
   inQty: number;

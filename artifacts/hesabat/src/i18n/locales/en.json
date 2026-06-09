@@ -1670,7 +1670,9 @@
       "cashForecast": "Cash Forecast",
       "salesByItem": "Sales by Item",
       "purchasesByItem": "Purchases by Item",
-      "inventorySummary": "Inventory Summary"
+      "inventorySummary": "Inventory Summary",
+      "revaluation": "FX Revaluation",
+      "auditLog": "Activity Log"
     },
     "filters": {
       "from": "From",
@@ -1801,7 +1803,25 @@
       "salesPurchases": "Sales & Purchases",
       "inventory": "Inventory",
       "parties": "Customers & Suppliers",
-      "tax": "Taxes"
+      "tax": "Taxes",
+      "audit": "Audit"
+    },
+    "revaluation": {
+      "asOf": "As of",
+      "note": "Revalues foreign-currency account balances at the rate on the chosen date to show unrealized gains/losses.",
+      "gain": "Total Unrealized Gain",
+      "loss": "Total Unrealized Loss",
+      "net": "Net",
+      "account": "Account",
+      "currency": "Currency",
+      "foreignBalance": "Foreign Balance",
+      "baseBook": "Book Value",
+      "rate": "Rate",
+      "revaluedBase": "Revalued Value",
+      "unrealized": "Unrealized Gain/Loss"
+    },
+    "audit": {
+      "detail": "Detail"
     },
     "cashFlow": {
       "openingCash": "Opening Cash",
@@ -1833,6 +1853,7 @@
       "typeService": "Service"
     },
     "inventory": {
+      "month": "Month",
       "unit": "Unit",
       "openingQty": "Opening Qty",
       "openingValue": "Opening Value",

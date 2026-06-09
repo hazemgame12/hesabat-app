@@ -3160,6 +3160,7 @@ export const GetInventorySummaryResponse = zod.object({
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
   "unit": zod.string(),
+  "month": zod.string().describe('Month bucket in YYYY-MM form.'),
   "openingQty": zod.number(),
   "openingValue": zod.number(),
   "inQty": zod.number(),

@@ -6927,7 +6927,7 @@ components:
     InventorySummaryRow:
       type: object
       required:
-        [itemId, code, nameAr, unit, openingQty, openingValue, inQty, inValue, outQty, outValue, adjQty, adjValue, closingQty, closingValue]
+        [itemId, code, nameAr, unit, month, openingQty, openingValue, inQty, inValue, outQty, outValue, adjQty, adjValue, closingQty, closingValue]
       properties:
         itemId:
           type: string
@@ -6939,6 +6939,9 @@ components:
           type: ["string", "null"]
         unit:
           type: string
+        month:
+          type: string
+          description: Month bucket in YYYY-MM form.
         openingQty:
           type: number
         openingValue:
