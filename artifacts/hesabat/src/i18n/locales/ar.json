@@ -1364,14 +1364,20 @@
     "movementsTable": {
       "date": "التاريخ",
       "type": "النوع",
-      "direction": "الاتجاه",
+      "statementDescription": "البيان / وصف الحركة",
       "amount": "المبلغ",
+      "balance": "الرصيد",
       "counterpart": "الحساب المقابل",
-      "description": "البيان",
+      "costCenter": "مركز التكلفة",
+      "journalDescription": "شرح القيد",
+      "status": "الحالة",
       "entry": "القيد",
       "cleared": "مسوّى",
       "pending": "بانتظار التبويب",
-      "actions": ""
+      "posted": "مرحّل",
+      "actions": "الإجراءات",
+      "selectCounterpart": "اختر الحساب",
+      "selectCostCenter": "اختر مركز التكلفة"
     },
     "classify": {
       "action": "تبويب الحركة",

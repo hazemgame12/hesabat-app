@@ -933,6 +933,8 @@ router.get(
         .select({
           mv: bankMovementsTable,
           counterpartCode: accountsTable.code,
+          counterpartName: accountsTable.nameAr,
+          costCenterName: costCentersTable.nameAr,
         })
         .from(bankMovementsTable)
         .leftJoin(
@@ -940,6 +942,13 @@ router.get(
           and(
             eq(accountsTable.id, bankMovementsTable.counterpartAccountId),
             eq(accountsTable.companyId, companyId),
+          ),
+        )
+        .leftJoin(
+          costCentersTable,
+          and(
+            eq(costCentersTable.id, bankMovementsTable.costCenterId),
+            eq(costCentersTable.companyId, companyId),
           ),
         )
         .where(
@@ -966,19 +975,31 @@ router.get(
             value: (r) => (r.mv.direction === "out" ? Number(r.mv.amount) : ""),
           },
           {
-            header: "ملاحظات",
+            header: "وصف البنك (من الكشف)",
             value: (r) => r.mv.notes ?? "",
-            width: 28,
+            width: 32,
           },
           {
-            header: "كود الحساب المقابل",
-            value: (r) => r.counterpartCode ?? "",
+            header: "الحساب المقابل (كود + اسم)",
+            value: (r) =>
+              r.counterpartCode && r.counterpartName
+                ? `${r.counterpartCode} - ${r.counterpartName}`
+                : r.counterpartCode ?? r.counterpartName ?? "",
+            width: 32,
+          },
+          {
+            header: "مركز التكلفة",
+            value: (r) => r.costCenterName ?? "",
             width: 22,
+          },
+          {
+            header: "شرح القيد",
+            value: (r) => r.mv.description ?? "",
+            width: 32,
           },
           { header: "نوع الحركة", value: (r) => r.mv.type, width: 20 },
           { header: "العملة", value: (r) => r.mv.currency },
           { header: "سعر الصرف", value: (r) => Number(r.mv.exchangeRate) },
-          { header: "البيان", value: (r) => r.mv.description ?? "", width: 28 },
           { header: "المرجع", value: (r) => r.mv.reference ?? "" },
         ],
         rows,

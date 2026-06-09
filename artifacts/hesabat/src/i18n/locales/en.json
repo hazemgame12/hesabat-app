@@ -1364,14 +1364,20 @@
     "movementsTable": {
       "date": "Date",
       "type": "Type",
-      "direction": "Direction",
+      "statementDescription": "Description / Statement",
       "amount": "Amount",
-      "counterpart": "Counterpart",
-      "description": "Description",
+      "balance": "Balance",
+      "counterpart": "Counterpart Account",
+      "costCenter": "Cost Center",
+      "journalDescription": "Entry Description",
+      "status": "Status",
       "entry": "Entry",
       "cleared": "Cleared",
-      "pending": "Needs classifying",
-      "actions": ""
+      "pending": "Pending",
+      "posted": "Posted",
+      "actions": "Actions",
+      "selectCounterpart": "Select account",
+      "selectCostCenter": "Select cost center"
     },
     "classify": {
       "action": "Classify movement",

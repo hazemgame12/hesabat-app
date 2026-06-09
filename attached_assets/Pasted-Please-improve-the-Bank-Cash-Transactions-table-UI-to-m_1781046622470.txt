@@ -1,0 +1,90 @@
+Please improve the Bank & Cash Transactions table UI to match the cleaner layout we discussed.
+
+Scope only: Bank & Cash > Transactions tab.
+
+Required changes:
+
+1. Add a new column:
+   Journal Description / شرح القيد
+
+* This should be an editable text field per transaction row.
+* User can write the accounting description that will be used when posting the bank transaction to journal entry.
+* Save it on the bank transaction record.
+* If empty, use the bank statement description as default.
+
+2. Improve table columns order:
+
+* Date / التاريخ
+* Type / النوع
+* Statement Description / البيان أو وصف الحركة
+* Amount / المبلغ
+* Balance / الرصيد, if available
+* Counter Account / الحساب المقابل أو التبويب
+* Cost Center / مركز التكلفة
+* Journal Description / شرح القيد
+* Status / الحالة
+* Actions / الإجراءات
+
+3. Counter Account dropdown:
+
+* Make it wider and cleaner.
+* Show account code + account name.
+* Searchable dropdown.
+* Placeholder: اختر الحساب
+* Do not show raw translation keys.
+
+4. Cost Center dropdown:
+
+* Show code + name.
+* Searchable dropdown.
+* Placeholder: اختر مركز التكلفة
+* Do not show raw translation keys.
+* Fix the header currently showing: bank.movementsTable.costCenter
+
+5. Status column:
+
+* Show clear badges:
+
+  * بانتظار التبويب
+  * مصنف
+  * مرحّل
+  * ملغي
+
+6. Add bulk actions at the bottom or top:
+
+* Update selected counter account
+* Update selected cost center
+* Post selected transactions
+
+7. Keep Arabic RTL layout clean:
+
+* Proper spacing
+* Aligned columns
+* Smaller clean input fields
+* No crowded cells
+* Make the table visually similar to a professional accounting grid.
+
+8. Keep all existing logic:
+
+* Do not rebuild bank module.
+* Do not change unrelated pages.
+* Do not change journal entries module.
+* Do not change database structure more than needed.
+* Keep Excel import/export working.
+* Add Journal Description, Counter Account, and Cost Center to Excel export.
+
+9. Posting logic:
+   When posting a bank transaction, use:
+
+* Bank/cash account from the selected bank account
+* Counter Account selected in the transaction row
+* Cost Center selected in the transaction row
+* Journal Description from the new field
+
+Before coding:
+
+* Inspect current bank transaction model/table.
+* Check if journal description field already exists.
+* Check current i18n translation keys.
+* Tell me which files will be modified.
+  Then implement the smallest safe UI and data change.

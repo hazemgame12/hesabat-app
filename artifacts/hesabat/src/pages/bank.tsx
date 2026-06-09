@@ -902,232 +902,314 @@ function MovementsTab({
             <p className="text-sm">{t("bank.noMovementsHint")}</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                <th className="text-start px-6 py-3">
-                  {t("bank.movementsTable.date")}
-                </th>
-                <th className="text-start px-3 py-3">
-                  {t("bank.movementsTable.type")}
-                </th>
-                <th className="text-start px-3 py-3">
-                  {t("bank.movementsTable.counterpart")}
-                </th>
-                <th className="text-start px-3 py-3">
-                  {t("bank.movementsTable.costCenter")}
-                </th>
-                <th className="text-end px-3 py-3">
-                  {t("bank.movementsTable.amount")}
-                </th>
-                <th className="text-center px-3 py-3">
-                  {t("bank.movementsTable.cleared")}
-                </th>
-                {(canUpdate || canDelete) && <th className="w-24 px-6 py-3" />}
-              </tr>
-            </thead>
-            <tbody>
-              {movements.map((m) => (
-                <tr
-                  key={m.id}
-                  className="group border-t hover:bg-muted/40 transition-colors"
-                >
-                  <td className="px-6 py-3.5 tabular-nums text-foreground/80" dir="ltr">
-                    {m.date}
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full bg-muted text-foreground/80">
-                      {m.direction === "in" ? (
-                        <ArrowDownToLine className="w-3 h-3 text-success" />
-                      ) : (
-                        <ArrowUpFromLine className="w-3 h-3 text-destructive" />
-                      )}
-                      {t(`bank.movementTypes.${m.type}`)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3.5 text-foreground/80">
-                    {m.status === "pending" ? (
-                      <select
-                        className="w-full text-xs px-2 py-1.5 rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        value={inlineClassify[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? ""}
-                        onChange={(e) =>
-                          setInlineClassify((prev) => ({
-                            ...prev,
-                            [m.id]: {
-                              counterpartAccountId: e.target.value,
-                              costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
-                              description: prev[m.id]?.description ?? m.description ?? "",
-                            },
-                          }))
-                        }
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[1100px]">
+              <thead>
+                <tr className="text-xs font-bold text-muted-foreground bg-muted/50 border-b">
+                  <th className="text-start px-4 py-2.5 w-28">
+                    {t("bank.movementsTable.date")}
+                  </th>
+                  <th className="text-start px-3 py-2.5 w-24">
+                    {t("bank.movementsTable.type")}
+                  </th>
+                  <th className="text-start px-3 py-2.5 w-44">
+                    {t("bank.movementsTable.statementDescription")}
+                  </th>
+                  <th className="text-end px-3 py-2.5 w-32">
+                    {t("bank.movementsTable.amount")}
+                  </th>
+                  <th className="text-end px-3 py-2.5 w-32">
+                    {t("bank.movementsTable.balance")}
+                  </th>
+                  <th className="text-start px-3 py-2.5 w-56">
+                    {t("bank.movementsTable.counterpart")}
+                  </th>
+                  <th className="text-start px-3 py-2.5 w-40">
+                    {t("bank.movementsTable.costCenter")}
+                  </th>
+                  <th className="text-start px-3 py-2.5 w-48">
+                    {t("bank.movementsTable.journalDescription")}
+                  </th>
+                  <th className="text-center px-3 py-2.5 w-24">
+                    {t("bank.movementsTable.status")}
+                  </th>
+                  <th className="text-center px-4 py-2.5 w-20">
+                    {t("bank.movementsTable.actions")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  let running = 0;
+                  const sorted = [...movements].sort(
+                    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+                  );
+                  const balances = new Map<string, number>();
+                  for (const m of sorted) {
+                    running += m.direction === "in" ? m.amount : -m.amount;
+                    balances.set(m.id, running);
+                  }
+                  return movements.map((m) => {
+                    const bal = balances.get(m.id) ?? 0;
+                    const inline = inlineClassify[m.id];
+                    const isPending = m.status === "pending";
+                    return (
+                      <tr
+                        key={m.id}
+                        className="group border-b border-border/50 hover:bg-muted/30 transition-colors"
                       >
-                        <option value="">—</option>
-                        {leafAccounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {accountLabel(a)}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <>
-                        {m.type === "transfer"
-                          ? m.transferAccountName
-                          : m.counterpartAccountName}
-                        {m.description && (
-                          <div className="text-xs text-muted-foreground">
-                            {m.description}
+                        {/* Date */}
+                        <td className="px-4 py-2 tabular-nums text-foreground/80" dir="ltr">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <rect x="3" y="4" width="18" height="18" rx="2" />
+                                <path d="M16 2v4M8 2v4M3 10h18" />
+                              </svg>
+                            </span>
+                            {m.date}
                           </div>
-                        )}
-                      </>
-                    )}
-                    {m.notes && (
-                      <div className="text-xs text-muted-foreground/70 italic">
-                        {m.notes}
-                      </div>
-                    )}
-                  </td>
-                  <td
-                    className={`px-3 py-3.5 text-end font-bold font-sans tabular-nums ${
-                      m.direction === "in" ? "text-success" : "text-destructive"
-                    }`}
-                    dir="ltr"
-                  >
-                    {m.direction === "in" ? "+" : "−"}
-                    {fmt(m.amount)} {m.currency}
-                  </td>
-                  <td className="px-3 py-3.5 text-foreground/80">
-                    {m.status === "pending" ? (
-                      <select
-                        className="w-full text-xs px-2 py-1.5 rounded-md border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                        value={inlineClassify[m.id]?.costCenterId ?? m.costCenterId ?? ""}
-                        onChange={(e) =>
-                          setInlineClassify((prev) => ({
-                            ...prev,
-                            [m.id]: {
-                              counterpartAccountId:
-                                prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
-                              costCenterId: e.target.value,
-                              description: prev[m.id]?.description ?? m.description ?? "",
-                            },
-                          }))
-                        }
-                      >
-                        <option value="">—</option>
-                        {costCenters.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nameAr}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {m.costCenterName ?? "—"}
-                      </span>
-                    )}
-                  </td>
-                  <td
-                    className={`px-3 py-3.5 text-end font-bold font-sans tabular-nums ${
-                      m.direction === "in" ? "text-success" : "text-destructive"
-                    }`}
-                    dir="ltr"
-                  >
-                    {m.direction === "in" ? "+" : "−"}
-                    {fmt(m.amount)} {m.currency}
-                  </td>
-                  <td className="px-3 py-3.5 text-center">
-                    {m.isCleared && (
-                      <CheckCircle2 className="w-4 h-4 text-success inline" />
-                    )}
-                  </td>
-                  {(canUpdate || canDelete) && (
-                    <td className="px-6 py-3.5">
-                      <div className="flex items-center justify-end gap-1">
-                        {canUpdate &&
-                          !m.isCleared &&
-                          !m.reconciliationId &&
-                          m.type !== "transfer" &&
-                          !m.transferGroupId && (
-                            <>
-                              {m.status === "pending" && (
-                                <button
-                                  onClick={() => {
-                                    const inline = inlineClassify[m.id];
-                                    const cid = inline?.counterpartAccountId ?? m.counterpartAccountId ?? "";
-                                    if (!cid) {
-                                      toast({
-                                        variant: "destructive",
-                                        title: t("bank.toast.error"),
-                                        description: t("bank.classify.selectCounterpart"),
-                                      });
-                                      return;
-                                    }
-                                    updateMovement.mutate(
-                                      {
-                                        id: m.id,
-                                        data: {
-                                          counterpartAccountId: cid,
-                                          costCenterId: inline?.costCenterId || null,
-                                          description: inline?.description?.trim() || null,
-                                        },
-                                      },
-                                      {
-                                        onSuccess: () => {
-                                          toast({ title: t("bank.classify.saved") });
-                                          invalidate();
-                                          setInlineClassify((prev) => {
-                                            const n = { ...prev };
-                                            delete n[m.id];
-                                            return n;
-                                          });
-                                        },
-                                        onError: (err: any) =>
+                        </td>
+
+                        {/* Type */}
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                              m.direction === "in"
+                                ? "bg-success/10 text-success"
+                                : "bg-destructive/10 text-destructive"
+                            }`}
+                          >
+                            {m.direction === "in" ? (
+                              <ArrowDownToLine className="w-3 h-3" />
+                            ) : (
+                              <ArrowUpFromLine className="w-3 h-3" />
+                            )}
+                            {t(`bank.movementTypes.${m.type}`)}
+                          </span>
+                        </td>
+
+                        {/* Statement Description */}
+                        <td className="px-3 py-2 text-foreground/80">
+                          <div className="text-xs leading-snug">
+                            {m.notes || m.description || (
+                              <span className="text-muted-foreground/50 italic">—</span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Amount */}
+                        <td
+                          className={`px-3 py-2 text-end font-bold font-sans tabular-nums ${
+                            m.direction === "in" ? "text-success" : "text-destructive"
+                          }`}
+                          dir="ltr"
+                        >
+                          {m.direction === "in" ? "+" : "−"}
+                          {fmt(m.amount)} {m.currency}
+                        </td>
+
+                        {/* Balance */}
+                        <td
+                          className="px-3 py-2 text-end font-sans tabular-nums text-foreground/70"
+                          dir="ltr"
+                        >
+                          {fmt(bal)} {m.currency}
+                        </td>
+
+                        {/* Counterpart Account */}
+                        <td className="px-3 py-2">
+                          {isPending ? (
+                            <select
+                              className="w-full text-xs px-2 py-1.5 rounded-md border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                              value={inline?.counterpartAccountId ?? m.counterpartAccountId ?? ""}
+                              onChange={(e) =>
+                                setInlineClassify((prev) => ({
+                                  ...prev,
+                                  [m.id]: {
+                                    counterpartAccountId: e.target.value,
+                                    costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                    description: prev[m.id]?.description ?? m.description ?? "",
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="">{t("bank.movementsTable.selectCounterpart")}</option>
+                              {leafAccounts.map((a) => (
+                                <option key={a.id} value={a.id}>
+                                  {accountLabel(a)}
+                                </option>
+                              ))}
+                            </select>
+                          ) : m.type === "transfer" ? (
+                            <span className="text-xs text-foreground/70">
+                              {m.transferAccountName ?? "—"}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-foreground/70">
+                              {m.counterpartAccountName ?? "—"}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Cost Center */}
+                        <td className="px-3 py-2">
+                          {isPending ? (
+                            <select
+                              className="w-full text-xs px-2 py-1.5 rounded-md border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                              value={inline?.costCenterId ?? m.costCenterId ?? ""}
+                              onChange={(e) =>
+                                setInlineClassify((prev) => ({
+                                  ...prev,
+                                  [m.id]: {
+                                    counterpartAccountId:
+                                      prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
+                                    costCenterId: e.target.value,
+                                    description: prev[m.id]?.description ?? m.description ?? "",
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="">{t("bank.movementsTable.selectCostCenter")}</option>
+                              {costCenters.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.nameAr}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {m.costCenterName ?? "—"}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Journal Description */}
+                        <td className="px-3 py-2">
+                          {isPending ? (
+                            <input
+                              type="text"
+                              className="w-full text-xs px-2 py-1.5 rounded-md border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                              placeholder={m.notes || t("bank.classify.descriptionPlaceholder")}
+                              value={inline?.description ?? m.description ?? ""}
+                              onChange={(e) =>
+                                setInlineClassify((prev) => ({
+                                  ...prev,
+                                  [m.id]: {
+                                    counterpartAccountId:
+                                      prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
+                                    costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                    description: e.target.value,
+                                  },
+                                }))
+                              }
+                            />
+                          ) : (
+                            <span className="text-xs text-foreground/70 truncate block max-w-[180px]">
+                              {m.description ?? (
+                                <span className="text-muted-foreground/50">—</span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-3 py-2 text-center">
+                          {isPending ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                              <Clock className="w-3 h-3" />
+                              {t("bank.movementsTable.pending")}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-success/10 text-success">
+                              <CheckCircle2 className="w-3 h-3" />
+                              {t("bank.movementsTable.posted")}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-4 py-2">
+                          <div className="flex items-center justify-center gap-0.5">
+                            {canUpdate &&
+                              !m.isCleared &&
+                              !m.reconciliationId &&
+                              m.type !== "transfer" &&
+                              !m.transferGroupId && (
+                                <>
+                                  {isPending && (
+                                    <button
+                                      onClick={() => {
+                                        const cid = inline?.counterpartAccountId ?? m.counterpartAccountId ?? "";
+                                        if (!cid) {
                                           toast({
                                             variant: "destructive",
                                             title: t("bank.toast.error"),
-                                            description: err?.data?.error,
-                                          }),
-                                      },
-                                    );
-                                  }}
-                                  className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20"
-                                  title={t("bank.classify.post")}
-                                >
-                                  <CheckCircle2 className="w-4 h-4" />
-                                </button>
+                                            description: t("bank.classify.selectCounterpart"),
+                                          });
+                                          return;
+                                        }
+                                        updateMovement.mutate(
+                                          {
+                                            id: m.id,
+                                            data: {
+                                              counterpartAccountId: cid,
+                                              costCenterId: inline?.costCenterId || null,
+                                              description: inline?.description?.trim() || null,
+                                            },
+                                          },
+                                          {
+                                            onSuccess: () => {
+                                              toast({ title: t("bank.classify.saved") });
+                                              invalidate();
+                                              setInlineClassify((prev) => {
+                                                const n = { ...prev };
+                                                delete n[m.id];
+                                                return n;
+                                              });
+                                            },
+                                            onError: (err: any) =>
+                                              toast({
+                                                variant: "destructive",
+                                                title: t("bank.toast.error"),
+                                                description: err?.data?.error,
+                                              }),
+                                          },
+                                        );
+                                      }}
+                                      className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                                      title={t("bank.classify.post")}
+                                    >
+                                      <CheckCircle2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => setToClassify(m)}
+                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title={isPending ? t("bank.classify.action") : t("common.edit")}
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                </>
                               )}
+                            {canDelete && !m.isCleared && !m.reconciliationId && (
                               <button
-                                onClick={() => setToClassify(m)}
-                                className={`p-1.5 rounded-md hover:bg-primary/10 text-primary ${
-                                  m.status === "pending"
-                                    ? ""
-                                    : "opacity-0 group-hover:opacity-100"
-                                } transition-opacity`}
-                                title={
-                                  m.status === "pending"
-                                    ? t("bank.classify.action")
-                                    : t("common.edit")
-                                }
+                                onClick={() => setToDelete(m)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-destructive/10 text-destructive"
+                                title={t("common.delete")}
                               >
-                                <Edit2 className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" />
                               </button>
-                            </>
-                          )}
-                        {canDelete && !m.isCleared && !m.reconciliationId && (
-                          <button
-                            onClick={() => setToDelete(m)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-destructive/10 text-destructive"
-                            title={t("common.delete")}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
