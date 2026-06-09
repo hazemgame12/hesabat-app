@@ -2547,7 +2547,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [sales, purchase]
+            enum: [sales, purchase, sales_return, purchase_return]
       responses:
         "200":
           description: Invoices
@@ -2759,6 +2759,29 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /payments/{id}:
+    get:
+      operationId: getPayment
+      tags: [payments]
+      summary: Get one collection or payment with its allocations
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deletePayment
       tags: [payments]
@@ -5882,7 +5905,9 @@ components:
       properties:
         kind:
           type: string
-          enum: [sales, purchase]
+          enum: [sales, purchase, sales_return, purchase_return]
+        relatedInvoiceId:
+          type: ["string", "null"]
         date:
           type: string
         dueDate:
@@ -5914,10 +5939,14 @@ components:
           type: string
         kind:
           type: string
-          enum: [sales, purchase]
+          enum: [sales, purchase, sales_return, purchase_return]
         invoiceNo:
           type: integer
         code:
+          type: ["string", "null"]
+        relatedInvoiceId:
+          type: ["string", "null"]
+        relatedCode:
           type: ["string", "null"]
         date:
           type: string

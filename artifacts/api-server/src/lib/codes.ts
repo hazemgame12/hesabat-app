@@ -9,6 +9,8 @@ type Executor = typeof db | Tx;
 export type CodeEntity =
   | "sales_invoice"
   | "purchase_invoice"
+  | "sales_return"
+  | "purchase_return"
   | "fixed_asset"
   | "employee"
   | "customer"
@@ -18,6 +20,9 @@ export type CodeEntity =
 const PREFIX: Record<CodeEntity, string> = {
   sales_invoice: "SI",
   purchase_invoice: "PI",
+  // Credit note (customer return) / debit note (supplier return).
+  sales_return: "CN",
+  purchase_return: "DN",
   fixed_asset: "FA",
   employee: "EMP",
   customer: "CUS",

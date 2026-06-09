@@ -1720,10 +1720,14 @@ export type InvoiceInputKind = typeof InvoiceInputKind[keyof typeof InvoiceInput
 export const InvoiceInputKind = {
   sales: 'sales',
   purchase: 'purchase',
+  sales_return: 'sales_return',
+  purchase_return: 'purchase_return',
 } as const;
 
 export interface InvoiceInput {
   kind: InvoiceInputKind;
+  /** @nullable */
+  relatedInvoiceId?: string | null;
   date: string;
   /** @nullable */
   dueDate?: string | null;
@@ -1748,6 +1752,8 @@ export type InvoiceSummaryKind = typeof InvoiceSummaryKind[keyof typeof InvoiceS
 export const InvoiceSummaryKind = {
   sales: 'sales',
   purchase: 'purchase',
+  sales_return: 'sales_return',
+  purchase_return: 'purchase_return',
 } as const;
 
 export type InvoiceSummaryStatus = typeof InvoiceSummaryStatus[keyof typeof InvoiceSummaryStatus];
@@ -1767,6 +1773,10 @@ export interface InvoiceSummary {
   invoiceNo: number;
   /** @nullable */
   code?: string | null;
+  /** @nullable */
+  relatedInvoiceId?: string | null;
+  /** @nullable */
+  relatedCode?: string | null;
   date: string;
   /** @nullable */
   dueDate?: string | null;
@@ -2461,6 +2471,8 @@ export type ListInvoicesKind = typeof ListInvoicesKind[keyof typeof ListInvoices
 export const ListInvoicesKind = {
   sales: 'sales',
   purchase: 'purchase',
+  sales_return: 'sales_return',
+  purchase_return: 'purchase_return',
 } as const;
 
 export type ListPaymentsParams = {

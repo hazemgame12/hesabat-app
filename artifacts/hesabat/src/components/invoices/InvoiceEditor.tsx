@@ -4,6 +4,7 @@ import {
   useGetInvoice,
   useCreateInvoice,
   useUpdateInvoice,
+  useListInvoices,
   useListCustomers,
   useListSuppliers,
   useListInventoryItems,
@@ -71,6 +72,8 @@ export function InvoiceEditor({
   kind,
   invoiceId,
   readOnly = false,
+  isReturn = false,
+  relatedSourceId = null,
   postableAccounts,
   onClose,
   onSaved,
@@ -78,6 +81,8 @@ export function InvoiceEditor({
   kind: Kind;
   invoiceId: string | null;
   readOnly?: boolean;
+  isReturn?: boolean;
+  relatedSourceId?: string | null;
   postableAccounts: Account[];
   onClose: () => void;
   onSaved: () => void;
@@ -114,20 +119,64 @@ export function InvoiceEditor({
 
   const parties = kind === "sales" ? customers : suppliers;
 
+  // Return mode = credit note (sales_return) / debit note (purchase_return).
+  // When editing, infer from the loaded document; when creating, from the prop.
+  const detailIsReturn =
+    detail?.kind === "sales_return" || detail?.kind === "purchase_return";
+  const returnMode = isEdit ? detailIsReturn : isReturn;
+  const returnKind: "sales_return" | "purchase_return" =
+    kind === "sales" ? "sales_return" : "purchase_return";
+
+  // Source invoices available to attach a note to: approved (non-draft,
+  // non-cancelled) invoices of the same base kind. Only fetched in return mode.
+  const { data: baseInvoices = [] } = useListInvoices(
+    { kind },
+    { query: { enabled: returnMode && !readOnly } as any },
+  );
+  const relatedOptions = useMemo(
+    () =>
+      baseInvoices.filter(
+        (inv) => inv.status !== "draft" && inv.status !== "cancelled",
+      ),
+    [baseInvoices],
+  );
+
   const [date, setDate] = useState(today());
   const [dueDate, setDueDate] = useState("");
   const [partyId, setPartyId] = useState("");
+  const [relatedInvoiceId, setRelatedInvoiceId] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
   const [notes, setNotes] = useState("");
   const [currency, setCurrency] = useState("EGP");
   const [exchangeRate, setExchangeRate] = useState("1");
   const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
 
+  // Preselect the source invoice when creating a note from an approved invoice.
+  useEffect(() => {
+    if (!isEdit && isReturn && relatedSourceId) {
+      setRelatedInvoiceId(relatedSourceId);
+    }
+  }, [isEdit, isReturn, relatedSourceId]);
+
+  // When the source invoice is chosen (create mode), lock party + currency to it.
+  useEffect(() => {
+    if (isEdit || !returnMode || !relatedInvoiceId) return;
+    const src = baseInvoices.find((i) => i.id === relatedInvoiceId);
+    if (src) {
+      setPartyId(src.partyId ?? "");
+      const cur = src.currency ?? "EGP";
+      setCurrency(cur);
+      const opt = currencyOptions.find((o) => o.code === cur);
+      setExchangeRate(cur === "EGP" ? "1" : opt?.rate ?? "1");
+    }
+  }, [relatedInvoiceId, returnMode, isEdit, baseInvoices, currencyOptions]);
+
   useEffect(() => {
     if (detail) {
       setDate(detail.date);
       setDueDate(detail.dueDate ?? "");
       setPartyId(detail.partyId ?? "");
+      setRelatedInvoiceId(detail.relatedInvoiceId ?? "");
       setCostCenterId(detail.costCenterId ?? "");
       setNotes(detail.notes ?? "");
       setCurrency(detail.currency ?? "EGP");
@@ -231,6 +280,8 @@ export function InvoiceEditor({
     setLines((ls) => (ls.length > 1 ? ls.filter((_, i) => i !== idx) : ls));
 
   const validate = (): string | null => {
+    if (returnMode && !relatedInvoiceId)
+      return t("invoices.returns.selectRelated");
     if (!partyId) return t(kind === "sales" ? "invoices.selectCustomer" : "invoices.selectSupplier");
     if (!date) return t("invoices.date");
     if (lines.length === 0) return t("invoices.toast.unbalanced");
@@ -277,7 +328,8 @@ export function InvoiceEditor({
         l.lineType === "fixed_asset" ? l.assetExpenseAccountId || null : null,
     }));
     return {
-      kind,
+      kind: returnMode ? returnKind : kind,
+      relatedInvoiceId: returnMode ? relatedInvoiceId || null : null,
       date,
       dueDate: dueDate || null,
       customerId: kind === "sales" ? partyId : null,
@@ -344,11 +396,17 @@ export function InvoiceEditor({
       <div className="bg-card rounded-2xl shadow-xl w-full max-w-5xl max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-lg font-bold text-foreground">
-            {readOnly
-              ? t("invoices.invoiceDetails")
-              : isEdit
-                ? t("invoices.edit")
-                : t("invoices.newInvoice")}
+            {returnMode
+              ? t(
+                  returnKind === "sales_return"
+                    ? "invoices.returns.creditNote"
+                    : "invoices.returns.debitNote",
+                )
+              : readOnly
+                ? t("invoices.invoiceDetails")
+                : isEdit
+                  ? t("invoices.edit")
+                  : t("invoices.newInvoice")}
             {detail ? ` #${detail.invoiceNo}` : ""}
           </h2>
           <button
@@ -365,6 +423,40 @@ export function InvoiceEditor({
           </div>
         ) : (
           <div className="overflow-y-auto p-6 flex flex-col gap-5">
+            {returnMode && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                <label className={labelCls}>
+                  {t("invoices.returns.relatedInvoice")}
+                </label>
+                <select
+                  className={inputCls}
+                  value={relatedInvoiceId}
+                  disabled={disabled || isEdit}
+                  onChange={(e) => setRelatedInvoiceId(e.target.value)}
+                >
+                  <option value="">
+                    {t("invoices.returns.selectRelated")}
+                  </option>
+                  {detail?.relatedInvoiceId &&
+                    !relatedOptions.some(
+                      (o) => o.id === detail.relatedInvoiceId,
+                    ) && (
+                      <option value={detail.relatedInvoiceId}>
+                        {detail.relatedCode ?? detail.relatedInvoiceId}
+                      </option>
+                    )}
+                  {relatedOptions.map((inv) => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.code ?? `#${inv.invoiceNo}`} —{" "}
+                      {inv.partyName ?? ""} ({fmt(Number(inv.total))})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {t("invoices.returns.serviceOnlyHint")}
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className={labelCls}>
@@ -373,7 +465,7 @@ export function InvoiceEditor({
                 <select
                   className={inputCls}
                   value={partyId}
-                  disabled={disabled}
+                  disabled={disabled || returnMode}
                   onChange={(e) => setPartyId(e.target.value)}
                 >
                   <option value="">
@@ -429,7 +521,7 @@ export function InvoiceEditor({
                 <select
                   className={inputCls}
                   value={currency}
-                  disabled={disabled}
+                  disabled={disabled || returnMode}
                   dir="ltr"
                   onChange={(e) => {
                     const code = e.target.value;
@@ -485,12 +577,15 @@ export function InvoiceEditor({
                       <select
                         className={`${inputCls} max-w-[160px]`}
                         value={l.lineType}
-                        disabled={disabled}
+                        disabled={disabled || returnMode}
                         onChange={(e) =>
                           updateLine(idx, { lineType: e.target.value as LineType })
                         }
                       >
-                        {(["service", "inventory", "fixed_asset"] as const).map((lt) => (
+                        {(returnMode
+                          ? (["service"] as const)
+                          : (["service", "inventory", "fixed_asset"] as const)
+                        ).map((lt) => (
                           <option key={lt} value={lt}>
                             {t(`invoices.lineTypes.${lt}`)}
                           </option>

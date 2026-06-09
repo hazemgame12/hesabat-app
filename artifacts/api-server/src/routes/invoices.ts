@@ -56,6 +56,107 @@ async function loadBaseCurrency(companyId: string): Promise<string> {
 const MONEY_EPS = 0.005;
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+type InvoiceKind = "sales" | "purchase" | "sales_return" | "purchase_return";
+
+// The two "return" documents are credit/debit notes. They reuse the invoice
+// machinery but post a REVERSED journal entry against the same control account.
+function isReturnKind(kind: string): boolean {
+  return kind === "sales_return" || kind === "purchase_return";
+}
+
+// Maps any invoice/return kind to its underlying side: a sales_return is a
+// customer document (sales side), a purchase_return is a supplier document.
+function baseSide(kind: string): "sales" | "purchase" {
+  return kind === "sales" || kind === "sales_return" ? "sales" : "purchase";
+}
+
+// The CodeEntity used to allocate the human-facing code (SI/PI/CN/DN).
+function codeEntityFor(
+  kind: string,
+): "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return" {
+  if (kind === "sales") return "sales_invoice";
+  if (kind === "purchase") return "purchase_invoice";
+  return kind as "sales_return" | "purchase_return";
+}
+
+function docLabelAr(kind: string): string {
+  switch (kind) {
+    case "sales":
+      return "فاتورة مبيعات";
+    case "purchase":
+      return "فاتورة مشتريات";
+    case "sales_return":
+      return "إشعار خصم";
+    case "purchase_return":
+      return "إشعار إضافة";
+    default:
+      return "مستند";
+  }
+}
+
+// Looks up the human code of an invoice's related (original) invoice, if any.
+async function relatedCodeOf(
+  inv: Invoice,
+  companyId: string,
+  client: DbOrTx = db,
+): Promise<string | null> {
+  if (!inv.relatedInvoiceId) return null;
+  const [r] = await client
+    .select({ code: invoicesTable.code })
+    .from(invoicesTable)
+    .where(
+      and(
+        eq(invoicesTable.id, inv.relatedInvoiceId),
+        eq(invoicesTable.companyId, companyId),
+      ),
+    )
+    .limit(1);
+  return r?.code ?? null;
+}
+
+// Validates that a credit/debit note's source invoice is a legitimate, posted
+// document of the matching side, party, and currency, and that the note does
+// not exceed the original total. Returns the related id or an Arabic error.
+async function validateReturnSource(
+  kind: string,
+  relatedInvoiceId: string | null | undefined,
+  partyId: string,
+  currency: string | null,
+  total: number,
+  companyId: string,
+  client: DbOrTx = db,
+): Promise<{ relatedInvoiceId: string } | { error: string }> {
+  if (!relatedInvoiceId)
+    return { error: "يجب اختيار الفاتورة الأصلية المرتبطة بالإشعار" };
+  const [related] = await client
+    .select()
+    .from(invoicesTable)
+    .where(
+      and(
+        eq(invoicesTable.id, relatedInvoiceId),
+        eq(invoicesTable.companyId, companyId),
+      ),
+    )
+    .limit(1);
+  if (!related) return { error: "الفاتورة الأصلية غير موجودة" };
+  if (related.kind !== baseSide(kind))
+    return { error: "نوع الفاتورة الأصلية غير مطابق لنوع الإشعار" };
+  if (
+    related.status !== "approved" &&
+    related.status !== "partially_paid" &&
+    related.status !== "paid"
+  )
+    return { error: "لا يمكن إنشاء إشعار إلا من فاتورة معتمدة" };
+  const relatedPartyId = related.customerId ?? related.supplierId;
+  if (relatedPartyId !== partyId)
+    return { error: "طرف الإشعار يجب أن يطابق طرف الفاتورة الأصلية" };
+  if ((related.currency ?? null) !== (currency ?? null))
+    return { error: "عملة الإشعار يجب أن تطابق عملة الفاتورة الأصلية" };
+  if (total > Number(related.total) + MONEY_EPS)
+    return { error: "قيمة الإشعار لا يمكن أن تتجاوز قيمة الفاتورة الأصلية" };
+  return { relatedInvoiceId };
+}
+
 // Computes a single line's net total (qty*price - discount) and tax amount from
 // the supplied tax rate (percent). All in the transaction currency.
 function lineMoney(
@@ -120,14 +221,20 @@ function isOverdue(inv: Invoice): boolean {
   return inv.dueDate < todayISO();
 }
 
-function toListItem(inv: Invoice, partyName: string | null) {
+function toListItem(
+  inv: Invoice,
+  partyName: string | null,
+  relatedCode: string | null = null,
+) {
   const total = Number(inv.total);
   const amountPaid = Number(inv.amountPaid);
   return {
     id: inv.id,
-    kind: inv.kind as "sales" | "purchase",
+    kind: inv.kind as InvoiceKind,
     invoiceNo: inv.invoiceNo,
     code: inv.code,
+    relatedInvoiceId: inv.relatedInvoiceId,
+    relatedCode,
     date: inv.date,
     dueDate: inv.dueDate,
     partyId: inv.customerId ?? inv.supplierId,
@@ -180,9 +287,14 @@ function toLine(l: InvoiceLine) {
   };
 }
 
-function toDetail(inv: Invoice, partyName: string | null, lines: InvoiceLine[]) {
+function toDetail(
+  inv: Invoice,
+  partyName: string | null,
+  lines: InvoiceLine[],
+  relatedCode: string | null = null,
+) {
   return {
-    ...toListItem(inv, partyName),
+    ...toListItem(inv, partyName, relatedCode),
     notes: inv.notes,
     costCenterId: inv.costCenterId,
     lines: lines.map(toLine),
@@ -257,7 +369,12 @@ router.get(
   async (req, res) => {
     const companyId = req.auth!.companyId;
     const kind = req.query["kind"];
-    if (kind !== "sales" && kind !== "purchase") {
+    if (
+      kind !== "sales" &&
+      kind !== "purchase" &&
+      kind !== "sales_return" &&
+      kind !== "purchase_return"
+    ) {
       res.status(400).json({ error: "نوع الفاتورة غير صحيح" });
       return;
     }
@@ -273,9 +390,16 @@ router.get(
         )
         .orderBy(desc(invoicesTable.invoiceNo));
       const names = await partyNames(rows, companyId);
+      const relatedCodes = await relatedCodeMap(rows, companyId);
       res.json(
         rows.map((r) =>
-          toListItem(r, names.get(r.customerId ?? r.supplierId ?? "") ?? null),
+          toListItem(
+            r,
+            names.get(r.customerId ?? r.supplierId ?? "") ?? null,
+            r.relatedInvoiceId
+              ? (relatedCodes.get(r.relatedInvoiceId) ?? null)
+              : null,
+          ),
         ),
       );
     } catch (err) {
@@ -322,6 +446,29 @@ async function partyNames(
     for (const s of ss) map.set(s.id, s.name);
   }
   return map;
+}
+
+// Builds a relatedInvoiceId→code map for the credit/debit notes in a set of rows.
+async function relatedCodeMap(
+  rows: Invoice[],
+  companyId: string,
+): Promise<Map<string, string | null>> {
+  const ids = [
+    ...new Set(
+      rows.map((r) => r.relatedInvoiceId).filter((x): x is string => !!x),
+    ),
+  ];
+  if (ids.length === 0) return new Map();
+  const found = await db
+    .select({ id: invoicesTable.id, code: invoicesTable.code })
+    .from(invoicesTable)
+    .where(
+      and(
+        eq(invoicesTable.companyId, companyId),
+        inArray(invoicesTable.id, ids),
+      ),
+    );
+  return new Map(found.map((r) => [r.id, r.code]));
 }
 
 // ---- Excel export -------------------------------------------------------
@@ -404,11 +551,13 @@ router.get(
         .where(eq(invoiceLinesTable.invoiceId, id))
         .orderBy(asc(invoiceLinesTable.lineNo));
       const names = await partyNames([inv], companyId);
+      const relatedCode = await relatedCodeOf(inv, companyId);
       res.json(
         toDetail(
           inv,
           names.get(inv.customerId ?? inv.supplierId ?? "") ?? null,
           lines,
+          relatedCode,
         ),
       );
     } catch (err) {
@@ -574,8 +723,16 @@ router.post(
       return;
     }
     try {
+      const side = baseSide(d.kind);
+      const isReturn = isReturnKind(d.kind);
+      if (isReturn && d.lines.some((l) => l.lineType !== "service")) {
+        res.status(400).json({
+          error: "إشعارات الخصم/الإضافة تدعم بنود الخدمات فقط حاليًا",
+        });
+        return;
+      }
       const party = await resolveParty(
-        d.kind,
+        side,
         d.customerId,
         d.supplierId,
         companyId,
@@ -585,10 +742,26 @@ router.post(
         return;
       }
       const taxRates = await loadTaxRates(companyId);
-      const prep = prepareLines(d.kind, d.lines as IncomingLine[], taxRates);
+      const prep = prepareLines(side, d.lines as IncomingLine[], taxRates);
       if ("error" in prep) {
         res.status(400).json({ error: prep.error });
         return;
+      }
+      let relatedInvoiceId: string | null = null;
+      if (isReturn) {
+        const rel = await validateReturnSource(
+          d.kind,
+          d.relatedInvoiceId,
+          party.id,
+          d.currency ?? null,
+          prep.totals.total,
+          companyId,
+        );
+        if ("error" in rel) {
+          res.status(400).json({ error: rel.error });
+          return;
+        }
+        relatedInvoiceId = rel.relatedInvoiceId;
       }
       const ccErr = await validateCostCenters(
         [d.costCenterId, ...prep.lines.map((l) => l.costCenterId)],
@@ -603,7 +776,7 @@ router.post(
         const code = await generateEntityCode(
           tx,
           companyId,
-          d.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          codeEntityFor(d.kind),
           d.date,
         );
         const [inv] = await tx
@@ -613,10 +786,11 @@ router.post(
             kind: d.kind,
             invoiceNo,
             code,
+            relatedInvoiceId,
             date: d.date,
             dueDate: d.dueDate ?? null,
-            customerId: d.kind === "sales" ? party.id : null,
-            supplierId: d.kind === "purchase" ? party.id : null,
+            customerId: side === "sales" ? party.id : null,
+            supplierId: side === "purchase" ? party.id : null,
             costCenterId: d.costCenterId ?? null,
             currency: d.currency ?? null,
             exchangeRate: String(d.exchangeRate ?? 1),
@@ -670,12 +844,9 @@ router.post(
           companyId,
           userId: req.auth!.userId,
           action: "create",
-          entity:
-            created.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          entity: codeEntityFor(created.kind),
           entityId: created.id,
-          entityLabel: `${
-            created.kind === "sales" ? "فاتورة مبيعات" : "فاتورة مشتريات"
-          } #${created.invoiceNo}`,
+          entityLabel: `${docLabelAr(created.kind)} #${created.invoiceNo}`,
           newValue: {
             invoiceNo: created.invoiceNo,
             date: created.date,
@@ -685,7 +856,10 @@ router.post(
         },
         req.log,
       );
-      res.status(201).json(toDetail(created, party.name, lines));
+      const relatedCode = await relatedCodeOf(created, companyId);
+      res
+        .status(201)
+        .json(toDetail(created, party.name, lines, relatedCode));
     } catch (err) {
       req.log.error({ err }, "Failed to create invoice");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -721,8 +895,16 @@ router.patch(
         res.status(400).json({ error: "لا يمكن تعديل فاتورة معتمدة" });
         return;
       }
+      const side = baseSide(d.kind);
+      const isReturn = isReturnKind(d.kind);
+      if (isReturn && d.lines.some((l) => l.lineType !== "service")) {
+        res.status(400).json({
+          error: "إشعارات الخصم/الإضافة تدعم بنود الخدمات فقط حاليًا",
+        });
+        return;
+      }
       const party = await resolveParty(
-        d.kind,
+        side,
         d.customerId,
         d.supplierId,
         companyId,
@@ -732,10 +914,26 @@ router.patch(
         return;
       }
       const taxRates = await loadTaxRates(companyId);
-      const prep = prepareLines(d.kind, d.lines as IncomingLine[], taxRates);
+      const prep = prepareLines(side, d.lines as IncomingLine[], taxRates);
       if ("error" in prep) {
         res.status(400).json({ error: prep.error });
         return;
+      }
+      let relatedInvoiceId: string | null = null;
+      if (isReturn) {
+        const rel = await validateReturnSource(
+          d.kind,
+          d.relatedInvoiceId,
+          party.id,
+          d.currency ?? null,
+          prep.totals.total,
+          companyId,
+        );
+        if ("error" in rel) {
+          res.status(400).json({ error: rel.error });
+          return;
+        }
+        relatedInvoiceId = rel.relatedInvoiceId;
       }
       const ccErr = await validateCostCenters(
         [d.costCenterId, ...prep.lines.map((l) => l.costCenterId)],
@@ -766,10 +964,11 @@ router.patch(
           .update(invoicesTable)
           .set({
             kind: d.kind,
+            relatedInvoiceId,
             date: d.date,
             dueDate: d.dueDate ?? null,
-            customerId: d.kind === "sales" ? party.id : null,
-            supplierId: d.kind === "purchase" ? party.id : null,
+            customerId: side === "sales" ? party.id : null,
+            supplierId: side === "purchase" ? party.id : null,
             costCenterId: d.costCenterId ?? null,
             currency: d.currency ?? null,
             exchangeRate: String(d.exchangeRate ?? 1),
@@ -829,18 +1028,16 @@ router.patch(
           companyId,
           userId: req.auth!.userId,
           action: "update",
-          entity:
-            updated.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          entity: codeEntityFor(updated.kind),
           entityId: updated.id,
-          entityLabel: `${
-            updated.kind === "sales" ? "فاتورة مبيعات" : "فاتورة مشتريات"
-          } #${updated.invoiceNo}`,
+          entityLabel: `${docLabelAr(updated.kind)} #${updated.invoiceNo}`,
           oldValue: { total: inv.total, status: inv.status },
           newValue: { total: updated.total, status: updated.status },
         },
         req.log,
       );
-      res.json(toDetail(updated, party.name, lines));
+      const relatedCode = await relatedCodeOf(updated, companyId);
+      res.json(toDetail(updated, party.name, lines, relatedCode));
     } catch (err) {
       if (err instanceof ApproveError) {
         res.status(err.status).json({ error: err.message });
@@ -892,11 +1089,9 @@ router.delete(
           companyId,
           userId: req.auth!.userId,
           action: "delete",
-          entity: inv.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          entity: codeEntityFor(inv.kind),
           entityId: inv.id,
-          entityLabel: `${
-            inv.kind === "sales" ? "فاتورة مبيعات" : "فاتورة مشتريات"
-          } #${inv.invoiceNo}`,
+          entityLabel: `${docLabelAr(inv.kind)} #${inv.invoiceNo}`,
           oldValue: { invoiceNo: inv.invoiceNo, status: inv.status },
         },
         req.log,
@@ -938,6 +1133,148 @@ router.post(
         if (!inv) throw new ApproveError(404, "الفاتورة غير موجودة");
         if (inv.status !== "draft")
           throw new ApproveError(400, "الفاتورة معتمدة بالفعل");
+
+        // Credit/Debit notes (returns) post a self-contained REVERSED entry and
+        // never touch inventory/fixed assets (service lines only in v1), so they
+        // get a dedicated, simpler posting branch.
+        if (isReturnKind(inv.kind)) {
+          const rLines = await tx
+            .select()
+            .from(invoiceLinesTable)
+            .where(eq(invoiceLinesTable.invoiceId, id))
+            .orderBy(asc(invoiceLinesTable.lineNo));
+          if (rLines.length === 0)
+            throw new ApproveError(400, "لا يمكن اعتماد إشعار بدون سطور");
+          if (rLines.some((l) => l.lineType !== "service"))
+            throw new ApproveError(
+              400,
+              "إشعارات الخصم/الإضافة تدعم بنود الخدمات فقط حاليًا",
+            );
+
+          const rSide = baseSide(inv.kind);
+          const rParty = await resolveParty(
+            rSide,
+            inv.customerId,
+            inv.supplierId,
+            companyId,
+            tx,
+          );
+          if ("error" in rParty) throw new ApproveError(400, rParty.error);
+
+          const rTaxIds = [
+            ...new Set(
+              rLines.map((l) => l.taxId).filter((x): x is string => !!x),
+            ),
+          ];
+          const rTaxRows = rTaxIds.length
+            ? await tx
+                .select({
+                  id: taxesTable.id,
+                  linkedAccountId: taxesTable.linkedAccountId,
+                })
+                .from(taxesTable)
+                .where(
+                  and(
+                    eq(taxesTable.companyId, companyId),
+                    inArray(taxesTable.id, rTaxIds),
+                  ),
+                )
+            : [];
+          const rTaxAccount = new Map(
+            rTaxRows.map((t) => [t.id, t.linkedAccountId]),
+          );
+          for (const tid of rTaxIds) {
+            if (!rTaxAccount.get(tid))
+              throw new ApproveError(400, "الضريبة المحددة بدون حساب مرتبط");
+          }
+
+          const rAccountIds: string[] = [rParty.accountId];
+          for (const l of rLines) {
+            rAccountIds.push(l.accountId);
+            if (l.taxId) rAccountIds.push(rTaxAccount.get(l.taxId)!);
+          }
+          const rAccErr = await validateLeafAccounts(
+            rAccountIds,
+            companyId,
+            tx,
+          );
+          if (rAccErr) throw new ApproveError(400, rAccErr);
+
+          // All business rows are locked (only the invoice row matters for a
+          // service-only note); take the entry-no advisory lock last.
+          await lockCompanyEntryNo(tx, companyId);
+
+          const rRate = Number(inv.exchangeRate);
+          const isSalesReturn = rSide === "sales";
+          const rEntryLines: {
+            accountId: string;
+            description: string | null;
+            debit: number;
+            credit: number;
+            taxId?: string | null;
+            costCenterId?: string | null;
+          }[] = [];
+          let rPartyBase = 0;
+          for (const l of rLines) {
+            const lineTotalBase = round2(Number(l.lineTotal) * rRate);
+            const taxBase = round2(Number(l.taxAmount) * rRate);
+            rPartyBase = round2(rPartyBase + lineTotalBase + taxBase);
+            // sales_return reverses a sale: Dr Revenue, Dr VAT, Cr AR.
+            // purchase_return reverses a purchase: Cr Expense, Cr VAT, Dr AP.
+            rEntryLines.push({
+              accountId: l.accountId,
+              description: l.description,
+              debit: isSalesReturn ? lineTotalBase : 0,
+              credit: isSalesReturn ? 0 : lineTotalBase,
+              taxId: l.taxId,
+              costCenterId: l.costCenterId,
+            });
+            if (taxBase > 0) {
+              rEntryLines.push({
+                accountId: rTaxAccount.get(l.taxId!)!,
+                description: l.description,
+                debit: isSalesReturn ? taxBase : 0,
+                credit: isSalesReturn ? 0 : taxBase,
+                taxId: l.taxId,
+              });
+            }
+          }
+          const rPartyLine = {
+            accountId: rParty.accountId,
+            description: `${docLabelAr(inv.kind)} #${inv.invoiceNo} - ${rParty.name}`,
+            debit: isSalesReturn ? 0 : rPartyBase,
+            credit: isSalesReturn ? rPartyBase : 0,
+          };
+          if (isSalesReturn) rEntryLines.push(rPartyLine);
+          else rEntryLines.unshift(rPartyLine);
+
+          const rEntry = await createDraftJournalEntry(tx, {
+            companyId,
+            baseCurrency,
+            date: inv.date,
+            reference: `${docLabelAr(inv.kind)} #${inv.invoiceNo}`,
+            notes: inv.notes,
+            createdBy: req.auth!.userId,
+            status: "posted",
+            lines: rEntryLines,
+          });
+
+          const [rRow] = await tx
+            .update(invoicesTable)
+            .set({
+              status: "approved",
+              journalEntryId: rEntry.id,
+              approvedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(invoicesTable.id, id),
+                eq(invoicesTable.companyId, companyId),
+              ),
+            )
+            .returning();
+          return { result: rRow!, partyName: rParty.name };
+        }
 
         const lines = await tx
           .select()
@@ -1312,18 +1649,16 @@ router.post(
           companyId,
           userId: req.auth!.userId,
           action: "approve",
-          entity:
-            result.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          entity: codeEntityFor(result.kind),
           entityId: result.id,
-          entityLabel: `${
-            result.kind === "sales" ? "فاتورة مبيعات" : "فاتورة مشتريات"
-          } #${result.invoiceNo}`,
+          entityLabel: `${docLabelAr(result.kind)} #${result.invoiceNo}`,
           oldValue: { status: "draft" },
           newValue: { status: result.status },
         },
         req.log,
       );
-      res.json(toDetail(result, partyName, freshLines));
+      const relatedCode = await relatedCodeOf(result, companyId);
+      res.json(toDetail(result, partyName, freshLines, relatedCode));
     } catch (err) {
       if (err instanceof ApproveError) {
         res.status(err.status).json({ error: err.message });

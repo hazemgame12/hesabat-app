@@ -2116,14 +2116,16 @@ export const DeleteSupplierResponse = zod.object({
  * @summary List invoices for the current company
  */
 export const ListInvoicesQueryParams = zod.object({
-  "kind": zod.enum(['sales', 'purchase'])
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return'])
 })
 
 export const ListInvoicesResponseItem = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
+  "relatedInvoiceId": zod.string().nullish(),
+  "relatedCode": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
@@ -2161,7 +2163,8 @@ export const createInvoiceBodyLinesItemAssetSalvageValueMin = 0;
 
 
 export const CreateInvoiceBody = zod.object({
-  "kind": zod.enum(['sales', 'purchase']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "relatedInvoiceId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "customerId": zod.string().nullish(),
@@ -2201,9 +2204,11 @@ export const GetInvoiceParams = zod.object({
 
 export const GetInvoiceResponse = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
+  "relatedInvoiceId": zod.string().nullish(),
+  "relatedCode": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
@@ -2271,7 +2276,8 @@ export const updateInvoiceBodyLinesItemAssetSalvageValueMin = 0;
 
 
 export const UpdateInvoiceBody = zod.object({
-  "kind": zod.enum(['sales', 'purchase']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "relatedInvoiceId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "customerId": zod.string().nullish(),
@@ -2303,9 +2309,11 @@ export const UpdateInvoiceBody = zod.object({
 
 export const UpdateInvoiceResponse = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
+  "relatedInvoiceId": zod.string().nullish(),
+  "relatedCode": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
@@ -2373,9 +2381,11 @@ export const ApproveInvoiceParams = zod.object({
 
 export const ApproveInvoiceResponse = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
+  "relatedInvoiceId": zod.string().nullish(),
+  "relatedCode": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
@@ -2481,6 +2491,38 @@ export const CreatePaymentBody = zod.object({
   "invoiceId": zod.string().uuid(),
   "amount": zod.number().min(createPaymentBodyAllocationsItemAmountMin)
 }))
+})
+
+
+/**
+ * @summary Get one collection or payment with its allocations
+ */
+export const GetPaymentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetPaymentResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['collection', 'payment']),
+  "paymentNo": zod.number(),
+  "date": zod.string(),
+  "partyId": zod.string().nullish(),
+  "partyName": zod.string().nullish(),
+  "method": zod.enum(['cash', 'bank', 'cheque', 'card']),
+  "cashAccountId": zod.string(),
+  "cashAccountName": zod.string().nullish(),
+  "amount": zod.number(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "notes": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "allocations": zod.array(zod.object({
+  "id": zod.string(),
+  "invoiceId": zod.string(),
+  "invoiceNo": zod.number().nullish(),
+  "amount": zod.number()
+})),
+  "createdAt": zod.string()
 })
 
 

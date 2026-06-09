@@ -12,4 +12,6 @@ export type InvoiceInputKind = typeof InvoiceInputKind[keyof typeof InvoiceInput
 export const InvoiceInputKind = {
   sales: 'sales',
   purchase: 'purchase',
+  sales_return: 'sales_return',
+  purchase_return: 'purchase_return',
 } as const;

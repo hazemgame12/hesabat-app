@@ -1447,9 +1447,22 @@
     "purchasesSubtitle": "Record supplier bills and settle payables",
     "tabs": {
       "invoices": "Invoices",
+      "returns": "Returns",
       "payments": "Payments",
       "reports": "Reports"
     },
+    "returns": {
+      "creditNote": "Credit Note (Sales Return)",
+      "debitNote": "Debit Note (Purchase Return)",
+      "newCreditNote": "New Credit Note",
+      "newDebitNote": "New Debit Note",
+      "relatedInvoice": "Original invoice",
+      "selectRelated": "Select the original invoice",
+      "serviceOnlyHint": "Returns support service/account lines only in this version (no inventory or assets).",
+      "noReturns": "No returns yet",
+      "noReturnsHint": "Create a note from an approved invoice or via the new note button."
+    },
+    "notFound": "Document not found or you don't have permission to view it",
     "paymentsCollection": "Collections",
     "paymentsPayment": "Payments",
     "newInvoice": "New Invoice",
@@ -1538,6 +1551,21 @@
     "unallocated": "Unallocated",
     "paymentDetails": "Voucher details",
     "invoiceDetails": "Invoice details",
+    "tabsReturns": "Notes",
+    "newCreditNote": "New credit note",
+    "newDebitNote": "New debit note",
+    "createReturn": "Create note",
+    "createCreditNote": "Create credit note",
+    "createDebitNote": "Create debit note",
+    "creditNote": "Credit note",
+    "debitNote": "Debit note",
+    "relatedInvoice": "Original invoice",
+    "selectRelatedInvoice": "Select the original invoice",
+    "relatedCode": "Invoice ref",
+    "noReturns": "No notes yet",
+    "returnsServiceOnly": "Notes support service / account lines only in this version.",
+    "selectRelatedFirst": "Select the original invoice first",
+    "print": "Print",
     "reports": {
       "title": "Reports",
       "outstanding": "Outstanding invoices",
@@ -1579,6 +1607,27 @@
     "confirmDeleteInvoice": "Are you sure you want to delete this invoice?",
     "confirmDeletePayment": "Are you sure you want to delete this voucher?",
     "confirmApprove": "A posted journal entry will be created and the invoice can no longer be edited. Continue?"
+  },
+  "print": {
+    "print": "Print",
+    "savePdf": "Save PDF",
+    "back": "Back",
+    "docNo": "Document no.",
+    "relatedDoc": "Original invoice",
+    "amountInWords": "Amount in words",
+    "preparedBy": "Prepared by",
+    "receivedBy": "Received by",
+    "receivedFrom": "Received from",
+    "paidTo": "Paid to",
+    "settledInvoice": "Settled invoice",
+    "titles": {
+      "salesInvoice": "Tax Invoice",
+      "purchaseInvoice": "Purchase Invoice",
+      "creditNote": "Credit Note",
+      "debitNote": "Debit Note",
+      "receipt": "Receipt Voucher",
+      "payment": "Payment Voucher"
+    }
   },
   "reportsPage": {
     "title": "Financial Reports",

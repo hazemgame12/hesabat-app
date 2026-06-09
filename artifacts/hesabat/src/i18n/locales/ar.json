@@ -1447,9 +1447,22 @@
     "purchasesSubtitle": "تسجيل فواتير الموردين وسداد المستحقات",
     "tabs": {
       "invoices": "الفواتير",
+      "returns": "المرتجعات",
       "payments": "السداد",
       "reports": "التقارير"
     },
+    "returns": {
+      "creditNote": "إشعار دائن (مرتجع مبيعات)",
+      "debitNote": "إشعار مدين (مرتجع مشتريات)",
+      "newCreditNote": "إشعار دائن جديد",
+      "newDebitNote": "إشعار مدين جديد",
+      "relatedInvoice": "الفاتورة الأصلية",
+      "selectRelated": "اختر الفاتورة الأصلية",
+      "serviceOnlyHint": "المرتجعات تدعم بنود الخدمات/الحسابات فقط في هذه النسخة (لا مخزون ولا أصول).",
+      "noReturns": "لا توجد مرتجعات بعد",
+      "noReturnsHint": "أنشئ إشعارًا من فاتورة معتمدة أو من زر إشعار جديد."
+    },
+    "notFound": "المستند غير موجود أو لا تملك صلاحية عرضه",
     "paymentsCollection": "سندات القبض",
     "paymentsPayment": "سندات الصرف",
     "newInvoice": "فاتورة جديدة",
@@ -1538,6 +1551,21 @@
     "unallocated": "غير موزع",
     "paymentDetails": "تفاصيل السند",
     "invoiceDetails": "تفاصيل الفاتورة",
+    "tabsReturns": "الإشعارات",
+    "newCreditNote": "إشعار دائن جديد",
+    "newDebitNote": "إشعار مدين جديد",
+    "createReturn": "إنشاء إشعار",
+    "createCreditNote": "إنشاء إشعار دائن",
+    "createDebitNote": "إنشاء إشعار مدين",
+    "creditNote": "إشعار دائن",
+    "debitNote": "إشعار مدين",
+    "relatedInvoice": "الفاتورة الأصلية",
+    "selectRelatedInvoice": "اختر الفاتورة الأصلية",
+    "relatedCode": "مرجع الفاتورة",
+    "noReturns": "لا توجد إشعارات بعد",
+    "returnsServiceOnly": "الإشعارات تدعم بنود الخدمات/الحسابات فقط في الإصدار الحالي.",
+    "selectRelatedFirst": "اختر الفاتورة الأصلية أولاً",
+    "print": "طباعة",
     "reports": {
       "title": "التقارير",
       "outstanding": "الفواتير المستحقة",
@@ -1579,6 +1607,27 @@
     "confirmDeleteInvoice": "هل أنت متأكد من حذف هذه الفاتورة؟",
     "confirmDeletePayment": "هل أنت متأكد من حذف هذا السند؟",
     "confirmApprove": "سيتم ترحيل قيد محاسبي معتمد ولا يمكن تعديل الفاتورة بعدها. متابعة؟"
+  },
+  "print": {
+    "print": "طباعة",
+    "savePdf": "حفظ PDF",
+    "back": "رجوع",
+    "docNo": "رقم المستند",
+    "relatedDoc": "الفاتورة الأصلية",
+    "amountInWords": "المبلغ كتابةً",
+    "preparedBy": "المُعِدّ",
+    "receivedBy": "المستلم",
+    "receivedFrom": "استلمنا من",
+    "paidTo": "صرفنا إلى",
+    "settledInvoice": "الفاتورة المسددة",
+    "titles": {
+      "salesInvoice": "فاتورة ضريبية",
+      "purchaseInvoice": "فاتورة مشتريات",
+      "creditNote": "إشعار دائن",
+      "debitNote": "إشعار مدين",
+      "receipt": "سند قبض",
+      "payment": "سند صرف"
+    }
   },
   "reportsPage": {
     "title": "التقارير المالية",

@@ -12,4 +12,6 @@ export type InvoiceSummaryKind = typeof InvoiceSummaryKind[keyof typeof InvoiceS
 export const InvoiceSummaryKind = {
   sales: 'sales',
   purchase: 'purchase',
+  sales_return: 'sales_return',
+  purchase_return: 'purchase_return',
 } as const;

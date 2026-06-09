@@ -203,6 +203,38 @@ async function serializePayments(rows: Payment[], companyId: string) {
   }));
 }
 
+// ---- Get one (detail, for the voucher print view) ----
+router.get(
+  "/payments/:id",
+  requireAuth,
+  requireCapability("payments:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    try {
+      const [row] = await db
+        .select()
+        .from(paymentsTable)
+        .where(
+          and(
+            eq(paymentsTable.id, id),
+            eq(paymentsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!row) {
+        res.status(404).json({ error: "العملية غير موجودة" });
+        return;
+      }
+      const [serialized] = await serializePayments([row], companyId);
+      res.json(serialized);
+    } catch (err) {
+      req.log.error({ err }, "Failed to get payment");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
 // ---- Create ----
 router.post(
   "/payments",

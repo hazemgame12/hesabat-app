@@ -10,6 +10,8 @@ import type { InvoiceLineInput } from './invoiceLineInput';
 
 export interface InvoiceInput {
   kind: InvoiceInputKind;
+  /** @nullable */
+  relatedInvoiceId?: string | null;
   date: string;
   /** @nullable */
   dueDate?: string | null;

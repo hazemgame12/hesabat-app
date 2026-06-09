@@ -18,6 +18,9 @@ import { Bank } from "@/pages/bank";
 import { Advances } from "@/pages/advances";
 import SalesInvoicesPage from "@/pages/sales-invoices";
 import PurchaseInvoicesPage from "@/pages/purchase-invoices";
+import PrintInvoicePage from "@/pages/print-invoice";
+import PrintPaymentPage from "@/pages/print-payment";
+import { PrintGuard } from "@/components/print/PrintGuard";
 import { Reports } from "@/pages/reports";
 import { Revaluation } from "@/pages/revaluation";
 import { Audit } from "@/pages/audit";
@@ -86,6 +89,16 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/invite/:token" component={AcceptInvite} />
+      <Route path="/print/invoice/:id">
+        <PrintGuard>
+          <PrintInvoicePage />
+        </PrintGuard>
+      </Route>
+      <Route path="/print/payment/:id">
+        <PrintGuard>
+          <PrintPaymentPage />
+        </PrintGuard>
+      </Route>
       <Route path="/*" component={ProtectedRoutes} />
     </Switch>
   );

@@ -14,6 +14,10 @@ export interface InvoiceSummary {
   invoiceNo: number;
   /** @nullable */
   code?: string | null;
+  /** @nullable */
+  relatedInvoiceId?: string | null;
+  /** @nullable */
+  relatedCode?: string | null;
   date: string;
   /** @nullable */
   dueDate?: string | null;

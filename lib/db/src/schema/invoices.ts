@@ -8,6 +8,7 @@ import {
   timestamp,
   unique,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -39,6 +40,12 @@ export const invoicesTable = pgTable(
     // Human-facing fiscal-year-scoped code, e.g. SI-2026-0001 / PI-2026-0001.
     // Auto-generated on create; nullable for rows created before this feature.
     code: text("code"),
+    // For credit/debit notes (kind 'sales_return' / 'purchase_return'): the
+    // original posted invoice this note reverses. Null for normal invoices.
+    relatedInvoiceId: uuid("related_invoice_id").references(
+      (): AnyPgColumn => invoicesTable.id,
+      { onDelete: "set null" },
+    ),
     date: date("date").notNull(),
     dueDate: date("due_date"),
     // Exactly one of these is set, per `kind`.

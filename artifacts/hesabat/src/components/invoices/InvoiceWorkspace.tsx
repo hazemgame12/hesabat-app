@@ -25,6 +25,8 @@ import {
   Eye,
   Check,
   HandCoins,
+  Printer,
+  Undo2,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -44,7 +46,7 @@ import { InvoiceReports } from "./InvoiceReports";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
 
 type Kind = "sales" | "purchase";
-type Tab = "invoices" | "payments" | "reports";
+type Tab = "invoices" | "returns" | "payments" | "reports";
 
 function displayName(
   e: { nameAr: string; nameEn?: string | null },
@@ -61,9 +63,13 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
 
   const paymentKind = kind === "sales" ? "collection" : "payment";
 
+  const returnKind = kind === "sales" ? "sales_return" : "purchase_return";
+
   const [tab, setTab] = useState<Tab>("invoices");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [editorReturn, setEditorReturn] = useState(false);
+  const [returnSourceId, setReturnSourceId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<InvoiceSummary | null>(null);
   const [toApprove, setToApprove] = useState<InvoiceSummary | null>(null);
@@ -72,6 +78,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
 
   const { data: invoices = [], isLoading: invLoading } = useListInvoices({
     kind,
+  });
+  const { data: returns = [], isLoading: retLoading } = useListInvoices({
+    kind: returnKind,
   });
   const { data: payments = [], isLoading: payLoading } = useListPayments({
     kind: paymentKind,
@@ -100,10 +109,14 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
       maximumFractionDigits: 2,
     }).format(n);
 
-  const invalidateInvoices = () =>
+  const invalidateInvoices = () => {
     queryClient.invalidateQueries({
       queryKey: getListInvoicesQueryKey({ kind }),
     });
+    queryClient.invalidateQueries({
+      queryKey: getListInvoicesQueryKey({ kind: returnKind }),
+    });
+  };
   const invalidatePayments = () =>
     queryClient.invalidateQueries({
       queryKey: getListPaymentsQueryKey({ kind: paymentKind }),
@@ -115,12 +128,28 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
 
   const openCreate = () => {
     setEditId(null);
+    setEditorReturn(false);
+    setReturnSourceId(null);
     setEditorOpen(true);
   };
   const openEdit = (id: string) => {
     setEditId(id);
+    setEditorReturn(false);
+    setReturnSourceId(null);
     setEditorOpen(true);
   };
+  const openCreateReturn = (sourceId: string | null) => {
+    setEditId(null);
+    setEditorReturn(true);
+    setReturnSourceId(sourceId);
+    setEditorOpen(true);
+  };
+
+  const base = import.meta.env.BASE_URL;
+  const printInvoice = (id: string) =>
+    window.open(`${base}print/invoice/${id}`, "_blank", "noopener");
+  const printPayment = (id: string) =>
+    window.open(`${base}print/payment/${id}`, "_blank", "noopener");
 
   const handleDelete = () => {
     if (!toDelete) return;
@@ -255,12 +284,25 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
               {t("invoices.newInvoice")}
             </button>
           )}
+          {tab === "returns" && canCreate && (
+            <button
+              onClick={() => openCreateReturn(null)}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              <Undo2 className="w-4 h-4" />
+              {t(
+                kind === "sales"
+                  ? "invoices.returns.newCreditNote"
+                  : "invoices.returns.newDebitNote",
+              )}
+            </button>
+          )}
         </div>
       </header>
 
       <div className="px-8 pt-6">
         <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-full w-fit">
-          {(["invoices", "payments", "reports"] as const).map((tk) => (
+          {(["invoices", "returns", "payments", "reports"] as const).map((tk) => (
             <button
               key={tk}
               onClick={() => setTab(tk)}
@@ -351,6 +393,28 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+                          <button
+                            onClick={() => printInvoice(inv.id)}
+                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
+                            title={t("invoices.print")}
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          {inv.status !== "draft" &&
+                            inv.status !== "cancelled" &&
+                            canCreate && (
+                              <button
+                                onClick={() => openCreateReturn(inv.id)}
+                                className="p-1.5 rounded-md hover:bg-amber-500/10 text-amber-600 transition-colors"
+                                title={t(
+                                  kind === "sales"
+                                    ? "invoices.returns.newCreditNote"
+                                    : "invoices.returns.newDebitNote",
+                                )}
+                              >
+                                <Undo2 className="w-4 h-4" />
+                              </button>
+                            )}
                           {inv.status === "draft" && canUpdate && (
                             <>
                               <button
@@ -368,6 +432,128 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                 <Edit2 className="w-4 h-4" />
                               </button>
                             </>
+                          )}
+                          {inv.status === "draft" && canDelete && (
+                            <button
+                              onClick={() => setToDelete(inv)}
+                              className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
+                              title={t("invoices.delete")}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {tab === "returns" && (
+          <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
+            {retLoading ? (
+              <div className="flex items-center justify-center p-12">
+                <Spinner className="w-8 h-8 text-primary" />
+              </div>
+            ) : returns.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-2 text-center">
+                <p className="font-bold text-foreground">
+                  {t("invoices.returns.noReturns")}
+                </p>
+                <p className="text-sm max-w-md">
+                  {t("invoices.returns.noReturnsHint")}
+                </p>
+                {canCreate && (
+                  <button
+                    onClick={() => openCreateReturn(null)}
+                    className="mt-2 text-primary font-bold hover:underline"
+                  >
+                    {t(
+                      kind === "sales"
+                        ? "invoices.returns.newCreditNote"
+                        : "invoices.returns.newDebitNote",
+                    )}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
+                    <th className="text-start px-6 py-3">{t("invoices.invoiceNo")}</th>
+                    <th className="text-start px-3 py-3">{t("invoices.date")}</th>
+                    <th className="text-start px-3 py-3">
+                      {t(kind === "sales" ? "invoices.customer" : "invoices.supplier")}
+                    </th>
+                    <th className="text-start px-3 py-3">
+                      {t("invoices.returns.relatedInvoice")}
+                    </th>
+                    <th className="text-end px-3 py-3">{t("invoices.total")}</th>
+                    <th className="text-center px-3 py-3">{t("invoices.status")}</th>
+                    <th className="w-28 px-6 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {returns.map((inv) => (
+                    <tr
+                      key={inv.id}
+                      className="group border-t hover:bg-muted/40 transition-colors"
+                    >
+                      <td
+                        className="px-6 py-3.5 font-sans tabular-nums font-bold text-foreground"
+                        dir="ltr"
+                      >
+                        {inv.code ?? `#${inv.invoiceNo}`}
+                      </td>
+                      <td className="px-3 py-3.5 font-sans tabular-nums text-foreground/80" dir="ltr">
+                        {inv.date}
+                      </td>
+                      <td className="px-3 py-3.5 text-start text-foreground">
+                        {inv.partyName ?? "—"}
+                      </td>
+                      <td className="px-3 py-3.5 text-start font-sans text-foreground/70" dir="ltr">
+                        {inv.relatedCode ?? "—"}
+                      </td>
+                      <td className="px-3 py-3.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
+                        {fmt(inv.total)}
+                      </td>
+                      <td className="px-3 py-3.5 text-center">{statusBadge(inv)}</td>
+                      <td className="px-6 py-3.5">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
+                          <button
+                            onClick={() => setViewId(inv.id)}
+                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
+                            title={t("invoices.view")}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => printInvoice(inv.id)}
+                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
+                            title={t("invoices.print")}
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          {inv.status === "draft" && canUpdate && (
+                            <button
+                              onClick={() => openEdit(inv.id)}
+                              className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                              title={t("invoices.edit")}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {inv.status === "draft" && canUpdate && (
+                            <button
+                              onClick={() => setToApprove(inv)}
+                              className="p-1.5 rounded-md hover:bg-success/10 text-success transition-colors"
+                              title={t("invoices.approve")}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
                           )}
                           {inv.status === "draft" && canDelete && (
                             <button
@@ -417,7 +603,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                     <th className="text-start px-3 py-3">{t("invoices.party")}</th>
                     <th className="text-start px-3 py-3">{t("invoices.method")}</th>
                     <th className="text-end px-3 py-3">{t("invoices.amount")}</th>
-                    {canDeletePay && <th className="w-16 px-6 py-3" />}
+                    <th className="w-20 px-6 py-3" />
                   </tr>
                 </thead>
                 <tbody>
@@ -441,9 +627,16 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                       <td className="px-3 py-3.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
                         {fmt(p.amount)}
                       </td>
-                      {canDeletePay && (
-                        <td className="px-6 py-3.5">
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end">
+                      <td className="px-6 py-3.5">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
+                          <button
+                            onClick={() => printPayment(p.id)}
+                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
+                            title={t("invoices.print")}
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          {canDeletePay && (
                             <button
                               onClick={() => setPaymentToDelete(p)}
                               className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
@@ -451,9 +644,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
-                          </div>
-                        </td>
-                      )}
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -469,6 +662,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         <InvoiceEditor
           kind={kind}
           invoiceId={editId}
+          isReturn={editorReturn}
+          relatedSourceId={returnSourceId}
           postableAccounts={postable}
           onClose={() => setEditorOpen(false)}
           onSaved={() => {

@@ -12,4 +12,6 @@ export type ListInvoicesKind = typeof ListInvoicesKind[keyof typeof ListInvoices
 export const ListInvoicesKind = {
   sales: 'sales',
   purchase: 'purchase',
+  sales_return: 'sales_return',
+  purchase_return: 'purchase_return',
 } as const;
