@@ -3037,6 +3037,149 @@ export const GetGeneralLedgerResponse = zod.object({
 
 
 /**
+ * @summary Cash-flow statement (direct method) over a period
+ */
+export const GetCashFlowQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetCashFlowResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "openingCash": zod.number(),
+  "closingCash": zod.number(),
+  "inflows": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "outflows": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "totalInflow": zod.number(),
+  "totalOutflow": zod.number(),
+  "netCashFlow": zod.number()
+})
+
+
+/**
+ * @summary Cash forecast from open AR inflows and AP outflows by due date
+ */
+export const GetCashForecastQueryParams = zod.object({
+  "asOf": zod.coerce.string().optional()
+})
+
+export const GetCashForecastResponse = zod.object({
+  "asOf": zod.string(),
+  "currentCash": zod.number(),
+  "buckets": zod.array(zod.object({
+  "key": zod.string(),
+  "inflow": zod.number(),
+  "outflow": zod.number(),
+  "net": zod.number(),
+  "projectedCash": zod.number()
+})),
+  "totalInflow": zod.number(),
+  "totalOutflow": zod.number(),
+  "netExpected": zod.number(),
+  "projectedCash": zod.number()
+})
+
+
+/**
+ * @summary Sales totals by product/service over a period
+ */
+export const GetSalesByItemQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetSalesByItemResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "kind": zod.string(),
+  "rows": zod.array(zod.object({
+  "groupType": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "quantity": zod.number(),
+  "amount": zod.number()
+})),
+  "totalQuantity": zod.number(),
+  "totalAmount": zod.number()
+})
+
+
+/**
+ * @summary Purchase totals by product/service over a period
+ */
+export const GetPurchasesByItemQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetPurchasesByItemResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "kind": zod.string(),
+  "rows": zod.array(zod.object({
+  "groupType": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "quantity": zod.number(),
+  "amount": zod.number()
+})),
+  "totalQuantity": zod.number(),
+  "totalAmount": zod.number()
+})
+
+
+/**
+ * @summary Inventory monthly summary (opening/in/out/adjustment/closing)
+ */
+export const GetInventorySummaryQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetInventorySummaryResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "rows": zod.array(zod.object({
+  "itemId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "unit": zod.string(),
+  "openingQty": zod.number(),
+  "openingValue": zod.number(),
+  "inQty": zod.number(),
+  "inValue": zod.number(),
+  "outQty": zod.number(),
+  "outValue": zod.number(),
+  "adjQty": zod.number(),
+  "adjValue": zod.number(),
+  "closingQty": zod.number(),
+  "closingValue": zod.number()
+})),
+  "totalOpeningValue": zod.number(),
+  "totalInValue": zod.number(),
+  "totalOutValue": zod.number(),
+  "totalAdjValue": zod.number(),
+  "totalClosingValue": zod.number()
+})
+
+
+/**
  * @summary List cash and bank accounts for the current company
  */
 export const ListBankAccountsResponseItem = zod.object({

@@ -2166,6 +2166,100 @@ export interface GeneralLedger {
   currencyInfo?: CurrencyInfo;
 }
 
+export interface CashFlowLine {
+  accountId: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  amount: number;
+}
+
+export interface CashFlowReport {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  openingCash: number;
+  closingCash: number;
+  inflows: CashFlowLine[];
+  outflows: CashFlowLine[];
+  totalInflow: number;
+  totalOutflow: number;
+  netCashFlow: number;
+}
+
+export interface CashForecastBucket {
+  key: string;
+  inflow: number;
+  outflow: number;
+  net: number;
+  projectedCash: number;
+}
+
+export interface CashForecastReport {
+  asOf: string;
+  currentCash: number;
+  buckets: CashForecastBucket[];
+  totalInflow: number;
+  totalOutflow: number;
+  netExpected: number;
+  projectedCash: number;
+}
+
+export interface ItemSalesRow {
+  groupType: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  quantity: number;
+  amount: number;
+}
+
+export interface ItemSalesReport {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  kind: string;
+  rows: ItemSalesRow[];
+  totalQuantity: number;
+  totalAmount: number;
+}
+
+export interface InventorySummaryRow {
+  itemId: string;
+  code: string;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  unit: string;
+  openingQty: number;
+  openingValue: number;
+  inQty: number;
+  inValue: number;
+  outQty: number;
+  outValue: number;
+  adjQty: number;
+  adjValue: number;
+  closingQty: number;
+  closingValue: number;
+}
+
+export interface InventorySummaryReport {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  rows: InventorySummaryRow[];
+  totalOpeningValue: number;
+  totalInValue: number;
+  totalOutValue: number;
+  totalAdjValue: number;
+  totalClosingValue: number;
+}
+
 export type BankAccountType = typeof BankAccountType[keyof typeof BankAccountType];
 
 
@@ -2721,6 +2815,30 @@ accountId: string;
 from?: string;
 to?: string;
 reportCurrency?: string;
+};
+
+export type GetCashFlowParams = {
+from?: string;
+to?: string;
+};
+
+export type GetCashForecastParams = {
+asOf?: string;
+};
+
+export type GetSalesByItemParams = {
+from?: string;
+to?: string;
+};
+
+export type GetPurchasesByItemParams = {
+from?: string;
+to?: string;
+};
+
+export type GetInventorySummaryParams = {
+from?: string;
+to?: string;
 };
 
 export type ListBankMovementsParams = {

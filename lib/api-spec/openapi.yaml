@@ -3338,6 +3338,121 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /reports/cash-flow:
+    get:
+      operationId: getCashFlow
+      tags: [financialReports]
+      summary: Cash-flow statement (direct method) over a period
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cash-flow statement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CashFlowReport"
+
+  /reports/cash-forecast:
+    get:
+      operationId: getCashForecast
+      tags: [financialReports]
+      summary: Cash forecast from open AR inflows and AP outflows by due date
+      parameters:
+        - name: asOf
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Cash forecast
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CashForecastReport"
+
+  /reports/sales-by-item:
+    get:
+      operationId: getSalesByItem
+      tags: [financialReports]
+      summary: Sales totals by product/service over a period
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Sales by product/service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemSalesReport"
+
+  /reports/purchases-by-item:
+    get:
+      operationId: getPurchasesByItem
+      tags: [financialReports]
+      summary: Purchase totals by product/service over a period
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Purchases by product/service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemSalesReport"
+
+  /reports/inventory-summary:
+    get:
+      operationId: getInventorySummary
+      tags: [financialReports]
+      summary: Inventory monthly summary (opening/in/out/adjustment/closing)
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Inventory summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventorySummaryReport"
+
   /bank/accounts:
     get:
       operationId: listBankAccounts
@@ -6692,6 +6807,182 @@ components:
             $ref: "#/components/schemas/GeneralLedgerEntry"
         currencyInfo:
           $ref: "#/components/schemas/CurrencyInfo"
+
+    CashFlowLine:
+      type: object
+      required: [accountId, code, nameAr, amount]
+      properties:
+        accountId:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        amount:
+          type: number
+
+    CashFlowReport:
+      type: object
+      required:
+        [openingCash, closingCash, inflows, outflows, totalInflow, totalOutflow, netCashFlow]
+      properties:
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        openingCash:
+          type: number
+        closingCash:
+          type: number
+        inflows:
+          type: array
+          items:
+            $ref: "#/components/schemas/CashFlowLine"
+        outflows:
+          type: array
+          items:
+            $ref: "#/components/schemas/CashFlowLine"
+        totalInflow:
+          type: number
+        totalOutflow:
+          type: number
+        netCashFlow:
+          type: number
+
+    CashForecastBucket:
+      type: object
+      required: [key, inflow, outflow, net, projectedCash]
+      properties:
+        key:
+          type: string
+        inflow:
+          type: number
+        outflow:
+          type: number
+        net:
+          type: number
+        projectedCash:
+          type: number
+
+    CashForecastReport:
+      type: object
+      required:
+        [asOf, currentCash, buckets, totalInflow, totalOutflow, netExpected, projectedCash]
+      properties:
+        asOf:
+          type: string
+        currentCash:
+          type: number
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/CashForecastBucket"
+        totalInflow:
+          type: number
+        totalOutflow:
+          type: number
+        netExpected:
+          type: number
+        projectedCash:
+          type: number
+
+    ItemSalesRow:
+      type: object
+      required: [groupType, code, nameAr, quantity, amount]
+      properties:
+        groupType:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        quantity:
+          type: number
+        amount:
+          type: number
+
+    ItemSalesReport:
+      type: object
+      required: [kind, rows, totalQuantity, totalAmount]
+      properties:
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        kind:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemSalesRow"
+        totalQuantity:
+          type: number
+        totalAmount:
+          type: number
+
+    InventorySummaryRow:
+      type: object
+      required:
+        [itemId, code, nameAr, unit, openingQty, openingValue, inQty, inValue, outQty, outValue, adjQty, adjValue, closingQty, closingValue]
+      properties:
+        itemId:
+          type: string
+        code:
+          type: string
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        unit:
+          type: string
+        openingQty:
+          type: number
+        openingValue:
+          type: number
+        inQty:
+          type: number
+        inValue:
+          type: number
+        outQty:
+          type: number
+        outValue:
+          type: number
+        adjQty:
+          type: number
+        adjValue:
+          type: number
+        closingQty:
+          type: number
+        closingValue:
+          type: number
+
+    InventorySummaryReport:
+      type: object
+      required:
+        [rows, totalOpeningValue, totalInValue, totalOutValue, totalAdjValue, totalClosingValue]
+      properties:
+        from:
+          type: ["string", "null"]
+        to:
+          type: ["string", "null"]
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/InventorySummaryRow"
+        totalOpeningValue:
+          type: number
+        totalInValue:
+          type: number
+        totalOutValue:
+          type: number
+        totalAdjValue:
+          type: number
+        totalClosingValue:
+          type: number
 
     BankAccount:
       type: object

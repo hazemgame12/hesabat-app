@@ -8,6 +8,11 @@ import {
   useGetPartyStatement,
   useGetAgingReport,
   useGetOutstandingInvoices,
+  useGetCashFlow,
+  useGetCashForecast,
+  useGetSalesByItem,
+  useGetPurchasesByItem,
+  useGetInventorySummary,
   getGetGeneralLedgerQueryKey,
   getGetPartyStatementQueryKey,
   useListAccounts,
@@ -20,6 +25,10 @@ import {
   type CurrencyInfo,
   type PnlLine,
   type TrialBalance,
+  type CashFlowLine,
+  type CashForecastBucket,
+  type ItemSalesRow,
+  type InventorySummaryRow,
 } from "@workspace/api-client-react";
 import { FileBarChart } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
@@ -43,10 +52,35 @@ type TabKey =
   | "incomeStatement"
   | "balanceSheet"
   | "generalLedger"
+  | "cashFlow"
+  | "cashForecast"
+  | "salesByItem"
+  | "purchasesByItem"
+  | "inventorySummary"
   | "partyStatement"
   | "aging"
   | "outstanding"
   | "tax";
+
+type CategoryKey =
+  | "financial"
+  | "cash"
+  | "salesPurchases"
+  | "inventory"
+  | "parties"
+  | "tax";
+
+const CATEGORIES: { key: CategoryKey; tabs: TabKey[] }[] = [
+  {
+    key: "financial",
+    tabs: ["trialBalance", "incomeStatement", "balanceSheet", "generalLedger"],
+  },
+  { key: "cash", tabs: ["cashFlow", "cashForecast"] },
+  { key: "salesPurchases", tabs: ["salesByItem", "purchasesByItem"] },
+  { key: "inventory", tabs: ["inventorySummary"] },
+  { key: "parties", tabs: ["partyStatement", "aging", "outstanding"] },
+  { key: "tax", tabs: ["tax"] },
+];
 
 function displayName(
   e: { nameAr: string; nameEn?: string | null },
@@ -58,6 +92,7 @@ function displayName(
 export function Reports() {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
+  const [category, setCategory] = useState<CategoryKey>("financial");
   const [tab, setTab] = useState<TabKey>("trialBalance");
 
   const fmt = (n: number) =>
@@ -84,6 +119,47 @@ export function Reports() {
     currencies,
   };
 
+  const activeTabs =
+    CATEGORIES.find((c) => c.key === category)?.tabs ?? CATEGORIES[0].tabs;
+
+  function renderTab(k: TabKey) {
+    switch (k) {
+      case "trialBalance":
+        return <TrialBalanceTab fmt={fmt} lang={lang} cc={cc} />;
+      case "incomeStatement":
+        return <IncomeStatementTab fmt={fmt} lang={lang} cc={cc} />;
+      case "balanceSheet":
+        return <BalanceSheetTab fmt={fmt} lang={lang} cc={cc} />;
+      case "generalLedger":
+        return (
+          <GeneralLedgerTab
+            fmt={fmt}
+            lang={lang}
+            leafAccounts={leafAccounts}
+            cc={cc}
+          />
+        );
+      case "cashFlow":
+        return <CashFlowTab fmt={fmt} lang={lang} />;
+      case "cashForecast":
+        return <CashForecastTab fmt={fmt} />;
+      case "salesByItem":
+        return <SalesByItemTab fmt={fmt} lang={lang} />;
+      case "purchasesByItem":
+        return <PurchasesByItemTab fmt={fmt} lang={lang} />;
+      case "inventorySummary":
+        return <InventorySummaryTab fmt={fmt} lang={lang} />;
+      case "partyStatement":
+        return <PartyStatementTab fmt={fmt} lang={lang} />;
+      case "aging":
+        return <AgingTab fmt={fmt} />;
+      case "outstanding":
+        return <OutstandingTab fmt={fmt} />;
+      case "tax":
+        return <TaxReports fmt={fmt} lang={lang} />;
+    }
+  }
+
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
@@ -100,63 +176,47 @@ export function Reports() {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2 mt-6">
+        {CATEGORIES.map((c) => {
+          const active = c.key === category;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => {
+                setCategory(c.key);
+                setTab(c.tabs[0]);
+              }}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {t(`reportsPage.categories.${c.key}`)}
+            </button>
+          );
+        })}
+      </div>
+
       <Tabs
-        value={tab}
+        value={activeTabs.includes(tab) ? tab : activeTabs[0]}
         onValueChange={(v) => setTab(v as TabKey)}
-        className="mt-6"
+        className="mt-4"
       >
         <TabsList className="flex flex-wrap h-auto justify-start gap-1">
-          <TabsTrigger value="trialBalance">
-            {t("reportsPage.tabs.trialBalance")}
-          </TabsTrigger>
-          <TabsTrigger value="incomeStatement">
-            {t("reportsPage.tabs.incomeStatement")}
-          </TabsTrigger>
-          <TabsTrigger value="balanceSheet">
-            {t("reportsPage.tabs.balanceSheet")}
-          </TabsTrigger>
-          <TabsTrigger value="generalLedger">
-            {t("reportsPage.tabs.generalLedger")}
-          </TabsTrigger>
-          <TabsTrigger value="partyStatement">
-            {t("reportsPage.tabs.partyStatement")}
-          </TabsTrigger>
-          <TabsTrigger value="aging">{t("reportsPage.tabs.aging")}</TabsTrigger>
-          <TabsTrigger value="outstanding">
-            {t("reportsPage.tabs.outstanding")}
-          </TabsTrigger>
-          <TabsTrigger value="tax">{t("reportsPage.tabs.tax")}</TabsTrigger>
+          {activeTabs.map((k) => (
+            <TabsTrigger key={k} value={k}>
+              {t(`reportsPage.tabs.${k}`)}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="trialBalance" className="mt-6">
-          <TrialBalanceTab fmt={fmt} lang={lang} cc={cc} />
-        </TabsContent>
-        <TabsContent value="incomeStatement" className="mt-6">
-          <IncomeStatementTab fmt={fmt} lang={lang} cc={cc} />
-        </TabsContent>
-        <TabsContent value="balanceSheet" className="mt-6">
-          <BalanceSheetTab fmt={fmt} lang={lang} cc={cc} />
-        </TabsContent>
-        <TabsContent value="generalLedger" className="mt-6">
-          <GeneralLedgerTab
-            fmt={fmt}
-            lang={lang}
-            leafAccounts={leafAccounts}
-            cc={cc}
-          />
-        </TabsContent>
-        <TabsContent value="partyStatement" className="mt-6">
-          <PartyStatementTab fmt={fmt} lang={lang} />
-        </TabsContent>
-        <TabsContent value="aging" className="mt-6">
-          <AgingTab fmt={fmt} />
-        </TabsContent>
-        <TabsContent value="outstanding" className="mt-6">
-          <OutstandingTab fmt={fmt} />
-        </TabsContent>
-        <TabsContent value="tax" className="mt-6">
-          <TaxReports fmt={fmt} lang={lang} />
-        </TabsContent>
+        {activeTabs.map((k) => (
+          <TabsContent key={k} value={k} className="mt-6">
+            {renderTab(k)}
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );
@@ -1345,6 +1405,540 @@ function OutstandingTab({ fmt }: { fmt: Fmt }) {
               ))}
             </tbody>
           </table>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ---- Excel export button (shared by analytical tabs) ----
+function ExcelButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={onClick}
+      className="px-4 py-2 rounded-lg text-sm font-semibold border border-border bg-card hover:bg-muted"
+    >
+      {t("reportsPage.export.excel")}
+    </button>
+  );
+}
+
+function openExport(slug: string, from?: string, to?: string) {
+  const qs = new URLSearchParams();
+  if (from) qs.set("from", from);
+  if (to) qs.set("to", to);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  // Same-origin GET download; the session cookie is sent automatically.
+  window.open(`/api/reports/${slug}/export${suffix}`, "_blank");
+}
+
+function TotalRow({
+  label,
+  value,
+  fmt,
+}: {
+  label: string;
+  value: number;
+  fmt: Fmt;
+}) {
+  return (
+    <div className="rounded-2xl px-6 py-4 flex items-center justify-between font-bold bg-muted/40 border border-border">
+      <span>{label}</span>
+      <span className="tabular-nums">{fmt(value)}</span>
+    </div>
+  );
+}
+
+// ---- Cash flow statement ----
+function CashFlowTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+  const { t } = useTranslation();
+  const [from, setFrom] = useState(startOfYear());
+  const [to, setTo] = useState(today());
+  const { data, isLoading } = useGetCashFlow({
+    from: from || undefined,
+    to: to || undefined,
+  });
+
+  const section = (title: string, lines: CashFlowLine[], total: number) => (
+    <Card>
+      <div className="px-4 py-3 bg-muted/50 font-bold flex justify-between">
+        <span>{title}</span>
+        <span className="tabular-nums">{fmt(total)}</span>
+      </div>
+      <table className="w-full text-sm">
+        <tbody>
+          {lines.length === 0 ? (
+            <tr>
+              <td className="px-4 py-6 text-center text-muted-foreground" colSpan={2}>
+                {t("reportsPage.noData")}
+              </td>
+            </tr>
+          ) : (
+            lines.map((l) => (
+              <tr key={l.accountId} className="border-t border-border">
+                <td className="px-4 py-2.5">
+                  <span className="font-mono text-xs text-muted-foreground me-2">
+                    {l.code}
+                  </span>
+                  {displayName(l, lang)}
+                </td>
+                <td className="px-4 py-2.5 text-end tabular-nums">
+                  {fmt(l.amount)}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </Card>
+  );
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+        {data && (
+          <div className="mb-4">
+            <ExcelButton onClick={() => openExport("cash-flow", from, to)} />
+          </div>
+        )}
+      </div>
+      {isLoading ? (
+        <Loading />
+      ) : !data ? (
+        <Empty />
+      ) : (
+        <div className="grid gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <TotalRow
+              label={t("reportsPage.cashFlow.openingCash")}
+              value={data.openingCash}
+              fmt={fmt}
+            />
+            <TotalRow
+              label={t("reportsPage.cashFlow.closingCash")}
+              value={data.closingCash}
+              fmt={fmt}
+            />
+          </div>
+          {section(
+            t("reportsPage.cashFlow.inflows"),
+            data.inflows,
+            data.totalInflow,
+          )}
+          {section(
+            t("reportsPage.cashFlow.outflows"),
+            data.outflows,
+            data.totalOutflow,
+          )}
+          <div
+            className={`rounded-2xl px-6 py-5 flex items-center justify-between font-bold text-lg ${
+              data.netCashFlow >= 0
+                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                : "bg-red-50 text-red-800 border border-red-200"
+            }`}
+          >
+            <span>{t("reportsPage.cashFlow.netCashFlow")}</span>
+            <span className="tabular-nums">{fmt(data.netCashFlow)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Cash forecast ----
+const FORECAST_BUCKETS: Record<string, string> = {
+  overdue: "reportsPage.cashForecast.overdue",
+  d0_30: "reportsPage.cashForecast.d0_30",
+  d31_60: "reportsPage.cashForecast.d31_60",
+  d61_90: "reportsPage.cashForecast.d61_90",
+  beyond: "reportsPage.cashForecast.beyond",
+};
+
+function CashForecastTab({ fmt }: { fmt: Fmt }) {
+  const { t } = useTranslation();
+  const [asOf, setAsOf] = useState(today());
+  const { data, isLoading } = useGetCashForecast({ asOf: asOf || undefined });
+
+  const bucketLabel = (b: CashForecastBucket) =>
+    FORECAST_BUCKETS[b.key]
+      ? t(FORECAST_BUCKETS[b.key])
+      : b.key;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-muted-foreground">
+              {t("reportsPage.cashForecast.asOf")}
+            </span>
+            <input
+              type="date"
+              value={asOf}
+              onChange={(e) => setAsOf(e.target.value)}
+              className="border border-border rounded-lg px-3 py-2 bg-background"
+            />
+          </label>
+          <p className="text-sm text-muted-foreground max-w-md">
+            {t("reportsPage.cashForecast.note")}
+          </p>
+        </div>
+        {data && (
+          <ExcelButton
+            onClick={() => {
+              const qs = new URLSearchParams();
+              if (asOf) qs.set("asOf", asOf);
+              window.open(
+                `/api/reports/cash-forecast/export?${qs.toString()}`,
+                "_blank",
+              );
+            }}
+          />
+        )}
+      </div>
+      {isLoading ? (
+        <Loading />
+      ) : !data ? (
+        <Empty />
+      ) : (
+        <div className="grid gap-4">
+          <TotalRow
+            label={t("reportsPage.cashForecast.currentCash")}
+            value={data.currentCash}
+            fmt={fmt}
+          />
+          <Card>
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="text-start px-4 py-3 font-semibold">
+                    {t("reportsPage.cashForecast.period")}
+                  </th>
+                  <th className="text-end px-4 py-3 font-semibold">
+                    {t("reportsPage.cashForecast.inflow")}
+                  </th>
+                  <th className="text-end px-4 py-3 font-semibold">
+                    {t("reportsPage.cashForecast.outflow")}
+                  </th>
+                  <th className="text-end px-4 py-3 font-semibold">
+                    {t("reportsPage.cashForecast.net")}
+                  </th>
+                  <th className="text-end px-4 py-3 font-semibold">
+                    {t("reportsPage.cashForecast.projectedCash")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.buckets.map((b) => (
+                  <tr key={b.key} className="border-t border-border">
+                    <td className="px-4 py-2.5">{bucketLabel(b)}</td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">
+                      {b.inflow ? fmt(b.inflow) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">
+                      {b.outflow ? fmt(b.outflow) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums">
+                      {fmt(b.net)}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums font-semibold">
+                      {fmt(b.projectedCash)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/30 font-bold">
+                  <td className="px-4 py-3">
+                    {t("reportsPage.table.total")}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums">
+                    {fmt(data.totalInflow)}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums">
+                    {fmt(data.totalOutflow)}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums">
+                    {fmt(data.netExpected)}
+                  </td>
+                  <td className="px-4 py-3 text-end tabular-nums">
+                    {fmt(data.projectedCash)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Sales / purchases by item (shared view) ----
+function ByItemView({
+  slug,
+  rows,
+  totalQuantity,
+  totalAmount,
+  isLoading,
+  from,
+  to,
+  setFrom,
+  setTo,
+  fmt,
+  lang,
+}: {
+  slug: string;
+  rows: ItemSalesRow[] | undefined;
+  totalQuantity: number | undefined;
+  totalAmount: number | undefined;
+  isLoading: boolean;
+  from: string;
+  to: string;
+  setFrom: (v: string) => void;
+  setTo: (v: string) => void;
+  fmt: Fmt;
+  lang: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+        {rows && rows.length > 0 && (
+          <div className="mb-4">
+            <ExcelButton onClick={() => openExport(slug, from, to)} />
+          </div>
+        )}
+      </div>
+      {isLoading ? (
+        <Loading />
+      ) : !rows || rows.length === 0 ? (
+        <Empty />
+      ) : (
+        <Card>
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-muted-foreground">
+              <tr>
+                <th className="text-start px-4 py-3 font-semibold">
+                  {t("reportsPage.byItem.type")}
+                </th>
+                <th className="text-start px-4 py-3 font-semibold">
+                  {t("reportsPage.table.code")}
+                </th>
+                <th className="text-start px-4 py-3 font-semibold">
+                  {t("reportsPage.byItem.item")}
+                </th>
+                <th className="text-end px-4 py-3 font-semibold">
+                  {t("reportsPage.byItem.quantity")}
+                </th>
+                <th className="text-end px-4 py-3 font-semibold">
+                  {t("reportsPage.table.total")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={`${r.code}-${i}`} className="border-t border-border">
+                  <td className="px-4 py-2.5">
+                    {r.groupType === "item"
+                      ? t("reportsPage.byItem.typeItem")
+                      : t("reportsPage.byItem.typeService")}
+                  </td>
+                  <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">
+                    {r.code}
+                  </td>
+                  <td className="px-4 py-2.5">{displayName(r, lang)}</td>
+                  <td className="px-4 py-2.5 text-end tabular-nums">
+                    {fmt(r.quantity)}
+                  </td>
+                  <td className="px-4 py-2.5 text-end tabular-nums font-semibold">
+                    {fmt(r.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-border bg-muted/30 font-bold">
+                <td className="px-4 py-3" colSpan={3}>
+                  {t("reportsPage.table.total")}
+                </td>
+                <td className="px-4 py-3 text-end tabular-nums">
+                  {fmt(totalQuantity ?? 0)}
+                </td>
+                <td className="px-4 py-3 text-end tabular-nums">
+                  {fmt(totalAmount ?? 0)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function SalesByItemTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+  const [from, setFrom] = useState(startOfYear());
+  const [to, setTo] = useState(today());
+  const { data, isLoading } = useGetSalesByItem({
+    from: from || undefined,
+    to: to || undefined,
+  });
+  return (
+    <ByItemView
+      slug="sales-by-item"
+      rows={data?.rows}
+      totalQuantity={data?.totalQuantity}
+      totalAmount={data?.totalAmount}
+      isLoading={isLoading}
+      from={from}
+      to={to}
+      setFrom={setFrom}
+      setTo={setTo}
+      fmt={fmt}
+      lang={lang}
+    />
+  );
+}
+
+function PurchasesByItemTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+  const [from, setFrom] = useState(startOfYear());
+  const [to, setTo] = useState(today());
+  const { data, isLoading } = useGetPurchasesByItem({
+    from: from || undefined,
+    to: to || undefined,
+  });
+  return (
+    <ByItemView
+      slug="purchases-by-item"
+      rows={data?.rows}
+      totalQuantity={data?.totalQuantity}
+      totalAmount={data?.totalAmount}
+      isLoading={isLoading}
+      from={from}
+      to={to}
+      setFrom={setFrom}
+      setTo={setTo}
+      fmt={fmt}
+      lang={lang}
+    />
+  );
+}
+
+// ---- Inventory monthly summary ----
+function InventorySummaryTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+  const { t } = useTranslation();
+  const [from, setFrom] = useState(startOfYear());
+  const [to, setTo] = useState(today());
+  const { data, isLoading } = useGetInventorySummary({
+    from: from || undefined,
+    to: to || undefined,
+  });
+  const rows = data?.rows;
+
+  const numCell = "px-3 py-2.5 text-end tabular-nums";
+  const headCell = "text-end px-3 py-3 font-semibold whitespace-nowrap";
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+        {rows && rows.length > 0 && (
+          <div className="mb-4">
+            <ExcelButton
+              onClick={() => openExport("inventory-summary", from, to)}
+            />
+          </div>
+        )}
+      </div>
+      {isLoading ? (
+        <Loading />
+      ) : !rows || rows.length === 0 ? (
+        <Empty />
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[860px]">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="text-start px-3 py-3 font-semibold">
+                    {t("reportsPage.byItem.item")}
+                  </th>
+                  <th className="text-start px-3 py-3 font-semibold">
+                    {t("reportsPage.inventory.unit")}
+                  </th>
+                  <th className={headCell}>
+                    {t("reportsPage.inventory.openingQty")}
+                  </th>
+                  <th className={headCell}>
+                    {t("reportsPage.inventory.openingValue")}
+                  </th>
+                  <th className={headCell}>{t("reportsPage.inventory.inQty")}</th>
+                  <th className={headCell}>
+                    {t("reportsPage.inventory.inValue")}
+                  </th>
+                  <th className={headCell}>{t("reportsPage.inventory.outQty")}</th>
+                  <th className={headCell}>
+                    {t("reportsPage.inventory.outValue")}
+                  </th>
+                  <th className={headCell}>
+                    {t("reportsPage.inventory.adjValue")}
+                  </th>
+                  <th className={headCell}>
+                    {t("reportsPage.inventory.closingQty")}
+                  </th>
+                  <th className={headCell}>
+                    {t("reportsPage.inventory.closingValue")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r: InventorySummaryRow) => (
+                  <tr key={r.itemId} className="border-t border-border">
+                    <td className="px-3 py-2.5">
+                      <span className="font-mono text-xs text-muted-foreground me-2">
+                        {r.code}
+                      </span>
+                      {displayName(r, lang)}
+                    </td>
+                    <td className="px-3 py-2.5">{r.unit}</td>
+                    <td className={numCell}>{fmt(r.openingQty)}</td>
+                    <td className={numCell}>{fmt(r.openingValue)}</td>
+                    <td className={numCell}>{fmt(r.inQty)}</td>
+                    <td className={numCell}>{fmt(r.inValue)}</td>
+                    <td className={numCell}>{fmt(r.outQty)}</td>
+                    <td className={numCell}>{fmt(r.outValue)}</td>
+                    <td className={numCell}>{fmt(r.adjValue)}</td>
+                    <td className={`${numCell} font-semibold`}>
+                      {fmt(r.closingQty)}
+                    </td>
+                    <td className={`${numCell} font-semibold`}>
+                      {fmt(r.closingValue)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/30 font-bold">
+                  <td className="px-3 py-3" colSpan={3}>
+                    {t("reportsPage.table.total")}
+                  </td>
+                  <td className={numCell}>{fmt(data!.totalOpeningValue)}</td>
+                  <td className="px-3 py-3" />
+                  <td className={numCell}>{fmt(data!.totalInValue)}</td>
+                  <td className="px-3 py-3" />
+                  <td className={numCell}>{fmt(data!.totalOutValue)}</td>
+                  <td className={numCell}>{fmt(data!.totalAdjValue)}</td>
+                  <td className="px-3 py-3" />
+                  <td className={numCell}>{fmt(data!.totalClosingValue)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </Card>
       )}
     </div>

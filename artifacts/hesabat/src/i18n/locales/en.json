@@ -1663,7 +1663,12 @@
       "partyStatement": "Statement of Account",
       "aging": "Aging",
       "outstanding": "Outstanding Invoices",
-      "tax": "Tax Reports"
+      "tax": "Tax Reports",
+      "cashFlow": "Cash Flow",
+      "cashForecast": "Cash Forecast",
+      "salesByItem": "Sales by Item",
+      "purchasesByItem": "Purchases by Item",
+      "inventorySummary": "Inventory Summary"
     },
     "filters": {
       "from": "From",
@@ -1787,6 +1792,55 @@
       "payrollNote": "Payroll tax is part of the deductions computed on salaries and is remitted monthly to the authority.",
       "total": "Total",
       "preparedAt": "Prepared at"
+    },
+    "categories": {
+      "financial": "Financial Statements",
+      "cash": "Cash",
+      "salesPurchases": "Sales & Purchases",
+      "inventory": "Inventory",
+      "parties": "Customers & Suppliers",
+      "tax": "Taxes"
+    },
+    "cashFlow": {
+      "openingCash": "Opening Cash",
+      "closingCash": "Closing Cash",
+      "inflows": "Cash Inflows",
+      "outflows": "Cash Outflows",
+      "netCashFlow": "Net Cash Flow"
+    },
+    "cashForecast": {
+      "note": "Forecast of upcoming cash based on customer and supplier invoice due dates.",
+      "currentCash": "Current Cash Balance",
+      "period": "Period",
+      "inflow": "Expected Inflow",
+      "outflow": "Expected Outflow",
+      "net": "Net",
+      "projectedCash": "Projected Cash",
+      "overdue": "Overdue",
+      "d0_30": "Within 30 days",
+      "d31_60": "31 - 60 days",
+      "d61_90": "61 - 90 days",
+      "beyond": "Over 90 days",
+      "asOf": "As of date"
+    },
+    "byItem": {
+      "type": "Type",
+      "item": "Item / Service",
+      "quantity": "Quantity",
+      "typeItem": "Item",
+      "typeService": "Service"
+    },
+    "inventory": {
+      "unit": "Unit",
+      "openingQty": "Opening Qty",
+      "openingValue": "Opening Value",
+      "inQty": "In Qty",
+      "inValue": "In Value",
+      "outQty": "Out Qty",
+      "outValue": "Out Value",
+      "adjValue": "Adjustments",
+      "closingQty": "Closing Qty",
+      "closingValue": "Closing Value"
     }
   }
 }
