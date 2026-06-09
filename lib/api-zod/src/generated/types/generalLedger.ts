@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CurrencyInfo } from './currencyInfo';
 import type { GeneralLedgerEntry } from './generalLedgerEntry';
 
 export interface GeneralLedger {
@@ -19,4 +20,5 @@ export interface GeneralLedger {
   openingBalance: number;
   closingBalance: number;
   entries: GeneralLedgerEntry[];
+  currencyInfo?: CurrencyInfo;
 }

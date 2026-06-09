@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AccountUpdateCurrencyType } from './accountUpdateCurrencyType';
 import type { AccountUpdateType } from './accountUpdateType';
 
 export interface AccountUpdate {
@@ -15,6 +16,9 @@ export interface AccountUpdate {
   /** @nullable */
   nameEn?: string | null;
   type?: AccountUpdateType;
+  currencyType?: AccountUpdateCurrencyType;
+  /** @nullable */
+  currency?: string | null;
   /** @nullable */
   parentId?: string | null;
   isGroup?: boolean;

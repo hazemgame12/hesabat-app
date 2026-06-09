@@ -13,6 +13,7 @@ import {
   accountsTable,
   taxesTable,
   costCentersTable,
+  companiesTable,
   type JournalEntry,
   type JournalEntryLine,
   type JournalEntryAttachment,
@@ -23,7 +24,26 @@ import { requireCapability } from "../middleware/require-capability";
 import { uploadsDir } from "./uploads";
 import { lockCompanyEntryNo, allocateEntryNo } from "../lib/journal-posting";
 import { isPeriodClosed } from "../lib/fiscal-year";
+import {
+  assertAccountAcceptsCurrency,
+  CurrencyMismatchError,
+} from "../lib/currency";
 import { safeAudit } from "../lib/audit";
+
+// Builds the Arabic message for a rejected line currency.
+function currencyMismatchMessage(e: CurrencyMismatchError): string {
+  return `الحساب ${e.accountCode}: العملة ${e.actual} غير مسموحة، المطلوب ${e.expected}`;
+}
+
+// Looks up the company base currency (defaults to EGP).
+async function getBaseCurrency(companyId: string): Promise<string> {
+  const [company] = await db
+    .select({ baseCurrency: companiesTable.baseCurrency })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  return company?.baseCurrency ?? "EGP";
+}
 
 const router = Router();
 
@@ -205,7 +225,13 @@ async function validateLineRefs(
   ];
 
   const accounts = await db
-    .select({ id: accountsTable.id, isGroup: accountsTable.isGroup })
+    .select({
+      id: accountsTable.id,
+      code: accountsTable.code,
+      isGroup: accountsTable.isGroup,
+      currencyType: accountsTable.currencyType,
+      currency: accountsTable.currency,
+    })
     .from(accountsTable)
     .where(
       and(
@@ -218,6 +244,18 @@ async function validateLineRefs(
     const acc = accountMap.get(id);
     if (!acc) return "أحد الحسابات المحددة غير موجود";
     if (acc.isGroup) return "لا يمكن الترحيل إلى حساب رئيسي";
+  }
+
+  // Enforce each account's currency rule (base/fixed/multi) on its lines.
+  const baseCurrency = await getBaseCurrency(companyId);
+  for (const l of lines) {
+    const acc = accountMap.get(l.accountId)!;
+    try {
+      assertAccountAcceptsCurrency(acc, l.currency, baseCurrency);
+    } catch (e) {
+      if (e instanceof CurrencyMismatchError) return currencyMismatchMessage(e);
+      throw e;
+    }
   }
 
   if (taxIds.length > 0) {
@@ -1551,10 +1589,13 @@ router.post(
           id: accountsTable.id,
           code: accountsTable.code,
           isGroup: accountsTable.isGroup,
+          currencyType: accountsTable.currencyType,
+          currency: accountsTable.currency,
         })
         .from(accountsTable)
         .where(eq(accountsTable.companyId, companyId));
       const byCode = new Map(accounts.map((a) => [a.code, a]));
+      const importBaseCurrency = await getBaseCurrency(companyId);
 
       // Validate every group up-front so the import is all-or-nothing.
       type Resolved = {
@@ -1583,6 +1624,17 @@ router.post(
           if (acc.isGroup) {
             res.status(400).json({ error: `القيد ${key}: لا يمكن الترحيل إلى حساب رئيسي (${l.accountCode})` });
             return;
+          }
+          try {
+            assertAccountAcceptsCurrency(acc, l.currency, importBaseCurrency);
+          } catch (e) {
+            if (e instanceof CurrencyMismatchError) {
+              res.status(400).json({
+                error: `القيد ${key}: ${currencyMismatchMessage(e)}`,
+              });
+              return;
+            }
+            throw e;
           }
           lineInputs.push({
             accountId: acc.id,

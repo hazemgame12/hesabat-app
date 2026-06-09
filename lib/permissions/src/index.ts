@@ -91,6 +91,8 @@ export const CAPABILITIES = [
   "custodies:create",
   "custodies:update",
   "custodies:delete",
+  "revaluation:read",
+  "revaluation:run",
   "audit:read",
   "fiscalyear:read",
   "fiscalyear:manage",
@@ -207,6 +209,8 @@ const CUSTODIES_FULL: Capability[] = [
   "custodies:delete",
 ];
 
+const REVALUATION_FULL: Capability[] = ["revaluation:read", "revaluation:run"];
+
 export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
   owner: [
     "team:manage",
@@ -226,6 +230,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...BANK_FULL,
     ...ADVANCES_FULL,
     ...CUSTODIES_FULL,
+    ...REVALUATION_FULL,
     "audit:read",
     "fiscalyear:read",
     "fiscalyear:manage",
@@ -247,6 +252,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     ...BANK_FULL,
     ...ADVANCES_FULL,
     ...CUSTODIES_FULL,
+    ...REVALUATION_FULL,
     "audit:read",
     "fiscalyear:read",
     "fiscalyear:manage",
@@ -300,6 +306,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "custodies:read",
     "custodies:create",
     "custodies:update",
+    "revaluation:read",
+    "revaluation:run",
     "fiscalyear:read",
   ],
   data_entry: [
@@ -332,6 +340,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "advances:create",
     "custodies:read",
     "custodies:create",
+    "revaluation:read",
     "fiscalyear:read",
   ],
   viewer: [
@@ -350,6 +359,7 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "bank:read",
     "advances:read",
     "custodies:read",
+    "revaluation:read",
     "fiscalyear:read",
   ],
 };

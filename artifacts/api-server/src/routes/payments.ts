@@ -21,6 +21,7 @@ import {
   lockCompanyEntryNo,
 } from "../lib/journal-posting";
 import { round2 } from "../lib/inventory-posting";
+import { ensureFxAccounts } from "../lib/seed-accounts";
 
 const router = Router();
 
@@ -364,6 +365,11 @@ router.post(
       const rate = Number(d.exchangeRate ?? 1);
       const amountBase = round2(d.amount * rate);
       const created = await db.transaction(async (tx) => {
+        // Accumulates the base value of the AR/AP being cleared at the rate each
+        // invoice was originally booked at. The difference vs. the payment's base
+        // value (cash) is the REALIZED FX gain/loss recognized on settlement.
+        let allocatedBaseAtInvoiceRate = 0;
+        let allocatedForeign = 0;
         // GLOBAL LOCK ORDER: invoice rows first, THEN the company entry-no
         // advisory lock — identical to the approve handler — so approve and
         // payment-allocation on the same invoice can never deadlock. Lock each
@@ -377,6 +383,7 @@ router.post(
               total: invoicesTable.total,
               amountPaid: invoicesTable.amountPaid,
               status: invoicesTable.status,
+              exchangeRate: invoicesTable.exchangeRate,
             })
             .from(invoicesTable)
             .where(
@@ -406,10 +413,31 @@ router.post(
                 eq(invoicesTable.companyId, companyId),
               ),
             );
+          // Base value of this allocation at the invoice's booked rate.
+          allocatedBaseAtInvoiceRate = round2(
+            allocatedBaseAtInvoiceRate + amount * Number(inv.exchangeRate),
+          );
+          allocatedForeign = round2(allocatedForeign + amount);
         }
 
         await lockCompanyEntryNo(tx, companyId);
         const paymentNo = await nextPaymentNo(tx, companyId, d.kind);
+
+        // The portion of the payment NOT applied to invoices (advance/overpay)
+        // is carried on the party account at the payment's own rate; the applied
+        // portion clears the booked AR/AP at the invoice rate. The base gap is
+        // the realized FX gain/loss.
+        const unallocatedForeign = round2(d.amount - allocatedForeign);
+        const partyBase = round2(
+          allocatedBaseAtInvoiceRate + unallocatedForeign * rate,
+        );
+        // Realized FX measured so a positive value is always a GAIN: for a
+        // collection we received more base than the AR was booked at; for a
+        // payment we settled the AP for less base than it was booked at.
+        const fxGain =
+          d.kind === "collection"
+            ? round2(amountBase - partyBase)
+            : round2(partyBase - amountBase);
 
         const cashLine = {
           accountId: d.cashAccountId,
@@ -426,9 +454,33 @@ router.post(
             d.kind === "collection"
               ? `تحصيل من ${partyName}`
               : `دفعة إلى ${partyName}`,
-          debit: d.kind === "collection" ? 0 : amountBase,
-          credit: d.kind === "collection" ? amountBase : 0,
+          debit: d.kind === "collection" ? 0 : partyBase,
+          credit: d.kind === "collection" ? partyBase : 0,
         };
+        const lines = [cashLine, partyLine];
+        if (Math.abs(fxGain) > MONEY_EPS) {
+          const { gainAccountId, lossAccountId } = await ensureFxAccounts(
+            tx,
+            companyId,
+          );
+          if (fxGain > 0) {
+            // Gain → credit FX gains (revenue).
+            lines.push({
+              accountId: gainAccountId,
+              description: "أرباح فروق العملة",
+              debit: 0,
+              credit: fxGain,
+            });
+          } else {
+            // Loss → debit FX losses (expense).
+            lines.push({
+              accountId: lossAccountId,
+              description: "خسائر فروق العملة",
+              debit: -fxGain,
+              credit: 0,
+            });
+          }
+        }
         const entry = await createDraftJournalEntry(tx, {
           companyId,
           baseCurrency,
@@ -437,7 +489,7 @@ router.post(
           notes: d.notes ?? null,
           createdBy: req.auth!.userId,
           status: "posted",
-          lines: [cashLine, partyLine],
+          lines,
         });
 
         const [payment] = await tx

@@ -22,6 +22,13 @@ export const accountsTable = pgTable(
     nameAr: text("name_ar").notNull(),
     nameEn: text("name_en"),
     type: text("type").notNull(),
+    // Multi-currency behaviour of the account:
+    //   'base'  → only accepts the company base currency (default).
+    //   'fixed' → only accepts the single currency in `currency`.
+    //   'multi' → accepts any active company currency.
+    currencyType: text("currency_type").notNull().default("base"),
+    // The assigned currency code, only meaningful when currencyType = 'fixed'.
+    currency: text("currency"),
     parentId: uuid("parent_id").references((): AnyPgColumn => accountsTable.id, {
       onDelete: "set null",
     }),

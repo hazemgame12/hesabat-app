@@ -33,6 +33,8 @@ export * from "./invitations";
 export * from "./taxes";
 export * from "./cost-centers";
 export * from "./currencies";
+export * from "./exchange-rates";
+export * from "./revaluations";
 export * from "./journal-entries";
 export * from "./fiscal-years";
 export * from "./fixed-assets";

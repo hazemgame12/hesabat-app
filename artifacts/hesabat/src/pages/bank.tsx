@@ -5,6 +5,7 @@ import {
   useCreateBankAccount,
   useUpdateBankAccount,
   useDeleteBankAccount,
+  useListCurrencies,
   useListBankMovements,
   useCreateBankMovement,
   useDeleteBankMovement,
@@ -505,6 +506,14 @@ function AccountModal({
   updateAccount: ReturnType<typeof useUpdateBankAccount>;
 }) {
   const { toast } = useToast();
+  const { data: currencies = [] } = useListCurrencies();
+  const currencyCodes = useMemo(() => {
+    const codes = ["EGP"];
+    for (const c of currencies) {
+      if (c.isActive && c.code !== "EGP") codes.push(c.code);
+    }
+    return codes;
+  }, [currencies]);
   const [nameAr, setNameAr] = useState(account?.nameAr ?? "");
   const [nameEn, setNameEn] = useState(account?.nameEn ?? "");
   const [type, setType] = useState<AccountType>(
@@ -627,12 +636,18 @@ function AccountModal({
           </div>
           <div className="col-span-2 sm:col-span-1">
             <label className={labelCls}>{t("bank.account.currency")}</label>
-            <input
+            <select
               className={inputCls}
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
               dir="ltr"
-            />
+            >
+              {currencyCodes.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="col-span-2 sm:col-span-1">
             <label className={labelCls}>{t("bank.account.bankName")}</label>

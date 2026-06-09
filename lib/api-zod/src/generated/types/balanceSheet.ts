@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CurrencyInfo } from './currencyInfo';
 import type { PnlLine } from './pnlLine';
 
 export interface BalanceSheet {
@@ -19,4 +20,5 @@ export interface BalanceSheet {
   totalEquity: number;
   totalLiabilitiesAndEquity: number;
   balanced: boolean;
+  currencyInfo?: CurrencyInfo;
 }

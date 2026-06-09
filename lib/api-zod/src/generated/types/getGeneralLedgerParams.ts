@@ -10,4 +10,5 @@ export type GetGeneralLedgerParams = {
 accountId: string;
 from?: string;
 to?: string;
+reportCurrency?: string;
 };

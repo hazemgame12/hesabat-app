@@ -1,6 +1,12 @@
 import { Router } from "express";
 import { and, eq, asc } from "drizzle-orm";
-import { db, accountsTable, type Account } from "@workspace/db";
+import {
+  db,
+  accountsTable,
+  currenciesTable,
+  companiesTable,
+  type Account,
+} from "@workspace/db";
 import { CreateAccountBody, UpdateAccountBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
@@ -25,10 +31,34 @@ function toAccount(row: Account) {
     nameAr: row.nameAr,
     nameEn: row.nameEn,
     type: row.type,
+    currencyType: row.currencyType ?? "base",
+    currency: row.currency,
     parentId: row.parentId,
     isGroup: row.isGroup,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+const CURRENCY_TYPES = ["base", "fixed", "multi"] as const;
+
+// Normalizes the currency type + assigned currency for an account write: fixed
+// accounts require an explicit currency; base/multi accounts never carry one.
+function normalizeAccountCurrency(input: {
+  currencyType?: string | null;
+  currency?: string | null;
+}): { currencyType: string; currency: string | null } | { error: string } {
+  const currencyType = input.currencyType ?? "base";
+  if (!CURRENCY_TYPES.includes(currencyType as (typeof CURRENCY_TYPES)[number])) {
+    return { error: "نوع عملة الحساب غير صحيح" };
+  }
+  if (currencyType === "fixed") {
+    const currency = (input.currency ?? "").trim();
+    if (!currency) {
+      return { error: "يجب تحديد العملة للحساب ذو العملة الثابتة" };
+    }
+    return { currencyType, currency };
+  }
+  return { currencyType, currency: null };
 }
 
 function isUniqueViolation(err: unknown): boolean {
@@ -38,6 +68,32 @@ function isUniqueViolation(err: unknown): boolean {
     "code" in err &&
     (err as { code?: string }).code === "23505"
   );
+}
+
+// Validates that a fixed account's assigned currency is the company base
+// currency or an active company currency. Returns true when acceptable.
+async function fixedCurrencyIsValid(
+  currency: string,
+  companyId: string,
+): Promise<boolean> {
+  const [company] = await db
+    .select({ baseCurrency: companiesTable.baseCurrency })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  if (company && company.baseCurrency === currency) return true;
+  const rows = await db
+    .select({ id: currenciesTable.id })
+    .from(currenciesTable)
+    .where(
+      and(
+        eq(currenciesTable.companyId, companyId),
+        eq(currenciesTable.code, currency),
+        eq(currenciesTable.isActive, true),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 // Ensures a referenced parent account belongs to the authenticated company,
@@ -109,12 +165,24 @@ router.post("/accounts", requireAuth, requireCapability("accounts:create"), asyn
     return;
   }
   const parentId = parsed.data.parentId ?? null;
+  const cur = normalizeAccountCurrency(parsed.data);
+  if ("error" in cur) {
+    res.status(400).json({ error: cur.error });
+    return;
+  }
   try {
     if (
       parentId &&
       !(await parentBelongsToCompany(parentId, req.auth!.companyId))
     ) {
       res.status(400).json({ error: "الحساب الرئيسي غير موجود" });
+      return;
+    }
+    if (
+      cur.currency &&
+      !(await fixedCurrencyIsValid(cur.currency, req.auth!.companyId))
+    ) {
+      res.status(400).json({ error: "العملة المحددة غير مفعّلة" });
       return;
     }
     const [row] = await db
@@ -125,6 +193,8 @@ router.post("/accounts", requireAuth, requireCapability("accounts:create"), asyn
         nameAr: parsed.data.nameAr,
         nameEn: parsed.data.nameEn ?? null,
         type: parsed.data.type,
+        currencyType: cur.currencyType,
+        currency: cur.currency,
         parentId,
         isGroup: parsed.data.isGroup ?? false,
       })
@@ -156,6 +226,17 @@ router.patch("/accounts/:id", requireAuth, requireCapability("accounts:update"),
   if (parsed.data.nameAr !== undefined) updates["nameAr"] = parsed.data.nameAr;
   if (parsed.data.nameEn !== undefined) updates["nameEn"] = parsed.data.nameEn;
   if (parsed.data.type !== undefined) updates["type"] = parsed.data.type;
+  let fixedCurrencyToValidate: string | null = null;
+  if (parsed.data.currencyType !== undefined) {
+    const cur = normalizeAccountCurrency(parsed.data);
+    if ("error" in cur) {
+      res.status(400).json({ error: cur.error });
+      return;
+    }
+    updates["currencyType"] = cur.currencyType;
+    updates["currency"] = cur.currency;
+    fixedCurrencyToValidate = cur.currency;
+  }
   if (parsed.data.parentId !== undefined)
     updates["parentId"] = parsed.data.parentId;
   if (parsed.data.isGroup !== undefined)
@@ -165,6 +246,13 @@ router.patch("/accounts/:id", requireAuth, requireCapability("accounts:update"),
     return;
   }
   try {
+    if (
+      fixedCurrencyToValidate &&
+      !(await fixedCurrencyIsValid(fixedCurrencyToValidate, req.auth!.companyId))
+    ) {
+      res.status(400).json({ error: "العملة المحددة غير مفعّلة" });
+      return;
+    }
     const nextParentId = updates["parentId"] as string | null | undefined;
     if (nextParentId) {
       if (nextParentId === id) {

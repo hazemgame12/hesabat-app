@@ -22,7 +22,8 @@ import {
   Scale,
   Settings,
   History,
-  CalendarRange
+  CalendarRange,
+  TrendingUp
 } from "lucide-react";
 
 type NavItem = {
@@ -46,6 +47,7 @@ const navItems: NavItem[] = [
   { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
   { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
   { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
+  { labelKey: "nav.revaluation", icon: TrendingUp, href: "/revaluation", requires: "revaluation:read" },
   { labelKey: "nav.reports", icon: FileText, href: "/reports" },
   { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
   { labelKey: "nav.fiscalYears", icon: CalendarRange, href: "/fiscal-years", requires: "fiscalyear:read" },

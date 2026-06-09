@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type Account } from "@workspace/api-client-react";
+import { type Account, useListCurrencies } from "@workspace/api-client-react";
 import { Plus, X, Check, Trash2, Edit2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
@@ -140,6 +140,15 @@ export function PartyManager({
   const { toast } = useToast();
   const ns = config.ns;
   const Icon = config.icon;
+
+  const { data: currencies = [] } = useListCurrencies();
+  const currencyCodes = useMemo(() => {
+    const codes = ["EGP"];
+    for (const c of currencies) {
+      if (c.isActive && c.code !== "EGP") codes.push(c.code);
+    }
+    return codes;
+  }, [currencies]);
 
   const groupAccounts = useMemo(
     () => accounts.filter((a: Account) => a.isGroup),
@@ -589,7 +598,25 @@ export function PartyManager({
                 type: "email",
               })}
               {field("address", "address", { optional: true, colSpan: true })}
-              {field("currency", "currency", { dir: "ltr", optional: true })}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">
+                  {t(`${ns}.currency`)}
+                  <span className="text-xs font-medium text-muted-foreground ms-2">
+                    {t(`${ns}.optional`)}
+                  </span>
+                </label>
+                <select
+                  dir="ltr"
+                  className="bg-background border rounded-xl h-11 px-4 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  {...register("currency")}
+                >
+                  {currencyCodes.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {field("creditPeriodDays", "creditPeriodDays", {
                 dir: "ltr",
                 optional: true,

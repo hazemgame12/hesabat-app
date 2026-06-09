@@ -3,6 +3,7 @@ import { and, eq, gte, lt, lte, sql } from "drizzle-orm";
 import {
   db,
   accountsTable,
+  companiesTable,
   journalEntriesTable,
   journalEntryLinesTable,
 } from "@workspace/db";
@@ -10,8 +11,66 @@ import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { round2 } from "../lib/inventory-posting";
 import { exportWorkbook } from "../lib/excel";
+import { getRateForDate } from "../lib/currency";
 
 const router = Router();
+
+// ---- Report-currency conversion (display only) ------------------------------
+// Financial reports are computed in the company base currency. When a caller
+// asks for a different "report currency", we divide each base-currency figure by
+// that currency's exchange rate (value of 1 unit in base) as of the report's end
+// date. This is a pure presentation conversion — nothing is re-posted.
+type CurrencyInfo = {
+  baseCurrency: string;
+  reportCurrency: string;
+  rate: number;
+};
+
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Reads the company base currency (defaults to EGP), scoped to the tenant.
+async function loadBaseCurrency(companyId: string): Promise<string> {
+  const [company] = await db
+    .select({ baseCurrency: companiesTable.baseCurrency })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  return (company?.baseCurrency || "EGP").toUpperCase();
+}
+
+type ResolveCurrencyResult =
+  | { ok: true; info: CurrencyInfo }
+  | { ok: false };
+
+// Resolves the conversion context for a report. When no currency is requested or
+// it equals the base currency, returns rate=1 (no conversion). Otherwise looks up
+// the rate as of `asOfDate` (falling back to today) and fails when none exists.
+async function resolveReportCurrency(
+  companyId: string,
+  requested: string | null,
+  asOfDate: string | null,
+): Promise<ResolveCurrencyResult> {
+  const baseCurrency = await loadBaseCurrency(companyId);
+  if (!requested || requested.toUpperCase() === baseCurrency) {
+    return {
+      ok: true,
+      info: { baseCurrency, reportCurrency: baseCurrency, rate: 1 },
+    };
+  }
+  const rate = await getRateForDate(
+    db,
+    companyId,
+    requested,
+    asOfDate || todayStr(),
+    baseCurrency,
+  );
+  if (rate === null || !(rate > 0)) return { ok: false };
+  return { ok: true, info: { baseCurrency, reportCurrency: requested, rate } };
+}
+
+const NO_RATE_ERROR = "لا يوجد سعر صرف لهذه العملة في هذا التاريخ";
 
 // Validate optional from/to query dates: each must be YYYY-MM-DD (a real date)
 // and from must not be after to. Returns an error string, or null when valid.
@@ -234,6 +293,36 @@ async function computeTrialBalance(
   };
 }
 
+type TrialBalanceResult = Awaited<ReturnType<typeof computeTrialBalance>>;
+
+// Converts every base-currency figure of the trial balance into the report
+// currency: per-row opening/period/closing debit & credit and their six totals.
+// Codes, names, types, dates and the `balanced` flag are left untouched.
+function convertTrialBalance(
+  report: TrialBalanceResult,
+  rate: number,
+): TrialBalanceResult {
+  const c = (n: number) => round2(n / rate);
+  return {
+    ...report,
+    rows: report.rows.map((row) => ({
+      ...row,
+      openingDebit: c(row.openingDebit),
+      openingCredit: c(row.openingCredit),
+      periodDebit: c(row.periodDebit),
+      periodCredit: c(row.periodCredit),
+      closingDebit: c(row.closingDebit),
+      closingCredit: c(row.closingCredit),
+    })),
+    totalOpeningDebit: c(report.totalOpeningDebit),
+    totalOpeningCredit: c(report.totalOpeningCredit),
+    totalPeriodDebit: c(report.totalPeriodDebit),
+    totalPeriodCredit: c(report.totalPeriodCredit),
+    totalClosingDebit: c(report.totalClosingDebit),
+    totalClosingCredit: c(report.totalClosingCredit),
+  };
+}
+
 router.get(
   "/reports/trial-balance",
   requireAuth,
@@ -241,13 +330,24 @@ router.get(
   async (req, res) => {
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
+    const reportCurrency =
+      (req.query["reportCurrency"] as string | undefined) || null;
     const dateErr = validateDateRange(from, to);
     if (dateErr) {
       res.status(400).json({ error: dateErr });
       return;
     }
     try {
-      res.json(await computeTrialBalance(req.auth!.companyId, from, to));
+      const companyId = req.auth!.companyId;
+      // End of the report's period drives the rate lookup.
+      const ccy = await resolveReportCurrency(companyId, reportCurrency, to);
+      if (!ccy.ok) {
+        res.status(400).json({ error: NO_RATE_ERROR });
+        return;
+      }
+      let report = await computeTrialBalance(companyId, from, to);
+      if (ccy.info.rate !== 1) report = convertTrialBalance(report, ccy.info.rate);
+      res.json({ ...report, currencyInfo: ccy.info });
     } catch (err) {
       req.log.error({ err }, "Failed to build trial balance");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -378,6 +478,25 @@ async function computeIncomeStatement(
   };
 }
 
+type IncomeStatementResult = Awaited<ReturnType<typeof computeIncomeStatement>>;
+
+// Converts the income statement's base-currency figures: each revenue/expense
+// line amount and the totalRevenue / totalExpenses / netProfit totals.
+function convertIncomeStatement(
+  report: IncomeStatementResult,
+  rate: number,
+): IncomeStatementResult {
+  const c = (n: number) => round2(n / rate);
+  return {
+    ...report,
+    revenue: report.revenue.map((l) => ({ ...l, amount: c(l.amount) })),
+    expenses: report.expenses.map((l) => ({ ...l, amount: c(l.amount) })),
+    totalRevenue: c(report.totalRevenue),
+    totalExpenses: c(report.totalExpenses),
+    netProfit: c(report.netProfit),
+  };
+}
+
 router.get(
   "/reports/income-statement",
   requireAuth,
@@ -385,8 +504,19 @@ router.get(
   async (req, res) => {
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
+    const reportCurrency =
+      (req.query["reportCurrency"] as string | undefined) || null;
     try {
-      res.json(await computeIncomeStatement(req.auth!.companyId, from, to));
+      const companyId = req.auth!.companyId;
+      const ccy = await resolveReportCurrency(companyId, reportCurrency, to);
+      if (!ccy.ok) {
+        res.status(400).json({ error: NO_RATE_ERROR });
+        return;
+      }
+      let report = await computeIncomeStatement(companyId, from, to);
+      if (ccy.info.rate !== 1)
+        report = convertIncomeStatement(report, ccy.info.rate);
+      res.json({ ...report, currencyInfo: ccy.info });
     } catch (err) {
       req.log.error({ err }, "Failed to build income statement");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -509,14 +639,49 @@ async function computeBalanceSheet(companyId: string, asOf: string | null) {
   };
 }
 
+type BalanceSheetResult = Awaited<ReturnType<typeof computeBalanceSheet>>;
+
+// Converts the balance sheet's base-currency figures: each asset/liability/equity
+// line amount, the netResult, and the four section/grand totals. The `balanced`
+// flag and the asOf date stay unchanged.
+function convertBalanceSheet(
+  report: BalanceSheetResult,
+  rate: number,
+): BalanceSheetResult {
+  const c = (n: number) => round2(n / rate);
+  return {
+    ...report,
+    assets: report.assets.map((l) => ({ ...l, amount: c(l.amount) })),
+    liabilities: report.liabilities.map((l) => ({ ...l, amount: c(l.amount) })),
+    equity: report.equity.map((l) => ({ ...l, amount: c(l.amount) })),
+    netResult: c(report.netResult),
+    totalAssets: c(report.totalAssets),
+    totalLiabilities: c(report.totalLiabilities),
+    totalEquity: c(report.totalEquity),
+    totalLiabilitiesAndEquity: c(report.totalLiabilitiesAndEquity),
+  };
+}
+
 router.get(
   "/reports/balance-sheet",
   requireAuth,
   requireCapability("journal:read"),
   async (req, res) => {
     const asOf = (req.query["asOf"] as string | undefined) || null;
+    const reportCurrency =
+      (req.query["reportCurrency"] as string | undefined) || null;
     try {
-      res.json(await computeBalanceSheet(req.auth!.companyId, asOf));
+      const companyId = req.auth!.companyId;
+      // The balance sheet's as-of date drives the rate lookup.
+      const ccy = await resolveReportCurrency(companyId, reportCurrency, asOf);
+      if (!ccy.ok) {
+        res.status(400).json({ error: NO_RATE_ERROR });
+        return;
+      }
+      let report = await computeBalanceSheet(companyId, asOf);
+      if (ccy.info.rate !== 1)
+        report = convertBalanceSheet(report, ccy.info.rate);
+      res.json({ ...report, currencyInfo: ccy.info });
     } catch (err) {
       req.log.error({ err }, "Failed to build balance sheet");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -679,6 +844,31 @@ async function computeGeneralLedger(
   };
 }
 
+type GeneralLedgerResult = NonNullable<
+  Awaited<ReturnType<typeof computeGeneralLedger>>
+>;
+
+// Converts the general ledger's base-currency figures: opening/closing balance
+// and every entry's debit, credit and running balance. Dates, entry numbers,
+// references, descriptions, codes and names are left untouched.
+function convertGeneralLedger(
+  report: GeneralLedgerResult,
+  rate: number,
+): GeneralLedgerResult {
+  const c = (n: number) => round2(n / rate);
+  return {
+    ...report,
+    openingBalance: c(report.openingBalance),
+    closingBalance: c(report.closingBalance),
+    entries: report.entries.map((e) => ({
+      ...e,
+      debit: c(e.debit),
+      credit: c(e.credit),
+      balance: c(e.balance),
+    })),
+  };
+}
+
 router.get(
   "/reports/general-ledger",
   requireAuth,
@@ -687,22 +877,30 @@ router.get(
     const accountId = req.query["accountId"];
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
+    const reportCurrency =
+      (req.query["reportCurrency"] as string | undefined) || null;
     if (typeof accountId !== "string" || !accountId) {
       res.status(400).json({ error: "الحساب مطلوب" });
       return;
     }
     try {
-      const report = await computeGeneralLedger(
-        req.auth!.companyId,
-        accountId,
-        from,
-        to,
-      );
+      const companyId = req.auth!.companyId;
+      const report = await computeGeneralLedger(companyId, accountId, from, to);
       if (!report) {
         res.status(404).json({ error: "الحساب غير موجود" });
         return;
       }
-      res.json(report);
+      // Use the "to" date of the ledger window as the rate as-of date.
+      const ccy = await resolveReportCurrency(companyId, reportCurrency, to);
+      if (!ccy.ok) {
+        res.status(400).json({ error: NO_RATE_ERROR });
+        return;
+      }
+      const out =
+        ccy.info.rate !== 1
+          ? convertGeneralLedger(report, ccy.info.rate)
+          : report;
+      res.json({ ...out, currencyInfo: ccy.info });
     } catch (err) {
       req.log.error({ err }, "Failed to build general ledger");
       res.status(500).json({ error: "حدث خطأ في الخادم" });

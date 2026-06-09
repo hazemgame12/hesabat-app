@@ -478,6 +478,113 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /currencies/rate:
+    get:
+      operationId: getCurrencyRateForDate
+      tags: [currencies]
+      summary: Get the exchange rate that applied for a currency on a given date
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateForDate"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /revaluations:
+    get:
+      operationId: listRevaluations
+      tags: [revaluations]
+      summary: List foreign-currency revaluation runs
+      responses:
+        "200":
+          description: Revaluation runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Revaluation"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /revaluations/preview:
+    get:
+      operationId: previewRevaluation
+      tags: [revaluations]
+      summary: Preview unrealized FX gain/loss as of a date without posting
+      parameters:
+        - name: asOfDate
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevaluationPreview"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /revaluations/run:
+    post:
+      operationId: runRevaluation
+      tags: [revaluations]
+      summary: Run a foreign-currency revaluation and post the FX adjustment entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevaluationRunBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Revaluation"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Already revalued for this date
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /currencies/{id}:
     patch:
       operationId: updateCurrency
@@ -3054,6 +3161,11 @@ paths:
           required: false
           schema:
             type: string
+        - name: reportCurrency
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Trial balance
@@ -3078,6 +3190,11 @@ paths:
           required: false
           schema:
             type: string
+        - name: reportCurrency
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Income statement
@@ -3093,6 +3210,11 @@ paths:
       summary: Balance sheet as of a date
       parameters:
         - name: asOf
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: reportCurrency
           in: query
           required: false
           schema:
@@ -3122,6 +3244,11 @@ paths:
           schema:
             type: string
         - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: reportCurrency
           in: query
           required: false
           schema:
@@ -3961,6 +4088,11 @@ components:
         type:
           type: string
           enum: [asset, liability, equity, revenue, expense]
+        currencyType:
+          type: string
+          enum: [base, fixed, multi]
+        currency:
+          type: ["string", "null"]
         parentId:
           type: ["string", "null"]
         isGroup:
@@ -3983,6 +4115,11 @@ components:
         type:
           type: string
           enum: [asset, liability, equity, revenue, expense]
+        currencyType:
+          type: string
+          enum: [base, fixed, multi]
+        currency:
+          type: ["string", "null"]
         parentId:
           type: ["string", "null"]
           format: uuid
@@ -4003,6 +4140,11 @@ components:
         type:
           type: string
           enum: [asset, liability, equity, revenue, expense]
+        currencyType:
+          type: string
+          enum: [base, fixed, multi]
+        currency:
+          type: ["string", "null"]
         parentId:
           type: ["string", "null"]
           format: uuid
@@ -4097,6 +4239,96 @@ components:
         rateUpdatedAt:
           type: ["string", "null"]
         createdAt:
+          type: string
+
+    RateForDate:
+      type: object
+      required: [code, date, baseCurrency]
+      properties:
+        code:
+          type: string
+        date:
+          type: string
+        rate:
+          type: ["number", "null"]
+        baseCurrency:
+          type: string
+
+    Revaluation:
+      type: object
+      required: [id, asOfDate, totalGain, totalLoss, linesCount, createdAt]
+      properties:
+        id:
+          type: string
+        asOfDate:
+          type: string
+        journalEntryId:
+          type: ["string", "null"]
+        totalGain:
+          type: number
+        totalLoss:
+          type: number
+        linesCount:
+          type: integer
+        createdAt:
+          type: string
+
+    RevaluationLine:
+      type: object
+      required:
+        [
+          accountId,
+          accountCode,
+          accountName,
+          currency,
+          foreignBalance,
+          baseBook,
+          rate,
+          revaluedBase,
+          unrealized,
+        ]
+      properties:
+        accountId:
+          type: string
+        accountCode:
+          type: string
+        accountName:
+          type: string
+        currency:
+          type: string
+        foreignBalance:
+          type: number
+        baseBook:
+          type: number
+        rate:
+          type: number
+        revaluedBase:
+          type: number
+        unrealized:
+          type: number
+
+    RevaluationPreview:
+      type: object
+      required: [asOfDate, baseCurrency, lines, totalGain, totalLoss]
+      properties:
+        asOfDate:
+          type: string
+        baseCurrency:
+          type: string
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevaluationLine"
+        totalGain:
+          type: number
+        totalLoss:
+          type: number
+
+    RevaluationRunBody:
+      type: object
+      required: [asOfDate]
+      properties:
+        asOfDate:
           type: string
 
     RefreshRatesResult:
@@ -6039,6 +6271,19 @@ components:
           type: number
         balanced:
           type: boolean
+        currencyInfo:
+          $ref: "#/components/schemas/CurrencyInfo"
+
+    CurrencyInfo:
+      type: object
+      required: [baseCurrency, reportCurrency, rate]
+      properties:
+        baseCurrency:
+          type: string
+        reportCurrency:
+          type: string
+        rate:
+          type: number
 
     VatReportRow:
       type: object
@@ -6193,6 +6438,8 @@ components:
           type: number
         netProfit:
           type: number
+        currencyInfo:
+          $ref: "#/components/schemas/CurrencyInfo"
 
     BalanceSheet:
       type: object
@@ -6225,6 +6472,8 @@ components:
           type: number
         balanced:
           type: boolean
+        currencyInfo:
+          $ref: "#/components/schemas/CurrencyInfo"
 
     GeneralLedgerEntry:
       type: object
@@ -6270,6 +6519,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GeneralLedgerEntry"
+        currencyInfo:
+          $ref: "#/components/schemas/CurrencyInfo"
 
     BankAccount:
       type: object

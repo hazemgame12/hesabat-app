@@ -13,7 +13,11 @@ import {
   useListAccounts,
   useListCustomers,
   useListSuppliers,
+  useListCurrencies,
+  useGetCompany,
   type Account,
+  type Currency,
+  type CurrencyInfo,
   type PnlLine,
   type TrialBalance,
 } from "@workspace/api-client-react";
@@ -66,6 +70,18 @@ export function Reports() {
     [chartAccounts],
   );
 
+  // Report-currency (display-only) controls shared by the in-scope report tabs.
+  const { data: company } = useGetCompany();
+  const baseCurrency = (company?.baseCurrency ?? "EGP").toUpperCase();
+  const { data: currencies = [] } = useListCurrencies();
+  const [reportCurrency, setReportCurrency] = useState("");
+  const cc: CurrencyControls = {
+    reportCurrency,
+    setReportCurrency,
+    baseCurrency,
+    currencies,
+  };
+
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
@@ -110,19 +126,20 @@ export function Reports() {
         </TabsList>
 
         <TabsContent value="trialBalance" className="mt-6">
-          <TrialBalanceTab fmt={fmt} lang={lang} />
+          <TrialBalanceTab fmt={fmt} lang={lang} cc={cc} />
         </TabsContent>
         <TabsContent value="incomeStatement" className="mt-6">
-          <IncomeStatementTab fmt={fmt} lang={lang} />
+          <IncomeStatementTab fmt={fmt} lang={lang} cc={cc} />
         </TabsContent>
         <TabsContent value="balanceSheet" className="mt-6">
-          <BalanceSheetTab fmt={fmt} lang={lang} />
+          <BalanceSheetTab fmt={fmt} lang={lang} cc={cc} />
         </TabsContent>
         <TabsContent value="generalLedger" className="mt-6">
           <GeneralLedgerTab
             fmt={fmt}
             lang={lang}
             leafAccounts={leafAccounts}
+            cc={cc}
           />
         </TabsContent>
         <TabsContent value="partyStatement" className="mt-6">
@@ -210,6 +227,72 @@ function Empty() {
   return (
     <div className="text-center py-16 text-muted-foreground">
       {t("reportsPage.noData")}
+    </div>
+  );
+}
+
+// ---- Report-currency (display-only) controls ----
+// Shared state lifted to <Reports> and passed to the four in-scope tabs so the
+// chosen report currency is preserved while switching between them.
+type CurrencyControls = {
+  reportCurrency: string;
+  setReportCurrency: (v: string) => void;
+  baseCurrency: string;
+  currencies: Currency[];
+};
+
+// Resolve the value to actually send to the API: undefined when empty or equal
+// to the base currency (so the backend behaves exactly as before).
+function reportCurrencyParam(cc: CurrencyControls): string | undefined {
+  const v = cc.reportCurrency.toUpperCase();
+  return v && v !== cc.baseCurrency ? v : undefined;
+}
+
+function ReportCurrencySelect({ cc }: { cc: CurrencyControls }) {
+  const { t } = useTranslation();
+  // Drop any list entry equal to the base currency to avoid a duplicate option.
+  const codes = cc.currencies
+    .map((c) => c.code)
+    .filter((c) => c.toUpperCase() !== cc.baseCurrency);
+  return (
+    <label className="flex flex-col gap-1 text-sm">
+      <span className="text-muted-foreground">
+        {t("reportsPage.currency.label")}
+      </span>
+      <Select
+        value={cc.reportCurrency || cc.baseCurrency}
+        onValueChange={cc.setReportCurrency}
+      >
+        <SelectTrigger className="min-w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={cc.baseCurrency}>
+            {t("reportsPage.currency.base", { code: cc.baseCurrency })}
+          </SelectItem>
+          {codes.map((c) => (
+            <SelectItem key={c} value={c}>
+              {c}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </label>
+  );
+}
+
+// Small header line shown only when the report was actually converted.
+function CurrencyHeader({ info, fmt }: { info?: CurrencyInfo; fmt: Fmt }) {
+  const { t } = useTranslation();
+  if (!info || info.rate === 1 || info.reportCurrency === info.baseCurrency)
+    return null;
+  return (
+    <div className="mb-3 text-sm font-medium text-muted-foreground">
+      {t("reportsPage.currency.header", {
+        currency: info.reportCurrency,
+        rate: fmt(info.rate),
+        base: info.baseCurrency,
+      })}
     </div>
   );
 }
@@ -303,13 +386,22 @@ function buildTrialBalancePdfHtml(
 </body></html>`;
 }
 
-function TrialBalanceTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+function TrialBalanceTab({
+  fmt,
+  lang,
+  cc,
+}: {
+  fmt: Fmt;
+  lang: string;
+  cc: CurrencyControls;
+}) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
   const [to, setTo] = useState(today());
   const { data, isLoading } = useGetTrialBalance({
     from: from || undefined,
     to: to || undefined,
+    reportCurrency: reportCurrencyParam(cc),
   });
 
   const exportExcel = () => {
@@ -351,7 +443,12 @@ function TrialBalanceTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+        <div className="flex flex-wrap items-end gap-3">
+          <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+          <div className="mb-4">
+            <ReportCurrencySelect cc={cc} />
+          </div>
+        </div>
         {data && data.rows.length > 0 && (
           <div className="flex gap-2 mb-4">
             <button
@@ -374,7 +471,9 @@ function TrialBalanceTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
       ) : !data || data.rows.length === 0 ? (
         <Empty />
       ) : (
-        <Card>
+        <>
+          <CurrencyHeader info={data.currencyInfo} fmt={fmt} />
+          <Card>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
@@ -476,7 +575,8 @@ function TrialBalanceTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
                 : t("reportsPage.trialBalance.unbalanced")}
             </span>
           </div>
-        </Card>
+          </Card>
+        </>
       )}
     </div>
   );
@@ -535,26 +635,41 @@ function PnlSection({
   );
 }
 
-function IncomeStatementTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+function IncomeStatementTab({
+  fmt,
+  lang,
+  cc,
+}: {
+  fmt: Fmt;
+  lang: string;
+  cc: CurrencyControls;
+}) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
   const [to, setTo] = useState(today());
   const { data, isLoading } = useGetIncomeStatement({
     from: from || undefined,
     to: to || undefined,
+    reportCurrency: reportCurrencyParam(cc),
   });
 
   const profit = (data?.netProfit ?? 0) >= 0;
 
   return (
     <div>
-      <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+      <div className="flex flex-wrap items-end gap-3">
+        <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+        <div className="mb-4">
+          <ReportCurrencySelect cc={cc} />
+        </div>
+      </div>
       {isLoading ? (
         <Loading />
       ) : !data ? (
         <Empty />
       ) : (
         <div className="grid gap-4">
+          <CurrencyHeader info={data.currencyInfo} fmt={fmt} />
           <PnlSection
             title={t("reportsPage.incomeStatement.revenue")}
             lines={data.revenue}
@@ -590,14 +705,25 @@ function IncomeStatementTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
 }
 
 // ---- Balance sheet ----
-function BalanceSheetTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+function BalanceSheetTab({
+  fmt,
+  lang,
+  cc,
+}: {
+  fmt: Fmt;
+  lang: string;
+  cc: CurrencyControls;
+}) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
-  const { data, isLoading } = useGetBalanceSheet({ asOf: asOf || undefined });
+  const { data, isLoading } = useGetBalanceSheet({
+    asOf: asOf || undefined,
+    reportCurrency: reportCurrencyParam(cc),
+  });
 
   return (
     <div>
-      <div className="flex items-end gap-3 mb-4">
+      <div className="flex flex-wrap items-end gap-3 mb-4">
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">
             {t("reportsPage.filters.asOf")}
@@ -609,13 +735,16 @@ function BalanceSheetTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
             className="border border-border rounded-lg px-3 py-2 bg-background"
           />
         </label>
+        <ReportCurrencySelect cc={cc} />
       </div>
       {isLoading ? (
         <Loading />
       ) : !data ? (
         <Empty />
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
+        <>
+          <CurrencyHeader info={data.currencyInfo} fmt={fmt} />
+          <div className="grid md:grid-cols-2 gap-4">
           <PnlSection
             title={t("reportsPage.balanceSheet.assets")}
             lines={data.assets}
@@ -680,7 +809,8 @@ function BalanceSheetTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
               </span>
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
@@ -691,10 +821,12 @@ function GeneralLedgerTab({
   fmt,
   lang,
   leafAccounts,
+  cc,
 }: {
   fmt: Fmt;
   lang: string;
   leafAccounts: Account[];
+  cc: CurrencyControls;
 }) {
   const { t } = useTranslation();
   const [accountId, setAccountId] = useState<string>("");
@@ -704,6 +836,7 @@ function GeneralLedgerTab({
     accountId,
     from: from || undefined,
     to: to || undefined,
+    reportCurrency: reportCurrencyParam(cc),
   };
   const { data, isLoading } = useGetGeneralLedger(glParams, {
     query: {
@@ -756,6 +889,7 @@ function GeneralLedgerTab({
             className="border border-border rounded-lg px-3 py-2 bg-background"
           />
         </label>
+        <ReportCurrencySelect cc={cc} />
       </div>
       {!accountId ? (
         <Empty />
@@ -764,7 +898,9 @@ function GeneralLedgerTab({
       ) : !data ? (
         <Empty />
       ) : (
-        <Card>
+        <>
+          <CurrencyHeader info={data.currencyInfo} fmt={fmt} />
+          <Card>
           <div className="px-4 py-3 border-b border-border flex flex-wrap justify-between gap-2 text-sm">
             <span className="font-semibold">
               {data.accountCode} · {data.accountName}
@@ -836,7 +972,8 @@ function GeneralLedgerTab({
               </tr>
             </tfoot>
           </table>
-        </Card>
+          </Card>
+        </>
       )}
     </div>
   );

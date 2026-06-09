@@ -104,7 +104,8 @@
     "invoicesSales": "Sales Invoices",
     "invoicesPurchases": "Purchase Invoices",
     "audit": "Activity Log",
-    "fiscalYears": "Fiscal Years"
+    "fiscalYears": "Fiscal Years",
+    "revaluation": "Currency Revaluation"
   },
   "auditPage": {
     "title": "Activity Log",
@@ -293,6 +294,13 @@
     "editTitle": "Edit account",
     "accountCode": "Account code",
     "accountType": "Account type",
+    "currency": "Currency",
+    "currencyType": "Currency type",
+    "currencyTypes": {
+      "base": "Base currency (EGP)",
+      "fixed": "Fixed foreign currency",
+      "multi": "Multi-currency"
+    },
     "namePlaceholder": "e.g. أوراق قبض",
     "namePlaceholderEn": "e.g. Notes Receivable",
     "parentAccount": "Parent account (optional)",
@@ -538,6 +546,44 @@
       "ratesUpdated": "Updated {{count}} currencies",
       "ratesSkipped": "Could not update {{count}} currencies (not available from source)",
       "ratesError": "Could not update exchange rates"
+    }
+  },
+  "revaluation": {
+    "title": "Currency Revaluation",
+    "subtitle": "Restate foreign-currency account balances at the period-end exchange rate",
+    "explainer": "On the date you choose, the system restates every foreign-currency account's book value to that date's exchange rate, then posts a single journal entry for the unrealized gain or loss. A positive amount is a gain (revenue) and a negative amount is a loss ({{base}}).",
+    "asOfDate": "As-of date",
+    "preview": "Preview",
+    "previewing": "Calculating…",
+    "run": "Run revaluation",
+    "running": "Running…",
+    "empty": "No foreign-currency balances need revaluation",
+    "pastRuns": "Past revaluations",
+    "noRuns": "No revaluations have been run yet",
+    "viewEntry": "View journal entry",
+    "columns": {
+      "account": "Account",
+      "currency": "Currency",
+      "foreignBalance": "Foreign balance",
+      "baseBook": "Current base book",
+      "rate": "Period-end rate",
+      "revaluedBase": "Revalued base",
+      "unrealized": "Unrealized gain/loss",
+      "linesCount": "Lines",
+      "createdAt": "Created on",
+      "date": "Date",
+      "journalEntry": "Journal entry"
+    },
+    "totals": {
+      "gain": "Total gain",
+      "loss": "Total loss",
+      "net": "Net"
+    },
+    "toast": {
+      "success": "Revaluation completed and journal entry posted",
+      "alreadyRevalued": "This date has already been revalued",
+      "closedPeriod": "Cannot revalue inside a closed fiscal year, or the date is invalid",
+      "error": "Could not run the revaluation"
     }
   },
   "assets": {
@@ -1632,6 +1678,11 @@
     "export": {
       "excel": "Export Excel",
       "pdf": "Export PDF"
+    },
+    "currency": {
+      "label": "Report currency",
+      "base": "{{code}} (base)",
+      "header": "In: {{currency}} — exchange rate: {{rate}} — vs {{base}}"
     }
   }
 }

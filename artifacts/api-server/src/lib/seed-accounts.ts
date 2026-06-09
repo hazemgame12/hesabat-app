@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import { db, accountsTable } from "@workspace/db";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -52,6 +53,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: "41", nameAr: "الإيرادات", nameEn: "Revenue", type: "revenue", isGroup: true, parentCode: null },
   { code: "411", nameAr: "إيرادات المبيعات", nameEn: "Sales Revenue", type: "revenue", isGroup: false, parentCode: "41" },
   { code: "412", nameAr: "إيرادات أخرى", nameEn: "Other Revenue", type: "revenue", isGroup: false, parentCode: "41" },
+  { code: "416", nameAr: "أرباح فروق العملة", nameEn: "Foreign Exchange Gains", type: "revenue", isGroup: false, parentCode: "41" },
 
   // ---- Expenses ----
   { code: "51", nameAr: "المصروفات", nameEn: "Expenses", type: "expense", isGroup: true, parentCode: null },
@@ -60,7 +62,14 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: "513", nameAr: "مصروفات تشغيل", nameEn: "Operating Expenses", type: "expense", isGroup: false, parentCode: "51" },
   { code: "514", nameAr: "تكلفة المبيعات", nameEn: "Cost of Sales", type: "expense", isGroup: false, parentCode: "51" },
   { code: "515", nameAr: "مصروفات وعمولات بنكية", nameEn: "Bank Charges & Commissions", type: "expense", isGroup: false, parentCode: "51" },
+  { code: "516", nameAr: "خسائر فروق العملة", nameEn: "Foreign Exchange Losses", type: "expense", isGroup: false, parentCode: "51" },
 ];
+
+// Codes for the foreign-exchange gain/loss accounts used by realized FX
+// differences (payments) and unrealized revaluation. Both realized and unrealized
+// differences post to the same pair.
+export const FX_GAIN_CODE = "416";
+export const FX_LOSS_CODE = "516";
 
 // Inserts the default chart of accounts for a company, resolving parent codes to
 // ids. Must run inside a transaction (pass the Drizzle `tx`).
@@ -86,4 +95,65 @@ export async function seedDefaultAccounts(
     if (row) codeToId.set(acc.code, row.id);
   }
   return codeToId;
+}
+
+// Resolves (and lazily creates if missing) the FX gain (416) and FX loss (516)
+// leaf accounts for a company. Used by realized FX differences on payments and by
+// currency revaluation. Older charts that pre-date these accounts get them created
+// under the Revenue (41) / Expenses (51) groups. Must run inside a transaction.
+export async function ensureFxAccounts(
+  tx: Tx,
+  companyId: string,
+): Promise<{ gainAccountId: string; lossAccountId: string }> {
+  async function resolve(
+    code: string,
+    parentCode: string,
+    type: AccountType,
+    nameAr: string,
+    nameEn: string,
+  ): Promise<string> {
+    const [existing] = await tx
+      .select({ id: accountsTable.id })
+      .from(accountsTable)
+      .where(and(eq(accountsTable.companyId, companyId), eq(accountsTable.code, code)))
+      .limit(1);
+    if (existing) return existing.id;
+
+    const [parent] = await tx
+      .select({ id: accountsTable.id })
+      .from(accountsTable)
+      .where(
+        and(eq(accountsTable.companyId, companyId), eq(accountsTable.code, parentCode)),
+      )
+      .limit(1);
+    const [row] = await tx
+      .insert(accountsTable)
+      .values({
+        companyId,
+        code,
+        nameAr,
+        nameEn,
+        type,
+        parentId: parent?.id ?? null,
+        isGroup: false,
+      })
+      .returning({ id: accountsTable.id });
+    return row!.id;
+  }
+
+  const gainAccountId = await resolve(
+    FX_GAIN_CODE,
+    "41",
+    "revenue",
+    "أرباح فروق العملة",
+    "Foreign Exchange Gains",
+  );
+  const lossAccountId = await resolve(
+    FX_LOSS_CODE,
+    "51",
+    "expense",
+    "خسائر فروق العملة",
+    "Foreign Exchange Losses",
+  );
+  return { gainAccountId, lossAccountId };
 }

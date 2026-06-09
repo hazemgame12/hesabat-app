@@ -7,6 +7,7 @@ import {
   useDeleteAccount,
   useSeedDefaultAccounts,
   useGetCurrentUser,
+  useListCurrencies,
   getListAccountsQueryKey,
   getGetDashboardSummaryQueryKey,
   type Account,
@@ -88,9 +89,13 @@ const accountSchema = z.object({
   nameAr: z.string().min(1, "nameRequired"),
   nameEn: z.string().optional(),
   type: z.enum(ACCOUNT_TYPES),
+  currencyType: z.enum(["base", "fixed", "multi"]).default("base"),
+  currency: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
   isGroup: z.boolean().default(false),
 });
+
+const BASE_CURRENCY = "EGP";
 
 type TreeNode = Account & {
   children?: TreeNode[];
@@ -169,6 +174,8 @@ export function Accounts() {
     resolver: zodResolver(accountSchema),
     defaultValues: {
       type: "asset",
+      currencyType: "base",
+      currency: null,
       isGroup: false,
       parentId: null
     }
@@ -177,6 +184,23 @@ export function Accounts() {
   const isGroup = watch("isGroup");
   const watchedParentId = watch("parentId");
   const watchedType = watch("type");
+  const watchedCurrencyType = watch("currencyType");
+
+  const { data: currencies = [] } = useListCurrencies();
+  const currencyCodes = React.useMemo(() => {
+    const codes = [BASE_CURRENCY];
+    for (const c of currencies) {
+      if (c.isActive && c.code !== BASE_CURRENCY) codes.push(c.code);
+    }
+    return codes;
+  }, [currencies]);
+
+  useEffect(() => {
+    if (watchedCurrencyType !== "fixed") {
+      setValue("currency", null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedCurrencyType]);
 
   useEffect(() => {
     if (modalMode !== "create") return;
@@ -190,6 +214,8 @@ export function Accounts() {
       nameAr: "",
       nameEn: "",
       type: "asset",
+      currencyType: "base",
+      currency: null,
       parentId: null,
       isGroup: false
     });
@@ -202,6 +228,8 @@ export function Accounts() {
       nameAr: account.nameAr,
       nameEn: account.nameEn ?? "",
       type: account.type as AccountType,
+      currencyType: (account.currencyType as "base" | "fixed" | "multi") ?? "base",
+      currency: account.currency ?? null,
       parentId: account.parentId,
       isGroup: account.isGroup
     });
@@ -228,6 +256,9 @@ export function Accounts() {
   };
 
   const onSubmit = (data: z.infer<typeof accountSchema>) => {
+    if (data.currencyType !== "fixed") {
+      data.currency = null;
+    }
     if (modalMode === "create") {
       createAccount.mutate({ data }, {
         onSuccess: () => {
@@ -495,6 +526,40 @@ export function Accounts() {
                     <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   </div>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-foreground">{t("accounts.currencyType")}</label>
+                  <div className="relative">
+                    <select
+                      className="w-full appearance-none bg-background border rounded-xl h-11 ps-4 pe-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      {...register("currencyType")}
+                    >
+                      {(["base", "fixed", "multi"] as const).map((val) => (
+                        <option key={val} value={val}>{t(`accounts.currencyTypes.${val}`)}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  </div>
+                </div>
+                {watchedCurrencyType === "fixed" && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold text-foreground">{t("accounts.currency")}</label>
+                    <div className="relative">
+                      <select
+                        dir="ltr"
+                        className="w-full appearance-none bg-background border rounded-xl h-11 ps-4 pe-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-start"
+                        {...register("currency")}
+                      >
+                        {currencyCodes.map((code) => (
+                          <option key={code} value={code}>{code}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5">

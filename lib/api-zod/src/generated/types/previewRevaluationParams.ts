@@ -6,8 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetIncomeStatementParams = {
-from?: string;
-to?: string;
-reportCurrency?: string;
+export type PreviewRevaluationParams = {
+asOfDate: string;
 };

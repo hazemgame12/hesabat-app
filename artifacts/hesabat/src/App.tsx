@@ -19,6 +19,7 @@ import { Advances } from "@/pages/advances";
 import SalesInvoicesPage from "@/pages/sales-invoices";
 import PurchaseInvoicesPage from "@/pages/purchase-invoices";
 import { Reports } from "@/pages/reports";
+import { Revaluation } from "@/pages/revaluation";
 import { Audit } from "@/pages/audit";
 import { FiscalYears } from "@/pages/fiscal-years";
 import { OpeningBalances } from "@/pages/opening-balances";
@@ -67,6 +68,7 @@ function ProtectedRoutes() {
         <Route path="/purchases" component={Suppliers} />
         <Route path="/invoices/sales" component={SalesInvoicesPage} />
         <Route path="/invoices/purchases" component={PurchaseInvoicesPage} />
+        <Route path="/revaluation" component={Revaluation} />
         <Route path="/reports" component={Reports} />
         <Route path="/audit" component={Audit} />
         <Route path="/fiscal-years" component={FiscalYears} />

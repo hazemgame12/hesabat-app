@@ -76,6 +76,7 @@ import type {
   GetAgingReportParams,
   GetAuditLogParams,
   GetBalanceSheetParams,
+  GetCurrencyRateForDateParams,
   GetEmployeeStatementParams,
   GetGeneralLedgerParams,
   GetIncomeStatementParams,
@@ -115,8 +116,13 @@ import type {
   PaymentInput,
   PayrollRun,
   PayrollRunInput,
+  PreviewRevaluationParams,
+  RateForDate,
   RefreshRatesResult,
   ReopenFiscalYear200,
+  Revaluation,
+  RevaluationPreview,
+  RevaluationRunBody,
   RoleUpdateInput,
   RunDepreciationInput,
   RunDepreciationResult,
@@ -1450,6 +1456,322 @@ export const useRefreshCurrencyRates = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getRefreshCurrencyRatesMutationOptions(options));
+    }
+
+export const getGetCurrencyRateForDateUrl = (params: GetCurrencyRateForDateParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/currencies/rate?${stringifiedParams}` : `/api/currencies/rate`
+}
+
+/**
+ * @summary Get the exchange rate that applied for a currency on a given date
+ */
+export const getCurrencyRateForDate = async (params: GetCurrencyRateForDateParams, options?: RequestInit): Promise<RateForDate> => {
+
+  return customFetch<RateForDate>(getGetCurrencyRateForDateUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrencyRateForDateQueryKey = (params?: GetCurrencyRateForDateParams,) => {
+    return [
+    `/api/currencies/rate`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetCurrencyRateForDateQueryOptions = <TData = Awaited<ReturnType<typeof getCurrencyRateForDate>>, TError = ErrorType<ErrorResponse>>(params: GetCurrencyRateForDateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencyRateForDate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrencyRateForDateQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrencyRateForDate>>> = ({ signal }) => getCurrencyRateForDate(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrencyRateForDate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCurrencyRateForDateQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrencyRateForDate>>>
+export type GetCurrencyRateForDateQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get the exchange rate that applied for a currency on a given date
+ */
+
+export function useGetCurrencyRateForDate<TData = Awaited<ReturnType<typeof getCurrencyRateForDate>>, TError = ErrorType<ErrorResponse>>(
+ params: GetCurrencyRateForDateParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCurrencyRateForDate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCurrencyRateForDateQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListRevaluationsUrl = () => {
+
+
+
+
+  return `/api/revaluations`
+}
+
+/**
+ * @summary List foreign-currency revaluation runs
+ */
+export const listRevaluations = async ( options?: RequestInit): Promise<Revaluation[]> => {
+
+  return customFetch<Revaluation[]>(getListRevaluationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRevaluationsQueryKey = () => {
+    return [
+    `/api/revaluations`
+    ] as const;
+    }
+
+
+export const getListRevaluationsQueryOptions = <TData = Awaited<ReturnType<typeof listRevaluations>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRevaluations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRevaluationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRevaluations>>> = ({ signal }) => listRevaluations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRevaluations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRevaluationsQueryResult = NonNullable<Awaited<ReturnType<typeof listRevaluations>>>
+export type ListRevaluationsQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary List foreign-currency revaluation runs
+ */
+
+export function useListRevaluations<TData = Awaited<ReturnType<typeof listRevaluations>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRevaluations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRevaluationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPreviewRevaluationUrl = (params: PreviewRevaluationParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/revaluations/preview?${stringifiedParams}` : `/api/revaluations/preview`
+}
+
+/**
+ * @summary Preview unrealized FX gain/loss as of a date without posting
+ */
+export const previewRevaluation = async (params: PreviewRevaluationParams, options?: RequestInit): Promise<RevaluationPreview> => {
+
+  return customFetch<RevaluationPreview>(getPreviewRevaluationUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewRevaluationQueryKey = (params?: PreviewRevaluationParams,) => {
+    return [
+    `/api/revaluations/preview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getPreviewRevaluationQueryOptions = <TData = Awaited<ReturnType<typeof previewRevaluation>>, TError = ErrorType<ErrorResponse>>(params: PreviewRevaluationParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewRevaluation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewRevaluationQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewRevaluation>>> = ({ signal }) => previewRevaluation(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewRevaluation>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PreviewRevaluationQueryResult = NonNullable<Awaited<ReturnType<typeof previewRevaluation>>>
+export type PreviewRevaluationQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Preview unrealized FX gain/loss as of a date without posting
+ */
+
+export function usePreviewRevaluation<TData = Awaited<ReturnType<typeof previewRevaluation>>, TError = ErrorType<ErrorResponse>>(
+ params: PreviewRevaluationParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewRevaluation>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPreviewRevaluationQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRunRevaluationUrl = () => {
+
+
+
+
+  return `/api/revaluations/run`
+}
+
+/**
+ * @summary Run a foreign-currency revaluation and post the FX adjustment entry
+ */
+export const runRevaluation = async (revaluationRunBody: RevaluationRunBody, options?: RequestInit): Promise<Revaluation> => {
+
+  return customFetch<Revaluation>(getRunRevaluationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      revaluationRunBody,)
+  }
+);}
+
+
+
+
+export const getRunRevaluationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runRevaluation>>, TError,{data: BodyType<RevaluationRunBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runRevaluation>>, TError,{data: BodyType<RevaluationRunBody>}, TContext> => {
+
+const mutationKey = ['runRevaluation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runRevaluation>>, {data: BodyType<RevaluationRunBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  runRevaluation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunRevaluationMutationResult = NonNullable<Awaited<ReturnType<typeof runRevaluation>>>
+    export type RunRevaluationMutationBody = BodyType<RevaluationRunBody>
+    export type RunRevaluationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Run a foreign-currency revaluation and post the FX adjustment entry
+ */
+export const useRunRevaluation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runRevaluation>>, TError,{data: BodyType<RevaluationRunBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runRevaluation>>,
+        TError,
+        {data: BodyType<RevaluationRunBody>},
+        TContext
+      > => {
+      return useMutation(getRunRevaluationMutationOptions(options));
     }
 
 export const getUpdateCurrencyUrl = (id: string,) => {

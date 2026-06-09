@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CurrencyInfo } from './currencyInfo';
 import type { TrialBalanceRow } from './trialBalanceRow';
 
 export interface TrialBalance {
@@ -20,4 +21,5 @@ export interface TrialBalance {
   totalClosingDebit: number;
   totalClosingCredit: number;
   balanced: boolean;
+  currencyInfo?: CurrencyInfo;
 }

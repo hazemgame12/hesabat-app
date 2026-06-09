@@ -9,6 +9,7 @@ import {
   useListInventoryItems,
   useListTaxes,
   useListCostCenters,
+  useListCurrencies,
   type Account,
   type InvoiceLineInput,
   type Tax,
@@ -96,6 +97,17 @@ export function InvoiceEditor({
   const { data: items = [] } = useListInventoryItems();
   const { data: taxes = [] } = useListTaxes();
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: currencies = [] } = useListCurrencies();
+
+  const currencyOptions = useMemo(() => {
+    const opts: { code: string; rate: string }[] = [{ code: "EGP", rate: "1" }];
+    for (const c of currencies) {
+      if (c.isActive && c.code !== "EGP") {
+        opts.push({ code: c.code, rate: String(c.exchangeRate) });
+      }
+    }
+    return opts;
+  }, [currencies]);
 
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice();
@@ -107,6 +119,8 @@ export function InvoiceEditor({
   const [partyId, setPartyId] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
   const [notes, setNotes] = useState("");
+  const [currency, setCurrency] = useState("EGP");
+  const [exchangeRate, setExchangeRate] = useState("1");
   const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
 
   useEffect(() => {
@@ -116,6 +130,10 @@ export function InvoiceEditor({
       setPartyId(detail.partyId ?? "");
       setCostCenterId(detail.costCenterId ?? "");
       setNotes(detail.notes ?? "");
+      setCurrency(detail.currency ?? "EGP");
+      setExchangeRate(
+        detail.exchangeRate != null ? String(detail.exchangeRate) : "1",
+      );
       setLines(
         detail.lines.map((l) => ({
           lineType: l.lineType,
@@ -265,6 +283,8 @@ export function InvoiceEditor({
       customerId: kind === "sales" ? partyId : null,
       supplierId: kind === "purchase" ? partyId : null,
       costCenterId: costCenterId || null,
+      currency: currency || "EGP",
+      exchangeRate: currency === "EGP" ? 1 : Number(exchangeRate) || 1,
       notes: notes.trim() || null,
       lines: payloadLines,
     };
@@ -404,6 +424,40 @@ export function InvoiceEditor({
                   ))}
                 </select>
               </div>
+              <div>
+                <label className={labelCls}>{t("invoices.currency")}</label>
+                <select
+                  className={inputCls}
+                  value={currency}
+                  disabled={disabled}
+                  dir="ltr"
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    setCurrency(code);
+                    const opt = currencyOptions.find((o) => o.code === code);
+                    setExchangeRate(code === "EGP" ? "1" : opt?.rate ?? "1");
+                  }}
+                >
+                  {currencyOptions.map((o) => (
+                    <option key={o.code} value={o.code}>
+                      {o.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {currency !== "EGP" && (
+                <div>
+                  <label className={labelCls}>{t("invoices.exchangeRate")}</label>
+                  <input
+                    type="number"
+                    className={inputCls}
+                    value={exchangeRate}
+                    disabled={disabled}
+                    onChange={(e) => setExchangeRate(e.target.value)}
+                    dir="ltr"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-3">

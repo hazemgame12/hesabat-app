@@ -236,6 +236,15 @@ export const AccountType = {
   expense: 'expense',
 } as const;
 
+export type AccountCurrencyType = typeof AccountCurrencyType[keyof typeof AccountCurrencyType];
+
+
+export const AccountCurrencyType = {
+  base: 'base',
+  fixed: 'fixed',
+  multi: 'multi',
+} as const;
+
 export interface Account {
   id: string;
   code: string;
@@ -243,6 +252,9 @@ export interface Account {
   /** @nullable */
   nameEn?: string | null;
   type: AccountType;
+  currencyType?: AccountCurrencyType;
+  /** @nullable */
+  currency?: string | null;
   /** @nullable */
   parentId?: string | null;
   isGroup: boolean;
@@ -260,6 +272,15 @@ export const AccountInputType = {
   expense: 'expense',
 } as const;
 
+export type AccountInputCurrencyType = typeof AccountInputCurrencyType[keyof typeof AccountInputCurrencyType];
+
+
+export const AccountInputCurrencyType = {
+  base: 'base',
+  fixed: 'fixed',
+  multi: 'multi',
+} as const;
+
 export interface AccountInput {
   /** @minLength 1 */
   code: string;
@@ -268,6 +289,9 @@ export interface AccountInput {
   /** @nullable */
   nameEn?: string | null;
   type: AccountInputType;
+  currencyType?: AccountInputCurrencyType;
+  /** @nullable */
+  currency?: string | null;
   /** @nullable */
   parentId?: string | null;
   isGroup?: boolean;
@@ -284,6 +308,15 @@ export const AccountUpdateType = {
   expense: 'expense',
 } as const;
 
+export type AccountUpdateCurrencyType = typeof AccountUpdateCurrencyType[keyof typeof AccountUpdateCurrencyType];
+
+
+export const AccountUpdateCurrencyType = {
+  base: 'base',
+  fixed: 'fixed',
+  multi: 'multi',
+} as const;
+
 export interface AccountUpdate {
   /** @minLength 1 */
   code?: string;
@@ -292,6 +325,9 @@ export interface AccountUpdate {
   /** @nullable */
   nameEn?: string | null;
   type?: AccountUpdateType;
+  currencyType?: AccountUpdateCurrencyType;
+  /** @nullable */
+  currency?: string | null;
   /** @nullable */
   parentId?: string | null;
   isGroup?: boolean;
@@ -386,6 +422,49 @@ export interface Currency {
   /** @nullable */
   rateUpdatedAt?: string | null;
   createdAt: string;
+}
+
+export interface RateForDate {
+  code: string;
+  date: string;
+  /** @nullable */
+  rate?: number | null;
+  baseCurrency: string;
+}
+
+export interface Revaluation {
+  id: string;
+  asOfDate: string;
+  /** @nullable */
+  journalEntryId?: string | null;
+  totalGain: number;
+  totalLoss: number;
+  linesCount: number;
+  createdAt: string;
+}
+
+export interface RevaluationLine {
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  currency: string;
+  foreignBalance: number;
+  baseBook: number;
+  rate: number;
+  revaluedBase: number;
+  unrealized: number;
+}
+
+export interface RevaluationPreview {
+  asOfDate: string;
+  baseCurrency: string;
+  lines: RevaluationLine[];
+  totalGain: number;
+  totalLoss: number;
+}
+
+export interface RevaluationRunBody {
+  asOfDate: string;
 }
 
 export interface RefreshRatesResult {
@@ -1899,6 +1978,12 @@ export interface TrialBalanceRow {
   closingCredit: number;
 }
 
+export interface CurrencyInfo {
+  baseCurrency: string;
+  reportCurrency: string;
+  rate: number;
+}
+
 export interface TrialBalance {
   /** @nullable */
   from?: string | null;
@@ -1912,6 +1997,7 @@ export interface TrialBalance {
   totalClosingDebit: number;
   totalClosingCredit: number;
   balanced: boolean;
+  currencyInfo?: CurrencyInfo;
 }
 
 export interface VatReportRow {
@@ -1994,6 +2080,7 @@ export interface IncomeStatement {
   totalRevenue: number;
   totalExpenses: number;
   netProfit: number;
+  currencyInfo?: CurrencyInfo;
 }
 
 export interface BalanceSheet {
@@ -2008,6 +2095,7 @@ export interface BalanceSheet {
   totalEquity: number;
   totalLiabilitiesAndEquity: number;
   balanced: boolean;
+  currencyInfo?: CurrencyInfo;
 }
 
 export interface GeneralLedgerEntry {
@@ -2033,6 +2121,7 @@ export interface GeneralLedger {
   openingBalance: number;
   closingBalance: number;
   entries: GeneralLedgerEntry[];
+  currencyInfo?: CurrencyInfo;
 }
 
 export type BankAccountType = typeof BankAccountType[keyof typeof BankAccountType];
@@ -2359,6 +2448,15 @@ export interface BankReconciliationInput {
   notes?: string | null;
 }
 
+export type GetCurrencyRateForDateParams = {
+code: string;
+date: string;
+};
+
+export type PreviewRevaluationParams = {
+asOfDate: string;
+};
+
 export type ListInventoryMovementsParams = {
 itemId?: string;
 };
@@ -2499,21 +2597,25 @@ export type DeleteFiscalYear200 = {
 export type GetTrialBalanceParams = {
 from?: string;
 to?: string;
+reportCurrency?: string;
 };
 
 export type GetIncomeStatementParams = {
 from?: string;
 to?: string;
+reportCurrency?: string;
 };
 
 export type GetBalanceSheetParams = {
 asOf?: string;
+reportCurrency?: string;
 };
 
 export type GetGeneralLedgerParams = {
 accountId: string;
 from?: string;
 to?: string;
+reportCurrency?: string;
 };
 
 export type ListBankMovementsParams = {

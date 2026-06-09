@@ -8,4 +8,5 @@
 
 export type GetBalanceSheetParams = {
 asOf?: string;
+reportCurrency?: string;
 };

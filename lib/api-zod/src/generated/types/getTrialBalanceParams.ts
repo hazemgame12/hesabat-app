@@ -9,4 +9,5 @@
 export type GetTrialBalanceParams = {
 from?: string;
 to?: string;
+reportCurrency?: string;
 };

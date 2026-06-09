@@ -9,10 +9,26 @@ import {
   handleXlsxUpload,
   parseSheet,
 } from "../lib/excel";
+import { recordDatedRate, getRateForDate } from "../lib/currency";
 
 const router = Router();
 
 const RATE_SOURCE_URL = "https://open.er-api.com/v6/latest";
+
+// Today's date in YYYY-MM-DD (server local), used to stamp dated rate rows.
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Loads the company base currency (defaults to EGP).
+async function loadBase(companyId: string): Promise<string> {
+  const [company] = await db
+    .select({ baseCurrency: companiesTable.baseCurrency })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  return (company?.baseCurrency || "EGP").toUpperCase();
+}
 
 function toCurrency(row: Currency) {
   return {
@@ -57,17 +73,29 @@ router.post(
       return;
     }
     try {
+      const code = parsed.data.code.trim().toUpperCase();
       const [row] = await db
         .insert(currenciesTable)
         .values({
           companyId: req.auth!.companyId,
-          code: parsed.data.code.trim().toUpperCase(),
+          code,
           nameAr: parsed.data.nameAr,
           nameEn: parsed.data.nameEn ?? null,
           exchangeRate: String(parsed.data.exchangeRate),
           isActive: parsed.data.isActive ?? true,
         })
         .returning();
+      const base = await loadBase(req.auth!.companyId);
+      await recordDatedRate(
+        db,
+        req.auth!.companyId,
+        code,
+        today(),
+        parsed.data.exchangeRate,
+        "manual",
+        base,
+        req.auth!.userId,
+      );
       res.status(201).json(toCurrency(row as Currency));
     } catch (err: unknown) {
       if (
@@ -161,6 +189,16 @@ router.post(
                 eq(currenciesTable.companyId, companyId),
               ),
             );
+          await recordDatedRate(
+            tx,
+            companyId,
+            row.code.toUpperCase(),
+            today(),
+            Number(rate.toFixed(6)),
+            "auto",
+            base,
+            req.auth!.userId,
+          );
           updated++;
         }
       });
@@ -172,6 +210,36 @@ router.post(
       });
     } catch (err) {
       req.log.error({ err }, "Failed to refresh exchange rates");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Returns the exchange rate (value of 1 unit of `code` in base) that applied on
+// a given date — the newest dated row with rateDate <= date, else the current
+// rate. Used to auto-suggest a rate by transaction date in the UI.
+router.get(
+  "/currencies/rate",
+  requireAuth,
+  requireCapability("currencies:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const code = String(req.query["code"] ?? "").trim().toUpperCase();
+    const date = String(req.query["date"] ?? "").trim();
+    if (!code || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
+      return;
+    }
+    try {
+      const base = await loadBase(companyId);
+      const rate = await getRateForDate(db, companyId, code, date, base);
+      if (rate === null) {
+        res.status(404).json({ error: "العملة غير موجودة" });
+        return;
+      }
+      res.json({ code, date, rate, baseCurrency: base });
+    } catch (err) {
+      req.log.error({ err }, "Failed to look up dated rate");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
@@ -219,6 +287,19 @@ router.patch(
       if (!row) {
         res.status(404).json({ error: "العملة غير موجودة" });
         return;
+      }
+      if (parsed.data.exchangeRate !== undefined) {
+        const base = await loadBase(req.auth!.companyId);
+        await recordDatedRate(
+          db,
+          req.auth!.companyId,
+          row.code.toUpperCase(),
+          today(),
+          parsed.data.exchangeRate,
+          "manual",
+          base,
+          req.auth!.userId,
+        );
       }
       res.json(toCurrency(row as Currency));
     } catch (err: unknown) {

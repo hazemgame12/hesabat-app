@@ -87,6 +87,8 @@ export const ListAccountsResponseItem = zod.object({
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "currencyType": zod.enum(['base', 'fixed', 'multi']).optional(),
+  "currency": zod.string().nullish(),
   "parentId": zod.string().nullish(),
   "isGroup": zod.boolean(),
   "createdAt": zod.string()
@@ -106,6 +108,8 @@ export const CreateAccountBody = zod.object({
   "nameAr": zod.string().min(1),
   "nameEn": zod.string().nullish(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "currencyType": zod.enum(['base', 'fixed', 'multi']).optional(),
+  "currency": zod.string().nullish(),
   "parentId": zod.string().uuid().nullish(),
   "isGroup": zod.boolean().optional()
 })
@@ -127,6 +131,8 @@ export const UpdateAccountBody = zod.object({
   "nameAr": zod.string().min(1).optional(),
   "nameEn": zod.string().nullish(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']).optional(),
+  "currencyType": zod.enum(['base', 'fixed', 'multi']).optional(),
+  "currency": zod.string().nullish(),
   "parentId": zod.string().uuid().nullish(),
   "isGroup": zod.boolean().optional()
 })
@@ -137,6 +143,8 @@ export const UpdateAccountResponse = zod.object({
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
   "type": zod.enum(['asset', 'liability', 'equity', 'revenue', 'expense']),
+  "currencyType": zod.enum(['base', 'fixed', 'multi']).optional(),
+  "currency": zod.string().nullish(),
   "parentId": zod.string().nullish(),
   "isGroup": zod.boolean(),
   "createdAt": zod.string()
@@ -279,6 +287,71 @@ export const RefreshCurrencyRatesResponse = zod.object({
   "updated": zod.number(),
   "skipped": zod.array(zod.string()),
   "ratesAsOf": zod.string().nullable()
+})
+
+
+/**
+ * @summary Get the exchange rate that applied for a currency on a given date
+ */
+export const GetCurrencyRateForDateQueryParams = zod.object({
+  "code": zod.coerce.string(),
+  "date": zod.coerce.string()
+})
+
+export const GetCurrencyRateForDateResponse = zod.object({
+  "code": zod.string(),
+  "date": zod.string(),
+  "rate": zod.number().nullish(),
+  "baseCurrency": zod.string()
+})
+
+
+/**
+ * @summary List foreign-currency revaluation runs
+ */
+export const ListRevaluationsResponseItem = zod.object({
+  "id": zod.string(),
+  "asOfDate": zod.string(),
+  "journalEntryId": zod.string().nullish(),
+  "totalGain": zod.number(),
+  "totalLoss": zod.number(),
+  "linesCount": zod.number(),
+  "createdAt": zod.string()
+})
+export const ListRevaluationsResponse = zod.array(ListRevaluationsResponseItem)
+
+
+/**
+ * @summary Preview unrealized FX gain/loss as of a date without posting
+ */
+export const PreviewRevaluationQueryParams = zod.object({
+  "asOfDate": zod.coerce.string()
+})
+
+export const PreviewRevaluationResponse = zod.object({
+  "asOfDate": zod.string(),
+  "baseCurrency": zod.string(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string(),
+  "accountCode": zod.string(),
+  "accountName": zod.string(),
+  "currency": zod.string(),
+  "foreignBalance": zod.number(),
+  "baseBook": zod.number(),
+  "rate": zod.number(),
+  "revaluedBase": zod.number(),
+  "unrealized": zod.number()
+})),
+  "totalGain": zod.number(),
+  "totalLoss": zod.number()
+})
+
+
+/**
+ * @summary Run a foreign-currency revaluation and post the FX adjustment entry
+ */
+export const RunRevaluationBody = zod.object({
+  "asOfDate": zod.string()
 })
 
 
@@ -2726,7 +2799,8 @@ export const DeleteFiscalYearResponse = zod.object({
  */
 export const GetTrialBalanceQueryParams = zod.object({
   "from": zod.coerce.string().optional(),
-  "to": zod.coerce.string().optional()
+  "to": zod.coerce.string().optional(),
+  "reportCurrency": zod.coerce.string().optional()
 })
 
 export const GetTrialBalanceResponse = zod.object({
@@ -2751,7 +2825,12 @@ export const GetTrialBalanceResponse = zod.object({
   "totalPeriodCredit": zod.number(),
   "totalClosingDebit": zod.number(),
   "totalClosingCredit": zod.number(),
-  "balanced": zod.boolean()
+  "balanced": zod.boolean(),
+  "currencyInfo": zod.object({
+  "baseCurrency": zod.string(),
+  "reportCurrency": zod.string(),
+  "rate": zod.number()
+}).optional()
 })
 
 
@@ -2760,7 +2839,8 @@ export const GetTrialBalanceResponse = zod.object({
  */
 export const GetIncomeStatementQueryParams = zod.object({
   "from": zod.coerce.string().optional(),
-  "to": zod.coerce.string().optional()
+  "to": zod.coerce.string().optional(),
+  "reportCurrency": zod.coerce.string().optional()
 })
 
 export const GetIncomeStatementResponse = zod.object({
@@ -2782,7 +2862,12 @@ export const GetIncomeStatementResponse = zod.object({
 })),
   "totalRevenue": zod.number(),
   "totalExpenses": zod.number(),
-  "netProfit": zod.number()
+  "netProfit": zod.number(),
+  "currencyInfo": zod.object({
+  "baseCurrency": zod.string(),
+  "reportCurrency": zod.string(),
+  "rate": zod.number()
+}).optional()
 })
 
 
@@ -2790,7 +2875,8 @@ export const GetIncomeStatementResponse = zod.object({
  * @summary Balance sheet as of a date
  */
 export const GetBalanceSheetQueryParams = zod.object({
-  "asOf": zod.coerce.string().optional()
+  "asOf": zod.coerce.string().optional(),
+  "reportCurrency": zod.coerce.string().optional()
 })
 
 export const GetBalanceSheetResponse = zod.object({
@@ -2821,7 +2907,12 @@ export const GetBalanceSheetResponse = zod.object({
   "totalLiabilities": zod.number(),
   "totalEquity": zod.number(),
   "totalLiabilitiesAndEquity": zod.number(),
-  "balanced": zod.boolean()
+  "balanced": zod.boolean(),
+  "currencyInfo": zod.object({
+  "baseCurrency": zod.string(),
+  "reportCurrency": zod.string(),
+  "rate": zod.number()
+}).optional()
 })
 
 
@@ -2831,7 +2922,8 @@ export const GetBalanceSheetResponse = zod.object({
 export const GetGeneralLedgerQueryParams = zod.object({
   "accountId": zod.coerce.string(),
   "from": zod.coerce.string().optional(),
-  "to": zod.coerce.string().optional()
+  "to": zod.coerce.string().optional(),
+  "reportCurrency": zod.coerce.string().optional()
 })
 
 export const GetGeneralLedgerResponse = zod.object({
@@ -2851,7 +2943,12 @@ export const GetGeneralLedgerResponse = zod.object({
   "debit": zod.number(),
   "credit": zod.number(),
   "balance": zod.number()
-}))
+})),
+  "currencyInfo": zod.object({
+  "baseCurrency": zod.string(),
+  "reportCurrency": zod.string(),
+  "rate": zod.number()
+}).optional()
 })
 
 
