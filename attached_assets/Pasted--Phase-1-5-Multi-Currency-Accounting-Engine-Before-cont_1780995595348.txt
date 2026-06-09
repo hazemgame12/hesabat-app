@@ -1,0 +1,260 @@
+# Phase 1.5 — Multi-Currency Accounting Engine
+
+Before continuing Sales, Purchases and Advanced Accounting Workflows, we need a complete Multi-Currency Accounting Engine.
+
+This is a core accounting requirement and should be implemented before expanding customer, supplier and inventory workflows.
+
+## 1. Company Base Currency
+
+* Each company must have a Base Currency.
+* Examples: EGP, USD, SAR, AED.
+* All accounting balances and financial statements must be stored and maintained in the Base Currency.
+
+---
+
+## 2. Currency Master
+
+Create a Currency Master including:
+
+* Currency Code (EGP, USD, SAR, AED, EUR, etc.)
+* Currency Name
+* Currency Symbol
+* Active / Inactive Status
+
+---
+
+## 3. Exchange Rate Management
+
+* Maintain exchange rates by date.
+* Exchange rates must be selected automatically according to transaction date.
+* Authorized users may override exchange rates manually.
+* Store:
+
+  * Transaction Currency
+  * Exchange Rate
+  * Base Currency Equivalent
+
+---
+
+## 4. Multi-Currency Banks and Cash Accounts
+
+Each bank account or cash treasury must have:
+
+* Assigned Currency
+* Account Number
+* Bank Name
+* Currency Type
+
+Rules:
+
+* Transactions must use the account currency.
+* USD bank accounts accept USD transactions only.
+* EGP bank accounts accept EGP transactions only.
+* System automatically converts balances to Base Currency for reporting purposes.
+
+---
+
+## 5. Customers and Suppliers
+
+Each Customer and Supplier should support:
+
+* Default Currency
+* Tax Number
+* Payment Terms
+
+Statements should display:
+
+* Original Currency Amount
+* Exchange Rate Used
+* Base Currency Equivalent
+
+---
+
+## 6. Sales Invoices
+
+User must be able to select:
+
+* Customer
+* Invoice Currency
+* Invoice Date
+
+System must:
+
+* Retrieve exchange rate automatically.
+* Calculate totals in invoice currency.
+* Store base currency equivalent.
+
+Example:
+
+Company base currency: EGP
+Sales invoice: USD 1,000
+Exchange rate: 50
+Journal entry:
+Dr Accounts Receivable USD 1,000 / EGP 50,000
+Cr Sales Revenue USD 1,000 / EGP 50,000
+
+7. Purchase Invoices
+
+Apply the same logic as Sales Invoices.
+
+Supplier invoices may be issued in:
+
+* USD
+* SAR
+* AED
+* EUR
+* Any active currency
+
+System must store:
+
+* Original Currency Amount
+* Exchange Rate
+* Base Currency Equivalent
+
+---
+
+## 8. Journal Entries
+
+Every journal line must support:
+
+* Account
+* Currency
+* Exchange Rate
+* Debit Amount (Transaction Currency)
+* Credit Amount (Transaction Currency)
+* Debit Amount (Base Currency)
+* Credit Amount (Base Currency)
+
+General Ledger must preserve both values.
+
+---
+
+## 9. Exchange Gain / Loss
+
+System must automatically calculate exchange differences.
+
+Example:
+
+Invoice:
+USD 1,000
+Rate = 50Example:
+Invoice USD 1,000 at rate 50 = EGP 50,000
+Payment USD 1,000 at rate 51 = EGP 51,000
+Difference EGP 1,000 should go to Exchange Gain/Loss account.
+
+Value:
+EGP 50,000
+
+Payment:
+USD 1,000
+Rate = 51
+
+Value:
+EGP 51,000
+
+Difference:
+EGP 1,000
+
+System should automatically post:
+
+* Exchange Gain Account
+  or
+* Exchange Loss Account
+
+according to the difference.
+
+---
+
+## 10. Bank Reconciliation Support
+
+Multi-currency bank accounts must be supported in Bank Reconciliation.
+
+The reconciliation engine must:
+
+* Read statement currency.
+* Match transactions using account currency.
+* Preserve original currency amounts.
+* Generate reconciliation reports correctly.
+
+---
+
+## 11. Multi-Currency Reporting
+
+Financial reports should support:
+
+### Base Currency View
+
+Official accounting view using company base currency.
+
+### Reporting Currency View
+
+User can choose:
+
+* EGP
+* USD
+* SAR
+* AED
+* Any active currency
+
+Supported reports:
+
+* Trial Balance
+* General Ledger
+* Balance Sheet
+* Profit & Loss
+* Customer Statements
+* Supplier Statements
+* Bank Ledger
+* Cash Ledger
+
+---
+
+## 12. Report Conversion Rules
+
+When displaying reports in another currency:
+
+* Convert balances using selected report exchange rate.
+* Show exchange rate used in report header.
+* Do not alter posted accounting entries.
+* Conversion is display/reporting only.
+
+Report Header must show:
+
+* Company Base Currency
+* Report Currency
+* Exchange Rate Used
+* Report Period
+
+---
+
+## 13. Ledger Display Requirements
+
+Customer, Supplier and Bank Ledgers should display:
+
+* Transaction Currency
+* Original Amount
+* Exchange Rate
+* Base Currency Amount
+* Reporting Currency Amount (if selected)
+
+---
+
+## 14. Validation Rules
+
+* Bank transactions cannot use a currency different from the bank account currency.
+* Exchange rate is mandatory when transaction currency differs from base currency.
+* Closed fiscal years cannot accept exchange rate modifications affecting posted transactions.
+* Financial statements remain based on the company base currency.
+
+---
+
+## Important
+
+This Multi-Currency Accounting Engine should be completed before continuing with:
+
+* Sales Workflow
+* Purchase Workflow
+* Inventory Integration
+* Advanced Financial Reports
+
+This will prevent future redesign of invoices, ledgers, journals and reports.
