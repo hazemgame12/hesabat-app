@@ -47,6 +47,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -193,14 +194,26 @@ export function Bank() {
             </p>
           </div>
         </div>
-        {canCreate && tab === "accounts" && (
-          <button
-            onClick={() => setAccountModal({ mode: "create", account: null })}
-            className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            {t("bank.addAccount")}
-          </button>
+        {tab === "accounts" && (
+          <div className="flex items-center gap-2">
+            <ExcelToolbar
+              exportPath="/api/bank/accounts/export"
+              importPath="/api/bank/accounts/import"
+              canImport={canCreate}
+              invalidateKeys={[getListBankAccountsQueryKey()]}
+            />
+            {canCreate && (
+              <button
+                onClick={() =>
+                  setAccountModal({ mode: "create", account: null })
+                }
+                className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+              >
+                <Plus className="w-4 h-4" />
+                {t("bank.addAccount")}
+              </button>
+            )}
+          </div>
         )}
       </header>
 

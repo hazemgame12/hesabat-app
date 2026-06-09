@@ -39,6 +39,8 @@ import {
   buildTransferLines,
   type BankMovementType,
 } from "../lib/bank-posting";
+import { exportWorkbook, parseSheet } from "../lib/excel";
+import { safeAudit } from "../lib/audit";
 
 const router = Router();
 
@@ -837,6 +839,229 @@ router.delete(
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete bank account");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Accounts Excel export / import
+// ---------------------------------------------------------------------------
+
+// Streams the company's bank/cash accounts as an .xlsx workbook (round-trips the
+// import format; balance is an informational extra column).
+router.get(
+  "/bank/accounts/export",
+  requireAuth,
+  requireCapability("bank:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const rows = await db
+        .select({
+          account: bankAccountsTable,
+          chartCode: accountsTable.code,
+        })
+        .from(bankAccountsTable)
+        .innerJoin(
+          accountsTable,
+          and(
+            eq(accountsTable.id, bankAccountsTable.accountId),
+            eq(accountsTable.companyId, companyId),
+          ),
+        )
+        .where(eq(bankAccountsTable.companyId, companyId))
+        .orderBy(desc(bankAccountsTable.createdAt));
+      const sums = await movementSums(companyId);
+      await exportWorkbook(res, {
+        sheetName: "BankAccounts",
+        fileName: "bank-accounts-export",
+        columns: [
+          { header: "nameAr", value: (r) => r.account.nameAr },
+          { header: "nameEn", value: (r) => r.account.nameEn ?? "" },
+          { header: "type", value: (r) => r.account.type },
+          { header: "bankName", value: (r) => r.account.bankName ?? "" },
+          { header: "accountNumber", value: (r) => r.account.accountNumber ?? "" },
+          { header: "currency", value: (r) => r.account.currency },
+          {
+            header: "openingBalance",
+            value: (r) => Number(r.account.openingBalance ?? 0),
+          },
+          {
+            header: "openingBalanceDate",
+            value: (r) => r.account.openingBalanceDate ?? "",
+          },
+          { header: "accountCode", value: (r) => r.chartCode },
+          {
+            header: "balance",
+            value: (r) =>
+              round2(
+                Number(r.account.openingBalance ?? 0) +
+                  (sums.get(r.account.id) ?? 0),
+              ),
+          },
+        ],
+        rows,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to export bank accounts");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Bulk-creates bank/cash accounts from an .xlsx (round-trips the export format).
+// Each row links to an existing leaf chart-of-accounts account by `accountCode`.
+// All-or-nothing: any invalid row aborts the whole import.
+router.post(
+  "/bank/accounts/import",
+  requireAuth,
+  requireCapability("bank:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      if (!sheet.has("nameAr") || !sheet.has("accountCode")) {
+        res.status(400).json({
+          error:
+            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: nameAr, type, currency, accountCode",
+        });
+        return;
+      }
+
+      // Resolve linked chart accounts by code (must be leaf accounts).
+      const chartAccounts = await db
+        .select({
+          id: accountsTable.id,
+          code: accountsTable.code,
+          isGroup: accountsTable.isGroup,
+        })
+        .from(accountsTable)
+        .where(eq(accountsTable.companyId, companyId));
+      const accByCode = new Map(chartAccounts.map((a) => [a.code, a]));
+      const existing = await db
+        .select({ nameAr: bankAccountsTable.nameAr })
+        .from(bankAccountsTable)
+        .where(eq(bankAccountsTable.companyId, companyId));
+      const existingNames = new Set(existing.map((e) => e.nameAr));
+
+      const ACCOUNT_TYPES = new Set(["bank", "cash", "credit_card", "loan"]);
+      type Row = {
+        nameAr: string;
+        nameEn: string | null;
+        type: string;
+        bankName: string | null;
+        accountNumber: string | null;
+        currency: string;
+        openingBalance: number;
+        openingBalanceDate: string | null;
+        accountId: string;
+      };
+      const parsed: Row[] = [];
+      const seen = new Set<string>();
+      for (const { rowNo, row } of sheet.rows) {
+        const nameAr = sheet.str(row, "nameAr");
+        const accountCode = sheet.str(row, "accountCode");
+        if (!nameAr && !accountCode) continue; // skip blank rows
+        if (!nameAr) {
+          res.status(400).json({ error: `السطر ${rowNo}: nameAr مطلوب` });
+          return;
+        }
+        if (seen.has(nameAr) || existingNames.has(nameAr)) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: اسم الحساب ${nameAr} مكرر` });
+          return;
+        }
+        const typeRaw = sheet.str(row, "type") || "bank";
+        if (!ACCOUNT_TYPES.has(typeRaw)) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: نوع الحساب ${typeRaw} غير صحيح (bank, cash, credit_card, loan)`,
+          });
+          return;
+        }
+        const currency = sheet.str(row, "currency");
+        if (!currency) {
+          res.status(400).json({ error: `السطر ${rowNo}: العملة مطلوبة` });
+          return;
+        }
+        if (!accountCode) {
+          res.status(400).json({ error: `السطر ${rowNo}: accountCode مطلوب` });
+          return;
+        }
+        const chart = accByCode.get(accountCode);
+        if (!chart) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: الحساب المحاسبي ${accountCode} غير موجود`,
+          });
+          return;
+        }
+        if (chart.isGroup) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: ${accountCode} حساب رئيسي ولا يصلح للربط`,
+          });
+          return;
+        }
+        const obDate = sheet.str(row, "openingBalanceDate");
+        seen.add(nameAr);
+        parsed.push({
+          nameAr,
+          nameEn: sheet.str(row, "nameEn") || null,
+          type: typeRaw,
+          bankName: sheet.str(row, "bankName") || null,
+          accountNumber: sheet.str(row, "accountNumber") || null,
+          currency: currency.toUpperCase(),
+          openingBalance: round2(sheet.num(row, "openingBalance")),
+          openingBalanceDate: obDate || null,
+          accountId: chart.id,
+        });
+      }
+      if (parsed.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على حسابات" });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        for (const r of parsed) {
+          await tx.insert(bankAccountsTable).values({
+            companyId,
+            nameAr: r.nameAr,
+            nameEn: r.nameEn,
+            type: r.type,
+            bankName: r.bankName,
+            accountNumber: r.accountNumber,
+            currency: r.currency,
+            openingBalance: String(r.openingBalance),
+            openingBalanceDate: r.openingBalanceDate,
+            accountId: r.accountId,
+            isActive: true,
+          });
+        }
+      });
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "import",
+          entity: "bank_account",
+          entityLabel: `${parsed.length} حساب بنكي`,
+          newValue: { imported: parsed.length },
+        },
+        req.log,
+      );
+      res.json({ imported: parsed.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to import bank accounts");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
