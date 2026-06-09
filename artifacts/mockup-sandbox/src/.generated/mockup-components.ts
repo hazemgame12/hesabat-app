@@ -6,8 +6,8 @@ export const modules: ModuleMap = {
   "./components/mockups/bank-cash/BankCash.tsx": () => import("../components/mockups/bank-cash/BankCash.tsx"),
   "./components/mockups/chart-of-accounts/ChartOfAccounts.tsx": () => import("../components/mockups/chart-of-accounts/ChartOfAccounts.tsx"),
   "./components/mockups/company-profile/CompanyProfile.tsx": () => import("../components/mockups/company-profile/CompanyProfile.tsx"),
-  "./components/mockups/customers-suppliers/CustomersSuppliers.tsx": () => import("../components/mockups/customers-suppliers/CustomersSuppliers.tsx"),
   "./components/mockups/cost-centers/CostCenters.tsx": () => import("../components/mockups/cost-centers/CostCenters.tsx"),
+  "./components/mockups/customers-suppliers/CustomersSuppliers.tsx": () => import("../components/mockups/customers-suppliers/CustomersSuppliers.tsx"),
   "./components/mockups/financial-reports/FinancialReports.tsx": () => import("../components/mockups/financial-reports/FinancialReports.tsx"),
   "./components/mockups/taxes/Taxes.tsx": () => import("../components/mockups/taxes/Taxes.tsx")
 };
