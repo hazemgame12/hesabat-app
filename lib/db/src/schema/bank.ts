@@ -86,6 +86,10 @@ export const bankMovementsTable = pgTable("bank_movements", {
   // Links the two rows of a single transfer so they delete together.
   transferGroupId: uuid("transfer_group_id"),
   description: text("description"),
+  // Original bank-statement text captured on Excel import (the bank's own
+  // wording). Distinct from `description` (the user's in-app البيان written
+  // when classifying the movement).
+  notes: text("notes"),
   reference: text("reference"),
   journalEntryId: uuid("journal_entry_id").references(
     () => journalEntriesTable.id,

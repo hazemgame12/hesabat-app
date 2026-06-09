@@ -3505,6 +3505,41 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
 
   /bank/movements/{id}:
+    patch:
+      operationId: updateBankMovement
+      tags: [bank]
+      summary: Classify/edit a movement (set counterpart + description); posts its journal entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankMovementUpdateInput"
+      responses:
+        "200":
+          description: Updated movement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankMovement"
+        "400":
+          description: Invalid input or movement cannot be edited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
     delete:
       operationId: deleteBankMovement
       tags: [bank]
@@ -6788,6 +6823,11 @@ components:
           type: ["string", "null"]
         description:
           type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, posted]
         reference:
           type: ["string", "null"]
         journalEntryId:
@@ -6800,6 +6840,30 @@ components:
           type: boolean
         createdAt:
           type: string
+
+    BankMovementUpdateInput:
+      type: object
+      properties:
+        date:
+          type: string
+        type:
+          type: string
+          enum:
+            [deposit, withdrawal, bank_charge, interest_income, interest_expense, customer_collection, supplier_payment, loan_installment, cash_expense]
+        amount:
+          type: number
+        currency:
+          type: ["string", "null"]
+        exchangeRate:
+          type: number
+        counterpartAccountId:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        reference:
+          type: ["string", "null"]
 
     BankMovementInput:
       type: object

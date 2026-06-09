@@ -8,6 +8,7 @@ import {
   useListCurrencies,
   useListBankMovements,
   useCreateBankMovement,
+  useUpdateBankMovement,
   useDeleteBankMovement,
   useListBankReconciliations,
   useCreateBankReconciliation,
@@ -45,6 +46,7 @@ import {
   ChevronLeft,
   Download,
   Wand2,
+  Clock,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -251,6 +253,7 @@ export function Bank() {
             t={t}
             accountLabel={accountLabel}
             canCreate={canCreate}
+            canUpdate={canUpdate}
             canDelete={canDelete}
           />
         )}
@@ -755,6 +758,7 @@ function MovementsTab({
   t,
   accountLabel,
   canCreate,
+  canUpdate,
   canDelete,
 }: {
   accounts: BankAccount[];
@@ -764,6 +768,7 @@ function MovementsTab({
   t: (k: string, o?: any) => string;
   accountLabel: (a: Account) => string;
   canCreate: boolean;
+  canUpdate: boolean;
   canDelete: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -782,8 +787,10 @@ function MovementsTab({
     },
   );
   const createMovement = useCreateBankMovement();
+  const updateMovement = useUpdateBankMovement();
   const deleteMovement = useDeleteBankMovement();
   const [modalOpen, setModalOpen] = useState(false);
+  const [toClassify, setToClassify] = useState<BankMovement | null>(null);
   const [toDelete, setToDelete] = useState<BankMovement | null>(null);
 
   const invalidate = () => {
@@ -872,6 +879,12 @@ function MovementsTab({
         </div>
       </div>
 
+      {canCreate && (
+        <p className="text-xs text-muted-foreground -mt-2">
+          {t("bank.importHint")}
+        </p>
+      )}
+
       <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[280px]">
         {isLoading ? (
           <div className="flex items-center justify-center p-12">
@@ -901,7 +914,7 @@ function MovementsTab({
                 <th className="text-center px-3 py-3">
                   {t("bank.movementsTable.cleared")}
                 </th>
-                {canDelete && <th className="w-16 px-6 py-3" />}
+                {(canUpdate || canDelete) && <th className="w-24 px-6 py-3" />}
               </tr>
             </thead>
             <tbody>
@@ -924,12 +937,26 @@ function MovementsTab({
                     </span>
                   </td>
                   <td className="px-3 py-3.5 text-foreground/80">
-                    {m.type === "transfer"
-                      ? m.transferAccountName
-                      : m.counterpartAccountName}
-                    {m.description && (
-                      <div className="text-xs text-muted-foreground">
-                        {m.description}
+                    {m.status === "pending" ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+                        <Clock className="w-3 h-3" />
+                        {t("bank.movementsTable.pending")}
+                      </span>
+                    ) : (
+                      <>
+                        {m.type === "transfer"
+                          ? m.transferAccountName
+                          : m.counterpartAccountName}
+                        {m.description && (
+                          <div className="text-xs text-muted-foreground">
+                            {m.description}
+                          </div>
+                        )}
+                      </>
+                    )}
+                    {m.notes && (
+                      <div className="text-xs text-muted-foreground/70 italic">
+                        {m.notes}
                       </div>
                     )}
                   </td>
@@ -947,17 +974,40 @@ function MovementsTab({
                       <CheckCircle2 className="w-4 h-4 text-success inline" />
                     )}
                   </td>
-                  {canDelete && (
+                  {(canUpdate || canDelete) && (
                     <td className="px-6 py-3.5">
-                      {!m.isCleared && !m.reconciliationId && (
-                        <button
-                          onClick={() => setToDelete(m)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-destructive/10 text-destructive"
-                          title={t("common.delete")}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        {canUpdate &&
+                          !m.isCleared &&
+                          !m.reconciliationId &&
+                          m.type !== "transfer" &&
+                          !m.transferGroupId && (
+                            <button
+                              onClick={() => setToClassify(m)}
+                              className={`p-1.5 rounded-md hover:bg-primary/10 text-primary ${
+                                m.status === "pending"
+                                  ? ""
+                                  : "opacity-0 group-hover:opacity-100"
+                              } transition-opacity`}
+                              title={
+                                m.status === "pending"
+                                  ? t("bank.classify.action")
+                                  : t("common.edit")
+                              }
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        {canDelete && !m.isCleared && !m.reconciliationId && (
+                          <button
+                            onClick={() => setToDelete(m)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-destructive/10 text-destructive"
+                            title={t("common.delete")}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -980,6 +1030,21 @@ function MovementsTab({
           onSaved={() => {
             invalidate();
             setModalOpen(false);
+          }}
+        />
+      )}
+
+      {toClassify && (
+        <ClassifyMovementModal
+          movement={toClassify}
+          leafAccounts={leafAccounts}
+          accountLabel={accountLabel}
+          t={t}
+          updateMovement={updateMovement}
+          onClose={() => setToClassify(null)}
+          onSaved={() => {
+            invalidate();
+            setToClassify(null);
           }}
         />
       )}
@@ -1239,6 +1304,207 @@ function MovementModal({
             className="px-5 py-2 rounded-full text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             {t("common.save")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Classify / edit movement modal (used to finish imported pending rows)
+// ---------------------------------------------------------------------------
+function ClassifyMovementModal({
+  movement,
+  leafAccounts,
+  accountLabel,
+  t,
+  updateMovement,
+  onClose,
+  onSaved,
+}: {
+  movement: BankMovement;
+  leafAccounts: Account[];
+  accountLabel: (a: Account) => string;
+  t: (k: string, o?: any) => string;
+  updateMovement: ReturnType<typeof useUpdateBankMovement>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const isPending = movement.status === "pending";
+  const [date, setDate] = useState(movement.date);
+  const [type, setType] = useState<MovementType>(
+    (movement.type as MovementType) ?? "deposit",
+  );
+  const [amount, setAmount] = useState(String(movement.amount));
+  const [counterpartAccountId, setCounterpartAccountId] = useState(
+    movement.counterpartAccountId ?? "",
+  );
+  const [description, setDescription] = useState(movement.description ?? "");
+  const [reference, setReference] = useState(movement.reference ?? "");
+  const isIn = IN_TYPES.has(type);
+
+  const selectableTypes = MOVEMENT_TYPES.filter((tp) => tp !== "transfer");
+
+  const submit = () => {
+    const amt = Number(amount);
+    if (!amt || amt <= 0) {
+      toast({
+        variant: "destructive",
+        title: t("bank.toast.error"),
+        description: t("bank.validation.amountPositive"),
+      });
+      return;
+    }
+    if (!counterpartAccountId) {
+      toast({
+        variant: "destructive",
+        title: t("bank.toast.error"),
+        description: t("bank.classify.selectCounterpart"),
+      });
+      return;
+    }
+    updateMovement.mutate(
+      {
+        id: movement.id,
+        data: {
+          date,
+          type: type as Exclude<MovementType, "transfer">,
+          amount: amt,
+          counterpartAccountId,
+          description: description.trim() || null,
+          reference: reference.trim() || null,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: t("bank.classify.saved") });
+          onSaved();
+        },
+        onError: (err: any) =>
+          toast({
+            variant: "destructive",
+            title: t("bank.toast.error"),
+            description: err?.data?.error,
+          }),
+      },
+    );
+  };
+
+  const inputCls =
+    "w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
+  const labelCls = "text-xs font-bold text-muted-foreground mb-1 block";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-card">
+          <h2 className="font-bold text-foreground">
+            {isPending ? t("bank.classify.title") : t("bank.classify.editTitle")}
+          </h2>
+          <button onClick={onClose} className="text-muted-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-5 grid grid-cols-2 gap-4">
+          {movement.notes && (
+            <div className="col-span-2 rounded-lg bg-muted/50 border px-3 py-2">
+              <span className="text-xs font-bold text-muted-foreground">
+                {t("bank.classify.bankDescription")}
+              </span>
+              <p className="text-sm text-foreground mt-0.5">{movement.notes}</p>
+            </div>
+          )}
+          <div className="col-span-2 sm:col-span-1">
+            <label className={labelCls}>{t("bank.movement.date")}</label>
+            <input
+              type="date"
+              className={inputCls}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              dir="ltr"
+            />
+          </div>
+          <div className="col-span-2 sm:col-span-1">
+            <label className={labelCls}>
+              {t("bank.movement.amount")} ({movement.currency})
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              className={inputCls}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              dir="ltr"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className={labelCls}>{t("bank.movement.type")}</label>
+            <select
+              className={inputCls}
+              value={type}
+              onChange={(e) => setType(e.target.value as MovementType)}
+            >
+              {selectableTypes.map((tp) => (
+                <option key={tp} value={tp}>
+                  {t(`bank.movementTypes.${tp}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className={labelCls}>{t("bank.movement.counterpart")}</label>
+            <select
+              className={inputCls}
+              value={counterpartAccountId}
+              onChange={(e) => setCounterpartAccountId(e.target.value)}
+            >
+              <option value="">—</option>
+              {leafAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {accountLabel(a)}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isIn
+                ? t("bank.movement.counterpartHintIn")
+                : t("bank.movement.counterpartHintOut")}
+            </p>
+          </div>
+          <div className="col-span-2">
+            <label className={labelCls}>{t("bank.movement.description")}</label>
+            <input
+              className={inputCls}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t("bank.classify.descriptionPlaceholder")}
+            />
+          </div>
+          <div className="col-span-2">
+            <label className={labelCls}>{t("bank.movement.reference")}</label>
+            <input
+              className={inputCls}
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              dir="ltr"
+            />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 p-5 border-t sticky bottom-0 bg-card">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-full text-sm font-bold text-muted-foreground hover:bg-muted"
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            onClick={submit}
+            disabled={updateMovement.isPending}
+            className="px-5 py-2 rounded-full text-sm font-bold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+          >
+            {isPending ? t("bank.classify.post") : t("common.save")}
           </button>
         </div>
       </div>

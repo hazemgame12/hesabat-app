@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BankMovementDirection } from './bankMovementDirection';
+import type { BankMovementStatus } from './bankMovementStatus';
 import type { BankMovementType } from './bankMovementType';
 
 export interface BankMovement {
@@ -31,6 +32,9 @@ export interface BankMovement {
   transferGroupId?: string | null;
   /** @nullable */
   description?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  status?: BankMovementStatus;
   /** @nullable */
   reference?: string | null;
   /** @nullable */

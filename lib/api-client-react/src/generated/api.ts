@@ -38,6 +38,7 @@ import type {
   BankAccountUpdate,
   BankMovement,
   BankMovementInput,
+  BankMovementUpdateInput,
   BankReconciliation,
   BankReconciliationDetail,
   BankReconciliationInput,
@@ -9597,6 +9598,78 @@ export const useCreateBankMovement = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getCreateBankMovementMutationOptions(options));
+    }
+
+export const getUpdateBankMovementUrl = (id: string,) => {
+
+
+
+
+  return `/api/bank/movements/${id}`
+}
+
+/**
+ * @summary Classify/edit a movement (set counterpart + description); posts its journal entry
+ */
+export const updateBankMovement = async (id: string,
+    bankMovementUpdateInput: BankMovementUpdateInput, options?: RequestInit): Promise<BankMovement> => {
+
+  return customFetch<BankMovement>(getUpdateBankMovementUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bankMovementUpdateInput,)
+  }
+);}
+
+
+
+
+export const getUpdateBankMovementMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBankMovement>>, TError,{id: string;data: BodyType<BankMovementUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBankMovement>>, TError,{id: string;data: BodyType<BankMovementUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateBankMovement'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBankMovement>>, {id: string;data: BodyType<BankMovementUpdateInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateBankMovement(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBankMovementMutationResult = NonNullable<Awaited<ReturnType<typeof updateBankMovement>>>
+    export type UpdateBankMovementMutationBody = BodyType<BankMovementUpdateInput>
+    export type UpdateBankMovementMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Classify/edit a movement (set counterpart + description); posts its journal entry
+ */
+export const useUpdateBankMovement = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBankMovement>>, TError,{id: string;data: BodyType<BankMovementUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBankMovement>>,
+        TError,
+        {id: string;data: BodyType<BankMovementUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateBankMovementMutationOptions(options));
     }
 
 export const getDeleteBankMovementUrl = (id: string,) => {

@@ -3156,6 +3156,8 @@ export const ListBankMovementsResponseItem = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3180,6 +3182,52 @@ export const CreateBankMovementBody = zod.object({
   "transferAccountId": zod.string().nullish(),
   "description": zod.string().nullish(),
   "reference": zod.string().nullish()
+})
+
+
+/**
+ * @summary Classify/edit a movement (set counterpart + description); posts its journal entry
+ */
+export const UpdateBankMovementParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateBankMovementBody = zod.object({
+  "date": zod.string().optional(),
+  "type": zod.enum(['deposit', 'withdrawal', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']).optional(),
+  "amount": zod.number().optional(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "counterpartAccountId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "reference": zod.string().nullish()
+})
+
+export const UpdateBankMovementResponse = zod.object({
+  "id": zod.string(),
+  "bankAccountId": zod.string(),
+  "bankAccountName": zod.string().nullish(),
+  "date": zod.string(),
+  "type": zod.enum(['deposit', 'withdrawal', 'transfer', 'bank_charge', 'interest_income', 'interest_expense', 'customer_collection', 'supplier_payment', 'loan_installment', 'cash_expense']),
+  "direction": zod.enum(['in', 'out']),
+  "amount": zod.number(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
+  "counterpartAccountId": zod.string().nullish(),
+  "counterpartAccountName": zod.string().nullish(),
+  "transferAccountId": zod.string().nullish(),
+  "transferAccountName": zod.string().nullish(),
+  "transferGroupId": zod.string().nullish(),
+  "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
+  "reference": zod.string().nullish(),
+  "journalEntryId": zod.string().nullish(),
+  "reconciliationId": zod.string().nullish(),
+  "isCleared": zod.boolean(),
+  "isAdjustment": zod.boolean().optional(),
+  "createdAt": zod.string()
 })
 
 
@@ -3279,6 +3327,8 @@ export const GetBankReconciliationResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3302,6 +3352,8 @@ export const GetBankReconciliationResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3368,6 +3420,8 @@ export const GetBankReconciliationReportResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3392,6 +3446,8 @@ export const GetBankReconciliationReportResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3463,6 +3519,8 @@ export const UploadBankStatementResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3486,6 +3544,8 @@ export const UploadBankStatementResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3553,6 +3613,8 @@ export const MatchBankReconciliationResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3576,6 +3638,8 @@ export const MatchBankReconciliationResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3673,6 +3737,8 @@ export const CompleteBankReconciliationResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),
@@ -3696,6 +3762,8 @@ export const CompleteBankReconciliationResponse = zod.object({
   "transferAccountName": zod.string().nullish(),
   "transferGroupId": zod.string().nullish(),
   "description": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "status": zod.enum(['pending', 'posted']).optional(),
   "reference": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "reconciliationId": zod.string().nullish(),

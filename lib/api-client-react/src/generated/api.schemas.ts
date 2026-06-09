@@ -2282,6 +2282,14 @@ export const BankMovementDirection = {
   out: 'out',
 } as const;
 
+export type BankMovementStatus = typeof BankMovementStatus[keyof typeof BankMovementStatus];
+
+
+export const BankMovementStatus = {
+  pending: 'pending',
+  posted: 'posted',
+} as const;
+
 export interface BankMovement {
   id: string;
   bankAccountId: string;
@@ -2306,6 +2314,9 @@ export interface BankMovement {
   /** @nullable */
   description?: string | null;
   /** @nullable */
+  notes?: string | null;
+  status?: BankMovementStatus;
+  /** @nullable */
   reference?: string | null;
   /** @nullable */
   journalEntryId?: string | null;
@@ -2314,6 +2325,38 @@ export interface BankMovement {
   isCleared: boolean;
   isAdjustment?: boolean;
   createdAt: string;
+}
+
+export type BankMovementUpdateInputType = typeof BankMovementUpdateInputType[keyof typeof BankMovementUpdateInputType];
+
+
+export const BankMovementUpdateInputType = {
+  deposit: 'deposit',
+  withdrawal: 'withdrawal',
+  bank_charge: 'bank_charge',
+  interest_income: 'interest_income',
+  interest_expense: 'interest_expense',
+  customer_collection: 'customer_collection',
+  supplier_payment: 'supplier_payment',
+  loan_installment: 'loan_installment',
+  cash_expense: 'cash_expense',
+} as const;
+
+export interface BankMovementUpdateInput {
+  date?: string;
+  type?: BankMovementUpdateInputType;
+  amount?: number;
+  /** @nullable */
+  currency?: string | null;
+  exchangeRate?: number;
+  /** @nullable */
+  counterpartAccountId?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  reference?: string | null;
 }
 
 export type BankMovementInputType = typeof BankMovementInputType[keyof typeof BankMovementInputType];

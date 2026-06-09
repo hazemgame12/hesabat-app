@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
-import { and, eq, inArray, desc, sql, gte, lte } from "drizzle-orm";
+import { and, eq, inArray, desc, sql, gte, lte, isNotNull } from "drizzle-orm";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { randomUUID } from "node:crypto";
@@ -22,6 +22,7 @@ import {
   CreateBankAccountBody,
   UpdateBankAccountBody,
   CreateBankMovementBody,
+  UpdateBankMovementBody,
   CreateBankReconciliationBody,
   MatchBankReconciliationBody,
   AdjustBankReconciliationBody,
@@ -116,7 +117,12 @@ async function movementSums(
   companyId: string,
   opts: { upToDate?: string; clearedOnly?: boolean; bankAccountId?: string } = {},
 ): Promise<Map<string, number>> {
-  const conds = [eq(bankMovementsTable.companyId, companyId)];
+  const conds = [
+    eq(bankMovementsTable.companyId, companyId),
+    // Imported-but-unclassified rows (no journal entry) are NOT in the ledger
+    // yet, so they must never move the bank balance until they are posted.
+    isNotNull(bankMovementsTable.journalEntryId),
+  ];
   if (opts.bankAccountId)
     conds.push(eq(bankMovementsTable.bankAccountId, opts.bankAccountId));
   if (opts.upToDate) conds.push(lte(bankMovementsTable.date, opts.upToDate));
@@ -278,6 +284,10 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
       : null,
     transferGroupId: r.transferGroupId,
     description: r.description,
+    notes: r.notes,
+    // A movement with no journal entry is an imported statement line still
+    // awaiting classification (تبويب). Everything else is posted to the ledger.
+    status: (r.journalEntryId ? "posted" : "pending") as "posted" | "pending",
     reference: r.reference,
     journalEntryId: r.journalEntryId,
     reconciliationId: r.reconciliationId,
@@ -915,6 +925,11 @@ router.get(
             value: (r) => (r.mv.direction === "out" ? Number(r.mv.amount) : ""),
           },
           {
+            header: "ملاحظات",
+            value: (r) => r.mv.notes ?? "",
+            width: 28,
+          },
+          {
             header: "كود الحساب المقابل",
             value: (r) => r.counterpartCode ?? "",
             width: 22,
@@ -934,15 +949,15 @@ router.get(
   },
 );
 
-// Bulk-creates movements for ONE bank/cash account from an .xlsx, posting a
-// balanced journal entry per row (same logic as the manual "record movement"
-// form). Each row's counterpart is an existing leaf chart account referenced by
-// `counterpartAccountCode`. Amounts come as two columns: مدين (debit) = money IN
-// (raises the balance → direction "in"), دائن (credit) = money OUT. Exactly one
-// of the two must be filled per row; the type column is optional (defaults to
-// deposit/withdrawal). Transfers are not supported here (use the transfer form).
-// All-or-nothing: any invalid row aborts the whole import so the ledger never
-// half-posts.
+// Bulk-imports raw bank-statement lines for ONE bank/cash account from an
+// .xlsx. Columns: التاريخ (date), مدين (debit = money IN, raises the balance →
+// direction "in"), دائن (credit = money OUT), and ملاحظات / وصف البنك (the
+// bank's own statement text → `notes`). Exactly one of debit/credit must carry
+// a value per row. NO counterpart account and NO journal entry are created here:
+// every imported row lands as a "pending" movement that the user later opens and
+// classifies (picks the account + writes their own البيان), which posts it. So
+// imported rows do NOT touch the ledger or balance until classified.
+// All-or-nothing: any invalid row aborts the whole import.
 router.post(
   "/bank/movements/import",
   requireAuth,
@@ -974,67 +989,34 @@ router.post(
         res.status(404).json({ error: "الحساب البنكي غير موجود" });
         return;
       }
-      if (!(await isLeafAccount(bank.accountId, companyId))) {
-        res.status(400).json({ error: "الحساب المحاسبي المرتبط غير صحيح" });
-        return;
-      }
       const sheet = await parseSheet(req.file.buffer);
       if (!sheet) {
         res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
         return;
       }
-      // Accept Arabic or English headers. مدين = money IN (raises the balance
-      // → Dr bank), دائن = money OUT (→ Cr bank) — the company-books convention
-      // the user picked. Direction is derived from which column carries a value.
+      // Accept Arabic or English headers. مدين = money IN (raises the balance),
+      // دائن = money OUT. Direction is derived from which column carries a value.
       const pick = (...aliases: string[]) => aliases.find((h) => sheet.has(h));
       const H = {
         date: pick("date", "التاريخ"),
         debit: pick("debit", "مدين"),
         credit: pick("credit", "دائن"),
-        code: pick(
-          "counterpartAccountCode",
-          "كود الحساب المقابل",
-          "الحساب المقابل",
-        ),
-        type: pick("type", "نوع الحركة", "النوع"),
-        currency: pick("currency", "العملة"),
-        rate: pick("exchangeRate", "سعر الصرف"),
-        description: pick("description", "البيان", "الوصف"),
-        reference: pick("reference", "المرجع"),
+        notes: pick("notes", "ملاحظات", "وصف البنك", "البيان", "الوصف"),
       };
-      if (!H.date || !H.code || (!H.debit && !H.credit)) {
+      if (!H.date || (!H.debit && !H.credit)) {
         res.status(400).json({
           error:
-            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: التاريخ، مدين و/أو دائن، كود الحساب المقابل",
+            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: التاريخ، مدين و/أو دائن",
         });
         return;
       }
 
-      // Resolve counterpart chart accounts by code (must be leaf accounts).
-      const leafByCode = new Map(
-        (
-          await db
-            .select({
-              id: accountsTable.id,
-              code: accountsTable.code,
-              isGroup: accountsTable.isGroup,
-            })
-            .from(accountsTable)
-            .where(eq(accountsTable.companyId, companyId))
-        ).map((a) => [a.code, a]),
-      );
-
       const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
       type PRow = {
         date: string;
-        type: BankMovementType;
         direction: "in" | "out";
         amount: number;
-        currency: string;
-        rate: number;
-        counterpartAccountId: string;
-        description: string | null;
-        reference: string | null;
+        notes: string | null;
       };
       const S = (row: ExcelJS.Row, h: string | undefined) =>
         h ? sheet.str(row, h) : "";
@@ -1043,12 +1025,11 @@ router.post(
       const parsed: PRow[] = [];
       for (const { rowNo, row } of sheet.rows) {
         const date = S(row, H.date);
-        const typeRaw = S(row, H.type);
-        const code = S(row, H.code);
+        const notes = S(row, H.notes);
         const debit = round2(N(row, H.debit));
         const credit = round2(N(row, H.credit));
         // Skip fully-blank rows.
-        if (!date && !typeRaw && !code && debit <= 0 && credit <= 0) continue;
+        if (!date && !notes && debit <= 0 && credit <= 0) continue;
 
         if (!DATE_RE.test(date)) {
           res.status(400).json({
@@ -1077,60 +1058,11 @@ router.post(
         // مدين = in (raises balance), دائن = out.
         const direction: "in" | "out" = debit > 0 ? "in" : "out";
         const amount = debit > 0 ? debit : credit;
-        // Type is optional: validate + must match the column if given, else
-        // default to deposit/withdrawal based on the direction.
-        let type: BankMovementType;
-        if (typeRaw) {
-          const typeDir =
-            MOVEMENT_DIRECTION[typeRaw as Exclude<BankMovementType, "transfer">];
-          if (!typeDir) {
-            res.status(400).json({
-              error: `السطر ${rowNo}: نوع الحركة "${typeRaw}" غير صحيح أو غير مدعوم في الاستيراد`,
-            });
-            return;
-          }
-          if (typeDir !== direction) {
-            res.status(400).json({
-              error: `السطر ${rowNo}: نوع الحركة "${typeRaw}" لا يطابق العمود (${direction === "in" ? "مدين" : "دائن"})`,
-            });
-            return;
-          }
-          type = typeRaw as BankMovementType;
-        } else {
-          type = direction === "in" ? "deposit" : "withdrawal";
-        }
-        if (!code) {
-          res
-            .status(400)
-            .json({ error: `السطر ${rowNo}: الحساب المقابل مطلوب` });
-          return;
-        }
-        const chart = leafByCode.get(code);
-        if (!chart) {
-          res.status(400).json({
-            error: `السطر ${rowNo}: الحساب المقابل ${code} غير موجود`,
-          });
-          return;
-        }
-        if (chart.isGroup) {
-          res.status(400).json({
-            error: `السطر ${rowNo}: ${code} حساب رئيسي ولا يصلح كحساب مقابل`,
-          });
-          return;
-        }
-        const currency = (S(row, H.currency) || bank.currency).toUpperCase();
-        const rateRaw = N(row, H.rate);
-        const rate = rateRaw > 0 ? rateRaw : 1;
         parsed.push({
           date,
-          type,
           direction,
           amount,
-          currency,
-          rate,
-          counterpartAccountId: chart.id,
-          description: S(row, H.description) || null,
-          reference: S(row, H.reference) || null,
+          notes: notes || null,
         });
       }
       if (parsed.length === 0) {
@@ -1138,39 +1070,20 @@ router.post(
         return;
       }
 
-      const baseCurrency = await loadBaseCurrency(companyId);
       await db.transaction(async (tx) => {
         for (const r of parsed) {
-          const amountBase = round2(r.amount * r.rate);
-          const entry = await createDraftJournalEntry(tx, {
-            companyId,
-            baseCurrency,
-            date: r.date,
-            reference: r.reference ?? `حركة بنكية`,
-            notes: r.description,
-            createdBy: req.auth!.userId,
-            status: "posted",
-            lines: buildMovementLines({
-              direction: r.direction,
-              bankChartAccountId: bank.accountId,
-              counterpartAccountId: r.counterpartAccountId,
-              amountBase,
-              description: r.description,
-            }),
-          });
+          // Pending row: no counterpart, no journal entry. Type defaults to
+          // deposit/withdrawal by direction; the user changes it on classify.
           await tx.insert(bankMovementsTable).values({
             companyId,
             bankAccountId: bank.id,
             date: r.date,
-            type: r.type,
+            type: r.direction === "in" ? "deposit" : "withdrawal",
             direction: r.direction,
             amount: String(r.amount),
-            currency: r.currency,
-            exchangeRate: String(r.rate),
-            counterpartAccountId: r.counterpartAccountId,
-            description: r.description,
-            reference: r.reference,
-            journalEntryId: entry.id,
+            currency: bank.currency,
+            exchangeRate: "1",
+            notes: r.notes,
             createdBy: req.auth!.userId,
           });
         }
@@ -1426,6 +1339,187 @@ router.post(
       res.status(201).json(await serializeMovements([created], companyId));
     } catch (err) {
       req.log.error({ err }, "Failed to create bank movement");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// Classify / edit a single (non-transfer) movement. The main use is finishing an
+// imported "pending" row: the user picks the counterpart account (تبويب) and
+// writes their own البيان. When the resulting movement has a counterpart, we
+// (re)post its balanced journal entry and it becomes "posted"; without one it
+// stays pending. Editing a posted, non-reconciled movement re-posts its entry.
+// Transfers and reconciled/cleared movements cannot be edited here.
+router.patch(
+  "/bank/movements/:id",
+  requireAuth,
+  requireCapability("bank:update"),
+  async (req, res) => {
+    const parsed = UpdateBankMovementBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
+      return;
+    }
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    const d = parsed.data;
+    try {
+      const [movement] = await db
+        .select()
+        .from(bankMovementsTable)
+        .where(
+          and(
+            eq(bankMovementsTable.id, id),
+            eq(bankMovementsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!movement) {
+        res.status(404).json({ error: "الحركة غير موجودة" });
+        return;
+      }
+      if (movement.transferGroupId || movement.type === "transfer") {
+        res.status(400).json({
+          error: "لا يمكن تعديل حركة تحويل من هنا، استخدم نموذج التحويل",
+        });
+        return;
+      }
+      if (movement.isCleared || movement.reconciliationId) {
+        res.status(400).json({ error: "لا يمكن تعديل حركة تمت تسويتها بنكياً" });
+        return;
+      }
+
+      // Merge incoming fields over the existing row.
+      const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+      const date = d.date ?? movement.date;
+      if (!DATE_RE.test(date)) {
+        res.status(400).json({ error: "التاريخ مطلوب بصيغة YYYY-MM-DD" });
+        return;
+      }
+      const amount = round2(d.amount ?? Number(movement.amount));
+      if (amount <= 0) {
+        res.status(400).json({ error: "المبلغ يجب أن يكون أكبر من صفر" });
+        return;
+      }
+      const rate = Number(d.exchangeRate ?? Number(movement.exchangeRate));
+      const effRate = rate > 0 ? rate : 1;
+      const currency = (
+        d.currency ??
+        movement.currency
+      ).toUpperCase();
+
+      // Type → direction. Default to the existing type; "transfer" is rejected.
+      const type = (d.type ?? movement.type) as BankMovementType;
+      if (type === "transfer") {
+        res.status(400).json({ error: "نوع الحركة غير صحيح" });
+        return;
+      }
+      const direction = MOVEMENT_DIRECTION[type];
+      if (!direction) {
+        res.status(400).json({ error: "نوع الحركة غير صحيح" });
+        return;
+      }
+
+      // counterpartAccountId: undefined = keep, null = clear, string = set.
+      const counterpartAccountId =
+        d.counterpartAccountId === undefined
+          ? movement.counterpartAccountId
+          : d.counterpartAccountId;
+      if (
+        counterpartAccountId &&
+        !(await isLeafAccount(counterpartAccountId, companyId))
+      ) {
+        res
+          .status(400)
+          .json({ error: "الحساب المقابل غير صحيح أو حساب رئيسي" });
+        return;
+      }
+
+      const description =
+        d.description === undefined ? movement.description : d.description;
+      const notes = d.notes === undefined ? movement.notes : d.notes;
+      const reference =
+        d.reference === undefined ? movement.reference : d.reference;
+
+      const [bank] = await db
+        .select()
+        .from(bankAccountsTable)
+        .where(
+          and(
+            eq(bankAccountsTable.id, movement.bankAccountId),
+            eq(bankAccountsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!bank || !(await isLeafAccount(bank.accountId, companyId))) {
+        res.status(400).json({ error: "الحساب المحاسبي المرتبط غير صحيح" });
+        return;
+      }
+
+      const baseCurrency = await loadBaseCurrency(companyId);
+      const updated = await db.transaction(async (tx) => {
+        // A counterpart is required to post. Reposting replaces the old entry.
+        let journalEntryId: string | null = movement.journalEntryId;
+        if (counterpartAccountId) {
+          const amountBase = round2(amount * effRate);
+          const entry = await createDraftJournalEntry(tx, {
+            companyId,
+            baseCurrency,
+            date,
+            reference: reference ?? `حركة بنكية`,
+            notes: description ?? notes ?? null,
+            createdBy: req.auth!.userId,
+            status: "posted",
+            lines: buildMovementLines({
+              direction,
+              bankChartAccountId: bank.accountId,
+              counterpartAccountId,
+              amountBase,
+              description: description ?? null,
+            }),
+          });
+          if (movement.journalEntryId) {
+            await tx
+              .delete(journalEntriesTable)
+              .where(eq(journalEntriesTable.id, movement.journalEntryId));
+          }
+          journalEntryId = entry.id;
+        } else if (movement.journalEntryId) {
+          // Counterpart cleared on a previously posted movement: drop its
+          // journal entry so the row goes back to pending (journalEntryId NULL).
+          await tx
+            .delete(journalEntriesTable)
+            .where(eq(journalEntriesTable.id, movement.journalEntryId));
+          journalEntryId = null;
+        }
+        const [row] = await tx
+          .update(bankMovementsTable)
+          .set({
+            date,
+            type,
+            direction,
+            amount: String(amount),
+            currency,
+            exchangeRate: String(effRate),
+            counterpartAccountId,
+            description,
+            notes,
+            reference,
+            journalEntryId,
+          })
+          .where(
+            and(
+              eq(bankMovementsTable.id, id),
+              eq(bankMovementsTable.companyId, companyId),
+            ),
+          )
+          .returning();
+        return row!;
+      });
+      const [serialized] = await serializeMovements([updated], companyId);
+      res.json(serialized);
+    } catch (err) {
+      req.log.error({ err }, "Failed to update bank movement");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
