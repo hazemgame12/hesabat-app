@@ -47,7 +47,6 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const itemSchema = z.object({
-  code: z.string().min(1, "codeRequired"),
   nameAr: z.string().min(1, "nameRequired"),
   nameEn: z.string().optional(),
   unit: z.string().min(1, "unitRequired"),
@@ -162,7 +161,6 @@ export function Inventory() {
   // ---- item modal ----
   const openCreateItem = () => {
     resetItem({
-      code: "",
       nameAr: "",
       nameEn: "",
       unit: "",
@@ -175,7 +173,6 @@ export function Inventory() {
 
   const openEditItem = (it: InventoryItem) => {
     resetItem({
-      code: it.code,
       nameAr: it.nameAr,
       nameEn: it.nameEn ?? "",
       unit: it.unit,
@@ -194,7 +191,6 @@ export function Inventory() {
 
   const onSubmitItem = (form: ItemForm) => {
     const base = {
-      code: form.code,
       nameAr: form.nameAr,
       nameEn: form.nameEn || null,
       unit: form.unit,
@@ -719,23 +715,6 @@ export function Inventory() {
             </div>
 
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5 overflow-y-auto">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-foreground">
-                  {t("inventory.codeLabel")}
-                </label>
-                <input
-                  dir="ltr"
-                  placeholder={t("inventory.codePlaceholder")}
-                  className="bg-background border rounded-xl h-11 px-4 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  {...registerItem("code")}
-                />
-                {itemErrors.code && (
-                  <span className="text-xs text-destructive">
-                    {t(`inventory.validation.${itemErrors.code.message}`)}
-                  </span>
-                )}
-              </div>
-
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold text-foreground">
                   {t("inventory.unitLabel")}

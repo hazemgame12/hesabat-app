@@ -515,6 +515,8 @@ export const FixedAssetStatus = {
 
 export interface FixedAsset {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -637,8 +639,6 @@ export interface InventoryItem {
 
 export interface InventoryItemInput {
   /** @minLength 1 */
-  code: string;
-  /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -651,8 +651,6 @@ export interface InventoryItemInput {
 }
 
 export interface InventoryItemUpdate {
-  /** @minLength 1 */
-  code?: string;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
@@ -793,8 +791,6 @@ export const EmployeeInputStatus = {
 
 export interface EmployeeInput {
   /** @minLength 1 */
-  code: string;
-  /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -819,8 +815,6 @@ export const EmployeeUpdateStatus = {
 } as const;
 
 export interface EmployeeUpdate {
-  /** @minLength 1 */
-  code?: string;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
@@ -1446,8 +1440,6 @@ export const CustomerInputType = {
 
 export interface CustomerInput {
   /** @minLength 1 */
-  code: string;
-  /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -1487,8 +1479,6 @@ export const CustomerUpdateType = {
 } as const;
 
 export interface CustomerUpdate {
-  /** @minLength 1 */
-  code?: string;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
@@ -1567,8 +1557,6 @@ export const SupplierInputType = {
 
 export interface SupplierInput {
   /** @minLength 1 */
-  code: string;
-  /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -1603,8 +1591,6 @@ export const SupplierUpdateType = {
 } as const;
 
 export interface SupplierUpdate {
-  /** @minLength 1 */
-  code?: string;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
@@ -1779,6 +1765,8 @@ export interface InvoiceSummary {
   id: string;
   kind: InvoiceSummaryKind;
   invoiceNo: number;
+  /** @nullable */
+  code?: string | null;
   date: string;
   /** @nullable */
   dueDate?: string | null;

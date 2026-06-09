@@ -9,8 +9,6 @@ import type { SupplierUpdateType } from './supplierUpdateType';
 
 export interface SupplierUpdate {
   /** @minLength 1 */
-  code?: string;
-  /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
   nameEn?: string | null;

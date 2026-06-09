@@ -9,8 +9,6 @@ import type { CustomerInputType } from './customerInputType';
 
 export interface CustomerInput {
   /** @minLength 1 */
-  code: string;
-  /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;

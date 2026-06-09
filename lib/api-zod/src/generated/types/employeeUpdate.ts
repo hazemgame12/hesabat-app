@@ -10,8 +10,6 @@ import type { PayComponentInput } from './payComponentInput';
 
 export interface EmployeeUpdate {
   /** @minLength 1 */
-  code?: string;
-  /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
   nameEn?: string | null;

@@ -1078,6 +1078,7 @@ export const AcceptInvitationBody = zod.object({
  */
 export const ListAssetsResponseItem = zod.object({
   "id": zod.string(),
+  "code": zod.string().nullish(),
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
   "category": zod.string().nullish(),
@@ -1177,6 +1178,7 @@ export const UpdateAssetBody = zod.object({
 
 export const UpdateAssetResponse = zod.object({
   "id": zod.string(),
+  "code": zod.string().nullish(),
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
   "category": zod.string().nullish(),
@@ -1234,9 +1236,7 @@ export const ListInventoryItemsResponse = zod.array(ListInventoryItemsResponseIt
 
 
 
-
 export const CreateInventoryItemBody = zod.object({
-  "code": zod.string().min(1),
   "nameAr": zod.string().min(1),
   "nameEn": zod.string().nullish(),
   "unit": zod.string().min(1),
@@ -1257,9 +1257,7 @@ export const UpdateInventoryItemParams = zod.object({
 
 
 
-
 export const UpdateInventoryItemBody = zod.object({
-  "code": zod.string().min(1).optional(),
   "nameAr": zod.string().min(1).optional(),
   "nameEn": zod.string().nullish(),
   "unit": zod.string().min(1).optional(),
@@ -1375,7 +1373,6 @@ export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
  */
 
 
-
 export const createEmployeeBodyBaseSalaryMin = 0;
 
 
@@ -1384,7 +1381,6 @@ export const createEmployeeBodyComponentsItemAmountMin = 0;
 
 
 export const CreateEmployeeBody = zod.object({
-  "code": zod.string().min(1),
   "nameAr": zod.string().min(1),
   "nameEn": zod.string().nullish(),
   "jobTitle": zod.string().nullish(),
@@ -1438,7 +1434,6 @@ export const UpdateEmployeeParams = zod.object({
 
 
 
-
 export const updateEmployeeBodyBaseSalaryMin = 0;
 
 
@@ -1447,7 +1442,6 @@ export const updateEmployeeBodyComponentsItemAmountMin = 0;
 
 
 export const UpdateEmployeeBody = zod.object({
-  "code": zod.string().min(1).optional(),
   "nameAr": zod.string().min(1).optional(),
   "nameEn": zod.string().nullish(),
   "jobTitle": zod.string().nullish(),
@@ -1919,7 +1913,6 @@ export const ListCustomersResponse = zod.array(ListCustomersResponseItem)
  * @summary Create a customer (auto-creates its subsidiary account)
  */
 
-
 export const createCustomerBodyCreditLimitMin = 0;
 
 export const createCustomerBodyCreditPeriodDaysMin = 0;
@@ -1927,7 +1920,6 @@ export const createCustomerBodyCreditPeriodDaysMin = 0;
 
 
 export const CreateCustomerBody = zod.object({
-  "code": zod.string().min(1),
   "nameAr": zod.string().min(1),
   "nameEn": zod.string().nullish(),
   "type": zod.enum(['individual', 'company']),
@@ -1952,7 +1944,6 @@ export const UpdateCustomerParams = zod.object({
 })
 
 
-
 export const updateCustomerBodyCreditLimitMin = 0;
 
 export const updateCustomerBodyCreditPeriodDaysMin = 0;
@@ -1960,7 +1951,6 @@ export const updateCustomerBodyCreditPeriodDaysMin = 0;
 
 
 export const UpdateCustomerBody = zod.object({
-  "code": zod.string().min(1).optional(),
   "nameAr": zod.string().min(1).optional(),
   "nameEn": zod.string().nullish(),
   "type": zod.enum(['individual', 'company']).optional(),
@@ -2041,13 +2031,11 @@ export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
  * @summary Create a supplier (auto-creates its subsidiary account)
  */
 
-
 export const createSupplierBodyCreditPeriodDaysMin = 0;
 
 
 
 export const CreateSupplierBody = zod.object({
-  "code": zod.string().min(1),
   "nameAr": zod.string().min(1),
   "nameEn": zod.string().nullish(),
   "type": zod.enum(['individual', 'company']),
@@ -2071,13 +2059,11 @@ export const UpdateSupplierParams = zod.object({
 })
 
 
-
 export const updateSupplierBodyCreditPeriodDaysMin = 0;
 
 
 
 export const UpdateSupplierBody = zod.object({
-  "code": zod.string().min(1).optional(),
   "nameAr": zod.string().min(1).optional(),
   "nameEn": zod.string().nullish(),
   "type": zod.enum(['individual', 'company']).optional(),
@@ -2137,6 +2123,7 @@ export const ListInvoicesResponseItem = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['sales', 'purchase']),
   "invoiceNo": zod.number(),
+  "code": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
@@ -2216,6 +2203,7 @@ export const GetInvoiceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['sales', 'purchase']),
   "invoiceNo": zod.number(),
+  "code": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
@@ -2317,6 +2305,7 @@ export const UpdateInvoiceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['sales', 'purchase']),
   "invoiceNo": zod.number(),
+  "code": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
@@ -2386,6 +2375,7 @@ export const ApproveInvoiceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['sales', 'purchase']),
   "invoiceNo": zod.number(),
+  "code": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),

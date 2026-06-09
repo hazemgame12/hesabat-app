@@ -20,6 +20,7 @@ import { CreateInvoiceBody, UpdateInvoiceBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { safeAudit } from "../lib/audit";
+import { generateEntityCode } from "../lib/codes";
 import {
   createDraftJournalEntry,
   lockCompanyEntryNo,
@@ -126,6 +127,7 @@ function toListItem(inv: Invoice, partyName: string | null) {
     id: inv.id,
     kind: inv.kind as "sales" | "purchase",
     invoiceNo: inv.invoiceNo,
+    code: inv.code,
     date: inv.date,
     dueDate: inv.dueDate,
     partyId: inv.customerId ?? inv.supplierId,
@@ -598,12 +600,19 @@ router.post(
       }
       const created = await db.transaction(async (tx) => {
         const invoiceNo = await nextInvoiceNo(tx, companyId, d.kind);
+        const code = await generateEntityCode(
+          tx,
+          companyId,
+          d.kind === "sales" ? "sales_invoice" : "purchase_invoice",
+          d.date,
+        );
         const [inv] = await tx
           .insert(invoicesTable)
           .values({
             companyId,
             kind: d.kind,
             invoiceNo,
+            code,
             date: d.date,
             dueDate: d.dueDate ?? null,
             customerId: d.kind === "sales" ? party.id : null,
@@ -1241,12 +1250,21 @@ router.post(
           });
         }
 
-        // Register fixed assets from purchase fixed-asset lines.
+        // Register fixed assets from purchase fixed-asset lines. Each gets an
+        // auto code scoped to the invoice's fiscal year (same generator as the
+        // standalone /assets create), so invoice-born assets are never code-less.
         for (const op of assetOps) {
+          const assetCode = await generateEntityCode(
+            tx,
+            companyId,
+            "fixed_asset",
+            inv.date,
+          );
           const [asset] = await tx
             .insert(fixedAssetsTable)
             .values({
               companyId,
+              code: assetCode,
               nameAr:
                 op.line.assetNameAr ?? op.line.description ?? "أصل ثابت",
               nameEn: op.line.assetNameEn ?? null,

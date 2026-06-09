@@ -9,8 +9,6 @@ import type { CustomerUpdateType } from './customerUpdateType';
 
 export interface CustomerUpdate {
   /** @minLength 1 */
-  code?: string;
-  /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
   nameEn?: string | null;

@@ -4401,6 +4401,8 @@ components:
       properties:
         id:
           type: string
+        code:
+          type: ["string", "null"]
         nameAr:
           type: string
         nameEn:
@@ -4586,11 +4588,8 @@ components:
 
     InventoryItemInput:
       type: object
-      required: [code, nameAr, unit, inventoryAccountId]
+      required: [nameAr, unit, inventoryAccountId]
       properties:
-        code:
-          type: string
-          minLength: 1
         nameAr:
           type: string
           minLength: 1
@@ -4610,9 +4609,6 @@ components:
     InventoryItemUpdate:
       type: object
       properties:
-        code:
-          type: string
-          minLength: 1
         nameAr:
           type: string
           minLength: 1
@@ -4785,11 +4781,8 @@ components:
 
     EmployeeInput:
       type: object
-      required: [code, nameAr, hireDate, baseSalary]
+      required: [nameAr, hireDate, baseSalary]
       properties:
-        code:
-          type: string
-          minLength: 1
         nameAr:
           type: string
           minLength: 1
@@ -4816,9 +4809,6 @@ components:
     EmployeeUpdate:
       type: object
       properties:
-        code:
-          type: string
-          minLength: 1
         nameAr:
           type: string
           minLength: 1
@@ -5601,11 +5591,8 @@ components:
 
     CustomerInput:
       type: object
-      required: [code, nameAr, type, controlAccountId]
+      required: [nameAr, type, controlAccountId]
       properties:
-        code:
-          type: string
-          minLength: 1
         nameAr:
           type: string
           minLength: 1
@@ -5641,9 +5628,6 @@ components:
     CustomerUpdate:
       type: object
       properties:
-        code:
-          type: string
-          minLength: 1
         nameAr:
           type: string
           minLength: 1
@@ -5732,11 +5716,8 @@ components:
 
     SupplierInput:
       type: object
-      required: [code, nameAr, type, controlAccountId]
+      required: [nameAr, type, controlAccountId]
       properties:
-        code:
-          type: string
-          minLength: 1
         nameAr:
           type: string
           minLength: 1
@@ -5769,9 +5750,6 @@ components:
     SupplierUpdate:
       type: object
       properties:
-        code:
-          type: string
-          minLength: 1
         nameAr:
           type: string
           minLength: 1
@@ -5939,6 +5917,8 @@ components:
           enum: [sales, purchase]
         invoiceNo:
           type: integer
+        code:
+          type: ["string", "null"]
         date:
           type: string
         dueDate:

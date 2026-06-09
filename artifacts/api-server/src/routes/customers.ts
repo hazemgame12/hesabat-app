@@ -11,6 +11,7 @@ import { CreateCustomerBody, UpdateCustomerBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { safeAudit } from "../lib/audit";
+import { generateEntityCode, todayDate } from "../lib/codes";
 import {
   generateChildAccountCode,
   loadControlAccount,
@@ -113,21 +114,13 @@ router.post(
         res.status(400).json({ error: "يجب اختيار حساب تجميعي كحساب رئيسي" });
         return;
       }
-      const [dupe] = await db
-        .select({ id: customersTable.id })
-        .from(customersTable)
-        .where(
-          and(
-            eq(customersTable.companyId, companyId),
-            eq(customersTable.code, d.code),
-          ),
-        )
-        .limit(1);
-      if (dupe) {
-        res.status(409).json({ error: "كود العميل مستخدم بالفعل" });
-        return;
-      }
       const created = await db.transaction(async (tx) => {
+        const code = await generateEntityCode(
+          tx,
+          companyId,
+          "customer",
+          todayDate(),
+        );
         const childCode = await generateChildAccountCode(
           tx,
           companyId,
@@ -150,7 +143,7 @@ router.post(
           .insert(customersTable)
           .values({
             companyId,
-            code: d.code,
+            code,
             nameAr: d.nameAr,
             nameEn: d.nameEn ?? null,
             type: d.type,
@@ -254,7 +247,6 @@ router.patch(
       }
 
       const updates: Partial<typeof customersTable.$inferInsert> = {};
-      if (d.code !== undefined) updates.code = d.code;
       if (d.nameAr !== undefined) updates.nameAr = d.nameAr;
       if (d.nameEn !== undefined) updates.nameEn = d.nameEn;
       if (d.type !== undefined) updates.type = d.type;

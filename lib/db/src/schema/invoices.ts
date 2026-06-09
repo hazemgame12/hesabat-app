@@ -7,7 +7,9 @@ import {
   date,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { companiesTable } from "./companies";
@@ -34,6 +36,9 @@ export const invoicesTable = pgTable(
       .references(() => companiesTable.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(), // 'sales' | 'purchase'
     invoiceNo: integer("invoice_no").notNull(),
+    // Human-facing fiscal-year-scoped code, e.g. SI-2026-0001 / PI-2026-0001.
+    // Auto-generated on create; nullable for rows created before this feature.
+    code: text("code"),
     date: date("date").notNull(),
     dueDate: date("due_date"),
     // Exactly one of these is set, per `kind`.
@@ -88,7 +93,15 @@ export const invoicesTable = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [unique().on(t.companyId, t.kind, t.invoiceNo)],
+  (t) => [
+    unique().on(t.companyId, t.kind, t.invoiceNo),
+    // Auto-generated codes must be unique per company. Partial so pre-feature
+    // rows (code IS NULL) are exempt; the sequence is the source of truth but
+    // this is the integrity backstop against any desync.
+    uniqueIndex("invoices_company_id_code_unique")
+      .on(t.companyId, t.code)
+      .where(sql`${t.code} IS NOT NULL`),
+  ],
 );
 
 // One line of an invoice. `lineType` decides how the line posts and whether it
@@ -232,6 +245,7 @@ export const insertInvoiceSchema = createInsertSchema(invoicesTable).omit({
   id: true,
   companyId: true,
   invoiceNo: true,
+  code: true,
   status: true,
   amountPaid: true,
   journalEntryId: true,

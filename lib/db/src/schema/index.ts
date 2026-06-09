@@ -37,6 +37,7 @@ export * from "./exchange-rates";
 export * from "./revaluations";
 export * from "./journal-entries";
 export * from "./fiscal-years";
+export * from "./code-sequences";
 export * from "./fixed-assets";
 export * from "./inventory";
 export * from "./payroll";

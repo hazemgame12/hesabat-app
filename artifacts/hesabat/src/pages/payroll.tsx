@@ -52,7 +52,6 @@ type ComponentDraft = {
 };
 
 type EmployeeForm = {
-  code: string;
   nameAr: string;
   nameEn: string;
   jobTitle: string;
@@ -80,7 +79,6 @@ function currentMonth(): string {
 
 function emptyForm(): EmployeeForm {
   return {
-    code: "",
     nameAr: "",
     nameEn: "",
     jobTitle: "",
@@ -163,7 +161,6 @@ export function Payroll() {
 
   const openEditEmp = (e: Employee) => {
     setForm({
-      code: e.code,
       nameAr: e.nameAr,
       nameEn: e.nameEn ?? "",
       jobTitle: e.jobTitle ?? "",
@@ -217,7 +214,7 @@ export function Payroll() {
   };
 
   const submitEmployee = () => {
-    if (!form.code.trim() || !form.nameAr.trim() || !form.hireDate) {
+    if (!form.nameAr.trim() || !form.hireDate) {
       toast({
         variant: "destructive",
         title: t("common.error"),
@@ -234,7 +231,6 @@ export function Payroll() {
         isActive: c.isActive,
       }));
     const payload = {
-      code: form.code.trim(),
       nameAr: form.nameAr.trim(),
       nameEn: form.nameEn.trim() || null,
       jobTitle: form.jobTitle.trim() || null,
@@ -704,17 +700,6 @@ export function Payroll() {
             </div>
 
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls}>{t("payroll.form.code")}</label>
-                <input
-                  className={inputCls}
-                  placeholder={t("payroll.form.codePlaceholder")}
-                  value={form.code}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, code: e.target.value }))
-                  }
-                />
-              </div>
               <div className="flex flex-col gap-1.5">
                 <label className={labelCls}>{t("payroll.form.hireDate")}</label>
                 <input

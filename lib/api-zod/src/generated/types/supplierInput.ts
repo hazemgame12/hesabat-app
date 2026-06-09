@@ -9,8 +9,6 @@ import type { SupplierInputType } from './supplierInputType';
 
 export interface SupplierInput {
   /** @minLength 1 */
-  code: string;
-  /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;

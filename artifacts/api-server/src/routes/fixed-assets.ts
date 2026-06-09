@@ -16,6 +16,7 @@ import {
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { createDraftJournalEntry } from "../lib/journal-posting";
+import { generateEntityCode } from "../lib/codes";
 import {
   exportWorkbook,
   handleXlsxUpload,
@@ -35,6 +36,7 @@ function toAsset(row: FixedAsset, accumulated: number) {
   const acc = round2(accumulated);
   return {
     id: row.id,
+    code: row.code,
     nameAr: row.nameAr,
     nameEn: row.nameEn,
     category: row.category,
@@ -149,23 +151,35 @@ router.post(
         res.status(400).json({ error: refErr });
         return;
       }
-      const [row] = await db
-        .insert(fixedAssetsTable)
-        .values({
+      // Generate the code and insert the row in one tx so a failed insert
+      // unwinds the sequence increment (no burned/gapped codes).
+      const row = await db.transaction(async (tx) => {
+        const code = await generateEntityCode(
+          tx,
           companyId,
-          nameAr: d.nameAr,
-          nameEn: d.nameEn ?? null,
-          category: d.category ?? null,
-          acquisitionDate: d.acquisitionDate,
-          cost: String(d.cost),
-          salvageValue: String(d.salvageValue ?? 0),
-          usefulLifeMonths: d.usefulLifeMonths,
-          method: d.method ?? "straight_line",
-          assetAccountId: d.assetAccountId,
-          accumulatedAccountId: d.accumulatedAccountId,
-          expenseAccountId: d.expenseAccountId,
-        })
-        .returning();
+          "fixed_asset",
+          d.acquisitionDate,
+        );
+        const [r] = await tx
+          .insert(fixedAssetsTable)
+          .values({
+            companyId,
+            code,
+            nameAr: d.nameAr,
+            nameEn: d.nameEn ?? null,
+            category: d.category ?? null,
+            acquisitionDate: d.acquisitionDate,
+            cost: String(d.cost),
+            salvageValue: String(d.salvageValue ?? 0),
+            usefulLifeMonths: d.usefulLifeMonths,
+            method: d.method ?? "straight_line",
+            assetAccountId: d.assetAccountId,
+            accumulatedAccountId: d.accumulatedAccountId,
+            expenseAccountId: d.expenseAccountId,
+          })
+          .returning();
+        return r;
+      });
       res.status(201).json(toAsset(row as FixedAsset, 0));
     } catch (err) {
       req.log.error({ err }, "Failed to create fixed asset");

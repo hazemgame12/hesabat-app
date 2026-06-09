@@ -12,6 +12,8 @@ export interface InvoiceSummary {
   id: string;
   kind: InvoiceSummaryKind;
   invoiceNo: number;
+  /** @nullable */
+  code?: string | null;
   date: string;
   /** @nullable */
   dueDate?: string | null;

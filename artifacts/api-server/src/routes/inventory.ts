@@ -17,6 +17,7 @@ import {
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { createDraftJournalEntry } from "../lib/journal-posting";
+import { generateEntityCode, todayDate } from "../lib/codes";
 import { computeMovement, round2, round4 } from "../lib/inventory-posting";
 import { exportWorkbook, handleXlsxUpload, parseSheet } from "../lib/excel";
 
@@ -110,33 +111,30 @@ router.post(
         res.status(400).json({ error: refErr });
         return;
       }
-      const [existing] = await db
-        .select({ id: inventoryItemsTable.id })
-        .from(inventoryItemsTable)
-        .where(
-          and(
-            eq(inventoryItemsTable.companyId, companyId),
-            eq(inventoryItemsTable.code, d.code),
-          ),
-        )
-        .limit(1);
-      if (existing) {
-        res.status(409).json({ error: "كود الصنف مستخدم بالفعل" });
-        return;
-      }
-      const [row] = await db
-        .insert(inventoryItemsTable)
-        .values({
+      // Generate the code and insert the row in one tx so a failed insert
+      // unwinds the sequence increment (no burned/gapped codes).
+      const row = await db.transaction(async (tx) => {
+        const code = await generateEntityCode(
+          tx,
           companyId,
-          code: d.code,
-          nameAr: d.nameAr,
-          nameEn: d.nameEn ?? null,
-          unit: d.unit,
-          category: d.category ?? null,
-          isActive: d.isActive ?? true,
-          inventoryAccountId: d.inventoryAccountId,
-        })
-        .returning();
+          "inventory_item",
+          todayDate(),
+        );
+        const [r] = await tx
+          .insert(inventoryItemsTable)
+          .values({
+            companyId,
+            code,
+            nameAr: d.nameAr,
+            nameEn: d.nameEn ?? null,
+            unit: d.unit,
+            category: d.category ?? null,
+            isActive: d.isActive ?? true,
+            inventoryAccountId: d.inventoryAccountId,
+          })
+          .returning();
+        return r;
+      });
       res.status(201).json(toItem(row as InventoryItem));
     } catch (err) {
       req.log.error({ err }, "Failed to create inventory item");
@@ -163,7 +161,6 @@ router.patch(
     const companyId = req.auth!.companyId;
     const d = parsed.data;
     const updates: Record<string, unknown> = {};
-    if (d.code !== undefined) updates["code"] = d.code;
     if (d.nameAr !== undefined) updates["nameAr"] = d.nameAr;
     if (d.nameEn !== undefined) updates["nameEn"] = d.nameEn;
     if (d.unit !== undefined) updates["unit"] = d.unit;

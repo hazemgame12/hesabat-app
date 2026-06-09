@@ -42,7 +42,6 @@ export type Party = {
 };
 
 export type PartyPayload = {
-  code: string;
   nameAr: string;
   nameEn: string | null;
   type: "individual" | "company";
@@ -98,7 +97,6 @@ interface PartyManagerProps {
 }
 
 const partySchema = z.object({
-  code: z.string().min(1, "codeRequired"),
   nameAr: z.string().min(1, "nameRequired"),
   nameEn: z.string().optional(),
   type: z.enum(["individual", "company"]).default("company"),
@@ -184,7 +182,6 @@ export function PartyManager({
 
   const openCreate = () => {
     reset({
-      code: "",
       nameAr: "",
       nameEn: "",
       type: "company",
@@ -204,7 +201,6 @@ export function PartyManager({
 
   const openEdit = (p: Party) => {
     reset({
-      code: p.code,
       nameAr: p.nameAr,
       nameEn: p.nameEn ?? "",
       type: p.type,
@@ -241,7 +237,6 @@ export function PartyManager({
       return Number.isFinite(n) ? n : null;
     };
     const payload: PartyPayload = {
-      code: form.code,
       nameAr: form.nameAr,
       nameEn: form.nameEn?.trim() ? form.nameEn : null,
       type: form.type as "individual" | "company",
@@ -537,10 +532,6 @@ export function PartyManager({
             </div>
 
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-5 overflow-y-auto">
-              {field("code", "codeLabel", {
-                dir: "ltr",
-                placeholder: t(`${ns}.codePlaceholder`),
-              })}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold text-foreground">
                   {t(`${ns}.typeLabel`)}

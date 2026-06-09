@@ -10,6 +10,8 @@ import type { FixedAssetStatus } from './fixedAssetStatus';
 
 export interface FixedAsset {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;

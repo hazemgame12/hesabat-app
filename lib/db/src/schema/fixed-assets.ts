@@ -7,7 +7,9 @@ import {
   date,
   timestamp,
   unique,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { companiesTable } from "./companies";
@@ -19,6 +21,9 @@ export const fixedAssetsTable = pgTable("fixed_assets", {
   companyId: uuid("company_id")
     .notNull()
     .references(() => companiesTable.id, { onDelete: "cascade" }),
+  // Auto-generated fiscal-year-scoped code, e.g. FA-2026-0001. Nullable for
+  // rows created before this feature.
+  code: text("code"),
   nameAr: text("name_ar").notNull(),
   nameEn: text("name_en"),
   category: text("category"),
@@ -48,7 +53,14 @@ export const fixedAssetsTable = pgTable("fixed_assets", {
     .notNull()
     .defaultNow()
     .$onUpdate(() => new Date()),
-});
+}, (t) => [
+  // Auto-generated codes must be unique per company. Partial so pre-feature
+  // rows (code IS NULL) are exempt; the sequence is the source of truth but
+  // this is the integrity backstop against any desync.
+  uniqueIndex("fixed_assets_company_id_code_unique")
+    .on(t.companyId, t.code)
+    .where(sql`${t.code} IS NOT NULL`),
+]);
 
 // One row per asset per depreciated month. The unique (asset, period) constraint
 // prevents double-posting the same month for the same asset.
@@ -78,6 +90,7 @@ export const assetDepreciationEntriesTable = pgTable(
 export const insertFixedAssetSchema = createInsertSchema(fixedAssetsTable).omit({
   id: true,
   companyId: true,
+  code: true,
   status: true,
   createdAt: true,
   updatedAt: true,

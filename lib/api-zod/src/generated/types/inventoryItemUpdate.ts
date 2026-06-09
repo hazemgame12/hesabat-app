@@ -8,8 +8,6 @@
 
 export interface InventoryItemUpdate {
   /** @minLength 1 */
-  code?: string;
-  /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
   nameEn?: string | null;

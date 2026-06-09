@@ -24,6 +24,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
+import { generateEntityCode } from "../lib/codes";
 import {
   createDraftJournalEntry,
   lockCompanyEntryNo,
@@ -405,26 +406,18 @@ router.post(
     const companyId = req.auth!.companyId;
     const d = parsed.data;
     try {
-      const existing = await db
-        .select({ id: employeesTable.id })
-        .from(employeesTable)
-        .where(
-          and(
-            eq(employeesTable.companyId, companyId),
-            eq(employeesTable.code, d.code),
-          ),
-        )
-        .limit(1);
-      if (existing.length > 0) {
-        res.status(409).json({ error: "كود الموظف مستخدم بالفعل" });
-        return;
-      }
       const created = await db.transaction(async (tx) => {
+        const code = await generateEntityCode(
+          tx,
+          companyId,
+          "employee",
+          d.hireDate,
+        );
         const [row] = await tx
           .insert(employeesTable)
           .values({
             companyId,
-            code: d.code,
+            code,
             nameAr: d.nameAr,
             nameEn: d.nameEn ?? null,
             jobTitle: d.jobTitle ?? null,
@@ -474,24 +467,7 @@ router.patch(
         res.status(404).json({ error: "الموظف غير موجود" });
         return;
       }
-      if (d.code !== undefined && d.code !== existing.code) {
-        const dup = await db
-          .select({ id: employeesTable.id })
-          .from(employeesTable)
-          .where(
-            and(
-              eq(employeesTable.companyId, companyId),
-              eq(employeesTable.code, d.code),
-            ),
-          )
-          .limit(1);
-        if (dup.length > 0) {
-          res.status(409).json({ error: "كود الموظف مستخدم بالفعل" });
-          return;
-        }
-      }
       const updates: Record<string, unknown> = {};
-      if (d.code !== undefined) updates["code"] = d.code;
       if (d.nameAr !== undefined) updates["nameAr"] = d.nameAr;
       if (d.nameEn !== undefined) updates["nameEn"] = d.nameEn;
       if (d.jobTitle !== undefined) updates["jobTitle"] = d.jobTitle;
