@@ -22,44 +22,118 @@ import {
   Scale,
   Settings,
   History,
-  CalendarRange,
-  TrendingUp
+  TrendingUp,
+  Calculator,
+  ShoppingCart,
+  Warehouse,
+  Banknote,
+  UserCog,
+  BarChart3,
+  ChevronDown,
 } from "lucide-react";
 
-type NavItem = {
+type IconType = React.ComponentType<{ className?: string }>;
+
+type NavLink = {
   labelKey: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: IconType;
   href: string;
   requires?: Capability;
 };
 
-const navItems: NavItem[] = [
+type NavGroup = {
+  groupKey: string;
+  labelKey: string;
+  icon: IconType;
+  children: NavLink[];
+};
+
+type NavEntry = NavLink | NavGroup;
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return (entry as NavGroup).children !== undefined;
+}
+
+const navEntries: NavEntry[] = [
   { labelKey: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
-  { labelKey: "nav.journal", icon: FileText, href: "/journal" },
-  { labelKey: "nav.openingBalances", icon: Scale, href: "/opening-balances", requires: "journal:read" },
-  { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
-  { labelKey: "nav.inventory", icon: Package, href: "/inventory", requires: "inventory:read" },
-  { labelKey: "nav.payroll", icon: Wallet, href: "/payroll", requires: "payroll:read" },
-  { labelKey: "nav.bank", icon: Landmark, href: "/bank", requires: "bank:read" },
-  { labelKey: "nav.advances", icon: HandCoins, href: "/advances", requires: "advances:read" },
-  { labelKey: "nav.sales", icon: Users, href: "/sales", requires: "customers:read" },
-  { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
-  { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
-  { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
-  { labelKey: "nav.revaluation", icon: TrendingUp, href: "/revaluation", requires: "revaluation:read" },
-  { labelKey: "nav.reports", icon: FileText, href: "/reports" },
-  { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
-  { labelKey: "nav.fiscalYears", icon: CalendarRange, href: "/fiscal-years", requires: "fiscalyear:read" },
+  {
+    groupKey: "accounting",
+    labelKey: "nav.groups.accounting",
+    icon: Calculator,
+    children: [
+      { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
+      { labelKey: "nav.journal", icon: FileText, href: "/journal" },
+      { labelKey: "nav.openingBalances", icon: Scale, href: "/opening-balances", requires: "journal:read" },
+      { labelKey: "nav.revaluation", icon: TrendingUp, href: "/revaluation", requires: "revaluation:read" },
+    ],
+  },
+  {
+    groupKey: "salesPurchases",
+    labelKey: "nav.groups.salesPurchases",
+    icon: ShoppingCart,
+    children: [
+      { labelKey: "nav.sales", icon: Users, href: "/sales", requires: "customers:read" },
+      { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
+      { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
+      { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
+    ],
+  },
+  {
+    groupKey: "inventoryAssets",
+    labelKey: "nav.groups.inventoryAssets",
+    icon: Warehouse,
+    children: [
+      { labelKey: "nav.inventory", icon: Package, href: "/inventory", requires: "inventory:read" },
+      { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
+    ],
+  },
+  {
+    groupKey: "treasury",
+    labelKey: "nav.groups.treasury",
+    icon: Banknote,
+    children: [
+      { labelKey: "nav.bank", icon: Landmark, href: "/bank", requires: "bank:read" },
+      { labelKey: "nav.advances", icon: HandCoins, href: "/advances", requires: "advances:read" },
+    ],
+  },
+  {
+    groupKey: "hr",
+    labelKey: "nav.groups.hr",
+    icon: UserCog,
+    children: [
+      { labelKey: "nav.payroll", icon: Wallet, href: "/payroll", requires: "payroll:read" },
+    ],
+  },
+  {
+    groupKey: "reports",
+    labelKey: "nav.groups.reports",
+    icon: BarChart3,
+    children: [
+      { labelKey: "nav.reports", icon: FileText, href: "/reports" },
+      { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
+    ],
+  },
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 
+function useLinkActive() {
+  const [location] = useLocation();
+  return (href: string) =>
+    location === href || (href !== "/" && location.startsWith(href));
+}
+
 export function Sidebar() {
   const { t } = useTranslation();
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { data: user } = useGetCurrentUser();
   const logout = useLogout();
+  const isLinkActive = useLinkActive();
+
+  const role = user?.role ?? "";
+  const canSee = (item: NavLink) => !item.requires || hasCapability(role, item.requires);
+
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
 
   const handleLogout = () => {
     logout.mutate(undefined, {
@@ -75,6 +149,26 @@ export function Sidebar() {
     ? t(`roles.${user.role as RoleId}.label`, { defaultValue: t("nav.member") })
     : t("nav.member");
 
+  const renderLink = (item: NavLink, nested = false) => {
+    const active = isLinkActive(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-start ${
+          nested ? "ps-6" : ""
+        } ${
+          active
+            ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+        }`}
+      >
+        <item.icon className="w-5 h-5 flex-shrink-0" />
+        <span className="flex-1 text-start">{t(item.labelKey)}</span>
+      </Link>
+    );
+  };
+
   return (
     <aside className="w-64 bg-card border-e border-border flex flex-col fixed h-full z-20 top-0 start-0">
       <div className="p-6 flex items-center gap-3">
@@ -85,21 +179,44 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 px-4 py-2 flex flex-col gap-1 overflow-y-auto">
-        {navItems.filter((item) => !item.requires || hasCapability(user?.role ?? "", item.requires)).map((item) => {
-          const isActive = location === item.href || (location.startsWith(item.href) && item.href !== "/");
+        {navEntries.map((entry) => {
+          if (!isGroup(entry)) {
+            return canSee(entry) ? renderLink(entry) : null;
+          }
+
+          const visibleChildren = entry.children.filter(canSee);
+          if (visibleChildren.length === 0) return null;
+
+          const groupActive = visibleChildren.some((c) => isLinkActive(c.href));
+          const expanded = openGroups[entry.groupKey] ?? groupActive;
+
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-start ${
-                isActive
-                  ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span className="flex-1 text-start">{t(item.labelKey)}</span>
-            </Link>
+            <div key={entry.groupKey} className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenGroups((prev) => ({ ...prev, [entry.groupKey]: !expanded }))
+                }
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-start ${
+                  groupActive
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                <entry.icon className="w-5 h-5 flex-shrink-0" />
+                <span className="flex-1 text-start">{t(entry.labelKey)}</span>
+                <ChevronDown
+                  className={`w-4 h-4 flex-shrink-0 transition-transform ${
+                    expanded ? "" : "-rotate-90"
+                  }`}
+                />
+              </button>
+              {expanded && (
+                <div className="flex flex-col gap-1">
+                  {visibleChildren.map((child) => renderLink(child, true))}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

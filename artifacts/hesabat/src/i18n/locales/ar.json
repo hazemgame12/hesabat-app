@@ -105,7 +105,15 @@
     "invoicesPurchases": "فواتير المشتريات",
     "audit": "سجل النشاط",
     "fiscalYears": "السنوات المالية",
-    "revaluation": "إعادة تقييم العملات"
+    "revaluation": "إعادة تقييم العملات",
+    "groups": {
+      "accounting": "المحاسبة",
+      "salesPurchases": "المبيعات والمشتريات",
+      "inventoryAssets": "المخزون والأصول",
+      "treasury": "الخزينة والبنوك",
+      "hr": "الموارد البشرية",
+      "reports": "التقارير والمراجعة"
+    }
   },
   "auditPage": {
     "title": "سجل النشاط",
@@ -238,7 +246,8 @@
       "team": "الفريق والصلاحيات",
       "costCenters": "مراكز التكلفة والمشاريع",
       "currencies": "العملات وأسعار الصرف",
-      "taxes": "الضرائب"
+      "taxes": "الضرائب",
+      "fiscalYears": "السنوات المالية"
     }
   },
   "dashboard": {

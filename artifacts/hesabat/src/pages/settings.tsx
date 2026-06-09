@@ -10,12 +10,14 @@ import {
   Boxes,
   Coins,
   Percent,
+  CalendarRange,
 } from "lucide-react";
 import { CompanyProfile } from "@/pages/company";
 import { Team } from "@/pages/team";
 import { CostCenters } from "@/pages/cost-centers";
 import { Currencies } from "@/pages/currencies";
 import { Taxes } from "@/pages/taxes";
+import { FiscalYears } from "@/pages/fiscal-years";
 
 type SettingsTab = {
   key: string;
@@ -59,6 +61,13 @@ const TABS: SettingsTab[] = [
     icon: Percent,
     component: Taxes,
     requires: "taxes:read",
+  },
+  {
+    key: "fiscal-years",
+    labelKey: "settings.tabs.fiscalYears",
+    icon: CalendarRange,
+    component: FiscalYears,
+    requires: "fiscalyear:read",
   },
 ];
 

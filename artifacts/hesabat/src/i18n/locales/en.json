@@ -105,7 +105,15 @@
     "invoicesPurchases": "Purchase Invoices",
     "audit": "Activity Log",
     "fiscalYears": "Fiscal Years",
-    "revaluation": "Currency Revaluation"
+    "revaluation": "Currency Revaluation",
+    "groups": {
+      "accounting": "Accounting",
+      "salesPurchases": "Sales & Purchases",
+      "inventoryAssets": "Inventory & Assets",
+      "treasury": "Treasury & Banks",
+      "hr": "Human Resources",
+      "reports": "Reports & Audit"
+    }
   },
   "auditPage": {
     "title": "Activity Log",
@@ -238,7 +246,8 @@
       "team": "Team & Permissions",
       "costCenters": "Cost Centers & Projects",
       "currencies": "Currencies & Exchange Rates",
-      "taxes": "Taxes"
+      "taxes": "Taxes",
+      "fiscalYears": "Fiscal Years"
     }
   },
   "dashboard": {
