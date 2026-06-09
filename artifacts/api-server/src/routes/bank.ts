@@ -905,18 +905,25 @@ router.get(
         sheetName: "Movements",
         fileName: "bank-movements-export",
         columns: [
-          { header: "date", value: (r) => r.mv.date },
-          { header: "type", value: (r) => r.mv.type },
-          { header: "amount", value: (r) => Number(r.mv.amount) },
+          { header: "التاريخ", value: (r) => r.mv.date },
           {
-            header: "counterpartAccountCode",
-            value: (r) => r.counterpartCode ?? "",
+            header: "مدين",
+            value: (r) => (r.mv.direction === "in" ? Number(r.mv.amount) : ""),
           },
-          { header: "currency", value: (r) => r.mv.currency },
-          { header: "exchangeRate", value: (r) => Number(r.mv.exchangeRate) },
-          { header: "description", value: (r) => r.mv.description ?? "" },
-          { header: "reference", value: (r) => r.mv.reference ?? "" },
-          { header: "direction", value: (r) => r.mv.direction },
+          {
+            header: "دائن",
+            value: (r) => (r.mv.direction === "out" ? Number(r.mv.amount) : ""),
+          },
+          {
+            header: "كود الحساب المقابل",
+            value: (r) => r.counterpartCode ?? "",
+            width: 22,
+          },
+          { header: "نوع الحركة", value: (r) => r.mv.type, width: 20 },
+          { header: "العملة", value: (r) => r.mv.currency },
+          { header: "سعر الصرف", value: (r) => Number(r.mv.exchangeRate) },
+          { header: "البيان", value: (r) => r.mv.description ?? "", width: 28 },
+          { header: "المرجع", value: (r) => r.mv.reference ?? "" },
         ],
         rows,
       });
@@ -930,9 +937,12 @@ router.get(
 // Bulk-creates movements for ONE bank/cash account from an .xlsx, posting a
 // balanced journal entry per row (same logic as the manual "record movement"
 // form). Each row's counterpart is an existing leaf chart account referenced by
-// `counterpartAccountCode`; the movement type drives the debit/credit direction.
-// Transfers are not supported here (use the transfer form). All-or-nothing: any
-// invalid row aborts the whole import so the ledger never half-posts.
+// `counterpartAccountCode`. Amounts come as two columns: مدين (debit) = money IN
+// (raises the balance → direction "in"), دائن (credit) = money OUT. Exactly one
+// of the two must be filled per row; the type column is optional (defaults to
+// deposit/withdrawal). Transfers are not supported here (use the transfer form).
+// All-or-nothing: any invalid row aborts the whole import so the ledger never
+// half-posts.
 router.post(
   "/bank/movements/import",
   requireAuth,
@@ -973,15 +983,29 @@ router.post(
         res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
         return;
       }
-      if (
-        !sheet.has("date") ||
-        !sheet.has("type") ||
-        !sheet.has("amount") ||
-        !sheet.has("counterpartAccountCode")
-      ) {
+      // Accept Arabic or English headers. مدين = money IN (raises the balance
+      // → Dr bank), دائن = money OUT (→ Cr bank) — the company-books convention
+      // the user picked. Direction is derived from which column carries a value.
+      const pick = (...aliases: string[]) => aliases.find((h) => sheet.has(h));
+      const H = {
+        date: pick("date", "التاريخ"),
+        debit: pick("debit", "مدين"),
+        credit: pick("credit", "دائن"),
+        code: pick(
+          "counterpartAccountCode",
+          "كود الحساب المقابل",
+          "الحساب المقابل",
+        ),
+        type: pick("type", "نوع الحركة", "النوع"),
+        currency: pick("currency", "العملة"),
+        rate: pick("exchangeRate", "سعر الصرف"),
+        description: pick("description", "البيان", "الوصف"),
+        reference: pick("reference", "المرجع"),
+      };
+      if (!H.date || !H.code || (!H.debit && !H.credit)) {
         res.status(400).json({
           error:
-            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: date, type, amount, counterpartAccountCode",
+            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: التاريخ، مدين و/أو دائن، كود الحساب المقابل",
         });
         return;
       }
@@ -1012,14 +1036,19 @@ router.post(
         description: string | null;
         reference: string | null;
       };
+      const S = (row: ExcelJS.Row, h: string | undefined) =>
+        h ? sheet.str(row, h) : "";
+      const N = (row: ExcelJS.Row, h: string | undefined) =>
+        h ? sheet.num(row, h) : 0;
       const parsed: PRow[] = [];
       for (const { rowNo, row } of sheet.rows) {
-        const date = sheet.str(row, "date");
-        const typeRaw = sheet.str(row, "type");
-        const code = sheet.str(row, "counterpartAccountCode");
-        const amountRaw = sheet.num(row, "amount");
+        const date = S(row, H.date);
+        const typeRaw = S(row, H.type);
+        const code = S(row, H.code);
+        const debit = round2(N(row, H.debit));
+        const credit = round2(N(row, H.credit));
         // Skip fully-blank rows.
-        if (!date && !typeRaw && !code && !amountRaw) continue;
+        if (!date && !typeRaw && !code && debit <= 0 && credit <= 0) continue;
 
         if (!DATE_RE.test(date)) {
           res.status(400).json({
@@ -1027,20 +1056,48 @@ router.post(
           });
           return;
         }
-        const direction =
-          MOVEMENT_DIRECTION[typeRaw as Exclude<BankMovementType, "transfer">];
-        if (!direction) {
+        if (debit < 0 || credit < 0) {
           res.status(400).json({
-            error: `السطر ${rowNo}: نوع الحركة "${typeRaw}" غير صحيح أو غير مدعوم في الاستيراد`,
+            error: `السطر ${rowNo}: لا يمكن إدخال قيمة سالبة في «مدين» أو «دائن»`,
           });
           return;
         }
-        const amount = round2(amountRaw);
-        if (amount <= 0) {
+        if (debit > 0 && credit > 0) {
           res.status(400).json({
-            error: `السطر ${rowNo}: المبلغ يجب أن يكون أكبر من صفر`,
+            error: `السطر ${rowNo}: لا يمكن إدخال قيمة في «مدين» و«دائن» معًا`,
           });
           return;
+        }
+        if (debit <= 0 && credit <= 0) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: يجب إدخال قيمة في «مدين» أو «دائن»`,
+          });
+          return;
+        }
+        // مدين = in (raises balance), دائن = out.
+        const direction: "in" | "out" = debit > 0 ? "in" : "out";
+        const amount = debit > 0 ? debit : credit;
+        // Type is optional: validate + must match the column if given, else
+        // default to deposit/withdrawal based on the direction.
+        let type: BankMovementType;
+        if (typeRaw) {
+          const typeDir =
+            MOVEMENT_DIRECTION[typeRaw as Exclude<BankMovementType, "transfer">];
+          if (!typeDir) {
+            res.status(400).json({
+              error: `السطر ${rowNo}: نوع الحركة "${typeRaw}" غير صحيح أو غير مدعوم في الاستيراد`,
+            });
+            return;
+          }
+          if (typeDir !== direction) {
+            res.status(400).json({
+              error: `السطر ${rowNo}: نوع الحركة "${typeRaw}" لا يطابق العمود (${direction === "in" ? "مدين" : "دائن"})`,
+            });
+            return;
+          }
+          type = typeRaw as BankMovementType;
+        } else {
+          type = direction === "in" ? "deposit" : "withdrawal";
         }
         if (!code) {
           res
@@ -1061,21 +1118,19 @@ router.post(
           });
           return;
         }
-        const currency = (
-          sheet.str(row, "currency") || bank.currency
-        ).toUpperCase();
-        const rateRaw = sheet.num(row, "exchangeRate");
+        const currency = (S(row, H.currency) || bank.currency).toUpperCase();
+        const rateRaw = N(row, H.rate);
         const rate = rateRaw > 0 ? rateRaw : 1;
         parsed.push({
           date,
-          type: typeRaw as BankMovementType,
+          type,
           direction,
           amount,
           currency,
           rate,
           counterpartAccountId: chart.id,
-          description: sheet.str(row, "description") || null,
-          reference: sheet.str(row, "reference") || null,
+          description: S(row, H.description) || null,
+          reference: S(row, H.reference) || null,
         });
       }
       if (parsed.length === 0) {
