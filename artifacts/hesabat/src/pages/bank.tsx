@@ -194,26 +194,14 @@ export function Bank() {
             </p>
           </div>
         </div>
-        {tab === "accounts" && (
-          <div className="flex items-center gap-2">
-            <ExcelToolbar
-              exportPath="/api/bank/accounts/export"
-              importPath="/api/bank/accounts/import"
-              canImport={canCreate}
-              invalidateKeys={[getListBankAccountsQueryKey()]}
-            />
-            {canCreate && (
-              <button
-                onClick={() =>
-                  setAccountModal({ mode: "create", account: null })
-                }
-                className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-              >
-                <Plus className="w-4 h-4" />
-                {t("bank.addAccount")}
-              </button>
-            )}
-          </div>
+        {tab === "accounts" && canCreate && (
+          <button
+            onClick={() => setAccountModal({ mode: "create", account: null })}
+            className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-4 h-4" />
+            {t("bank.addAccount")}
+          </button>
         )}
       </header>
 
@@ -858,15 +846,30 @@ function MovementsTab({
             ))}
           </select>
         </div>
-        {canCreate && (
-          <button
-            onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90"
-          >
-            <ArrowLeftRight className="w-4 h-4" />
-            {t("bank.recordMovement")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {effectiveId && (
+            <ExcelToolbar
+              exportPath={`/api/bank/movements/export?bankAccountId=${effectiveId}`}
+              importPath={`/api/bank/movements/import?bankAccountId=${effectiveId}`}
+              canImport={canCreate}
+              invalidateKeys={[
+                getListBankMovementsQueryKey({ bankAccountId: effectiveId }),
+                getListBankAccountsQueryKey(),
+                getListJournalEntriesQueryKey(),
+              ]}
+              onImported={() => invalidate()}
+            />
+          )}
+          {canCreate && (
+            <button
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+              {t("bank.recordMovement")}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[280px]">

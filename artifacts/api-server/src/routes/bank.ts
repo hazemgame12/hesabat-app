@@ -845,205 +845,278 @@ router.delete(
 );
 
 // ---------------------------------------------------------------------------
-// Accounts Excel export / import
+// Movements Excel export / import (per selected bank/cash account)
 // ---------------------------------------------------------------------------
 
-// Streams the company's bank/cash accounts as an .xlsx workbook (round-trips the
-// import format; balance is an informational extra column).
+// Streams a single account's movements as an .xlsx workbook. Columns round-trip
+// the import format so a user can export, edit in Excel, and re-upload. Transfer
+// rows are exported for reference only (no counterpart chart code) and are not
+// re-importable.
 router.get(
-  "/bank/accounts/export",
+  "/bank/movements/export",
   requireAuth,
   requireCapability("bank:read"),
   async (req, res) => {
     const companyId = req.auth!.companyId;
+    const bankAccountId = req.query["bankAccountId"];
+    if (typeof bankAccountId !== "string" || !bankAccountId) {
+      res.status(400).json({ error: "يجب تحديد الحساب البنكي" });
+      return;
+    }
     try {
+      const [bank] = await db
+        .select()
+        .from(bankAccountsTable)
+        .where(
+          and(
+            eq(bankAccountsTable.id, bankAccountId),
+            eq(bankAccountsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!bank) {
+        res.status(404).json({ error: "الحساب البنكي غير موجود" });
+        return;
+      }
       const rows = await db
         .select({
-          account: bankAccountsTable,
-          chartCode: accountsTable.code,
+          mv: bankMovementsTable,
+          counterpartCode: accountsTable.code,
         })
-        .from(bankAccountsTable)
-        .innerJoin(
+        .from(bankMovementsTable)
+        .leftJoin(
           accountsTable,
           and(
-            eq(accountsTable.id, bankAccountsTable.accountId),
+            eq(accountsTable.id, bankMovementsTable.counterpartAccountId),
             eq(accountsTable.companyId, companyId),
           ),
         )
-        .where(eq(bankAccountsTable.companyId, companyId))
-        .orderBy(desc(bankAccountsTable.createdAt));
-      const sums = await movementSums(companyId);
+        .where(
+          and(
+            eq(bankMovementsTable.companyId, companyId),
+            eq(bankMovementsTable.bankAccountId, bankAccountId),
+          ),
+        )
+        .orderBy(
+          desc(bankMovementsTable.date),
+          desc(bankMovementsTable.createdAt),
+        );
       await exportWorkbook(res, {
-        sheetName: "BankAccounts",
-        fileName: "bank-accounts-export",
+        sheetName: "Movements",
+        fileName: "bank-movements-export",
         columns: [
-          { header: "nameAr", value: (r) => r.account.nameAr },
-          { header: "nameEn", value: (r) => r.account.nameEn ?? "" },
-          { header: "type", value: (r) => r.account.type },
-          { header: "bankName", value: (r) => r.account.bankName ?? "" },
-          { header: "accountNumber", value: (r) => r.account.accountNumber ?? "" },
-          { header: "currency", value: (r) => r.account.currency },
+          { header: "date", value: (r) => r.mv.date },
+          { header: "type", value: (r) => r.mv.type },
+          { header: "amount", value: (r) => Number(r.mv.amount) },
           {
-            header: "openingBalance",
-            value: (r) => Number(r.account.openingBalance ?? 0),
+            header: "counterpartAccountCode",
+            value: (r) => r.counterpartCode ?? "",
           },
-          {
-            header: "openingBalanceDate",
-            value: (r) => r.account.openingBalanceDate ?? "",
-          },
-          { header: "accountCode", value: (r) => r.chartCode },
-          {
-            header: "balance",
-            value: (r) =>
-              round2(
-                Number(r.account.openingBalance ?? 0) +
-                  (sums.get(r.account.id) ?? 0),
-              ),
-          },
+          { header: "currency", value: (r) => r.mv.currency },
+          { header: "exchangeRate", value: (r) => Number(r.mv.exchangeRate) },
+          { header: "description", value: (r) => r.mv.description ?? "" },
+          { header: "reference", value: (r) => r.mv.reference ?? "" },
+          { header: "direction", value: (r) => r.mv.direction },
         ],
         rows,
       });
     } catch (err) {
-      req.log.error({ err }, "Failed to export bank accounts");
+      req.log.error({ err }, "Failed to export bank movements");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
 );
 
-// Bulk-creates bank/cash accounts from an .xlsx (round-trips the export format).
-// Each row links to an existing leaf chart-of-accounts account by `accountCode`.
-// All-or-nothing: any invalid row aborts the whole import.
+// Bulk-creates movements for ONE bank/cash account from an .xlsx, posting a
+// balanced journal entry per row (same logic as the manual "record movement"
+// form). Each row's counterpart is an existing leaf chart account referenced by
+// `counterpartAccountCode`; the movement type drives the debit/credit direction.
+// Transfers are not supported here (use the transfer form). All-or-nothing: any
+// invalid row aborts the whole import so the ledger never half-posts.
 router.post(
-  "/bank/accounts/import",
+  "/bank/movements/import",
   requireAuth,
   requireCapability("bank:create"),
   handleXlsxUpload,
   async (req, res) => {
     const companyId = req.auth!.companyId;
+    const bankAccountId = req.query["bankAccountId"];
+    if (typeof bankAccountId !== "string" || !bankAccountId) {
+      res.status(400).json({ error: "يجب تحديد الحساب البنكي" });
+      return;
+    }
     if (!req.file) {
       res.status(400).json({ error: "لم يتم رفع أي ملف" });
       return;
     }
     try {
+      const [bank] = await db
+        .select()
+        .from(bankAccountsTable)
+        .where(
+          and(
+            eq(bankAccountsTable.id, bankAccountId),
+            eq(bankAccountsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!bank) {
+        res.status(404).json({ error: "الحساب البنكي غير موجود" });
+        return;
+      }
+      if (!(await isLeafAccount(bank.accountId, companyId))) {
+        res.status(400).json({ error: "الحساب المحاسبي المرتبط غير صحيح" });
+        return;
+      }
       const sheet = await parseSheet(req.file.buffer);
       if (!sheet) {
         res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
         return;
       }
-      if (!sheet.has("nameAr") || !sheet.has("accountCode")) {
+      if (
+        !sheet.has("date") ||
+        !sheet.has("type") ||
+        !sheet.has("amount") ||
+        !sheet.has("counterpartAccountCode")
+      ) {
         res.status(400).json({
           error:
-            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: nameAr, type, currency, accountCode",
+            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: date, type, amount, counterpartAccountCode",
         });
         return;
       }
 
-      // Resolve linked chart accounts by code (must be leaf accounts).
-      const chartAccounts = await db
-        .select({
-          id: accountsTable.id,
-          code: accountsTable.code,
-          isGroup: accountsTable.isGroup,
-        })
-        .from(accountsTable)
-        .where(eq(accountsTable.companyId, companyId));
-      const accByCode = new Map(chartAccounts.map((a) => [a.code, a]));
-      const existing = await db
-        .select({ nameAr: bankAccountsTable.nameAr })
-        .from(bankAccountsTable)
-        .where(eq(bankAccountsTable.companyId, companyId));
-      const existingNames = new Set(existing.map((e) => e.nameAr));
+      // Resolve counterpart chart accounts by code (must be leaf accounts).
+      const leafByCode = new Map(
+        (
+          await db
+            .select({
+              id: accountsTable.id,
+              code: accountsTable.code,
+              isGroup: accountsTable.isGroup,
+            })
+            .from(accountsTable)
+            .where(eq(accountsTable.companyId, companyId))
+        ).map((a) => [a.code, a]),
+      );
 
-      const ACCOUNT_TYPES = new Set(["bank", "cash", "credit_card", "loan"]);
-      type Row = {
-        nameAr: string;
-        nameEn: string | null;
-        type: string;
-        bankName: string | null;
-        accountNumber: string | null;
+      const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+      type PRow = {
+        date: string;
+        type: BankMovementType;
+        direction: "in" | "out";
+        amount: number;
         currency: string;
-        openingBalance: number;
-        openingBalanceDate: string | null;
-        accountId: string;
+        rate: number;
+        counterpartAccountId: string;
+        description: string | null;
+        reference: string | null;
       };
-      const parsed: Row[] = [];
-      const seen = new Set<string>();
+      const parsed: PRow[] = [];
       for (const { rowNo, row } of sheet.rows) {
-        const nameAr = sheet.str(row, "nameAr");
-        const accountCode = sheet.str(row, "accountCode");
-        if (!nameAr && !accountCode) continue; // skip blank rows
-        if (!nameAr) {
-          res.status(400).json({ error: `السطر ${rowNo}: nameAr مطلوب` });
-          return;
-        }
-        if (seen.has(nameAr) || existingNames.has(nameAr)) {
-          res
-            .status(400)
-            .json({ error: `السطر ${rowNo}: اسم الحساب ${nameAr} مكرر` });
-          return;
-        }
-        const typeRaw = sheet.str(row, "type") || "bank";
-        if (!ACCOUNT_TYPES.has(typeRaw)) {
+        const date = sheet.str(row, "date");
+        const typeRaw = sheet.str(row, "type");
+        const code = sheet.str(row, "counterpartAccountCode");
+        const amountRaw = sheet.num(row, "amount");
+        // Skip fully-blank rows.
+        if (!date && !typeRaw && !code && !amountRaw) continue;
+
+        if (!DATE_RE.test(date)) {
           res.status(400).json({
-            error: `السطر ${rowNo}: نوع الحساب ${typeRaw} غير صحيح (bank, cash, credit_card, loan)`,
+            error: `السطر ${rowNo}: التاريخ مطلوب بصيغة YYYY-MM-DD`,
           });
           return;
         }
-        const currency = sheet.str(row, "currency");
-        if (!currency) {
-          res.status(400).json({ error: `السطر ${rowNo}: العملة مطلوبة` });
+        const direction =
+          MOVEMENT_DIRECTION[typeRaw as Exclude<BankMovementType, "transfer">];
+        if (!direction) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: نوع الحركة "${typeRaw}" غير صحيح أو غير مدعوم في الاستيراد`,
+          });
           return;
         }
-        if (!accountCode) {
-          res.status(400).json({ error: `السطر ${rowNo}: accountCode مطلوب` });
+        const amount = round2(amountRaw);
+        if (amount <= 0) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: المبلغ يجب أن يكون أكبر من صفر`,
+          });
           return;
         }
-        const chart = accByCode.get(accountCode);
+        if (!code) {
+          res
+            .status(400)
+            .json({ error: `السطر ${rowNo}: الحساب المقابل مطلوب` });
+          return;
+        }
+        const chart = leafByCode.get(code);
         if (!chart) {
           res.status(400).json({
-            error: `السطر ${rowNo}: الحساب المحاسبي ${accountCode} غير موجود`,
+            error: `السطر ${rowNo}: الحساب المقابل ${code} غير موجود`,
           });
           return;
         }
         if (chart.isGroup) {
           res.status(400).json({
-            error: `السطر ${rowNo}: ${accountCode} حساب رئيسي ولا يصلح للربط`,
+            error: `السطر ${rowNo}: ${code} حساب رئيسي ولا يصلح كحساب مقابل`,
           });
           return;
         }
-        const obDate = sheet.str(row, "openingBalanceDate");
-        seen.add(nameAr);
+        const currency = (
+          sheet.str(row, "currency") || bank.currency
+        ).toUpperCase();
+        const rateRaw = sheet.num(row, "exchangeRate");
+        const rate = rateRaw > 0 ? rateRaw : 1;
         parsed.push({
-          nameAr,
-          nameEn: sheet.str(row, "nameEn") || null,
-          type: typeRaw,
-          bankName: sheet.str(row, "bankName") || null,
-          accountNumber: sheet.str(row, "accountNumber") || null,
-          currency: currency.toUpperCase(),
-          openingBalance: round2(sheet.num(row, "openingBalance")),
-          openingBalanceDate: obDate || null,
-          accountId: chart.id,
+          date,
+          type: typeRaw as BankMovementType,
+          direction,
+          amount,
+          currency,
+          rate,
+          counterpartAccountId: chart.id,
+          description: sheet.str(row, "description") || null,
+          reference: sheet.str(row, "reference") || null,
         });
       }
       if (parsed.length === 0) {
-        res.status(400).json({ error: "الملف لا يحتوي على حسابات" });
+        res.status(400).json({ error: "الملف لا يحتوي على حركات" });
         return;
       }
 
+      const baseCurrency = await loadBaseCurrency(companyId);
       await db.transaction(async (tx) => {
         for (const r of parsed) {
-          await tx.insert(bankAccountsTable).values({
+          const amountBase = round2(r.amount * r.rate);
+          const entry = await createDraftJournalEntry(tx, {
             companyId,
-            nameAr: r.nameAr,
-            nameEn: r.nameEn,
+            baseCurrency,
+            date: r.date,
+            reference: r.reference ?? `حركة بنكية`,
+            notes: r.description,
+            createdBy: req.auth!.userId,
+            status: "posted",
+            lines: buildMovementLines({
+              direction: r.direction,
+              bankChartAccountId: bank.accountId,
+              counterpartAccountId: r.counterpartAccountId,
+              amountBase,
+              description: r.description,
+            }),
+          });
+          await tx.insert(bankMovementsTable).values({
+            companyId,
+            bankAccountId: bank.id,
+            date: r.date,
             type: r.type,
-            bankName: r.bankName,
-            accountNumber: r.accountNumber,
+            direction: r.direction,
+            amount: String(r.amount),
             currency: r.currency,
-            openingBalance: String(r.openingBalance),
-            openingBalanceDate: r.openingBalanceDate,
-            accountId: r.accountId,
-            isActive: true,
+            exchangeRate: String(r.rate),
+            counterpartAccountId: r.counterpartAccountId,
+            description: r.description,
+            reference: r.reference,
+            journalEntryId: entry.id,
+            createdBy: req.auth!.userId,
           });
         }
       });
@@ -1053,15 +1126,15 @@ router.post(
           companyId,
           userId: req.auth!.userId,
           action: "import",
-          entity: "bank_account",
-          entityLabel: `${parsed.length} حساب بنكي`,
-          newValue: { imported: parsed.length },
+          entity: "bank_movement",
+          entityLabel: `${parsed.length} حركة بنكية`,
+          newValue: { imported: parsed.length, bankAccountId: bank.id },
         },
         req.log,
       );
       res.json({ imported: parsed.length });
     } catch (err) {
-      req.log.error({ err }, "Failed to import bank accounts");
+      req.log.error({ err }, "Failed to import bank movements");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
