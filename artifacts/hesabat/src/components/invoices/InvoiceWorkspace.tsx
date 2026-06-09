@@ -309,6 +309,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                     </th>
                     <th className="text-end px-3 py-3">{t("invoices.total")}</th>
                     <th className="text-end px-3 py-3">{t("invoices.balance")}</th>
+                    <th className="text-center px-3 py-3">{t("invoices.currency")}</th>
                     <th className="text-center px-3 py-3">{t("invoices.status")}</th>
                     <th className="w-28 px-6 py-3" />
                   </tr>
@@ -336,6 +337,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                       </td>
                       <td className="px-3 py-3.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
                         {fmt(inv.balance)}
+                      </td>
+                      <td className="px-3 py-3.5 text-center font-sans text-xs font-bold text-foreground/70" dir="ltr">
+                        {inv.currency ?? "EGP"}
                       </td>
                       <td className="px-3 py-3.5 text-center">{statusBadge(inv)}</td>
                       <td className="px-6 py-3.5">

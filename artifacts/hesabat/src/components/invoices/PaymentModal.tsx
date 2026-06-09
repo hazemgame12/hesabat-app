@@ -4,6 +4,7 @@ import {
   useCreatePayment,
   useListCustomers,
   useListSuppliers,
+  useListCurrencies,
   useGetOutstandingInvoices,
   type Account,
 } from "@workspace/api-client-react";
@@ -37,15 +38,28 @@ export function PaymentModal({
 
   const { data: customers = [] } = useListCustomers();
   const { data: suppliers = [] } = useListSuppliers();
+  const { data: currencies = [] } = useListCurrencies();
   const { data: outstanding = [] } = useGetOutstandingInvoices({ kind });
   const createPayment = useCreatePayment();
 
   const parties = kind === "sales" ? customers : suppliers;
 
+  const currencyOptions = useMemo(() => {
+    const opts: { code: string; rate: string }[] = [{ code: "EGP", rate: "1" }];
+    for (const c of currencies) {
+      if (c.isActive && c.code !== "EGP") {
+        opts.push({ code: c.code, rate: String(c.exchangeRate) });
+      }
+    }
+    return opts;
+  }, [currencies]);
+
   const [date, setDate] = useState(today());
   const [partyId, setPartyId] = useState("");
   const [method, setMethod] = useState<"cash" | "bank" | "cheque" | "card">("cash");
   const [cashAccountId, setCashAccountId] = useState("");
+  const [currency, setCurrency] = useState("EGP");
+  const [exchangeRate, setExchangeRate] = useState("1");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [allocs, setAllocs] = useState<Record<string, string>>({});
@@ -60,8 +74,44 @@ export function PaymentModal({
   // never by localized display name).
   const partyInvoices = useMemo(() => {
     if (!partyId) return [];
-    return outstanding.filter((inv) => inv.partyId === partyId);
+    return outstanding.filter(
+      (inv) => inv.partyId === partyId && (inv.currency ?? "EGP") === currency,
+    );
+  }, [outstanding, partyId, currency]);
+
+  // Currencies that the selected party actually has outstanding invoices in,
+  // so the user only picks a currency that has something to settle.
+  const partyCurrencies = useMemo(() => {
+    if (!partyId) return [];
+    return [
+      ...new Set(
+        outstanding
+          .filter((inv) => inv.partyId === partyId)
+          .map((inv) => inv.currency ?? "EGP"),
+      ),
+    ];
   }, [outstanding, partyId]);
+
+  const isForeign = currency !== "EGP";
+
+  // When the party changes, default the currency to its first outstanding
+  // invoice currency (and seed the matching market rate).
+  const onSelectParty = (id: string) => {
+    setPartyId(id);
+    setAllocs({});
+    const firstCur =
+      outstanding.find((inv) => inv.partyId === id)?.currency ?? "EGP";
+    setCurrency(firstCur);
+    const opt = currencyOptions.find((o) => o.code === firstCur);
+    setExchangeRate(opt ? opt.rate : "1");
+  };
+
+  const onSelectCurrency = (code: string) => {
+    setCurrency(code);
+    setAllocs({});
+    const opt = currencyOptions.find((o) => o.code === code);
+    setExchangeRate(code === "EGP" ? "1" : opt ? opt.rate : "1");
+  };
 
   const allocSum = useMemo(
     () =>
@@ -104,6 +154,8 @@ export function PaymentModal({
           method,
           cashAccountId,
           amount: Number(amount),
+          currency: currency || "EGP",
+          exchangeRate: isForeign ? Number(exchangeRate) || 1 : 1,
           notes: notes.trim() || null,
           allocations,
         },
@@ -147,10 +199,7 @@ export function PaymentModal({
               <select
                 className={inputCls}
                 value={partyId}
-                onChange={(e) => {
-                  setPartyId(e.target.value);
-                  setAllocs({});
-                }}
+                onChange={(e) => onSelectParty(e.target.value)}
               >
                 <option value="">
                   {t(kind === "sales" ? "invoices.selectCustomer" : "invoices.selectSupplier")}
@@ -162,6 +211,36 @@ export function PaymentModal({
                 ))}
               </select>
             </div>
+            <div>
+              <label className={labelCls}>{t("invoices.currency")}</label>
+              <select
+                className={inputCls}
+                value={currency}
+                onChange={(e) => onSelectCurrency(e.target.value)}
+              >
+                {(partyId && partyCurrencies.length > 0
+                  ? currencyOptions.filter((o) => partyCurrencies.includes(o.code))
+                  : currencyOptions
+                ).map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.code}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {isForeign && (
+              <div>
+                <label className={labelCls}>{t("invoices.exchangeRate")}</label>
+                <input
+                  type="number"
+                  className={inputCls}
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(e.target.value)}
+                  dir="ltr"
+                  step="0.0001"
+                />
+              </div>
+            )}
             <div>
               <label className={labelCls}>{t("invoices.date")}</label>
               <input
@@ -202,7 +281,10 @@ export function PaymentModal({
               </select>
             </div>
             <div>
-              <label className={labelCls}>{t("invoices.amount")}</label>
+              <label className={labelCls}>
+                {t("invoices.amount")}{" "}
+                <span className="font-sans text-primary">({currency})</span>
+              </label>
               <input
                 type="number"
                 className={inputCls}
@@ -231,7 +313,10 @@ export function PaymentModal({
                   <thead>
                     <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
                       <th className="text-start px-4 py-2">{t("invoices.invoiceNo")}</th>
-                      <th className="text-end px-3 py-2">{t("invoices.balance")}</th>
+                      <th className="text-end px-3 py-2">
+                        {t("invoices.balance")}{" "}
+                        <span className="font-sans text-primary">({currency})</span>
+                      </th>
                       <th className="text-end px-4 py-2 w-36">{t("invoices.allocate")}</th>
                     </tr>
                   </thead>

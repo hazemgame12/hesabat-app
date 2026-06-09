@@ -14,6 +14,8 @@ export interface OutstandingInvoice {
   dueDate?: string | null;
   partyId: string;
   partyName: string;
+  currency: string;
+  exchangeRate: number;
   total: number;
   amountPaid: number;
   balance: number;

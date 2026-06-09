@@ -6158,7 +6158,7 @@ components:
 
     OutstandingInvoice:
       type: object
-      required: [id, invoiceNo, date, partyId, partyName, total, amountPaid, balance, status, overdue]
+      required: [id, invoiceNo, date, partyId, partyName, currency, exchangeRate, total, amountPaid, balance, status, overdue]
       properties:
         id:
           type: string
@@ -6172,6 +6172,10 @@ components:
           type: string
         partyName:
           type: string
+        currency:
+          type: string
+        exchangeRate:
+          type: number
         total:
           type: number
         amountPaid:

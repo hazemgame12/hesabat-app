@@ -2570,6 +2570,8 @@ export const GetOutstandingInvoicesResponseItem = zod.object({
   "dueDate": zod.string().nullish(),
   "partyId": zod.string(),
   "partyName": zod.string(),
+  "currency": zod.string(),
+  "exchangeRate": zod.number(),
   "total": zod.number(),
   "amountPaid": zod.number(),
   "balance": zod.number(),

@@ -319,6 +319,8 @@ router.get(
             dueDate: inv.dueDate ?? null,
             partyId: pid,
             partyName: nameMap.get(pid) ?? "—",
+            currency: inv.currency ?? "EGP",
+            exchangeRate: Number(inv.exchangeRate),
             total: round2(Number(inv.total)),
             amountPaid: round2(Number(inv.amountPaid)),
             balance,
