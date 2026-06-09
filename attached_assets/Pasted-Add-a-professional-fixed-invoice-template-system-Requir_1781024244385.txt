@@ -1,0 +1,102 @@
+Add a professional fixed invoice template system.
+
+Requirements:
+
+1. Fixed Invoice Templates
+   Create fixed printable templates that look like real accounting invoices, not just data tables.
+
+Templates needed:
+
+* Customer Tax Invoice
+* Customer Receipt Voucher
+* Supplier Bill
+* Supplier Payment Voucher
+* Credit Note
+* Debit Note
+* Purchase Order
+* Sales Quotation / Proforma Invoice
+
+2. Template Design
+   Each template must include:
+
+* Company logo
+* Company name
+* Tax registration number
+* Commercial registration number
+* Company address
+* Phone / email
+* Document title
+* Document number
+* Issue date
+* Due date
+* Customer / supplier details
+* Items table
+* Subtotal
+* Discount
+* VAT
+* Withholding tax if applicable
+* Grand total
+* Amount in words
+* Notes / terms
+* Prepared by
+* Approved by
+* Signature area
+* Company stamp area
+
+3. Barcode / QR Code
+   Each printed document must include a barcode or QR code.
+
+The barcode / QR code should contain:
+
+* Document type
+* Document number
+* Customer or supplier name
+* Total amount
+* Date
+* Internal system reference / UUID
+
+When scanned, it should allow the company to verify the invoice internally.
+
+4. PDF / Print
+   Add buttons:
+
+* Preview
+* Print
+* Download PDF
+
+The print layout must be A4 ready and clean.
+
+5. Template Control
+   Do not allow users to freely design templates at this stage.
+   Use fixed professional templates only.
+   Later we can add template customization.
+
+6. Accounting Link
+   Every printed template must be linked to the source accounting document.
+   Example:
+
+* Customer invoice template linked to customer invoice record
+* Supplier bill template linked to supplier bill record
+* Receipt voucher linked to payment record
+* Payment voucher linked to supplier payment record
+
+7. Status Watermark
+   Show watermark based on status:
+
+* Draft
+* Posted
+* Paid
+* Partially Paid
+* Cancelled
+
+8. Do not post accounting entries from the template itself.
+   Templates are only print/PDF views of approved system records.
+
+Please implement this as part of the invoicing workflow, but do not start coding immediately.
+First inspect the existing files and tell me:
+
+* What print/PDF libraries already exist
+* Whether QR/barcode package is installed
+* Which files you will modify
+* The safest implementation plan
+  Then wait for confirmation.

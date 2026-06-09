@@ -1,0 +1,202 @@
+We need to build the Customers & Suppliers Invoicing Workflow as a controlled accounting cycle.
+
+Important:
+Do not rebuild the whole system.
+Do not regenerate unrelated files.
+First inspect the existing accounting modules, database models, routes, and pages.
+Reuse existing components and patterns.
+
+Required Modules:
+
+1. Customer Invoices / Sales Invoices
+
+* Create customer invoice
+* Select customer
+* Invoice date
+* Due date
+* Invoice number auto-generated
+* Currency
+* Payment terms
+* Add invoice lines:
+
+  * Item / service
+  * Description
+  * Quantity
+  * Unit price
+  * Discount
+  * Tax
+  * Total
+* Invoice status:
+
+  * Draft
+  * Posted / Approved
+  * Partially Paid
+  * Paid
+  * Cancelled
+* Allow attachment upload
+* Allow invoice PDF preview/print
+* Allow barcode / QR code on invoice
+* Link invoice to customer account statement
+* Post accounting journal entry only when invoice is approved/posted, not while draft.
+
+Accounting impact for customer invoice:
+Debit: Accounts Receivable / Customer
+Credit: Sales Revenue
+Credit: VAT Output Tax, if applicable
+
+2. Supplier Bills / Purchase Invoices
+
+* Create supplier bill
+* Select supplier
+* Bill date
+* Due date
+* Supplier invoice number
+* Internal reference number
+* Currency
+* Payment terms
+* Add bill lines:
+
+  * Item / service
+  * Description
+  * Quantity
+  * Unit cost
+  * Discount
+  * Tax
+  * Total
+* Bill status:
+
+  * Draft
+  * Posted / Approved
+  * Partially Paid
+  * Paid
+  * Cancelled
+* Allow attachment upload
+* Allow invoice PDF preview/print
+* Link bill to supplier account statement
+* Post accounting journal entry only when bill is approved/posted, not while draft.
+
+Accounting impact for supplier bill:
+Debit: Expense / Purchases / Inventory, depending on selected line type
+Debit: VAT Input Tax, if applicable
+Credit: Accounts Payable / Supplier
+
+3. Payment Workflow
+   For customer invoices:
+
+* Record customer receipt
+* Select invoice(s)
+* Payment method:
+
+  * Bank
+  * Cash treasury
+  * Cheque
+  * Card / transfer
+* Allow partial payment
+* Automatically update invoice status.
+
+Accounting impact:
+Debit: Bank / Cash
+Credit: Accounts Receivable / Customer
+
+For supplier bills:
+
+* Record supplier payment
+* Select bill(s)
+* Payment method:
+
+  * Bank
+  * Cash treasury
+  * Cheque
+  * Transfer
+* Allow partial payment
+* Automatically update bill status.
+
+Accounting impact:
+Debit: Accounts Payable / Supplier
+Credit: Bank / Cash
+
+4. Credit Notes
+   Customer credit note:
+
+* Reduce customer invoice value
+* Link to original invoice
+* Post accounting entry.
+
+Supplier debit note / supplier credit adjustment:
+
+* Reduce supplier bill value
+* Link to original bill
+* Post accounting entry.
+
+5. Account Statements
+   Customer statement:
+
+* Opening balance
+* Invoices
+* Receipts
+* Credit notes
+* Closing balance
+* Aging report
+
+Supplier statement:
+
+* Opening balance
+* Bills
+* Payments
+* Debit/Credit notes
+* Closing balance
+* Aging report
+
+6. Aging Reports
+   Customer aging:
+
+* Current
+* 1–30 days
+* 31–60 days
+* 61–90 days
+* Over 90 days
+
+Supplier aging:
+
+* Current
+* 1–30 days
+* 31–60 days
+* 61–90 days
+* Over 90 days
+
+7. Controls
+
+* Draft invoices must not affect accounting.
+* Posted invoices cannot be deleted.
+* Posted invoices can only be cancelled by reversal entry.
+* Payment cannot exceed outstanding invoice balance.
+* Supplier bill cannot be paid unless posted.
+* Customer receipt cannot be recorded against draft invoice.
+* Every posted transaction must create journal entry automatically.
+* Every journal entry must be linked to its source document.
+* Add audit log for create, approve, cancel, and payment actions.
+
+Build this in phases:
+
+Phase 1:
+Database models and API routes only for customer invoices and supplier bills.
+
+Phase 2:
+Frontend pages for creating and listing customer invoices and supplier bills.
+
+Phase 3:
+Posting logic and automatic journal entries.
+
+Phase 4:
+Receipts, payments, partial settlement, and status updates.
+
+Phase 5:
+PDF print template, barcode/QR, account statements, and aging reports.
+
+Before implementation, show me:
+
+* Existing files you found
+* What models/routes/pages already exist
+* Your implementation plan
+* Files you will modify
+  Then wait for confirmation before coding.
