@@ -14,7 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus, ChevronDown, ChevronLeft, Check, X, Trash2, Edit2 } from "lucide-react";
+import { Building2, Plus, ChevronDown, ChevronLeft, Check, X, Trash2, Edit2, Lock, Unlock, Search, FolderOpen, FolderClosed, ListPlus, ChevronUp } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,6 +41,14 @@ const TYPE_COLORS: Record<AccountType, string> = {
   equity: "bg-secondary-foreground",
   revenue: "bg-success",
   expense: "bg-amber-500",
+};
+
+const TYPE_BG_STYLES: Record<AccountType, { row: string; badge: string; pill: string }> = {
+  asset:     { row: "bg-sky-50/50 hover:bg-sky-100/60", badge: "bg-sky-100 text-sky-700", pill: "bg-sky-500" },
+  liability: { row: "bg-rose-50/50 hover:bg-rose-100/60", badge: "bg-rose-100 text-rose-700", pill: "bg-rose-500" },
+  equity:    { row: "bg-violet-50/50 hover:bg-violet-100/60", badge: "bg-violet-100 text-violet-700", pill: "bg-violet-500" },
+  revenue:   { row: "bg-emerald-50/50 hover:bg-emerald-100/60", badge: "bg-emerald-100 text-emerald-700", pill: "bg-emerald-500" },
+  expense:   { row: "bg-amber-50/50 hover:bg-amber-100/60", badge: "bg-amber-100 text-amber-700", pill: "bg-amber-500" },
 };
 
 const ALL_TAB = "all";
@@ -163,9 +171,14 @@ export function Accounts() {
   const canDelete = hasCapability(role, "accounts:delete");
 
   const [activeTab, setActiveTab] = useState<AccountType | typeof ALL_TAB>(ALL_TAB);
-  const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
+  const [modalMode, setModalMode] = useState<"create" | "edit" | "bulk" | null>(null);
   const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
+  const [search, setSearch] = useState("");
+  const [expandTick, setExpandTick] = useState<number>(0);
+  const [collapseTick, setCollapseTick] = useState<number>(0);
+  const [bulkParentId, setBulkParentId] = useState<string>("");
+  const [bulkNames, setBulkNames] = useState("");
 
   const tree = buildTree(accounts);
   const groups = ACCOUNT_TYPES.filter((g) => activeTab === ALL_TAB || g === activeTab);
@@ -305,60 +318,146 @@ export function Accounts() {
   const TreeRow = ({ node, depth }: { node: TreeNode; depth: number }) => {
     const hasChildren = !!node.children?.length;
     const [open, setOpen] = useState(depth < 2);
-    
+    const typeStyle = TYPE_BG_STYLES[node.type as AccountType];
+    const isLocked = node.hasEntries;
+
+    useEffect(() => {
+      setOpen(true);
+    }, [expandTick]);
+
+    useEffect(() => {
+      setOpen(false);
+    }, [collapseTick]);
+
+    useEffect(() => {
+      if (search.trim()) setOpen(true);
+    }, [search]);
+
+    const matchesSearch = search.trim()
+      ? (node.code.includes(search) ||
+         displayName(node, lang).toLowerCase().includes(search.toLowerCase()))
+      : true;
+
+    if (!matchesSearch && !hasChildren) return null;
+
+    const childMatches = hasChildren
+      ? node.children!.some((c) =>
+          c.code.includes(search) ||
+          displayName(c, lang).toLowerCase().includes(search.toLowerCase()) ||
+          (c.children?.some(
+            (cc) =>
+              cc.code.includes(search) ||
+              displayName(cc, lang).toLowerCase().includes(search.toLowerCase())
+          ) ?? false)
+        )
+      : false;
+
+    if (!matchesSearch && !childMatches) return null;
+    const showExpanded = open;
+
     return (
       <>
         <div
-          className="group flex items-center gap-3 py-2.5 rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
+          className={`group flex items-center gap-3 py-2 rounded-lg transition-colors cursor-pointer border border-transparent ${
+            typeStyle ? typeStyle.row : "hover:bg-muted/60"
+          }`}
           style={{ paddingInlineStart: 12 + depth * 26, paddingInlineEnd: 16 }}
         >
-          <button 
+          <button
             className="w-5 flex-shrink-0 text-muted-foreground flex items-center justify-center"
             onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
           >
             {hasChildren ? (
               open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4 rtl:-scale-x-100" />
-            ) : null}
+            ) : (
+              <span className="w-4 h-4" />
+            )}
           </button>
-          
-          <div className="flex-1 flex items-center gap-3" onClick={() => hasChildren && setOpen((o) => !o)}>
+
+          <div className="flex-1 flex items-center gap-3 min-w-0" onClick={() => hasChildren && setOpen((o) => !o)}>
             <span className="font-sans text-xs font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md flex-shrink-0 min-w-12 text-center" dir="ltr">
               {node.code}
             </span>
-            <span className={`text-sm ${node.isGroup ? "font-bold text-foreground" : "font-medium text-foreground/90"}`}>
+            <span className={`text-sm truncate ${node.isGroup ? "font-bold text-foreground" : "font-medium text-foreground/90"}`}>
               {displayName(node, lang)}
             </span>
             {node.isGroup && (
-              <span className="text-[11px] font-bold text-secondary-foreground bg-secondary px-2 py-0.5 rounded-full flex-shrink-0">
+              <span className="text-[10px] font-bold text-secondary-foreground bg-secondary px-2 py-0.5 rounded-full flex-shrink-0">
                 {t("accounts.mainAccountBadge")}
+              </span>
+            )}
+            {isLocked && (
+              <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                {t("accounts.lockedBadge")}
+              </span>
+            )}
+            {!isLocked && !node.isGroup && (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1">
+                <Unlock className="w-3 h-3" />
+                {t("accounts.emptyBadge")}
+              </span>
+            )}
+            {node.balance && (
+              <span className="text-[11px] font-sans font-semibold text-muted-foreground bg-background/80 border px-2 py-0.5 rounded-md flex-shrink-0" dir="ltr">
+                {node.balance}
               </span>
             )}
           </div>
 
-          {(canUpdate || canDelete) && (
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 flex-shrink-0 px-2">
-              {canUpdate && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); openEditModal(node); }}
-                  className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                  title={t("common.edit")}
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-              )}
-              {canDelete && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setAccountToDelete(node); }}
-                  className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                  title={t("common.delete")}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-1 flex-shrink-0 px-2">
+            {canCreate && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  reset({
+                    code: computeNextCode(node.id, node.type as AccountType, accounts),
+                    nameAr: "",
+                    nameEn: "",
+                    type: node.type as AccountType,
+                    currencyType: "base",
+                    currency: null,
+                    parentId: node.id,
+                    isGroup: false,
+                  });
+                  setModalMode("create");
+                }}
+                className="w-7 h-7 rounded-md hover:bg-primary/10 text-primary transition-colors flex items-center justify-center"
+                title={t("accounts.addChild")}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            )}
+            {canUpdate && (
+              <button
+                onClick={(e) => { e.stopPropagation(); openEditModal(node); }}
+                className="w-7 h-7 rounded-md hover:bg-primary/10 text-primary transition-colors flex items-center justify-center"
+                title={t("common.edit")}
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isLocked) {
+                    toast({ variant: "destructive", title: t("accounts.cannotDeleteLocked") });
+                    return;
+                  }
+                  setAccountToDelete(node);
+                }}
+                className={`w-7 h-7 rounded-md transition-colors flex items-center justify-center ${
+                  isLocked ? "text-muted-foreground/40 cursor-not-allowed" : "hover:bg-destructive/10 text-destructive"
+                }`}
+                title={isLocked ? t("accounts.cannotDeleteLocked") : t("common.delete")}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
-        {hasChildren && open && (
+        {hasChildren && showExpanded && (
           <div>
             {node.children!.map((c) => (
               <TreeRow key={c.id} node={c} depth={depth + 1} />
@@ -412,6 +511,60 @@ export function Accounts() {
               </span>
             </div>
           ))}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("accounts.searchPlaceholder")}
+                className="w-full bg-background border rounded-xl h-10 ps-9 pe-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setExpandTick((n) => n + 1)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors border"
+              title={t("accounts.expandAll")}
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">{t("accounts.expandAll")}</span>
+            </button>
+            <button
+              onClick={() => setCollapseTick((n) => n + 1)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors border"
+              title={t("accounts.collapseAll")}
+            >
+              <FolderClosed className="w-4 h-4" />
+              <span className="hidden sm:inline">{t("accounts.collapseAll")}</span>
+            </button>
+            {canCreate && (
+              <button
+                onClick={() => {
+                  setBulkParentId("");
+                  setBulkNames("");
+                  setModalMode("bulk");
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-primary hover:bg-primary/10 transition-colors border border-primary/20"
+                title={t("accounts.bulkAdd")}
+              >
+                <ListPlus className="w-4 h-4" />
+                <span className="hidden sm:inline">{t("accounts.bulkAdd")}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 border-b pb-px overflow-x-auto">
@@ -491,9 +644,9 @@ export function Accounts() {
           <form onSubmit={handleSubmit(onSubmit)} className="relative bg-card rounded-2xl shadow-2xl w-full max-w-lg border flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <div className="flex items-center gap-2">
-                <Plus className="w-5 h-5 text-primary" />
+                {modalMode === "bulk" ? <ListPlus className="w-5 h-5 text-primary" /> : <Plus className="w-5 h-5 text-primary" />}
                 <h2 className="text-base font-bold text-foreground">
-                  {modalMode === "create" ? t("accounts.createTitle") : t("accounts.editTitle")}
+                  {modalMode === "create" ? t("accounts.createTitle") : modalMode === "edit" ? t("accounts.editTitle") : t("accounts.bulkAddTitle")}
                 </h2>
               </div>
               <button type="button" onClick={closeModals} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
@@ -501,7 +654,42 @@ export function Accounts() {
               </button>
             </div>
 
-            <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+            {modalMode === "bulk" ? (
+              <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-foreground">{t("accounts.bulkAddParent")}</label>
+                  <div className="relative">
+                    <select
+                      className="w-full appearance-none bg-background border rounded-xl h-11 ps-4 pe-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      value={bulkParentId}
+                      onChange={(e) => setBulkParentId(e.target.value)}
+                    >
+                      <option value="">{t("accounts.parentNone")}</option>
+                      {accounts.filter(a => a.isGroup).map(a => (
+                        <option key={a.id} value={a.id}>{a.code} - {displayName(a, lang)}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-foreground">{t("accounts.bulkAddHint")}</label>
+                  <textarea
+                    value={bulkNames}
+                    onChange={(e) => setBulkNames(e.target.value)}
+                    rows={8}
+                    className="bg-background border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                    placeholder="Account 1\nAccount 2\nAccount 3"
+                  />
+                </div>
+
+                <div className="text-xs font-semibold text-muted-foreground">
+                  {t("accounts.bulkAddCount", { count: bulkNames.split("\n").filter(n => n.trim()).length })}
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 flex flex-col gap-5 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-bold text-foreground">{t("accounts.accountCode")}</label>

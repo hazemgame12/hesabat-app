@@ -321,6 +321,18 @@
     "deleteBody": "Are you sure you want to delete the account \"{{name}}\"? This action cannot be undone.",
     "deleting": "Deleting...",
     "confirmDelete": "Confirm delete",
+    "lockedBadge": "Locked",
+    "emptyBadge": "Empty",
+    "addChild": "Add child",
+    "cannotDeleteLocked": "Cannot delete an account with posted entries",
+    "searchPlaceholder": "Search by code or name...",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "bulkAdd": "Bulk add",
+    "bulkAddTitle": "Add multiple accounts",
+    "bulkAddHint": "Enter one account name per line",
+    "bulkAddParent": "Parent account",
+    "bulkAddCount": "Accounts to add: {{count}}",
     "validation": {
       "codeRequired": "Account code is required",
       "nameRequired": "Account name is required"
@@ -333,7 +345,9 @@
       "editError": "Could not update the account",
       "deleteError": "Could not delete the account",
       "defaultsLoaded": "Default chart of accounts loaded successfully",
-      "defaultsError": "Could not load the default chart of accounts"
+      "defaultsError": "Could not load the default chart of accounts",
+      "bulkAdded": "Added {{count}} accounts",
+      "bulkError": "Could not add accounts"
     }
   },
   "team": {

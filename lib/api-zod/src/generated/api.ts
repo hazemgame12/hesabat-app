@@ -91,6 +91,8 @@ export const ListAccountsResponseItem = zod.object({
   "currency": zod.string().nullish(),
   "parentId": zod.string().nullish(),
   "isGroup": zod.boolean(),
+  "hasEntries": zod.boolean(),
+  "balance": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListAccountsResponse = zod.array(ListAccountsResponseItem)
@@ -147,6 +149,8 @@ export const UpdateAccountResponse = zod.object({
   "currency": zod.string().nullish(),
   "parentId": zod.string().nullish(),
   "isGroup": zod.boolean(),
+  "hasEntries": zod.boolean(),
+  "balance": zod.string().nullish(),
   "createdAt": zod.string()
 })
 

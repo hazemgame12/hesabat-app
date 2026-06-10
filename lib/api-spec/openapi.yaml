@@ -4296,7 +4296,7 @@ components:
 
     Account:
       type: object
-      required: [id, code, nameAr, type, isGroup, createdAt]
+      required: [id, code, nameAr, type, isGroup, hasEntries, createdAt]
       properties:
         id:
           type: string
@@ -4318,6 +4318,10 @@ components:
           type: ["string", "null"]
         isGroup:
           type: boolean
+        hasEntries:
+          type: boolean
+        balance:
+          type: ["string", "null"]
         createdAt:
           type: string
 

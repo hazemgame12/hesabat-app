@@ -321,6 +321,18 @@
     "deleteBody": "هل أنت متأكد من حذف الحساب \"{{name}}\"؟ لا يمكن التراجع عن هذا الإجراء.",
     "deleting": "جاري الحذف...",
     "confirmDelete": "تأكيد الحذف",
+    "lockedBadge": "مقفول",
+    "emptyBadge": "فارغ",
+    "addChild": "إضافة فرعي",
+    "cannotDeleteLocked": "لا يمكن حذف حساب له حركات مالية",
+    "searchPlaceholder": "بحث بالكود أو الاسم...",
+    "expandAll": "توسيع الكل",
+    "collapseAll": "طي الكل",
+    "bulkAdd": "إضافة مجموعة",
+    "bulkAddTitle": "إضافة حسابات متعددة",
+    "bulkAddHint": "أدخل اسم حساب واحد في كل سطر",
+    "bulkAddParent": "الحساب الرئيسي",
+    "bulkAddCount": "حسابات للإضافة: {{count}}",
     "validation": {
       "codeRequired": "كود الحساب مطلوب",
       "nameRequired": "اسم الحساب مطلوب"
@@ -333,7 +345,9 @@
       "editError": "تعذر تعديل الحساب",
       "deleteError": "تعذر حذف الحساب",
       "defaultsLoaded": "تم تحميل دليل الحسابات الافتراضي بنجاح",
-      "defaultsError": "تعذر تحميل دليل الحسابات"
+      "defaultsError": "تعذر تحميل دليل الحسابات",
+      "bulkAdded": "تم إضافة {{count}} حساب",
+      "bulkError": "تعذر إضافة الحسابات"
     }
   },
   "team": {

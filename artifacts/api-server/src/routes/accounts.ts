@@ -1,10 +1,12 @@
 import { Router } from "express";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, sql } from "drizzle-orm";
 import {
   db,
   accountsTable,
   currenciesTable,
   companiesTable,
+  journalEntryLinesTable,
+  journalEntriesTable,
   type Account,
 } from "@workspace/db";
 import { CreateAccountBody, UpdateAccountBody } from "@workspace/api-zod";
@@ -24,7 +26,7 @@ type AccountTypeEnum = (typeof ACCOUNT_TYPES)[number];
 
 const router = Router();
 
-function toAccount(row: Account) {
+function toAccount(row: Account, hasEntries: boolean, balance: string | null) {
   return {
     id: row.id,
     code: row.code,
@@ -35,6 +37,8 @@ function toAccount(row: Account) {
     currency: row.currency,
     parentId: row.parentId,
     isGroup: row.isGroup,
+    hasEntries,
+    balance,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -114,12 +118,81 @@ async function parentBelongsToCompany(
 
 router.get("/accounts", requireAuth, async (req, res) => {
   try {
+    const companyId = req.auth!.companyId;
     const rows = await db
       .select()
       .from(accountsTable)
-      .where(eq(accountsTable.companyId, req.auth!.companyId))
+      .where(eq(accountsTable.companyId, companyId))
       .orderBy(asc(accountsTable.code));
-    res.json(rows.map(toAccount));
+
+    // Posted balances per account
+    const balRows = await db
+      .select({
+        accountId: journalEntryLinesTable.accountId,
+        debit: sql<string>`COALESCE(SUM(${journalEntryLinesTable.debitBase}), 0)`,
+        credit: sql<string>`COALESCE(SUM(${journalEntryLinesTable.creditBase}), 0)`,
+      })
+      .from(journalEntryLinesTable)
+      .innerJoin(
+        journalEntriesTable,
+        eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
+      )
+      .where(
+        and(
+          eq(journalEntriesTable.companyId, companyId),
+          eq(journalEntriesTable.status, "posted"),
+        ),
+      )
+      .groupBy(journalEntryLinesTable.accountId);
+
+    const balanceMap = new Map<string, { debit: number; credit: number }>();
+    for (const r of balRows) {
+      balanceMap.set(r.accountId, {
+        debit: Number(r.debit),
+        credit: Number(r.credit),
+      });
+    }
+
+    const entriesRows = await db
+      .select({
+        accountId: journalEntryLinesTable.accountId,
+        cnt: sql<number>`count(*)::int`,
+      })
+      .from(journalEntryLinesTable)
+      .where(eq(journalEntryLinesTable.companyId, companyId))
+      .groupBy(journalEntryLinesTable.accountId);
+
+    const entriesMap = new Map<string, number>();
+    for (const r of entriesRows) {
+      entriesMap.set(r.accountId, r.cnt);
+    }
+
+    const fmt = (n: number) =>
+      new Intl.NumberFormat("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+    const baseCurrency = (await db
+      .select({ baseCurrency: companiesTable.baseCurrency })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, companyId))
+      .limit(1))[0]?.baseCurrency ?? "EGP";
+
+    res.json(
+      rows.map((r) => {
+        const bal = balanceMap.get(r.id);
+        const hasEntries = (entriesMap.get(r.id) ?? 0) > 0;
+        let balance: string | null = null;
+        if (bal && !r.isGroup) {
+          const natural =
+            r.type === "asset" || r.type === "expense"
+              ? bal.debit - bal.credit
+              : bal.credit - bal.debit;
+          if (natural !== 0) {
+            balance = `${fmt(Math.abs(natural))} ${baseCurrency}`;
+          }
+        }
+        return toAccount(r, hasEntries, balance);
+      }),
+    );
   } catch (err) {
     req.log.error({ err }, "Failed to list accounts");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -150,7 +223,7 @@ router.post(
           .where(eq(accountsTable.companyId, companyId))
           .orderBy(asc(accountsTable.code));
       });
-      res.status(201).json(rows.map(toAccount));
+      res.status(201).json(rows.map((r) => toAccount(r, false, null)));
     } catch (err) {
       req.log.error({ err }, "Failed to seed default accounts");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -199,7 +272,7 @@ router.post("/accounts", requireAuth, requireCapability("accounts:create"), asyn
         isGroup: parsed.data.isGroup ?? false,
       })
       .returning();
-    res.status(201).json(toAccount(row as Account));
+    res.status(201).json(toAccount(row as Account, false, null));
   } catch (err) {
     if (isUniqueViolation(err)) {
       res.status(409).json({ error: "رمز الحساب مستخدم بالفعل" });
@@ -278,7 +351,7 @@ router.patch("/accounts/:id", requireAuth, requireCapability("accounts:update"),
       res.status(404).json({ error: "الحساب غير موجود" });
       return;
     }
-    res.json(toAccount(row as Account));
+    res.json(toAccount(row as Account, false, null));
   } catch (err) {
     if (isUniqueViolation(err)) {
       res.status(409).json({ error: "رمز الحساب مستخدم بالفعل" });

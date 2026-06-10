@@ -21,5 +21,8 @@ export interface Account {
   /** @nullable */
   parentId?: string | null;
   isGroup: boolean;
+  hasEntries: boolean;
+  /** @nullable */
+  balance?: string | null;
   createdAt: string;
 }
