@@ -55,6 +55,7 @@ import {
 import { InvoiceEditor } from "./InvoiceEditor";
 import { PaymentModal } from "./PaymentModal";
 import { InvoiceReports } from "./InvoiceReports";
+import { PartyView, type PartyViewParty } from "./PartyView";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
 
 type Kind = "sales" | "purchase";
@@ -83,6 +84,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [editorReturn, setEditorReturn] = useState(false);
   const [returnSourceId, setReturnSourceId] = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
+  const [partyView, setPartyView] = useState<PartyViewParty | null>(null);
   const [toDelete, setToDelete] = useState<InvoiceSummary | null>(null);
   const [toApprove, setToApprove] = useState<InvoiceSummary | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -743,7 +745,20 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           </td>
                           {/* Party */}
                           <td className="px-3 py-2.5 text-start text-foreground">
-                            {inv.partyName ?? "—"}
+                            {inv.partyId ? (
+                              <button
+                                onClick={() => {
+                                  const partyList = kind === "sales" ? customers : suppliers;
+                                  const p = partyList.find((x: any) => x.id === inv.partyId);
+                                  if (p) setPartyView(p as PartyViewParty);
+                                }}
+                                className="text-start hover:text-primary hover:underline transition-colors cursor-pointer"
+                              >
+                                {inv.partyName ?? "—"}
+                              </button>
+                            ) : (
+                              inv.partyName ?? "—"
+                            )}
                           </td>
                           {/* Currency */}
                           <td className="px-3 py-2.5 text-center font-sans text-xs font-bold text-foreground/70" dir="ltr">
@@ -1065,6 +1080,14 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           postableAccounts={postable}
           onClose={() => setViewId(null)}
           onSaved={() => setViewId(null)}
+        />
+      )}
+
+      {partyView && (
+        <PartyView
+          kind={kind}
+          party={partyView}
+          onClose={() => setPartyView(null)}
         />
       )}
 

@@ -5,8 +5,8 @@ import type { Company } from "@workspace/api-client-react";
 export function infoRow(label: string, value: React.ReactNode) {
   return (
     <div className="flex justify-between gap-3">
-      <span className="text-gray-500">{label}</span>
-      <span className="font-bold" dir="auto">
+      <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">{label}</span>
+      <span className="font-bold text-slate-900" dir="auto">
         {value}
       </span>
     </div>
@@ -28,7 +28,7 @@ export function DocumentHeader({
   qr: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b-2 border-black pb-4">
+    <div className="flex items-start justify-between gap-4 border-b-2 border-slate-900 pb-4">
       <div className="flex items-start gap-3">
         {company.logoUrl ? (
           <img
@@ -38,22 +38,22 @@ export function DocumentHeader({
           />
         ) : null}
         <div>
-          <div className="text-[18px] font-bold leading-tight">
+          <div className="text-[18px] font-bold leading-tight text-slate-900">
             {company.name}
           </div>
           {company.tradeName && (
-            <div className="text-[13px] text-gray-600">{company.tradeName}</div>
+            <div className="text-[13px] text-slate-500">{company.tradeName}</div>
           )}
           {company.taxRegistrationNumber && (
-            <div className="text-[12px] text-gray-600">
+            <div className="text-[12px] text-slate-500">
               س.ت/ض: {company.taxRegistrationNumber}
             </div>
           )}
           {company.address && (
-            <div className="text-[12px] text-gray-600">{company.address}</div>
+            <div className="text-[12px] text-slate-500">{company.address}</div>
           )}
           {company.phone && (
-            <div className="text-[12px] text-gray-600" dir="ltr">
+            <div className="text-[12px] text-slate-500" dir="ltr">
               {company.phone}
             </div>
           )}
@@ -72,12 +72,12 @@ export function DocumentFooter() {
   return (
     <div className="mt-12 grid grid-cols-2 gap-8 text-[12px]">
       <div className="flex flex-col items-center gap-8">
-        <div className="text-gray-500">{t("print.preparedBy")}</div>
-        <div className="border-t border-gray-400 w-40" />
+        <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">{t("print.preparedBy")}</div>
+        <div className="border-t border-slate-400 w-40" />
       </div>
       <div className="flex flex-col items-center gap-8">
-        <div className="text-gray-500">{t("print.receivedBy")}</div>
-        <div className="border-t border-gray-400 w-40" />
+        <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">{t("print.receivedBy")}</div>
+        <div className="border-t border-slate-400 w-40" />
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useGetPayment, useGetCompany } from "@workspace/api-client-react";
 import { Spinner } from "@/components/ui/spinner";
 import { PrintShell } from "./PrintShell";
-import { DocumentHeader, DocumentFooter, infoRow } from "./DocumentChrome";
+import { DocumentHeader, DocumentFooter } from "./DocumentChrome";
 import { tafqit } from "./tafqit";
 import { buildDocPayload, qrDataUrl } from "./qr";
 
@@ -71,48 +71,91 @@ export function VoucherDocument({
     <PrintShell onBack={onBack}>
       <DocumentHeader company={company} title={title} qr={qr} />
 
-      <div className="grid grid-cols-2 gap-6 mt-6 text-[13px]">
-        <div className="border rounded-lg p-3">
-          <div className="font-bold text-[12px] text-gray-500 mb-1">
+      {/* Metadata bar */}
+      <div className="mt-5 grid grid-cols-2 gap-4 text-[12px] leading-relaxed">
+        {/* Party box */}
+        <div className="rounded-lg border border-slate-200 p-3 bg-slate-50/50">
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
             {partyLabel}
           </div>
-          <div className="font-bold text-[15px]">{payment.partyName ?? "—"}</div>
+          <div className="text-[14px] font-bold text-slate-900">
+            {payment.partyName ?? "—"}
+          </div>
         </div>
-        <div className="border rounded-lg p-3 flex flex-col gap-1">
-          {infoRow(t("print.docNo"), docNo)}
-          {infoRow(t("invoices.date"), payment.date)}
-          {infoRow(t("invoices.method"), t(`invoices.methods.${payment.method}`))}
-          {infoRow(t("invoices.cashAccount"), payment.cashAccountName ?? "—")}
+
+        {/* Document info box */}
+        <div className="rounded-lg border border-slate-200 p-3 bg-slate-50/50 flex flex-col gap-1">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+              {t("print.docNo")}
+            </span>
+            <span className="font-bold text-slate-900 font-sans tabular-nums" dir="ltr">
+              {docNo}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+              {t("invoices.date")}
+            </span>
+            <span className="font-bold text-slate-900 font-sans tabular-nums" dir="ltr">
+              {payment.date}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+              {t("invoices.method")}
+            </span>
+            <span className="font-bold text-slate-900">
+              {t(`invoices.methods.${payment.method}`)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+              {t("invoices.cashAccount")}
+            </span>
+            <span className="font-bold text-slate-900">
+              {payment.cashAccountName ?? "—"}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 border-2 border-black rounded-lg p-4 flex items-center justify-between">
-        <span className="font-bold text-[15px]">{t("invoices.amount")}</span>
-        <span className="font-bold text-[22px]" dir="ltr">
+      {/* Amount highlight box */}
+      <div className="mt-5 rounded-lg border-2 border-slate-900 bg-slate-50 p-5 flex items-center justify-between">
+        <span className="font-bold text-[15px] text-slate-900">{t("invoices.amount")}</span>
+        <span className="font-bold text-[22px] text-slate-900 font-sans tabular-nums" dir="ltr">
           {fmt(payment.amount)} {currency}
         </span>
       </div>
 
-      <div className="mt-3 border rounded-lg p-3 bg-gray-50 text-[13px]">
-        <span className="font-bold text-gray-500">{t("print.amountInWords")}: </span>
-        {tafqit(payment.amount, currency)}
+      {/* Amount in words */}
+      <div className="mt-3 rounded-lg border border-slate-200 p-3 bg-slate-50/50 text-[12px] leading-relaxed">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          {t("print.amountInWords")}:{" "}
+        </span>
+        <span className="text-slate-900">{tafqit(payment.amount, currency)}</span>
       </div>
 
+      {/* Allocations table */}
       {payment.allocations.length > 0 && (
-        <table className="w-full mt-6 text-[13px] border-collapse">
+        <table className="w-full mt-5 text-[12px] border-collapse">
           <thead>
-            <tr className="bg-gray-100 text-[12px]">
-              <th className="border p-2 text-start">{t("print.settledInvoice")}</th>
-              <th className="border p-2 text-end w-32">{t("invoices.amount")}</th>
+            <tr className="bg-slate-100 border-b border-slate-300">
+              <th className="px-2 py-2 text-start text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                {t("print.settledInvoice")}
+              </th>
+              <th className="px-2 py-2 text-end w-32 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                {t("invoices.amount")}
+              </th>
             </tr>
           </thead>
           <tbody>
             {payment.allocations.map((a) => (
-              <tr key={a.id}>
-                <td className="border p-2 text-start" dir="ltr">
+              <tr key={a.id} className="border-b border-slate-100 last:border-b-0">
+                <td className="px-2 py-2 text-start font-sans tabular-nums" dir="ltr">
                   #{a.invoiceNo ?? "—"}
                 </td>
-                <td className="border p-2 text-end" dir="ltr">
+                <td className="px-2 py-2 text-end font-sans tabular-nums" dir="ltr">
                   {fmt(a.amount)}
                 </td>
               </tr>
@@ -121,9 +164,12 @@ export function VoucherDocument({
         </table>
       )}
 
+      {/* Notes */}
       {payment.notes && (
-        <div className="mt-4 text-[12px] text-gray-600">
-          <span className="font-bold">{t("invoices.notes")}: </span>
+        <div className="mt-4 text-[12px] text-slate-600 leading-relaxed">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            {t("invoices.notes")}:{" "}
+          </span>
           {payment.notes}
         </div>
       )}

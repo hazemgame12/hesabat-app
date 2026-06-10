@@ -7,7 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import { Spinner } from "@/components/ui/spinner";
 import { PrintShell } from "./PrintShell";
-import { DocumentHeader, DocumentFooter, infoRow } from "./DocumentChrome";
+import { DocumentHeader, DocumentFooter } from "./DocumentChrome";
 import { tafqit } from "./tafqit";
 import { buildDocPayload, qrDataUrl } from "./qr";
 
@@ -93,53 +93,121 @@ export function InvoiceDocument({
         qr={qr}
       />
 
-      <div className="grid grid-cols-2 gap-6 mt-6 text-[13px]">
-        <div className="border rounded-lg p-3">
-          <div className="font-bold text-[12px] text-gray-500 mb-1">
+      {/* Document metadata bar */}
+      <div className="mt-5 grid grid-cols-2 gap-4 text-[12px] leading-relaxed">
+        {/* Party box */}
+        <div className="rounded-lg border border-slate-200 p-3 bg-slate-50/50">
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
             {partyLabel}
           </div>
-          <div className="font-bold text-[15px]">{invoice.partyName ?? "—"}</div>
+          <div className="text-[14px] font-bold text-slate-900">
+            {invoice.partyName ?? "—"}
+          </div>
         </div>
-        <div className="border rounded-lg p-3 flex flex-col gap-1">
-          {infoRow(t("print.docNo"), docNo)}
-          {infoRow(t("invoices.date"), invoice.date)}
-          {invoice.dueDate && infoRow(t("invoices.dueDate"), invoice.dueDate)}
-          {invoice.relatedCode &&
-            infoRow(t("print.relatedDoc"), invoice.relatedCode)}
-          {currency !== "EGP" && infoRow(t("invoices.currency"), currency)}
+
+        {/* Document info box */}
+        <div className="rounded-lg border border-slate-200 p-3 bg-slate-50/50 flex flex-col gap-1">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+              {t("print.docNo")}
+            </span>
+            <span className="font-bold text-slate-900 font-sans tabular-nums" dir="ltr">
+              {docNo}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+              {t("invoices.date")}
+            </span>
+            <span className="font-bold text-slate-900 font-sans tabular-nums" dir="ltr">
+              {invoice.date}
+            </span>
+          </div>
+          {invoice.dueDate && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                {t("invoices.dueDate")}
+              </span>
+              <span className="font-bold text-slate-900 font-sans tabular-nums" dir="ltr">
+                {invoice.dueDate}
+              </span>
+            </div>
+          )}
+          {invoice.relatedCode && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                {t("print.relatedDoc")}
+              </span>
+              <span className="font-bold text-slate-900 font-sans tabular-nums" dir="ltr">
+                {invoice.relatedCode}
+              </span>
+            </div>
+          )}
+          {currency !== "EGP" && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">
+                {t("invoices.currency")}
+              </span>
+              <span className="font-bold text-slate-900 font-sans tabular-nums" dir="ltr">
+                {currency}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      <table className="w-full mt-6 text-[13px] border-collapse">
+      {/* Lines table */}
+      <table className="w-full mt-5 text-[12px] border-collapse">
         <thead>
-          <tr className="bg-gray-100 text-[12px]">
-            <th className="border p-2 text-start w-8">#</th>
-            <th className="border p-2 text-start">{t("invoices.description")}</th>
-            <th className="border p-2 text-center w-16">{t("invoices.quantity")}</th>
-            <th className="border p-2 text-end w-24">{t("invoices.unitPrice")}</th>
-            <th className="border p-2 text-end w-20">{t("invoices.discount")}</th>
-            <th className="border p-2 text-end w-20">{t("invoices.tax")}</th>
-            <th className="border p-2 text-end w-24">{t("invoices.lineTotal")}</th>
+          <tr className="bg-slate-100 border-b border-slate-300">
+            <th className="px-2 py-2 text-start w-8 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              #
+            </th>
+            <th className="px-2 py-2 text-start text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              {t("invoices.description")}
+            </th>
+            <th className="px-2 py-2 text-center w-16 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              {t("invoices.quantity")}
+            </th>
+            <th className="px-2 py-2 text-end w-24 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              {t("invoices.unitPrice")}
+            </th>
+            <th className="px-2 py-2 text-end w-20 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              {t("invoices.discount")}
+            </th>
+            <th className="px-2 py-2 text-end w-20 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              {t("invoices.tax")}
+            </th>
+            <th className="px-2 py-2 text-end w-28 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              {t("invoices.lineTotal")}
+            </th>
           </tr>
         </thead>
         <tbody>
           {invoice.lines.map((l, i) => (
-            <tr key={l.id}>
-              <td className="border p-2 text-center">{i + 1}</td>
-              <td className="border p-2 text-start">{l.description || "—"}</td>
-              <td className="border p-2 text-center" dir="ltr">
+            <tr
+              key={l.id}
+              className="border-b border-slate-100 last:border-b-0"
+            >
+              <td className="px-2 py-2 text-center text-slate-500 font-sans tabular-nums">
+                {i + 1}
+              </td>
+              <td className="px-2 py-2 text-start text-slate-900">
+                {l.description || "—"}
+              </td>
+              <td className="px-2 py-2 text-center font-sans tabular-nums" dir="ltr">
                 {fmt(l.quantity)}
               </td>
-              <td className="border p-2 text-end" dir="ltr">
+              <td className="px-2 py-2 text-end font-sans tabular-nums" dir="ltr">
                 {fmt(l.unitPrice)}
               </td>
-              <td className="border p-2 text-end" dir="ltr">
+              <td className="px-2 py-2 text-end font-sans tabular-nums" dir="ltr">
                 {fmt(l.discount)}
               </td>
-              <td className="border p-2 text-end" dir="ltr">
+              <td className="px-2 py-2 text-end font-sans tabular-nums" dir="ltr">
                 {fmt(l.taxAmount)}
               </td>
-              <td className="border p-2 text-end font-bold" dir="ltr">
+              <td className="px-2 py-2 text-end font-bold text-slate-900 font-sans tabular-nums" dir="ltr">
                 {fmt(l.lineTotal)}
               </td>
             </tr>
@@ -147,37 +215,50 @@ export function InvoiceDocument({
         </tbody>
       </table>
 
-      <div className="flex justify-end mt-4">
-        <div className="w-72 text-[13px] flex flex-col gap-1">
+      {/* Totals */}
+      <div className="mt-4 flex justify-end">
+        <div className="w-80 text-[13px] flex flex-col gap-1">
           <div className="flex justify-between py-1">
-            <span className="text-gray-500">{t("invoices.subtotal")}</span>
-            <span dir="ltr">{fmt(invoice.subtotal ?? 0)}</span>
+            <span className="text-slate-500 text-[12px] font-bold">{t("invoices.subtotal")}</span>
+            <span className="font-sans tabular-nums" dir="ltr">
+              {fmt(invoice.subtotal ?? 0)}
+            </span>
           </div>
           <div className="flex justify-between py-1">
-            <span className="text-gray-500">{t("invoices.discountTotal")}</span>
-            <span dir="ltr">{fmt(invoice.discountTotal ?? 0)}</span>
+            <span className="text-slate-500 text-[12px] font-bold">{t("invoices.discountTotal")}</span>
+            <span className="font-sans tabular-nums" dir="ltr">
+              {fmt(invoice.discountTotal ?? 0)}
+            </span>
           </div>
           <div className="flex justify-between py-1">
-            <span className="text-gray-500">{t("invoices.taxTotal")}</span>
-            <span dir="ltr">{fmt(invoice.taxTotal ?? 0)}</span>
+            <span className="text-slate-500 text-[12px] font-bold">{t("invoices.taxTotal")}</span>
+            <span className="font-sans tabular-nums" dir="ltr">
+              {fmt(invoice.taxTotal ?? 0)}
+            </span>
           </div>
-          <div className="flex justify-between py-2 border-t-2 border-black font-bold text-[15px]">
+          <div className="flex justify-between py-2 border-t-2 border-slate-900 font-bold text-[15px] text-slate-900">
             <span>{t("invoices.grandTotal")}</span>
-            <span dir="ltr">
+            <span className="font-sans tabular-nums" dir="ltr">
               {fmt(invoice.total)} {currency}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="mt-4 border rounded-lg p-3 bg-gray-50 text-[13px]">
-        <span className="font-bold text-gray-500">{t("print.amountInWords")}: </span>
-        {tafqit(invoice.total, currency)}
+      {/* Amount in words */}
+      <div className="mt-4 rounded-lg border border-slate-200 p-3 bg-slate-50/50 text-[12px] leading-relaxed">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          {t("print.amountInWords")}:{" "}
+        </span>
+        <span className="text-slate-900">{tafqit(invoice.total, currency)}</span>
       </div>
 
+      {/* Notes */}
       {invoice.notes && (
-        <div className="mt-4 text-[12px] text-gray-600">
-          <span className="font-bold">{t("invoices.notes")}: </span>
+        <div className="mt-4 text-[12px] text-slate-600 leading-relaxed">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+            {t("invoices.notes")}:{" "}
+          </span>
           {invoice.notes}
         </div>
       )}
