@@ -29,7 +29,7 @@ const COLORS = {
   expense: "bg-amber-50 border-amber-200 text-amber-800",
 };
 
-const BADGES = {
+const BADGES: Record<string, string> = {
   asset: "bg-sky-100 text-sky-700",
   liability: "bg-rose-100 text-rose-700",
   equity: "bg-violet-100 text-violet-700",
@@ -191,9 +191,9 @@ function TreeRow({
         {/* Type Badge */}
         <span className={cn(
           "text-xs px-2 py-0.5 rounded-full font-medium",
-          BADGES[node.type] ?? "bg-slate-100 text-slate-600"
+          BADGES[(node.type as string)] ?? "bg-slate-100 text-slate-600"
         )}>
-          {TYPE_LABELS[node.type] ?? node.type}
+          {TYPE_LABELS[(node.type as string)] ?? node.type}
         </span>
 
         {/* Lock / Usage Indicator */}
