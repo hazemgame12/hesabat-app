@@ -1567,6 +1567,23 @@
     "accumulatedAccount": "Accumulated depreciation account",
     "expenseAccount": "Depreciation expense account",
     "save": "Save",
+    "summary": {
+      "total": "Total Invoices",
+      "totalAmount": "Total Amount",
+      "totalPaid": "Total Paid",
+      "totalBalance": "Total Balance"
+    },
+    "filter": {
+      "search": "Search by invoice #, customer or supplier",
+      "advanced": "Advanced Filters",
+      "allCustomers": "All Customers",
+      "allSuppliers": "All Suppliers",
+      "allStatuses": "All Statuses",
+      "allCurrencies": "All Currencies",
+      "dateFrom": "From date",
+      "dateTo": "To date",
+      "clear": "Clear Filters"
+    },
     "cancel": "Cancel",
     "method": "Method",
     "methods": {

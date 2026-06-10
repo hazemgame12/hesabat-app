@@ -8,6 +8,9 @@ import {
   useListPayments,
   useDeletePayment,
   useListAccounts,
+  useListCustomers,
+  useListSuppliers,
+  useListCurrencies,
   useGetCurrentUser,
   getListInvoicesQueryKey,
   getListPaymentsQueryKey,
@@ -27,6 +30,15 @@ import {
   HandCoins,
   Printer,
   Undo2,
+  Search,
+  SlidersHorizontal,
+  Clock,
+  FileCheck,
+  Wallet,
+  XCircle,
+  RotateCcw,
+  ArrowDownLeft,
+  ArrowUpRight,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -76,9 +88,25 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
 
-  const { data: invoices = [], isLoading: invLoading } = useListInvoices({
+  // Filters
+  const [search, setSearch] = useState("");
+  const [filterParty, setFilterParty] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterCurrency, setFilterCurrency] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const { data: invoicesRaw = [], isLoading: invLoading } = useListInvoices({
     kind,
-  });
+    ...(filterStatus ? { status: filterStatus } : {}),
+    ...(filterDateFrom ? { dateFrom: filterDateFrom } : {}),
+    ...(filterDateTo ? { dateTo: filterDateTo } : {}),
+    ...(filterCurrency ? { currency: filterCurrency } : {}),
+    ...(kind === "sales" && filterParty ? { customerId: filterParty } : {}),
+    ...(kind === "purchase" && filterParty ? { supplierId: filterParty } : {}),
+    ...(search ? { search } : {}),
+  } as any);
   const { data: returns = [], isLoading: retLoading } = useListInvoices({
     kind: returnKind,
   });
@@ -90,6 +118,43 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     () => accounts.filter((a: Account) => !a.isGroup),
     [accounts],
   );
+  const { data: customers = [] } = useListCustomers();
+  const { data: suppliers = [] } = useListSuppliers();
+  const { data: currencies = [] } = useListCurrencies();
+
+  const partyOptions = useMemo(() => {
+    return kind === "sales"
+      ? customers.map((c) => ({ id: c.id, name: c.nameAr }))
+      : suppliers.map((s) => ({ id: s.id, name: s.nameAr }));
+  }, [kind, customers, suppliers]);
+
+  const currencyOptions = useMemo(
+    () => currencies.map((c) => c.code),
+    [currencies],
+  );
+
+  // Summary cards data
+  const invoices = invoicesRaw as InvoiceSummary[];
+  const summary = useMemo(() => {
+    const counts = {
+      total: invoices.length,
+      draft: 0,
+      approved: 0,
+      partially_paid: 0,
+      paid: 0,
+      cancelled: 0,
+      totalAmount: 0,
+      totalPaid: 0,
+      totalBalance: 0,
+    };
+    for (const inv of invoices) {
+      counts[inv.status as keyof typeof counts]++;
+      counts.totalAmount += inv.total;
+      counts.totalPaid += inv.amountPaid ?? 0;
+      counts.totalBalance += inv.balance;
+    }
+    return counts;
+  }, [invoices]);
 
   const deleteInvoice = useDeleteInvoice();
   const approveInvoice = useApproveInvoice();
@@ -318,137 +383,328 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         </div>
       </div>
 
-      <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
+      <div className="px-8 pt-4 pb-8 flex flex-col gap-6 w-full">
         {tab === "invoices" && (
-          <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
-            {invLoading ? (
-              <div className="flex items-center justify-center p-12">
-                <Spinner className="w-8 h-8 text-primary" />
+          <div className="flex flex-col gap-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="bg-card border rounded-xl p-3 shadow-sm flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">{t("invoices.summary.total")}</p>
+                  <p className="text-lg font-bold text-foreground">{summary.total}</p>
+                </div>
               </div>
-            ) : invoices.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-2 text-center">
-                <p className="font-bold text-foreground">
-                  {t("invoices.noInvoices")}
-                </p>
-                <p className="text-sm max-w-md">{t("invoices.noInvoicesHint")}</p>
-                {canCreate && (
-                  <button
-                    onClick={openCreate}
-                    className="mt-2 text-primary font-bold hover:underline"
+              <div className="bg-card border rounded-xl p-3 shadow-sm flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                  <RotateCcw className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">{t("invoices.statuses.draft")}</p>
+                  <p className="text-lg font-bold text-foreground">{summary.draft}</p>
+                </div>
+              </div>
+              <div className="bg-card border rounded-xl p-3 shadow-sm flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <FileCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">{t("invoices.statuses.approved")}</p>
+                  <p className="text-lg font-bold text-foreground">{summary.approved}</p>
+                </div>
+              </div>
+              <div className="bg-card border rounded-xl p-3 shadow-sm flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">{t("invoices.statuses.partially_paid")}</p>
+                  <p className="text-lg font-bold text-foreground">{summary.partially_paid}</p>
+                </div>
+              </div>
+              <div className="bg-card border rounded-xl p-3 shadow-sm flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-success/10 flex items-center justify-center text-success">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">{t("invoices.statuses.paid")}</p>
+                  <p className="text-lg font-bold text-foreground">{summary.paid}</p>
+                </div>
+              </div>
+              <div className="bg-card border rounded-xl p-3 shadow-sm flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center text-destructive">
+                  <XCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">{t("invoices.statuses.cancelled")}</p>
+                  <p className="text-lg font-bold text-foreground">{summary.cancelled}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Filters Bar */}
+            <div className="bg-card border rounded-xl shadow-sm p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder={t("invoices.filter.search")}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full text-sm px-9 py-2 rounded-lg border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                  />
+                </div>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    showFilters
+                      ? "bg-primary/10 text-primary border-primary/30"
+                      : "bg-background text-foreground border-border/70 hover:bg-muted/50"
+                  }`}
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  {t("invoices.filter.advanced")}
+                </button>
+              </div>
+              {showFilters && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={filterParty}
+                    onChange={(e) => setFilterParty(e.target.value)}
+                    className="text-sm px-3 py-2 rounded-lg border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
-                    {t("invoices.addFirst")}
+                    <option value="">{t(kind === "sales" ? "invoices.filter.allCustomers" : "invoices.filter.allSuppliers")}</option>
+                    {partyOptions.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="text-sm px-3 py-2 rounded-lg border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">{t("invoices.filter.allStatuses")}</option>
+                    <option value="draft">{t("invoices.statuses.draft")}</option>
+                    <option value="approved">{t("invoices.statuses.approved")}</option>
+                    <option value="partially_paid">{t("invoices.statuses.partially_paid")}</option>
+                    <option value="paid">{t("invoices.statuses.paid")}</option>
+                    <option value="cancelled">{t("invoices.statuses.cancelled")}</option>
+                  </select>
+                  <select
+                    value={filterCurrency}
+                    onChange={(e) => setFilterCurrency(e.target.value)}
+                    className="text-sm px-3 py-2 rounded-lg border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">{t("invoices.filter.allCurrencies")}</option>
+                    {currencyOptions.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    className="text-sm px-3 py-2 rounded-lg border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder={t("invoices.filter.dateFrom")}
+                  />
+                  <input
+                    type="date"
+                    value={filterDateTo}
+                    onChange={(e) => setFilterDateTo(e.target.value)}
+                    className="text-sm px-3 py-2 rounded-lg border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    placeholder={t("invoices.filter.dateTo")}
+                  />
+                  <button
+                    onClick={() => {
+                      setFilterParty("");
+                      setFilterStatus("");
+                      setFilterCurrency("");
+                      setFilterDateFrom("");
+                      setFilterDateTo("");
+                      setSearch("");
+                    }}
+                    className="text-sm px-3 py-2 rounded-lg border border-border/70 bg-background hover:bg-muted/50 text-muted-foreground"
+                  >
+                    {t("invoices.filter.clear")}
                   </button>
-                )}
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                    <th className="text-start px-6 py-3">{t("invoices.invoiceNo")}</th>
-                    <th className="text-start px-3 py-3">{t("invoices.date")}</th>
-                    <th className="text-start px-3 py-3">
-                      {t(kind === "sales" ? "invoices.customer" : "invoices.supplier")}
-                    </th>
-                    <th className="text-end px-3 py-3">{t("invoices.total")}</th>
-                    <th className="text-end px-3 py-3">{t("invoices.balance")}</th>
-                    <th className="text-center px-3 py-3">{t("invoices.currency")}</th>
-                    <th className="text-center px-3 py-3">{t("invoices.status")}</th>
-                    <th className="w-28 px-6 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((inv) => (
-                    <tr
-                      key={inv.id}
-                      className="group border-t hover:bg-muted/40 transition-colors"
+                </div>
+              )}
+            </div>
+
+            {/* Invoice Table */}
+            <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
+              {invLoading ? (
+                <div className="flex items-center justify-center p-12">
+                  <Spinner className="w-8 h-8 text-primary" />
+                </div>
+              ) : invoices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-2 text-center">
+                  <p className="font-bold text-foreground">
+                    {t("invoices.noInvoices")}
+                  </p>
+                  <p className="text-sm max-w-md">{t("invoices.noInvoicesHint")}</p>
+                  {canCreate && (
+                    <button
+                      onClick={openCreate}
+                      className="mt-2 text-primary font-bold hover:underline"
                     >
-                      <td
-                        className="px-6 py-3.5 font-sans tabular-nums font-bold text-foreground"
-                        dir="ltr"
-                      >
-                        #{inv.invoiceNo}
-                      </td>
-                      <td className="px-3 py-3.5 font-sans tabular-nums text-foreground/80" dir="ltr">
-                        {inv.date}
-                      </td>
-                      <td className="px-3 py-3.5 text-start text-foreground">
-                        {inv.partyName ?? "—"}
-                      </td>
-                      <td className="px-3 py-3.5 text-end font-sans tabular-nums text-foreground/80" dir="ltr">
-                        {fmt(inv.total)}
-                      </td>
-                      <td className="px-3 py-3.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
-                        {fmt(inv.balance)}
-                      </td>
-                      <td className="px-3 py-3.5 text-center font-sans text-xs font-bold text-foreground/70" dir="ltr">
-                        {inv.currency ?? "EGP"}
-                      </td>
-                      <td className="px-3 py-3.5 text-center">{statusBadge(inv)}</td>
-                      <td className="px-6 py-3.5">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
-                          <button
-                            onClick={() => setViewId(inv.id)}
-                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
-                            title={t("invoices.view")}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => printInvoice(inv.id)}
-                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
-                            title={t("invoices.print")}
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          {inv.status !== "draft" &&
-                            inv.status !== "cancelled" &&
-                            canCreate && (
+                      {t("invoices.addFirst")}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[1000px]">
+                    <thead>
+                      <tr className="text-xs font-bold text-muted-foreground bg-muted/50 border-b">
+                        <th className="text-center px-4 py-2.5 w-24">
+                          {t("invoices.actions")}
+                        </th>
+                        <th className="text-start px-3 py-2.5 w-32">
+                          {t("invoices.invoiceNo")}
+                        </th>
+                        <th className="text-start px-3 py-2.5 w-28">
+                          {t("invoices.date")}
+                        </th>
+                        <th className="text-start px-3 py-2.5 w-28">
+                          {t("invoices.dueDate")}
+                        </th>
+                        <th className="text-start px-3 py-2.5 w-44">
+                          {t(kind === "sales" ? "invoices.customer" : "invoices.supplier")}
+                        </th>
+                        <th className="text-center px-3 py-2.5 w-20">
+                          {t("invoices.currency")}
+                        </th>
+                        <th className="text-end px-3 py-2.5 w-32">
+                          {t("invoices.total")}
+                        </th>
+                        <th className="text-end px-3 py-2.5 w-32">
+                          {t("invoices.balance")}
+                        </th>
+                        <th className="text-center px-3 py-2.5 w-32">
+                          {t("invoices.status")}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.map((inv) => (
+                        <tr
+                          key={inv.id}
+                          className="group border-b border-border/50 hover:bg-muted/30 transition-colors"
+                        >
+                          {/* Actions */}
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center justify-center gap-0.5">
                               <button
-                                onClick={() => openCreateReturn(inv.id)}
-                                className="p-1.5 rounded-md hover:bg-amber-500/10 text-amber-600 transition-colors"
-                                title={t(
-                                  kind === "sales"
-                                    ? "invoices.returns.newCreditNote"
-                                    : "invoices.returns.newDebitNote",
+                                onClick={() => setViewId(inv.id)}
+                                className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                                title={t("invoices.view")}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => printInvoice(inv.id)}
+                                className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                                title={t("invoices.print")}
+                              >
+                                <Printer className="w-4 h-4" />
+                              </button>
+                              {inv.status === "draft" && canUpdate && (
+                                <button
+                                  onClick={() => openEdit(inv.id)}
+                                  className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                                  title={t("invoices.edit")}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                              )}
+                              {inv.status === "draft" && canUpdate && (
+                                <button
+                                  onClick={() => setToApprove(inv)}
+                                  className="p-1.5 rounded-md hover:bg-success/10 text-success"
+                                  title={t("invoices.approve")}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                              )}
+                              {inv.status !== "draft" &&
+                                inv.status !== "cancelled" &&
+                                canCreate && (
+                                  <button
+                                    onClick={() => openCreateReturn(inv.id)}
+                                    className="p-1.5 rounded-md hover:bg-amber-500/10 text-amber-600"
+                                    title={t(
+                                      kind === "sales"
+                                        ? "invoices.returns.newCreditNote"
+                                        : "invoices.returns.newDebitNote",
+                                    )}
+                                  >
+                                    <Undo2 className="w-4 h-4" />
+                                  </button>
                                 )}
-                              >
-                                <Undo2 className="w-4 h-4" />
-                              </button>
+                              {inv.status === "draft" && canDelete && (
+                                <button
+                                  onClick={() => setToDelete(inv)}
+                                  className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive"
+                                  title={t("invoices.delete")}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                          {/* Invoice No */}
+                          <td
+                            className="px-3 py-2.5 font-sans tabular-nums font-bold text-foreground"
+                            dir="ltr"
+                          >
+                            {inv.code ?? `#${inv.invoiceNo}`}
+                          </td>
+                          {/* Date */}
+                          <td className="px-3 py-2.5 font-sans tabular-nums text-foreground/80" dir="ltr">
+                            {inv.date}
+                          </td>
+                          {/* Due Date */}
+                          <td className="px-3 py-2.5 font-sans tabular-nums text-foreground/80" dir="ltr">
+                            {inv.dueDate ?? (
+                              <span className="text-muted-foreground/50">—</span>
                             )}
-                          {inv.status === "draft" && canUpdate && (
-                            <>
-                              <button
-                                onClick={() => setToApprove(inv)}
-                                className="p-1.5 rounded-md hover:bg-success/10 text-success transition-colors"
-                                title={t("invoices.approve")}
-                              >
-                                <Check className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => openEdit(inv.id)}
-                                className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                title={t("invoices.edit")}
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
-                          {inv.status === "draft" && canDelete && (
-                            <button
-                              onClick={() => setToDelete(inv)}
-                              className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                              title={t("invoices.delete")}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                          </td>
+                          {/* Party */}
+                          <td className="px-3 py-2.5 text-start text-foreground">
+                            {inv.partyName ?? "—"}
+                          </td>
+                          {/* Currency */}
+                          <td className="px-3 py-2.5 text-center font-sans text-xs font-bold text-foreground/70" dir="ltr">
+                            {inv.currency ?? "EGP"}
+                          </td>
+                          {/* Total */}
+                          <td className="px-3 py-2.5 text-end font-sans tabular-nums text-foreground/80" dir="ltr">
+                            {fmt(inv.total)}
+                          </td>
+                          {/* Balance */}
+                          <td
+                            className={`px-3 py-2.5 text-end font-bold font-sans tabular-nums ${
+                              inv.balance > 0 ? "text-foreground" : "text-success"
+                            }`}
+                            dir="ltr"
+                          >
+                            {fmt(inv.balance)}
+                          </td>
+                          {/* Status */}
+                          <td className="px-3 py-2.5 text-center">
+                            {statusBadge(inv)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

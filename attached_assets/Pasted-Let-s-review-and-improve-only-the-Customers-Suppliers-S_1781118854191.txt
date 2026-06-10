@@ -1,0 +1,135 @@
+Let’s review and improve only the Customers, Suppliers, Sales Invoices, and Purchase Invoices modules.
+
+Do not work on other modules now.
+Do not rebuild the system.
+Do not change unrelated pages.
+
+Required scope:
+
+1. Customers Module
+
+* Improve customers table layout.
+* Add actions column: View, Edit, Statement, Delete if allowed.
+* Customer profile page should show:
+
+  * Basic data
+  * Linked account
+  * Opening balance
+  * Current balance
+  * Sales invoices
+  * Receipts
+  * Account statement
+
+2. Suppliers Module
+
+* Improve suppliers table layout.
+* Add actions column: View, Edit, Statement, Delete if allowed.
+* Supplier profile page should show:
+
+  * Basic data
+  * Linked account
+  * Opening balance
+  * Current balance
+  * Purchase bills
+  * Payments
+  * Account statement
+
+3. Sales Invoices
+
+* Improve invoice list table.
+* Add actions column:
+
+  * View
+  * Edit if draft
+  * Print/PDF
+  * Record receipt
+  * Cancel if allowed
+* Add filters:
+
+  * Customer
+  * Date from / to
+  * Status
+  * Currency
+* Invoice statuses:
+
+  * Draft
+  * Posted
+  * Partially Paid
+  * Paid
+  * Cancelled
+* Posted invoices should create journal entries.
+* Draft invoices should not affect accounting.
+
+4. Purchase Invoices
+
+* Improve purchase invoice list table.
+* Add actions column:
+
+  * View
+  * Edit if draft
+  * Print/PDF
+  * Record payment
+  * Cancel if allowed
+* Add filters:
+
+  * Supplier
+  * Date from / to
+  * Status
+  * Currency
+* Purchase invoice statuses:
+
+  * Draft
+  * Posted
+  * Partially Paid
+  * Paid
+  * Cancelled
+* Posted bills should create journal entries.
+* Draft bills should not affect accounting.
+
+5. Invoice PDF / Print Template
+
+* Fix Arabic RTL layout.
+* Fix Arabic text direction.
+* Fix table alignment.
+* Make the invoice look professional on A4.
+* Add company logo.
+* Add QR code or barcode.
+* Add document number, date, currency, customer/supplier data.
+* Add subtotal, discount, VAT, total.
+* Add amount in words.
+* Add prepared by, approved by, signature/stamp area.
+
+6. Excel
+
+* Keep Excel export working.
+* Customers and suppliers should support import/export.
+* Sales and purchase invoices should support export.
+* Do not add invoice import now unless already supported.
+
+7. Tables UI
+   Apply clean table design only to these pages:
+
+* Customers
+* Suppliers
+* Sales Invoices
+* Purchase Invoices
+
+Table design:
+
+* Compact professional rows
+* Clear headers
+* Proper RTL alignment
+* No large empty space
+* Actions column visible
+* Status badges clean
+* Numbers aligned consistently
+* Responsive horizontal scroll if needed
+
+Before coding:
+
+1. Inspect existing files for these modules.
+2. Confirm what already works.
+3. List missing items.
+4. Tell me which files will be modified.
+5. Start with table layout + actions column first.
+6. Then fix invoice PDF template.

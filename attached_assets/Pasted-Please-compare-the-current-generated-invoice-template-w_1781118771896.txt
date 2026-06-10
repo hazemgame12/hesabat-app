@@ -1,0 +1,112 @@
+Please compare the current generated invoice template with the attached professional invoice sample, then redesign the invoice template and invoice workflow.
+
+Current issue:
+The current Hesabat invoice PDF is too basic, Arabic RTL is not clean, and several important accounting/tax fields are missing.
+
+Required Invoice Template Redesign:
+
+* Redesign Sales Invoice and Purchase Invoice PDF templates to look professional like the attached sample.
+* Fix Arabic RTL direction.
+* Fix table alignment.
+* Add company logo.
+* Add company name Arabic/English.
+* Add tax registration number.
+* Add commercial registration number.
+* Add company address and contact details.
+* Add customer/supplier details.
+* Add invoice number.
+* Add invoice date.
+* Add due date.
+* Add currency.
+* Add invoice status.
+* Add QR code / barcode.
+* Add footer with page number.
+* Add prepared by / approved by / signature / stamp area.
+
+Invoice line fields required:
+
+* Product or Service
+* Description
+* Quantity
+* Unit Price
+* Discount
+* Revenue Account / Expense Account
+* Tax Rate
+* Tax Amount
+* Total Excluding Tax
+* Total Including Tax
+* Cost Center
+* Project
+
+Dropdown requirements:
+
+* Product or Service must be selected from existing predefined products/services.
+* Revenue Account / Expense Account must be selected from Chart of Accounts.
+* Tax Rate must be selected from defined Tax Types.
+* Cost Center must be selected from Cost Centers.
+* Project must be selected from Projects.
+
+Excel Upload Requirement:
+Allow the user to upload an Excel file to create invoice lines in bulk.
+
+Excel columns should include:
+
+* Customer Name / Supplier Name
+* Currency
+* Product or Service
+* Quantity
+* Unit Price
+* Discount
+* Revenue Account / Expense Account
+* Tax Rate
+* Total Including Tax
+* Cost Center
+* Project
+* Invoice Date
+* Due Date
+* Notes
+
+After Excel upload:
+
+* Do not post invoices automatically.
+* Create invoices as Draft.
+* Show the imported invoices/lines in the main invoices screen.
+* User must be able to edit imported invoices from the main invoice screen before posting.
+* Validate all dropdown fields during import.
+* If a product, account, tax rate, cost center, or project is missing, show clear validation errors.
+* Allow user to fix missing fields from the screen.
+
+Main invoice screen:
+
+* Add inline edit ability where safe.
+* User should be able to review and update:
+
+  * Customer/Supplier
+  * Currency
+  * Product/Service
+  * Quantity
+  * Unit Price
+  * Tax Rate
+  * Account
+  * Cost Center
+  * Project
+* Only Draft invoices can be edited.
+* Posted invoices cannot be edited directly.
+
+Accounting controls:
+
+* Draft invoices do not create journal entries.
+* Posted sales invoices create AR / Revenue / VAT journal entries.
+* Posted purchase invoices create Expense or Inventory / AP / VAT journal entries.
+* Each invoice must be linked to its generated journal entry.
+
+Before coding:
+
+1. Inspect current invoice PDF generator.
+2. Inspect invoice models and invoice line models.
+3. Inspect existing products/services, chart of accounts, tax types, cost centers, and projects.
+4. Confirm which fields already exist and which fields are missing.
+5. Confirm Excel import library currently used.
+6. List files to be modified.
+7. Start with Sales Invoice only first.
+8. Do not modify Purchase Invoice until Sales Invoice is confirmed working.

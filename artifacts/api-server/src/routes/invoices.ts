@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq, inArray, asc, desc, sql } from "drizzle-orm";
+import { and, eq, inArray, gte, lte, desc, sql } from "drizzle-orm";
 import {
   db,
   invoicesTable,
@@ -379,20 +379,55 @@ router.get(
       return;
     }
     try {
+      const conditions = [
+        eq(invoicesTable.companyId, companyId),
+        eq(invoicesTable.kind, kind),
+      ];
+      const status = req.query["status"];
+      if (typeof status === "string" && status) {
+        conditions.push(eq(invoicesTable.status, status));
+      }
+      const dateFrom = req.query["dateFrom"];
+      if (typeof dateFrom === "string" && dateFrom) {
+        conditions.push(gte(invoicesTable.date, dateFrom));
+      }
+      const dateTo = req.query["dateTo"];
+      if (typeof dateTo === "string" && dateTo) {
+        conditions.push(lte(invoicesTable.date, dateTo));
+      }
+      const currency = req.query["currency"];
+      if (typeof currency === "string" && currency) {
+        conditions.push(eq(invoicesTable.currency, currency));
+      }
+      const customerId = req.query["customerId"];
+      if (typeof customerId === "string" && customerId) {
+        conditions.push(eq(invoicesTable.customerId, customerId));
+      }
+      const supplierId = req.query["supplierId"];
+      if (typeof supplierId === "string" && supplierId) {
+        conditions.push(eq(invoicesTable.supplierId, supplierId));
+      }
       const rows = await db
         .select()
         .from(invoicesTable)
-        .where(
-          and(
-            eq(invoicesTable.companyId, companyId),
-            eq(invoicesTable.kind, kind),
-          ),
-        )
+        .where(and(...conditions))
         .orderBy(desc(invoicesTable.invoiceNo));
       const names = await partyNames(rows, companyId);
       const relatedCodes = await relatedCodeMap(rows, companyId);
+      const search = String(req.query["search"] ?? "").trim().toLowerCase();
+      let filtered = rows;
+      if (search) {
+        filtered = rows.filter((r) => {
+          const name = names.get(r.customerId ?? r.supplierId ?? "") ?? "";
+          return (
+            name.toLowerCase().includes(search) ||
+            String(r.invoiceNo).includes(search) ||
+            (r.code ?? "").toLowerCase().includes(search)
+          );
+        });
+      }
       res.json(
-        rows.map((r) =>
+        filtered.map((r) =>
           toListItem(
             r,
             names.get(r.customerId ?? r.supplierId ?? "") ?? null,

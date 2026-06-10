@@ -1567,6 +1567,23 @@
     "accumulatedAccount": "حساب مجمع الإهلاك",
     "expenseAccount": "حساب مصروف الإهلاك",
     "save": "حفظ",
+    "summary": {
+      "total": "إجمالي الفواتير",
+      "totalAmount": "إجمالي المبالغ",
+      "totalPaid": "إجمالي المدفوع",
+      "totalBalance": "إجمالي المتبقي"
+    },
+    "filter": {
+      "search": "ابحث برقم الفاتورة أو العميل أو المورد",
+      "advanced": "فلتر متقدم",
+      "allCustomers": "كل العملاء",
+      "allSuppliers": "كل الموردين",
+      "allStatuses": "كل الحالات",
+      "allCurrencies": "كل العملات",
+      "dateFrom": "من تاريخ",
+      "dateTo": "إلى تاريخ",
+      "clear": "مسح الفلتر"
+    },
     "cancel": "إلغاء",
     "method": "طريقة الدفع",
     "methods": {
