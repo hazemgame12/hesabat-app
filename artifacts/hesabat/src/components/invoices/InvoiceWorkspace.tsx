@@ -708,8 +708,23 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                             {fmt(inv.total)}
                           </td>
                           {/* Paid */}
-                          <td className="px-3 py-2.5 text-end font-sans tabular-nums text-success" dir="ltr">
-                            {fmt(inv.amountPaid ?? 0)}
+                          <td className="px-3 py-2.5 text-end font-sans tabular-nums" dir="ltr">
+                            {canPay && inv.balance > 0.005 && inv.status !== "draft" && inv.status !== "cancelled" ? (
+                              <button
+                                onClick={() => {
+                                  setPaymentInvoiceId(inv.id);
+                                  setPaymentOpen(true);
+                                }}
+                                className="text-success font-bold hover:underline cursor-pointer"
+                                title={t("invoices.pay")}
+                              >
+                                {fmt(inv.amountPaid ?? 0)}
+                              </button>
+                            ) : (
+                              <span className={inv.amountPaid && inv.amountPaid > 0.005 ? "text-success" : "text-foreground/50"}>
+                                {fmt(inv.amountPaid ?? 0)}
+                              </span>
+                            )}
                           </td>
                           {/* Balance */}
                           <td
