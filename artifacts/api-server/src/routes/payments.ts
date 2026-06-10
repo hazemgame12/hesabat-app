@@ -334,7 +334,7 @@ router.post(
       const invIds = [...allocByInvoice.keys()];
       const invMap = new Map<
         string,
-        { total: number; amountPaid: number; id: string }
+        { total: number; amountPaid: number; id: string; exchangeRate: number; currency: string }
       >();
       if (invIds.length) {
         const invs = await db
@@ -369,22 +369,12 @@ router.post(
               .json({ error: "لا يمكن السداد على فاتورة غير معتمدة" });
             return;
           }
-          // The payment and the invoice it settles must be in the same currency,
-          // otherwise the FX settlement math (cleared base vs. paid base) is
-          // meaningless. The UI already filters by currency; this is the
-          // server-side guard against any out-of-band request.
-          const payCurrency = (d.currency ?? baseCurrency).toUpperCase();
-          const invCurrency = (inv.currency ?? baseCurrency).toUpperCase();
-          if (invCurrency !== payCurrency) {
-            res
-              .status(400)
-              .json({ error: "عملة الفاتورة لا تطابق عملة العملية" });
-            return;
-          }
           invMap.set(inv.id, {
             id: inv.id,
             total: Number(inv.total),
             amountPaid: Number(inv.amountPaid),
+            exchangeRate: Number(inv.exchangeRate),
+            currency: inv.currency ?? baseCurrency,
           });
         }
         // Aggregate allocations by invoice (a payment may list the same invoice
