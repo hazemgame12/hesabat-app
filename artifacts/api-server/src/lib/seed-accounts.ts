@@ -42,6 +42,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: "215", nameAr: "ضريبة كسب العمل المستحقة", nameEn: "Payroll Tax Payable", type: "liability", isGroup: false, parentCode: "21" },
   { code: "216", nameAr: "ضريبة الدخل/الأرباح المستحقة", nameEn: "Income/Corporate Tax Payable", type: "liability", isGroup: false, parentCode: "21" },
   { code: "217", nameAr: "الزكاة المستحقة", nameEn: "Zakat Payable", type: "liability", isGroup: false, parentCode: "21" },
+  { code: "22", nameAr: "الخصوم طويلة الأجل", nameEn: "Long-Term Liabilities", type: "liability", isGroup: true, parentCode: null },
+  { code: "221", nameAr: "القروض طويلة الأجل", nameEn: "Long-Term Loans", type: "liability", isGroup: false, parentCode: "22" },
 
   // ---- Equity ----
   { code: "31", nameAr: "حقوق الملكية", nameEn: "Equity", type: "equity", isGroup: true, parentCode: null },
@@ -53,6 +55,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: "41", nameAr: "الإيرادات", nameEn: "Revenue", type: "revenue", isGroup: true, parentCode: null },
   { code: "411", nameAr: "إيرادات المبيعات", nameEn: "Sales Revenue", type: "revenue", isGroup: false, parentCode: "41" },
   { code: "412", nameAr: "إيرادات أخرى", nameEn: "Other Revenue", type: "revenue", isGroup: false, parentCode: "41" },
+  { code: "4121", nameAr: "دخل متنوع", nameEn: "Miscellaneous Income", type: "revenue", isGroup: false, parentCode: "412" },
+  { code: "4122", nameAr: "إيرادات غير تشغيلية", nameEn: "Non-operating Revenue", type: "revenue", isGroup: false, parentCode: "412" },
   { code: "416", nameAr: "أرباح فروق العملة", nameEn: "Foreign Exchange Gains", type: "revenue", isGroup: false, parentCode: "41" },
 
   // ---- Expenses ----
@@ -63,6 +67,20 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: "514", nameAr: "تكلفة المبيعات", nameEn: "Cost of Sales", type: "expense", isGroup: false, parentCode: "51" },
   { code: "515", nameAr: "مصروفات وعمولات بنكية", nameEn: "Bank Charges & Commissions", type: "expense", isGroup: false, parentCode: "51" },
   { code: "516", nameAr: "خسائر فروق العملة", nameEn: "Foreign Exchange Losses", type: "expense", isGroup: false, parentCode: "51" },
+  { code: "52", nameAr: "تكلفة المبيعات", nameEn: "Cost of Sales", type: "expense", isGroup: true, parentCode: null },
+  { code: "521", nameAr: "مواد أولية مباشرة", nameEn: "Direct Materials", type: "expense", isGroup: false, parentCode: "52" },
+  { code: "522", nameAr: "أجور مباشرة", nameEn: "Direct Labor", type: "expense", isGroup: false, parentCode: "52" },
+  { code: "523", nameAr: "تكاليف مشاريع", nameEn: "Project Costs", type: "expense", isGroup: false, parentCode: "52" },
+  { code: "524", nameAr: "تكاليف تقديم الخدمات", nameEn: "Service Delivery Costs", type: "expense", isGroup: false, parentCode: "52" },
+  { code: "525", nameAr: "تكاليف مقاولين من الباطن", nameEn: "Subcontractor Costs", type: "expense", isGroup: false, parentCode: "52" },
+  { code: "53", nameAr: "المصروفات العمومية والإدارية", nameEn: "General & Administrative Expenses", type: "expense", isGroup: true, parentCode: null },
+  { code: "531", nameAr: "رواتب", nameEn: "Salaries", type: "expense", isGroup: false, parentCode: "53" },
+  { code: "532", nameAr: "إيجارات", nameEn: "Rent", type: "expense", isGroup: false, parentCode: "53" },
+  { code: "533", nameAr: "مرافق", nameEn: "Utilities", type: "expense", isGroup: false, parentCode: "53" },
+  { code: "534", nameAr: "مصروفات مكتبية", nameEn: "Office Expenses", type: "expense", isGroup: false, parentCode: "53" },
+  { code: "535", nameAr: "أتعاب مهنية", nameEn: "Professional Fees", type: "expense", isGroup: false, parentCode: "53" },
+  { code: "536", nameAr: "إهلاك", nameEn: "Depreciation", type: "expense", isGroup: false, parentCode: "53" },
+  { code: "537", nameAr: "مصروفات بنكية", nameEn: "Bank Charges", type: "expense", isGroup: false, parentCode: "53" },
 ];
 
 // Codes for the foreign-exchange gain/loss accounts used by realized FX
