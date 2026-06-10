@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq, inArray, gte, lte, desc, sql } from "drizzle-orm";
+import { and, eq, inArray, gte, lte, asc, desc, sql } from "drizzle-orm";
 import {
   db,
   invoicesTable,
@@ -27,6 +27,8 @@ import {
 } from "../lib/journal-posting";
 import { computeMovement, round2, round4 } from "../lib/inventory-posting";
 import { exportWorkbook } from "../lib/excel";
+import { handleXlsxUpload, parseSheet, cellStr, cellNum } from "../lib/excel";
+import ExcelJS from "exceljs";
 
 const router = Router();
 
@@ -1706,6 +1708,300 @@ router.post(
         return;
       }
       req.log.error({ err }, "Failed to approve invoice");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Excel import ------------------------------------------------------
+// Bulk-creates draft invoices from an .xlsx. Simple flat format: one row per
+// line with invoice-level columns repeated. Groups by invoiceNo (or any unique
+// column the user provides). Auto-generates invoice numbers chronologically so
+// sequence is preserved.
+// Registered BEFORE the GET /invoices/:id param route so Express matches it.
+router.post(
+  "/invoices/import",
+  requireAuth,
+  requireCapability("invoices:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    const kind = req.query["kind"];
+    if (kind !== "sales" && kind !== "purchase") {
+      res.status(400).json({ error: "نوع الفاتورة غير صحيح" });
+      return;
+    }
+    try {
+      const sheet = await parseSheet(req.file.buffer);
+      if (!sheet) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      const required = ["date", "party", "accountId", "quantity", "unitPrice"];
+      for (const h of required) {
+        if (!sheet.has(h)) {
+          res.status(400).json({
+            error: `صيغة الملف غير صحيحة. الأعمدة المطلوبة: ${required.join(", ")}`,
+          });
+          return;
+        }
+      }
+
+      // Load company-scoped master data for resolution.
+      const [customers, suppliers, accounts, taxes] = await Promise.all([
+        db
+          .select({ id: customersTable.id, name: customersTable.nameAr })
+          .from(customersTable)
+          .where(eq(customersTable.companyId, companyId)),
+        db
+          .select({ id: suppliersTable.id, name: suppliersTable.nameAr })
+          .from(suppliersTable)
+          .where(eq(suppliersTable.companyId, companyId)),
+        db
+          .select({
+            id: accountsTable.id,
+            code: accountsTable.code,
+            isGroup: accountsTable.isGroup,
+          })
+          .from(accountsTable)
+          .where(eq(accountsTable.companyId, companyId)),
+        db
+          .select({ id: taxesTable.id, name: taxesTable.nameAr, rate: taxesTable.rate })
+          .from(taxesTable)
+          .where(eq(taxesTable.companyId, companyId)),
+      ]);
+      const partyByName = new Map<string, { id: string; name: string; accountId: string }>();
+      for (const c of customers) {
+        const cust = await db
+          .select({ id: customersTable.id, name: customersTable.nameAr, accountId: customersTable.accountId })
+          .from(customersTable)
+          .where(and(eq(customersTable.id, c.id), eq(customersTable.companyId, companyId)))
+          .limit(1);
+        if (cust[0]) partyByName.set(c.name, { id: cust[0].id, name: cust[0].name, accountId: cust[0].accountId });
+      }
+      for (const s of suppliers) {
+        const sup = await db
+          .select({ id: suppliersTable.id, name: suppliersTable.nameAr, accountId: suppliersTable.accountId })
+          .from(suppliersTable)
+          .where(and(eq(suppliersTable.id, s.id), eq(suppliersTable.companyId, companyId)))
+          .limit(1);
+        if (sup[0]) partyByName.set(s.name, { id: sup[0].id, name: sup[0].name, accountId: sup[0].accountId });
+      }
+      const accountById = new Map(accounts.map((a) => [a.id, a]));
+      const taxByName = new Map(taxes.map((t) => [t.name, t]));
+      const taxRates = new Map(taxes.map((t) => [t.id, Number(t.rate)]));
+      const baseCurrency = await loadBaseCurrency(companyId);
+
+      // Group rows by invoiceNo (or auto-generate groups from row numbers).
+      type ImportRow = {
+        date: string;
+        dueDate: string | null;
+        partyName: string;
+        currency: string | null;
+        exchangeRate: number;
+        notes: string | null;
+        lineType: "service" | "inventory" | "fixed_asset";
+        accountId: string;
+        description: string | null;
+        quantity: number;
+        unitPrice: number;
+        discount: number;
+        taxName: string | null;
+        costCenterId: string | null;
+      };
+      const groups = new Map<string, ImportRow[]>();
+      const groupOrder: string[] = [];
+      for (const { rowNo, row } of sheet.rows) {
+        const date = sheet.str(row, "date");
+        const accountId = sheet.str(row, "accountId");
+        const quantity = sheet.num(row, "quantity");
+        const unitPrice = sheet.num(row, "unitPrice");
+        if (!date && !accountId) continue;
+        if (!date || !accountId) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: لا بد من وجود date و accountId`,
+          });
+          return;
+        }
+        if (quantity <= 0 || unitPrice < 0) {
+          res.status(400).json({
+            error: `السطر ${rowNo}: الكمية والسعر يجب أن يكونا أكبر من صفر`,
+          });
+          return;
+        }
+        const key = sheet.has("invoiceNo")
+          ? sheet.str(row, "invoiceNo") || `row-${rowNo}`
+          : `row-${rowNo}`;
+        if (!groups.has(key)) {
+          groups.set(key, []);
+          groupOrder.push(key);
+        }
+        groups.get(key)!.push({
+          date,
+          dueDate: sheet.has("dueDate") ? sheet.str(row, "dueDate") || null : null,
+          partyName: sheet.str(row, "party"),
+          currency: sheet.has("currency") ? sheet.str(row, "currency") || null : null,
+          exchangeRate: sheet.has("exchangeRate") ? sheet.num(row, "exchangeRate") || 1 : 1,
+          notes: sheet.has("notes") ? sheet.str(row, "notes") || null : null,
+          lineType: (sheet.str(row, "lineType") as any) || "service",
+          accountId,
+          description: sheet.has("description") ? sheet.str(row, "description") || null : null,
+          quantity,
+          unitPrice,
+          discount: sheet.has("discount") ? sheet.num(row, "discount") : 0,
+          taxName: sheet.has("tax") ? sheet.str(row, "tax") || null : null,
+          costCenterId: sheet.has("costCenterId") ? sheet.str(row, "costCenterId") || null : null,
+        });
+      }
+      if (groupOrder.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على فواتير" });
+        return;
+      }
+
+      // Validate all rows up-front (all-or-nothing).
+      for (let i = 0; i < groupOrder.length; i++) {
+        const key = groupOrder[i];
+        const rows = groups.get(key)!;
+        const first = rows[0];
+        const party = partyByName.get(first.partyName);
+        if (!party) {
+          res.status(400).json({
+            error: `الفاتورة ${i + 1}: الطرف "${first.partyName}" غير موجود`,
+          });
+          return;
+        }
+        for (const r of rows) {
+          const acc = accountById.get(r.accountId);
+          if (!acc) {
+            res.status(400).json({
+              error: `الفاتورة ${i + 1}: الحساب ${r.accountId} غير موجود`,
+            });
+            return;
+          }
+          if (acc.isGroup) {
+            res.status(400).json({
+              error: `الفاتورة ${i + 1}: الحساب ${r.accountId} هو حساب مجموعة`,
+            });
+            return;
+          }
+          if (r.taxName) {
+            const tax = taxByName.get(r.taxName);
+            if (!tax) {
+              res.status(400).json({
+                error: `الفاتورة ${i + 1}: الضريبة "${r.taxName}" غير موجودة`,
+              });
+              return;
+            }
+          }
+        }
+      }
+
+      // Create all invoices in a single transaction with chronological numbering.
+      const createdIds: string[] = await db.transaction(async (tx) => {
+        const ids: string[] = [];
+        for (const key of groupOrder) {
+          const rows = groups.get(key)!;
+          const first = rows[0];
+          const party = partyByName.get(first.partyName)!;
+          const invoiceNo = await nextInvoiceNo(tx, companyId, kind);
+          const code = await generateEntityCode(tx, companyId, codeEntityFor(kind as any), first.date);
+
+          const incomingLines: IncomingLine[] = rows.map((r, idx) => {
+            const tax = r.taxName ? taxByName.get(r.taxName) : null;
+            return {
+              lineType: r.lineType || "service",
+              description: r.description,
+              accountId: r.accountId,
+              quantity: r.quantity,
+              unitPrice: r.unitPrice,
+              discount: r.discount,
+              taxId: tax?.id ?? null,
+              costCenterId: r.costCenterId,
+            };
+          });
+          const prep = prepareLines(kind as "sales" | "purchase", incomingLines, taxRates);
+          if ("error" in prep) {
+            throw new Error(`فاتورة ${key}: ${prep.error}`);
+          }
+          const [inv] = await tx
+            .insert(invoicesTable)
+            .values({
+              companyId,
+              kind: kind as "sales" | "purchase",
+              invoiceNo,
+              code,
+              date: first.date,
+              dueDate: first.dueDate,
+              customerId: kind === "sales" ? party.id : null,
+              supplierId: kind === "purchase" ? party.id : null,
+              costCenterId: null,
+              currency: first.currency ?? baseCurrency,
+              exchangeRate: String(first.exchangeRate),
+              status: "draft",
+              notes: first.notes,
+              subtotal: String(prep.totals.subtotal),
+              discountTotal: String(prep.totals.discountTotal),
+              taxTotal: String(prep.totals.taxTotal),
+              total: String(prep.totals.total),
+              amountPaid: "0",
+              createdBy: req.auth!.userId,
+            })
+            .returning();
+          await tx.insert(invoiceLinesTable).values(
+            prep.lines.map((l) => ({
+              invoiceId: inv!.id,
+              companyId,
+              lineNo: l.lineNo,
+              lineType: l.lineType,
+              description: l.description,
+              accountId: l.accountId,
+              itemId: l.itemId,
+              warehouse: l.warehouse,
+              cogsAccountId: l.cogsAccountId,
+              quantity: String(l.quantity),
+              unitPrice: String(l.unitPrice),
+              discount: String(l.discount),
+              taxId: l.taxId,
+              taxAmount: String(l.taxAmount),
+              lineTotal: String(l.lineTotal),
+              costCenterId: l.costCenterId,
+              assetNameAr: l.assetNameAr,
+              assetNameEn: l.assetNameEn,
+              assetUsefulLifeMonths: l.assetUsefulLifeMonths,
+              assetSalvageValue:
+                l.assetSalvageValue === null ? null : String(l.assetSalvageValue),
+              assetAccumulatedAccountId: l.assetAccumulatedAccountId,
+              assetExpenseAccountId: l.assetExpenseAccountId,
+            })),
+          );
+          ids.push(inv!.id);
+        }
+        return ids;
+      });
+
+      // Audit log (best-effort post-commit).
+      for (const id of createdIds) {
+        await safeAudit(
+          db,
+          {
+            companyId,
+            userId: req.auth!.userId,
+            action: "create",
+            entity: codeEntityFor(kind as any),
+            entityId: id,
+            entityLabel: `فاتورة مستوردة`,
+          },
+          req.log,
+        );
+      }
+
+      res.status(201).json({ status: "ok", imported: createdIds.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to import invoices");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

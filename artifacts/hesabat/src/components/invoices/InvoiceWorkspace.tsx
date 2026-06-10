@@ -329,6 +329,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           {tab === "invoices" && (
             <ExcelToolbar
               exportPath={`/api/invoices/export?kind=${kind}`}
+              importPath={`/api/invoices/import?kind=${kind}`}
+              canImport={canCreate}
+              invalidateKeys={[["invoices", kind]]}
             />
           )}
           {tab === "payments" && canPay && (
@@ -736,96 +739,117 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 )}
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                    <th className="text-start px-6 py-3">{t("invoices.invoiceNo")}</th>
-                    <th className="text-start px-3 py-3">{t("invoices.date")}</th>
-                    <th className="text-start px-3 py-3">
-                      {t(kind === "sales" ? "invoices.customer" : "invoices.supplier")}
-                    </th>
-                    <th className="text-start px-3 py-3">
-                      {t("invoices.returns.relatedInvoice")}
-                    </th>
-                    <th className="text-end px-3 py-3">{t("invoices.total")}</th>
-                    <th className="text-center px-3 py-3">{t("invoices.status")}</th>
-                    <th className="w-28 px-6 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {returns.map((inv) => (
-                    <tr
-                      key={inv.id}
-                      className="group border-t hover:bg-muted/40 transition-colors"
-                    >
-                      <td
-                        className="px-6 py-3.5 font-sans tabular-nums font-bold text-foreground"
-                        dir="ltr"
-                      >
-                        {inv.code ?? `#${inv.invoiceNo}`}
-                      </td>
-                      <td className="px-3 py-3.5 font-sans tabular-nums text-foreground/80" dir="ltr">
-                        {inv.date}
-                      </td>
-                      <td className="px-3 py-3.5 text-start text-foreground">
-                        {inv.partyName ?? "—"}
-                      </td>
-                      <td className="px-3 py-3.5 text-start font-sans text-foreground/70" dir="ltr">
-                        {inv.relatedCode ?? "—"}
-                      </td>
-                      <td className="px-3 py-3.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
-                        {fmt(inv.total)}
-                      </td>
-                      <td className="px-3 py-3.5 text-center">{statusBadge(inv)}</td>
-                      <td className="px-6 py-3.5">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
-                          <button
-                            onClick={() => setViewId(inv.id)}
-                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
-                            title={t("invoices.view")}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => printInvoice(inv.id)}
-                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
-                            title={t("invoices.print")}
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          {inv.status === "draft" && canUpdate && (
-                            <button
-                              onClick={() => openEdit(inv.id)}
-                              className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                              title={t("invoices.edit")}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {inv.status === "draft" && canUpdate && (
-                            <button
-                              onClick={() => setToApprove(inv)}
-                              className="p-1.5 rounded-md hover:bg-success/10 text-success transition-colors"
-                              title={t("invoices.approve")}
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                          )}
-                          {inv.status === "draft" && canDelete && (
-                            <button
-                              onClick={() => setToDelete(inv)}
-                              className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                              title={t("invoices.delete")}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[900px]">
+                  <thead>
+                    <tr className="text-xs font-bold text-muted-foreground bg-muted/50 border-b">
+                      <th className="text-center px-4 py-2.5 w-24">
+                        {t("invoices.actions")}
+                      </th>
+                      <th className="text-start px-3 py-2.5 w-32">
+                        {t("invoices.invoiceNo")}
+                      </th>
+                      <th className="text-start px-3 py-2.5 w-28">
+                        {t("invoices.date")}
+                      </th>
+                      <th className="text-start px-3 py-2.5 w-44">
+                        {t(kind === "sales" ? "invoices.customer" : "invoices.supplier")}
+                      </th>
+                      <th className="text-start px-3 py-2.5 w-36">
+                        {t("invoices.returns.relatedInvoice")}
+                      </th>
+                      <th className="text-end px-3 py-2.5 w-32">
+                        {t("invoices.total")}
+                      </th>
+                      <th className="text-center px-3 py-2.5 w-32">
+                        {t("invoices.status")}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {returns.map((inv) => (
+                      <tr
+                        key={inv.id}
+                        className="group border-b border-border/50 hover:bg-muted/30 transition-colors"
+                      >
+                        {/* Actions */}
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button
+                              onClick={() => setViewId(inv.id)}
+                              className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                              title={t("invoices.view")}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => printInvoice(inv.id)}
+                              className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                              title={t("invoices.print")}
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+                            {inv.status === "draft" && canUpdate && (
+                              <button
+                                onClick={() => openEdit(inv.id)}
+                                className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                                title={t("invoices.edit")}
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {inv.status === "draft" && canUpdate && (
+                              <button
+                                onClick={() => setToApprove(inv)}
+                                className="p-1.5 rounded-md hover:bg-success/10 text-success"
+                                title={t("invoices.approve")}
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                            )}
+                            {inv.status === "draft" && canDelete && (
+                              <button
+                                onClick={() => setToDelete(inv)}
+                                className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive"
+                                title={t("invoices.delete")}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        {/* Invoice No */}
+                        <td
+                          className="px-3 py-2.5 font-sans tabular-nums font-bold text-foreground"
+                          dir="ltr"
+                        >
+                          {inv.code ?? `#${inv.invoiceNo}`}
+                        </td>
+                        {/* Date */}
+                        <td className="px-3 py-2.5 font-sans tabular-nums text-foreground/80" dir="ltr">
+                          {inv.date}
+                        </td>
+                        {/* Party */}
+                        <td className="px-3 py-2.5 text-start text-foreground">
+                          {inv.partyName ?? "—"}
+                        </td>
+                        {/* Related Invoice */}
+                        <td className="px-3 py-2.5 text-start font-sans text-foreground/70" dir="ltr">
+                          {inv.relatedCode ?? "—"}
+                        </td>
+                        {/* Total */}
+                        <td className="px-3 py-2.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
+                          {fmt(inv.total)}
+                        </td>
+                        {/* Status */}
+                        <td className="px-3 py-2.5 text-center">
+                          {statusBadge(inv)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
@@ -851,62 +875,82 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 )}
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                    <th className="text-start px-6 py-3">{t("invoices.paymentNo")}</th>
-                    <th className="text-start px-3 py-3">{t("invoices.date")}</th>
-                    <th className="text-start px-3 py-3">{t("invoices.party")}</th>
-                    <th className="text-start px-3 py-3">{t("invoices.method")}</th>
-                    <th className="text-end px-3 py-3">{t("invoices.amount")}</th>
-                    <th className="w-20 px-6 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((p) => (
-                    <tr
-                      key={p.id}
-                      className="group border-t hover:bg-muted/40 transition-colors"
-                    >
-                      <td className="px-6 py-3.5 font-sans tabular-nums font-bold text-foreground" dir="ltr">
-                        #{p.paymentNo}
-                      </td>
-                      <td className="px-3 py-3.5 font-sans tabular-nums text-foreground/80" dir="ltr">
-                        {p.date}
-                      </td>
-                      <td className="px-3 py-3.5 text-start text-foreground">
-                        {p.partyName ?? "—"}
-                      </td>
-                      <td className="px-3 py-3.5 text-start text-foreground/80">
-                        {t(`invoices.methods.${p.method}`)}
-                      </td>
-                      <td className="px-3 py-3.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
-                        {fmt(p.amount)}
-                      </td>
-                      <td className="px-6 py-3.5">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
-                          <button
-                            onClick={() => printPayment(p.id)}
-                            className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
-                            title={t("invoices.print")}
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          {canDeletePay && (
-                            <button
-                              onClick={() => setPaymentToDelete(p)}
-                              className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                              title={t("invoices.delete")}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[700px]">
+                  <thead>
+                    <tr className="text-xs font-bold text-muted-foreground bg-muted/50 border-b">
+                      <th className="text-center px-4 py-2.5 w-24">
+                        {t("invoices.actions")}
+                      </th>
+                      <th className="text-start px-3 py-2.5 w-32">
+                        {t("invoices.paymentNo")}
+                      </th>
+                      <th className="text-start px-3 py-2.5 w-28">
+                        {t("invoices.date")}
+                      </th>
+                      <th className="text-start px-3 py-2.5 w-44">
+                        {t("invoices.party")}
+                      </th>
+                      <th className="text-start px-3 py-2.5 w-28">
+                        {t("invoices.method")}
+                      </th>
+                      <th className="text-end px-3 py-2.5 w-32">
+                        {t("invoices.amount")}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {payments.map((p) => (
+                      <tr
+                        key={p.id}
+                        className="group border-b border-border/50 hover:bg-muted/30 transition-colors"
+                      >
+                        {/* Actions */}
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button
+                              onClick={() => printPayment(p.id)}
+                              className="p-1.5 rounded-md hover:bg-primary/10 text-primary"
+                              title={t("invoices.print")}
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+                            {canDeletePay && (
+                              <button
+                                onClick={() => setPaymentToDelete(p)}
+                                className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive"
+                                title={t("invoices.delete")}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        {/* Payment No */}
+                        <td className="px-3 py-2.5 font-sans tabular-nums font-bold text-foreground" dir="ltr">
+                          #{p.paymentNo}
+                        </td>
+                        {/* Date */}
+                        <td className="px-3 py-2.5 font-sans tabular-nums text-foreground/80" dir="ltr">
+                          {p.date}
+                        </td>
+                        {/* Party */}
+                        <td className="px-3 py-2.5 text-start text-foreground">
+                          {p.partyName ?? "—"}
+                        </td>
+                        {/* Method */}
+                        <td className="px-3 py-2.5 text-start text-foreground/80">
+                          {t(`invoices.methods.${p.method}`)}
+                        </td>
+                        {/* Amount */}
+                        <td className="px-3 py-2.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
+                          {fmt(p.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}
