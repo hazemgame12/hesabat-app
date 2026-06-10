@@ -315,6 +315,54 @@ export function Accounts() {
     });
   };
 
+  const [bulkPending, setBulkPending] = useState(false);
+
+  const handleBulkSubmit = async () => {
+    const names = bulkNames.split("\n").map(n => n.trim()).filter(Boolean);
+    if (names.length === 0) {
+      toast({ variant: "destructive", title: t("accounts.toast.bulkEmpty") });
+      return;
+    }
+    const parent = bulkParentId ? accounts.find(a => a.id === bulkParentId) : null;
+    const type = parent ? (parent.type as AccountType) : "asset";
+    let lastCode = computeNextCode(bulkParentId || null, type, accounts);
+    setBulkPending(true);
+    let created = 0;
+    let failed = 0;
+    for (const name of names) {
+      const payload = {
+        code: lastCode,
+        nameAr: name,
+        nameEn: "",
+        type,
+        currencyType: "base" as const,
+        currency: null,
+        parentId: bulkParentId || null,
+        isGroup: false
+      };
+      try {
+        await new Promise<void>((resolve, reject) => {
+          createAccount.mutate({ data: payload }, {
+            onSuccess: () => { created++; resolve(); },
+            onError: () => { failed++; reject(); }
+          });
+        });
+      } catch {
+        // continue to next
+      }
+      const nextPrefix = bulkParentId || null;
+      lastCode = computeNextCode(nextPrefix, type, [...accounts, { ...payload, id: "temp" } as Account]);
+    }
+    setBulkPending(false);
+    queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+    toast({ title: t("accounts.toast.bulkAdded", { count: created }) });
+    if (failed > 0) {
+      toast({ variant: "destructive", title: t("accounts.toast.bulkFailed", { count: failed }) });
+    }
+    closeModals();
+  };
+
   const TreeRow = ({ node, depth }: { node: TreeNode; depth: number }) => {
     const hasChildren = !!node.children?.length;
     const [open, setOpen] = useState(depth < 2);
@@ -800,6 +848,7 @@ export function Accounts() {
                 </div>
               </div>
             </div>
+          )}
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-muted/30">
               <button
