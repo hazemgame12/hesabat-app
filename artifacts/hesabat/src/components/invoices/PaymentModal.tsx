@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useCreatePayment,
@@ -22,11 +22,13 @@ function today(): string {
 export function PaymentModal({
   kind,
   postableAccounts,
+  initialInvoiceId,
   onClose,
   onSaved,
 }: {
   kind: Kind;
   postableAccounts: Account[];
+  initialInvoiceId?: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -93,6 +95,24 @@ export function PaymentModal({
   }, [outstanding, partyId]);
 
   const isForeign = currency !== "EGP";
+
+  // Auto-fill when opened from a specific invoice row.
+  const prefillInvoice = useMemo(() => {
+    if (!initialInvoiceId) return null;
+    return outstanding.find((inv) => inv.id === initialInvoiceId);
+  }, [initialInvoiceId, outstanding]);
+
+  useEffect(() => {
+    if (prefillInvoice) {
+      setPartyId(prefillInvoice.partyId);
+      const cur = prefillInvoice.currency ?? "EGP";
+      setCurrency(cur);
+      const opt = currencyOptions.find((o) => o.code === cur);
+      setExchangeRate(cur === "EGP" ? "1" : opt ? opt.rate : "1");
+      setAmount(String(prefillInvoice.balance));
+      setAllocs({ [prefillInvoice.id]: String(prefillInvoice.balance) });
+    }
+  }, [prefillInvoice, currencyOptions]);
 
   // When the party changes, default the currency to its first outstanding
   // invoice currency (and seed the matching market rate).

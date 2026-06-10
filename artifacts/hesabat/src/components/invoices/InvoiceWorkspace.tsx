@@ -86,6 +86,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [toDelete, setToDelete] = useState<InvoiceSummary | null>(null);
   const [toApprove, setToApprove] = useState<InvoiceSummary | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | undefined>(undefined);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
 
   // Filters
@@ -585,6 +586,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           {t("invoices.total")}
                         </th>
                         <th className="text-end px-3 py-2.5 w-32">
+                          {t("invoices.paid")}
+                        </th>
+                        <th className="text-end px-3 py-2.5 w-32">
                           {t("invoices.balance")}
                         </th>
                         <th className="text-center px-3 py-2.5 w-32">
@@ -657,6 +661,21 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               )}
+                              {inv.balance > 0.005 &&
+                                inv.status !== "draft" &&
+                                inv.status !== "cancelled" &&
+                                canPay && (
+                                  <button
+                                    onClick={() => {
+                                      setPaymentInvoiceId(inv.id);
+                                      setPaymentOpen(true);
+                                    }}
+                                    className="p-1.5 rounded-md hover:bg-success/10 text-success"
+                                    title={t("invoices.pay")}
+                                  >
+                                    <HandCoins className="w-4 h-4" />
+                                  </button>
+                                )}
                             </div>
                           </td>
                           {/* Invoice No */}
@@ -687,6 +706,10 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           {/* Total */}
                           <td className="px-3 py-2.5 text-end font-sans tabular-nums text-foreground/80" dir="ltr">
                             {fmt(inv.total)}
+                          </td>
+                          {/* Paid */}
+                          <td className="px-3 py-2.5 text-end font-sans tabular-nums text-success" dir="ltr">
+                            {fmt(inv.amountPaid ?? 0)}
                           </td>
                           {/* Balance */}
                           <td
@@ -988,11 +1011,16 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         <PaymentModal
           kind={kind}
           postableAccounts={postable}
-          onClose={() => setPaymentOpen(false)}
+          initialInvoiceId={paymentInvoiceId}
+          onClose={() => {
+            setPaymentInvoiceId(undefined);
+            setPaymentOpen(false);
+          }}
           onSaved={() => {
             invalidatePayments();
             invalidateInvoices();
             invalidateJournal();
+            setPaymentInvoiceId(undefined);
             setPaymentOpen(false);
           }}
         />
