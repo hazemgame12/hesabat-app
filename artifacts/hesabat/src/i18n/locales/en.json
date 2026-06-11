@@ -278,7 +278,46 @@
       "costCenters": "Cost Centers & Projects",
       "currencies": "Currencies & Exchange Rates",
       "taxes": "Taxes",
-      "fiscalYears": "Fiscal Years"
+      "fiscalYears": "Fiscal Years",
+      "password": "Password",
+      "backup": "Backup"
+    },
+    "password": {
+      "title": "Change Password",
+      "subtitle": "Update your account password",
+      "current": "Current Password",
+      "new": "New Password",
+      "confirm": "Confirm New Password",
+      "change": "Change Password",
+      "changing": "Changing...",
+      "success": "Password changed successfully",
+      "error": "Failed to change password"
+    },
+    "backup": {
+      "title": "Data Backup",
+      "subtitle": "Export all your company data as a JSON file",
+      "description": "This feature lets you export a full backup of your company data. A JSON file will be created containing:",
+      "includes": {
+        "company": "Company information",
+        "accounts": "Chart of accounts",
+        "journal": "Journal entries",
+        "customers": "Customers",
+        "suppliers": "Suppliers",
+        "invoices": "Invoices & payments",
+        "inventory": "Inventory & movements",
+        "fixedAssets": "Fixed assets",
+        "payroll": "Employees & payroll",
+        "bank": "Bank accounts & records",
+        "currencies": "Currencies & exchange rates",
+        "taxes": "Taxes",
+        "costCenters": "Cost centers",
+        "fiscalYears": "Fiscal years",
+        "team": "Team members"
+      },
+      "export": "Export Backup",
+      "exporting": "Exporting...",
+      "success": "Backup exported successfully",
+      "error": "Failed to export backup"
     }
   },
   "dashboard": {

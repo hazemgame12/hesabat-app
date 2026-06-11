@@ -11,6 +11,8 @@ import {
   Coins,
   Percent,
   CalendarRange,
+  Lock,
+  Database,
 } from "lucide-react";
 import { CompanyProfile } from "@/pages/company";
 import { Team } from "@/pages/team";
@@ -18,6 +20,8 @@ import { CostCenters } from "@/pages/cost-centers";
 import { Currencies } from "@/pages/currencies";
 import { Taxes } from "@/pages/taxes";
 import { FiscalYears } from "@/pages/fiscal-years";
+import { PasswordSettings } from "@/pages/password-settings";
+import { Backup } from "@/pages/backup";
 
 type SettingsTab = {
   key: string;
@@ -68,6 +72,18 @@ const TABS: SettingsTab[] = [
     icon: CalendarRange,
     component: FiscalYears,
     requires: "fiscalyear:read",
+  },
+  {
+    key: "password",
+    labelKey: "settings.tabs.password",
+    icon: Lock,
+    component: PasswordSettings,
+  },
+  {
+    key: "backup",
+    labelKey: "settings.tabs.backup",
+    icon: Database,
+    component: Backup,
   },
 ];
 

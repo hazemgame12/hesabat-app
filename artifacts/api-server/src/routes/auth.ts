@@ -283,4 +283,41 @@ router.get("/auth/verify-reset-token", async (req, res) => {
   }
 });
 
+router.post("/auth/change-password", requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body as {
+    currentPassword?: string;
+    newPassword?: string;
+  };
+  if (!currentPassword || !newPassword || newPassword.length < 8) {
+    res.status(400).json({ error: "البيانات غير صالحة. كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل" });
+    return;
+  }
+  try {
+    const rows = await db
+      .select({ id: usersTable.id, passwordHash: usersTable.passwordHash })
+      .from(usersTable)
+      .where(eq(usersTable.id, req.auth!.userId))
+      .limit(1);
+    const user = rows[0];
+    if (!user) {
+      res.status(404).json({ error: "المستخدم غير موجود" });
+      return;
+    }
+    const ok = await verifyPassword(currentPassword, user.passwordHash);
+    if (!ok) {
+      res.status(401).json({ error: "كلمة المرور الحالية غير صحيحة" });
+      return;
+    }
+    const newHash = await hashPassword(newPassword);
+    await db
+      .update(usersTable)
+      .set({ passwordHash: newHash })
+      .where(eq(usersTable.id, user.id));
+    res.json({ status: "ok" });
+  } catch (err) {
+    req.log.error({ err }, "Change password failed");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
 export default router;

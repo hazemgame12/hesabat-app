@@ -3,7 +3,40 @@ import path from "path";
 import crypto from "crypto";
 import multer from "multer";
 import { eq } from "drizzle-orm";
-import { db, companiesTable, type Company } from "@workspace/db";
+import {
+  db,
+  companiesTable,
+  accountsTable,
+  journalEntriesTable,
+  journalEntryLinesTable,
+  journalEntryAttachmentsTable,
+  customersTable,
+  suppliersTable,
+  invoicesTable,
+  invoiceLinesTable,
+  paymentsTable,
+  paymentAllocationsTable,
+  inventoryItemsTable,
+  inventoryMovementsTable,
+  fixedAssetsTable,
+  assetDepreciationEntriesTable,
+  employeesTable,
+  employeePayComponentsTable,
+  payrollRunsTable,
+  payrollRunLinesTable,
+  bankAccountsTable,
+  bankMovementsTable,
+  bankReconciliationsTable,
+  bankStatementLinesTable,
+  currenciesTable,
+  exchangeRatesTable,
+  revaluationsTable,
+  taxesTable,
+  costCentersTable,
+  fiscalYearsTable,
+  usersTable,
+  type Company,
+} from "@workspace/db";
 import { isCountry, isCurrency } from "@workspace/locale";
 import { UpdateCompanyBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
@@ -191,5 +224,78 @@ router.post(
     }
   },
 );
+
+router.get("/company/export", requireAuth, async (req, res) => {
+  const companyId = req.auth!.companyId;
+  try {
+    const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
+    const accounts = await db.select().from(accountsTable).where(eq(accountsTable.companyId, companyId));
+    const journalEntries = await db.select().from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
+    const journalEntryLines = await db.select().from(journalEntryLinesTable).where(eq(journalEntryLinesTable.companyId, companyId));
+    const journalAttachments = await db.select().from(journalEntryAttachmentsTable).where(eq(journalEntryAttachmentsTable.companyId, companyId));
+    const customers = await db.select().from(customersTable).where(eq(customersTable.companyId, companyId));
+    const suppliers = await db.select().from(suppliersTable).where(eq(suppliersTable.companyId, companyId));
+    const invoices = await db.select().from(invoicesTable).where(eq(invoicesTable.companyId, companyId));
+    const invoiceLines = await db.select().from(invoiceLinesTable).where(eq(invoiceLinesTable.companyId, companyId));
+    const payments = await db.select().from(paymentsTable).where(eq(paymentsTable.companyId, companyId));
+    const paymentAllocs = await db.select().from(paymentAllocationsTable).where(eq(paymentAllocationsTable.companyId, companyId));
+    const inventoryItems = await db.select().from(inventoryItemsTable).where(eq(inventoryItemsTable.companyId, companyId));
+    const inventoryMovements = await db.select().from(inventoryMovementsTable).where(eq(inventoryMovementsTable.companyId, companyId));
+    const fixedAssets = await db.select().from(fixedAssetsTable).where(eq(fixedAssetsTable.companyId, companyId));
+    const assetDepreciations = await db.select().from(assetDepreciationEntriesTable).where(eq(assetDepreciationEntriesTable.companyId, companyId));
+    const employees = await db.select().from(employeesTable).where(eq(employeesTable.companyId, companyId));
+    const payComponents = await db.select().from(employeePayComponentsTable).where(eq(employeePayComponentsTable.companyId, companyId));
+    const payrollRuns = await db.select().from(payrollRunsTable).where(eq(payrollRunsTable.companyId, companyId));
+    const payrollRunLines = await db.select().from(payrollRunLinesTable).where(eq(payrollRunLinesTable.companyId, companyId));
+    const bankAccounts = await db.select().from(bankAccountsTable).where(eq(bankAccountsTable.companyId, companyId));
+    const bankMovements = await db.select().from(bankMovementsTable).where(eq(bankMovementsTable.companyId, companyId));
+    const bankReconciliations = await db.select().from(bankReconciliationsTable).where(eq(bankReconciliationsTable.companyId, companyId));
+    const bankStatementLines = await db.select().from(bankStatementLinesTable).where(eq(bankStatementLinesTable.companyId, companyId));
+    const currencies = await db.select().from(currenciesTable).where(eq(currenciesTable.companyId, companyId));
+    const exchangeRates = await db.select().from(exchangeRatesTable).where(eq(exchangeRatesTable.companyId, companyId));
+    const revaluations = await db.select().from(revaluationsTable).where(eq(revaluationsTable.companyId, companyId));
+    const taxes = await db.select().from(taxesTable).where(eq(taxesTable.companyId, companyId));
+    const costCenters = await db.select().from(costCentersTable).where(eq(costCentersTable.companyId, companyId));
+    const fiscalYears = await db.select().from(fiscalYearsTable).where(eq(fiscalYearsTable.companyId, companyId));
+    const team = await db.select({ id: usersTable.id, name: usersTable.name, email: usersTable.email, role: usersTable.role, createdAt: usersTable.createdAt }).from(usersTable).where(eq(usersTable.companyId, companyId));
+
+    res.json({
+      company,
+      accounts,
+      journalEntries,
+      journalEntryLines,
+      journalAttachments,
+      customers,
+      suppliers,
+      invoices,
+      invoiceLines,
+      payments,
+      paymentAllocs,
+      inventoryItems,
+      inventoryMovements,
+      fixedAssets,
+      assetDepreciations,
+      employees,
+      payComponents,
+      payrollRuns,
+      payrollRunLines,
+      bankAccounts,
+      bankMovements,
+      bankReconciliations,
+      bankStatementLines,
+      currencies,
+      exchangeRates,
+      revaluations,
+      taxes,
+      costCenters,
+      fiscalYears,
+      team,
+      exportedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to export company data");
+    res.status(500).json({ error: "حدث خطأ في تصدير البيانات" });
+  }
+});
 
 export default router;
