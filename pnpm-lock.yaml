@@ -43,7 +43,7 @@ catalogs:
       specifier: ^0.45.2
       version: 0.45.2
     framer-motion:
-      specifier: ^12.23.24
+      specifier: 12.38.0
       version: 12.38.0
     lucide-react:
       specifier: ^0.545.0
@@ -443,7 +443,7 @@ importers:
         specifier: ^2.1.7
         version: 2.1.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       recharts:
-        specifier: ^2.15.2
+        specifier: ^2.15.4
         version: 2.15.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       sonner:
         specifier: ^2.0.7
@@ -893,6 +893,10 @@ importers:
   lib/permissions: {}
 
   scripts:
+    dependencies:
+      '@workspace/db':
+        specifier: workspace:*
+        version: link:../lib/db
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
