@@ -38,6 +38,8 @@ import auditRouter from "./audit";
 import fiscalYearsRouter from "./fiscal-years";
 import supportRouter from "./support";
 import adminSupportRouter from "./admin/support";
+import superAdminAuthRouter from "./super-admin-auth";
+import superAdminRouter from "./super-admin";
 
 const router: IRouter = Router();
 
@@ -71,6 +73,8 @@ router.use(auditRouter);
 router.use(fiscalYearsRouter);
 router.use(supportRouter);
 router.use(adminSupportRouter);
+router.use(superAdminAuthRouter);
+router.use(superAdminRouter);
 router.use(articlesRouter);
 router.use(settingsRouter);
 router.use(servicesRouter);

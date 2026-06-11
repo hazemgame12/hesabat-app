@@ -33,6 +33,15 @@ import { Support } from "@/pages/support";
 import { AdminSupport } from "@/pages/admin-support";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { SuperAdminLayout } from "@/components/super-admin-layout";
+import { SuperAdminLogin } from "@/pages/super-admin/login";
+import { SuperAdminDashboard } from "@/pages/super-admin/dashboard";
+import { SuperAdminCompanies } from "@/pages/super-admin/companies";
+import { SuperAdminUsers } from "@/pages/super-admin/users";
+import { SuperAdminPlans } from "@/pages/super-admin/plans";
+import { SuperAdminSubscriptions } from "@/pages/super-admin/subscriptions";
+import { SuperAdminSupportTickets } from "@/pages/super-admin/support-tickets";
+import { SuperAdminAnalytics } from "@/pages/super-admin/analytics";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,6 +101,23 @@ function ProtectedRoutes() {
   );
 }
 
+function SuperAdminRoutes() {
+  return (
+    <SuperAdminLayout>
+      <Switch>
+        <Route path="/super-admin" component={SuperAdminDashboard} />
+        <Route path="/super-admin/companies" component={SuperAdminCompanies} />
+        <Route path="/super-admin/users" component={SuperAdminUsers} />
+        <Route path="/super-admin/plans" component={SuperAdminPlans} />
+        <Route path="/super-admin/subscriptions" component={SuperAdminSubscriptions} />
+        <Route path="/super-admin/support-tickets" component={SuperAdminSupportTickets} />
+        <Route path="/super-admin/analytics" component={SuperAdminAnalytics} />
+        <Route component={SuperAdminDashboard} />
+      </Switch>
+    </SuperAdminLayout>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -100,6 +126,8 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/invite/:token" component={AcceptInvite} />
+      <Route path="/super-admin/login" component={SuperAdminLogin} />
+      <Route path="/super-admin/*" component={SuperAdminRoutes} />
       <Route path="/print/invoice/:id">
         <PrintGuard>
           <PrintInvoicePage />

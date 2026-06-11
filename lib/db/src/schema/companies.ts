@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,6 +18,15 @@ export const companiesTable = pgTable("companies", {
   commercialRegistrationNumber: text("commercial_registration_number"),
   branchCode: text("branch_code"),
   eInvoiceEnabled: boolean("e_invoice_enabled").notNull().default(false),
+  // Subscription & billing fields
+  planId: uuid("plan_id"),
+  subscriptionStatus: text("subscription_status", {
+    enum: ["trial", "active", "expired", "cancelled", "suspended"],
+  }).default("trial"),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  isActive: boolean("is_active").notNull().default(true),
+  maxUsers: integer("max_users").default(1),
+  maxTransactions: integer("max_transactions").default(1000),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

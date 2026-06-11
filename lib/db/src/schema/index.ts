@@ -48,3 +48,5 @@ export * from "./audit";
 export * from "./e-invoice";
 export * from "./password-reset";
 export * from "./support";
+export * from "./super-admin";
+export * from "./subscriptions";
