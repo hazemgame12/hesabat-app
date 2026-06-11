@@ -127,6 +127,7 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/invite/:token" component={AcceptInvite} />
       <Route path="/super-admin/login" component={SuperAdminLogin} />
+      <Route path="/super-admin" component={SuperAdminRoutes} />
       <Route path="/super-admin/*" component={SuperAdminRoutes} />
       <Route path="/print/invoice/:id">
         <PrintGuard>

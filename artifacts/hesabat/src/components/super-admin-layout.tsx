@@ -38,7 +38,7 @@ export function SuperAdminLayout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = async () => {
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/auth/logout`, {
+      const res = await fetch(`/api/super-admin/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

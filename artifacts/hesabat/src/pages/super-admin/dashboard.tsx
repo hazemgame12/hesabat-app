@@ -14,7 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 async function fetchDashboard() {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/dashboard`, {
+  const res = await fetch(`/api/super-admin/dashboard`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch dashboard");

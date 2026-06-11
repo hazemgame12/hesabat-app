@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 async function fetchSubscriptions() {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/subscriptions`, {
+  const res = await fetch(`/api/super-admin/subscriptions`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch subscriptions");

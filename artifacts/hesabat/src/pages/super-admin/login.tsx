@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 async function superAdminLogin({ email, password }: { email: string; password: string }) {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/auth/login`, {
+  const res = await fetch(`/api/super-admin/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

@@ -10,7 +10,7 @@ async function fetchUsers(q?: string) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   const res = await fetch(
-    `${import.meta.env.BASE_URL}api/super-admin/users?${params}`,
+    `/api/super-admin/users?${params}`,
     { credentials: "include" },
   );
   if (!res.ok) throw new Error("Failed to fetch users");

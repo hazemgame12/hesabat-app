@@ -5,7 +5,7 @@ import { BarChart3, TrendingUp, Globe, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 async function fetchStats() {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/stats`, {
+  const res = await fetch(`/api/super-admin/stats`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch stats");

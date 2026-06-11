@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 async function fetchPlans() {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/plans`, {
+  const res = await fetch(`/api/super-admin/plans`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch plans");
@@ -17,7 +17,7 @@ async function fetchPlans() {
 }
 
 async function createPlan(data: any) {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/plans`, {
+  const res = await fetch(`/api/super-admin/plans`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -28,7 +28,7 @@ async function createPlan(data: any) {
 }
 
 async function updatePlan(id: string, data: any) {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/plans/${id}`, {
+  const res = await fetch(`/api/super-admin/plans/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -39,7 +39,7 @@ async function updatePlan(id: string, data: any) {
 }
 
 async function deletePlan(id: string) {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/plans/${id}`, {
+  const res = await fetch(`/api/super-admin/plans/${id}`, {
     method: "DELETE",
     credentials: "include",
   });

@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 async function fetchTickets() {
-  const res = await fetch(`${import.meta.env.BASE_URL}api/super-admin/support-tickets`, {
+  const res = await fetch(`/api/super-admin/support-tickets`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch tickets");

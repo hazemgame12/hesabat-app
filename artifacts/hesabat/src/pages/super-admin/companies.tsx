@@ -12,7 +12,7 @@ async function fetchCompanies(q?: string) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   const res = await fetch(
-    `${import.meta.env.BASE_URL}api/super-admin/companies?${params}`,
+    `/api/super-admin/companies?${params}`,
     { credentials: "include" },
   );
   if (!res.ok) throw new Error("Failed to fetch companies");
@@ -47,7 +47,7 @@ export function SuperAdminCompanies() {
     }
     setExpandedId(id);
     const res = await fetch(
-      `${import.meta.env.BASE_URL}api/super-admin/companies/${id}`,
+      `/api/super-admin/companies/${id}`,
       { credentials: "include" },
     );
     if (res.ok) {
