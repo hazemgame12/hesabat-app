@@ -35,6 +35,8 @@ function toTax(row: Tax) {
     rate: Number(row.rate),
     serviceNature: row.serviceNature,
     linkedAccountId: row.linkedAccountId,
+    taxType: row.taxType,
+    taxCategory: row.taxCategory,
     isActive: row.isActive,
     createdAt: row.createdAt.toISOString(),
   };

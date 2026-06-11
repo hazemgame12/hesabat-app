@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { TaxUpdateKind } from './taxUpdateKind';
+import type { TaxUpdateTaxCategory } from './taxUpdateTaxCategory';
+import type { TaxUpdateTaxType } from './taxUpdateTaxType';
 
 export interface TaxUpdate {
   /** @minLength 1 */
@@ -20,4 +22,8 @@ export interface TaxUpdate {
   /** @nullable */
   linkedAccountId?: string | null;
   isActive?: boolean;
+  /** @nullable */
+  taxType?: TaxUpdateTaxType;
+  /** @nullable */
+  taxCategory?: TaxUpdateTaxCategory;
 }

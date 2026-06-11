@@ -4259,6 +4259,13 @@ components:
           type: ["string", "null"]
         phone:
           type: ["string", "null"]
+        commercialRegistrationNumber:
+          type: ["string", "null"]
+        branchCode:
+          type: ["string", "null"]
+        eInvoiceEnabled:
+          type: boolean
+          default: false
 
     CompanyUpdate:
       type: object
@@ -4282,6 +4289,13 @@ components:
           type: ["string", "null"]
         phone:
           type: ["string", "null"]
+        commercialRegistrationNumber:
+          type: ["string", "null"]
+        branchCode:
+          type: ["string", "null"]
+        eInvoiceEnabled:
+          type: boolean
+          default: false
 
     LoginInput:
       type: object
@@ -4397,6 +4411,12 @@ components:
           type: ["string", "null"]
         isActive:
           type: boolean
+        taxType:
+          type: ["string", "null"]
+          enum: [vat_standard, vat_zero, exempt, wht, schedule]
+        taxCategory:
+          type: ["string", "null"]
+          enum: [taxable, zero_rated, exempt, not_subject]
         createdAt:
           type: string
 
@@ -4422,6 +4442,12 @@ components:
           format: uuid
         isActive:
           type: boolean
+        taxType:
+          type: ["string", "null"]
+          enum: [vat_standard, vat_zero, exempt, wht, schedule]
+        taxCategory:
+          type: ["string", "null"]
+          enum: [taxable, zero_rated, exempt, not_subject]
 
     TaxUpdate:
       type: object
@@ -4444,6 +4470,12 @@ components:
           format: uuid
         isActive:
           type: boolean
+        taxType:
+          type: ["string", "null"]
+          enum: [vat_standard, vat_zero, exempt, wht, schedule]
+        taxCategory:
+          type: ["string", "null"]
+          enum: [taxable, zero_rated, exempt, not_subject]
 
     Currency:
       type: object
@@ -4808,6 +4840,15 @@ components:
           type: number
         inventoryAccountId:
           type: string
+        itemCodeType:
+          type: ["string", "null"]
+          enum: [gs1, egs, internal]
+        gs1Code:
+          type: ["string", "null"]
+        egsCode:
+          type: ["string", "null"]
+        unitCode:
+          type: ["string", "null"]
         createdAt:
           type: string
 
@@ -4830,6 +4871,15 @@ components:
         inventoryAccountId:
           type: string
           format: uuid
+        itemCodeType:
+          type: ["string", "null"]
+          enum: [gs1, egs, internal]
+        gs1Code:
+          type: ["string", "null"]
+        egsCode:
+          type: ["string", "null"]
+        unitCode:
+          type: ["string", "null"]
 
     InventoryItemUpdate:
       type: object
@@ -5844,6 +5894,21 @@ components:
         creditPeriodDays:
           type: ["integer", "null"]
           minimum: 0
+        governorate:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        postalCode:
+          type: ["string", "null"]
+        streetAddress:
+          type: ["string", "null"]
+        eInvoiceEnabled:
+          type: boolean
+          default: false
+        gln:
+          type: ["string", "null"]
+        externalErpCode:
+          type: ["string", "null"]
         controlAccountId:
           type: string
           format: uuid
@@ -5879,6 +5944,21 @@ components:
         creditPeriodDays:
           type: ["integer", "null"]
           minimum: 0
+        governorate:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        postalCode:
+          type: ["string", "null"]
+        streetAddress:
+          type: ["string", "null"]
+        eInvoiceEnabled:
+          type: boolean
+          default: false
+        gln:
+          type: ["string", "null"]
+        externalErpCode:
+          type: ["string", "null"]
         controlAccountId:
           type: string
           format: uuid
@@ -5966,6 +6046,21 @@ components:
         creditPeriodDays:
           type: ["integer", "null"]
           minimum: 0
+        governorate:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        postalCode:
+          type: ["string", "null"]
+        streetAddress:
+          type: ["string", "null"]
+        eInvoiceEnabled:
+          type: boolean
+          default: false
+        gln:
+          type: ["string", "null"]
+        externalErpCode:
+          type: ["string", "null"]
         controlAccountId:
           type: string
           format: uuid
@@ -5998,6 +6093,21 @@ components:
         creditPeriodDays:
           type: ["integer", "null"]
           minimum: 0
+        governorate:
+          type: ["string", "null"]
+        city:
+          type: ["string", "null"]
+        postalCode:
+          type: ["string", "null"]
+        streetAddress:
+          type: ["string", "null"]
+        eInvoiceEnabled:
+          type: boolean
+          default: false
+        gln:
+          type: ["string", "null"]
+        externalErpCode:
+          type: ["string", "null"]
         controlAccountId:
           type: string
           format: uuid
@@ -6180,6 +6290,18 @@ components:
         balance:
           type: number
         journalEntryId:
+          type: ["string", "null"]
+        eInvoiceRequired:
+          type: boolean
+          default: false
+        eInvoiceStatus:
+          type: ["string", "null"]
+          enum: [pending, submitted, accepted, rejected]
+        eInvoiceUuid:
+          type: ["string", "null"]
+        eInvoiceSubmissionDate:
+          type: ["string", "null"]
+        eInvoiceError:
           type: ["string", "null"]
         createdAt:
           type: string

@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { TaxKind } from './taxKind';
+import type { TaxTaxCategory } from './taxTaxCategory';
+import type { TaxTaxType } from './taxTaxType';
 
 export interface Tax {
   id: string;
@@ -19,5 +21,9 @@ export interface Tax {
   /** @nullable */
   linkedAccountId?: string | null;
   isActive: boolean;
+  /** @nullable */
+  taxType?: TaxTaxType;
+  /** @nullable */
+  taxCategory?: TaxTaxCategory;
   createdAt: string;
 }

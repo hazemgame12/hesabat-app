@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { TaxInputKind } from './taxInputKind';
+import type { TaxInputTaxCategory } from './taxInputTaxCategory';
+import type { TaxInputTaxType } from './taxInputTaxType';
 
 export interface TaxInput {
   /** @minLength 1 */
@@ -20,4 +22,8 @@ export interface TaxInput {
   /** @nullable */
   linkedAccountId?: string | null;
   isActive?: boolean;
+  /** @nullable */
+  taxType?: TaxInputTaxType;
+  /** @nullable */
+  taxCategory?: TaxInputTaxCategory;
 }

@@ -45,3 +45,4 @@ export * from "./customers-suppliers";
 export * from "./invoices";
 export * from "./bank";
 export * from "./audit";
+export * from "./e-invoice";

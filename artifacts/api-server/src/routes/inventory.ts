@@ -40,6 +40,10 @@ function toItem(row: InventoryItem) {
     averageCost: round4(avg),
     stockValue: round2(qty * avg),
     inventoryAccountId: row.inventoryAccountId,
+    itemCodeType: row.itemCodeType,
+    gs1Code: row.gs1Code,
+    egsCode: row.egsCode,
+    unitCode: row.unitCode,
     createdAt: row.createdAt.toISOString(),
   };
 }

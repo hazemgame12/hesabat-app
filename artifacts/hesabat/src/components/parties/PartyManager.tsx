@@ -30,6 +30,13 @@ export type Party = {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
+  governorate?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  streetAddress?: string | null;
+  eInvoiceEnabled?: boolean;
+  gln?: string | null;
+  externalErpCode?: string | null;
   currency?: string | null;
   creditLimit?: number | null;
   creditPeriodDays?: number | null;
@@ -50,6 +57,13 @@ export type PartyPayload = {
   phone: string | null;
   email: string | null;
   address: string | null;
+  governorate: string | null;
+  city: string | null;
+  postalCode: string | null;
+  streetAddress: string | null;
+  eInvoiceEnabled: boolean;
+  gln: string | null;
+  externalErpCode: string | null;
   currency: string | null;
   creditLimit?: number | null;
   creditPeriodDays: number | null;
@@ -106,6 +120,13 @@ const partySchema = z.object({
   phone: z.string().optional(),
   email: z.string().optional(),
   address: z.string().optional(),
+  governorate: z.string().optional(),
+  city: z.string().optional(),
+  postalCode: z.string().optional(),
+  streetAddress: z.string().optional(),
+  eInvoiceEnabled: z.boolean().default(false),
+  gln: z.string().optional(),
+  externalErpCode: z.string().optional(),
   currency: z.string().optional(),
   creditLimit: z.string().optional(),
   creditPeriodDays: z.string().optional(),
@@ -191,6 +212,13 @@ export function PartyManager({
       phone: "",
       email: "",
       address: "",
+      governorate: "",
+      city: "",
+      postalCode: "",
+      streetAddress: "",
+      eInvoiceEnabled: false,
+      gln: "",
+      externalErpCode: "",
       currency: "",
       creditLimit: "",
       creditPeriodDays: "",
@@ -210,6 +238,13 @@ export function PartyManager({
       phone: p.phone ?? "",
       email: p.email ?? "",
       address: p.address ?? "",
+      governorate: p.governorate ?? "",
+      city: p.city ?? "",
+      postalCode: p.postalCode ?? "",
+      streetAddress: p.streetAddress ?? "",
+      eInvoiceEnabled: p.eInvoiceEnabled ?? false,
+      gln: p.gln ?? "",
+      externalErpCode: p.externalErpCode ?? "",
       currency: p.currency ?? "",
       creditLimit:
         p.creditLimit === null || p.creditLimit === undefined
@@ -247,6 +282,15 @@ export function PartyManager({
       phone: form.phone?.trim() ? form.phone : null,
       email: form.email?.trim() ? form.email : null,
       address: form.address?.trim() ? form.address : null,
+      governorate: form.governorate?.trim() ? form.governorate : null,
+      city: form.city?.trim() ? form.city : null,
+      postalCode: form.postalCode?.trim() ? form.postalCode : null,
+      streetAddress: form.streetAddress?.trim() ? form.streetAddress : null,
+      eInvoiceEnabled: form.eInvoiceEnabled ?? false,
+      gln: form.gln?.trim() ? form.gln : null,
+      externalErpCode: form.externalErpCode?.trim()
+        ? form.externalErpCode
+        : null,
       currency: form.currency?.trim() ? form.currency : null,
       creditPeriodDays: num(form.creditPeriodDays),
       controlAccountId: form.controlAccountId,
@@ -589,6 +633,12 @@ export function PartyManager({
                 type: "email",
               })}
               {field("address", "address", { optional: true, colSpan: true })}
+              {field("governorate", "governorate", { optional: true })}
+              {field("city", "city", { optional: true })}
+              {field("postalCode", "postalCode", { dir: "ltr", optional: true })}
+              {field("streetAddress", "streetAddress", { optional: true, colSpan: true })}
+              {field("gln", "gln", { dir: "ltr", optional: true })}
+              {field("externalErpCode", "externalErpCode", { dir: "ltr", optional: true })}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold text-foreground">
                   {t(`${ns}.currency`)}

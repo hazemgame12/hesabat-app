@@ -37,6 +37,15 @@ export const customersTable = pgTable(
     address: text("address"),
     // Transaction currency (code). Null → company base currency.
     currency: text("currency"),
+    // E-Invoice: structured address fields for tax-authority submission.
+    governorate: text("governorate"),
+    city: text("city"),
+    postalCode: text("postal_code"),
+    streetAddress: text("street_address"),
+    // E-Invoice: party flags for electronic invoicing.
+    eInvoiceEnabled: boolean("e_invoice_enabled").notNull().default(false),
+    gln: text("gln"), // Global Location Number (GS1)
+    externalErpCode: text("external_erp_code"),
     creditLimit: numeric("credit_limit", { precision: 18, scale: 2 }),
     creditPeriodDays: integer("credit_period_days"),
     // Parent control (group) account, e.g. 112 العملاء.
@@ -78,6 +87,15 @@ export const suppliersTable = pgTable(
     email: text("email"),
     address: text("address"),
     currency: text("currency"),
+    // E-Invoice: structured address fields for tax-authority submission.
+    governorate: text("governorate"),
+    city: text("city"),
+    postalCode: text("postal_code"),
+    streetAddress: text("street_address"),
+    // E-Invoice: party flags for electronic invoicing.
+    eInvoiceEnabled: boolean("e_invoice_enabled").notNull().default(false),
+    gln: text("gln"), // Global Location Number (GS1)
+    externalErpCode: text("external_erp_code"),
     creditPeriodDays: integer("credit_period_days"),
     controlAccountId: uuid("control_account_id")
       .notNull()

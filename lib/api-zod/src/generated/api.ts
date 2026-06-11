@@ -179,6 +179,8 @@ export const ListTaxesResponseItem = zod.object({
   "serviceNature": zod.string().nullish(),
   "linkedAccountId": zod.string().nullish(),
   "isActive": zod.boolean(),
+  "taxType": zod.enum(['vat_standard', 'vat_zero', 'exempt', 'wht', 'schedule']).nullish(),
+  "taxCategory": zod.enum(['taxable', 'zero_rated', 'exempt', 'not_subject']).nullish(),
   "createdAt": zod.string()
 })
 export const ListTaxesResponse = zod.array(ListTaxesResponseItem)
@@ -199,7 +201,9 @@ export const CreateTaxBody = zod.object({
   "rate": zod.number().min(createTaxBodyRateMin),
   "serviceNature": zod.string().nullish(),
   "linkedAccountId": zod.string().uuid().nullish(),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "taxType": zod.enum(['vat_standard', 'vat_zero', 'exempt', 'wht', 'schedule']).nullish(),
+  "taxCategory": zod.enum(['taxable', 'zero_rated', 'exempt', 'not_subject']).nullish()
 })
 
 
@@ -222,7 +226,9 @@ export const UpdateTaxBody = zod.object({
   "rate": zod.number().min(updateTaxBodyRateMin).optional(),
   "serviceNature": zod.string().nullish(),
   "linkedAccountId": zod.string().uuid().nullish(),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "taxType": zod.enum(['vat_standard', 'vat_zero', 'exempt', 'wht', 'schedule']).nullish(),
+  "taxCategory": zod.enum(['taxable', 'zero_rated', 'exempt', 'not_subject']).nullish()
 })
 
 export const UpdateTaxResponse = zod.object({
@@ -234,6 +240,8 @@ export const UpdateTaxResponse = zod.object({
   "serviceNature": zod.string().nullish(),
   "linkedAccountId": zod.string().nullish(),
   "isActive": zod.boolean(),
+  "taxType": zod.enum(['vat_standard', 'vat_zero', 'exempt', 'wht', 'schedule']).nullish(),
+  "taxCategory": zod.enum(['taxable', 'zero_rated', 'exempt', 'not_subject']).nullish(),
   "createdAt": zod.string()
 })
 
@@ -901,6 +909,8 @@ export const GetDashboardSummaryResponse = zod.object({
 /**
  * @summary Get the current company's profile
  */
+export const getCompanyResponseEInvoiceEnabledDefault = false;
+
 export const GetCompanyResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -911,7 +921,10 @@ export const GetCompanyResponse = zod.object({
   "country": zod.string(),
   "baseCurrency": zod.string(),
   "address": zod.string().nullish(),
-  "phone": zod.string().nullish()
+  "phone": zod.string().nullish(),
+  "commercialRegistrationNumber": zod.string().nullish(),
+  "branchCode": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(getCompanyResponseEInvoiceEnabledDefault)
 })
 
 
@@ -919,7 +932,7 @@ export const GetCompanyResponse = zod.object({
  * @summary Update the current company's profile
  */
 
-
+export const updateCompanyBodyEInvoiceEnabledDefault = false;
 
 export const UpdateCompanyBody = zod.object({
   "name": zod.string().min(1).optional(),
@@ -929,8 +942,13 @@ export const UpdateCompanyBody = zod.object({
   "country": zod.enum(['EG', 'SA', 'AE', 'KW', 'QA', 'BH', 'OM']).optional(),
   "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'USD']).optional(),
   "address": zod.string().nullish(),
-  "phone": zod.string().nullish()
+  "phone": zod.string().nullish(),
+  "commercialRegistrationNumber": zod.string().nullish(),
+  "branchCode": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(updateCompanyBodyEInvoiceEnabledDefault)
 })
+
+export const updateCompanyResponseEInvoiceEnabledDefault = false;
 
 export const UpdateCompanyResponse = zod.object({
   "id": zod.string(),
@@ -942,13 +960,18 @@ export const UpdateCompanyResponse = zod.object({
   "country": zod.string(),
   "baseCurrency": zod.string(),
   "address": zod.string().nullish(),
-  "phone": zod.string().nullish()
+  "phone": zod.string().nullish(),
+  "commercialRegistrationNumber": zod.string().nullish(),
+  "branchCode": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(updateCompanyResponseEInvoiceEnabledDefault)
 })
 
 
 /**
  * @summary Upload and set the company logo (multipart/form-data, field "file")
  */
+export const uploadCompanyLogoResponseEInvoiceEnabledDefault = false;
+
 export const UploadCompanyLogoResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -959,7 +982,10 @@ export const UploadCompanyLogoResponse = zod.object({
   "country": zod.string(),
   "baseCurrency": zod.string(),
   "address": zod.string().nullish(),
-  "phone": zod.string().nullish()
+  "phone": zod.string().nullish(),
+  "commercialRegistrationNumber": zod.string().nullish(),
+  "branchCode": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(uploadCompanyLogoResponseEInvoiceEnabledDefault)
 })
 
 
@@ -1228,6 +1254,10 @@ export const ListInventoryItemsResponseItem = zod.object({
   "averageCost": zod.number(),
   "stockValue": zod.number(),
   "inventoryAccountId": zod.string(),
+  "itemCodeType": zod.enum(['gs1', 'egs', 'internal']).nullish(),
+  "gs1Code": zod.string().nullish(),
+  "egsCode": zod.string().nullish(),
+  "unitCode": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListInventoryItemsResponse = zod.array(ListInventoryItemsResponseItem)
@@ -1246,7 +1276,11 @@ export const CreateInventoryItemBody = zod.object({
   "unit": zod.string().min(1),
   "category": zod.string().nullish(),
   "isActive": zod.boolean().optional(),
-  "inventoryAccountId": zod.string().uuid()
+  "inventoryAccountId": zod.string().uuid(),
+  "itemCodeType": zod.enum(['gs1', 'egs', 'internal']).nullish(),
+  "gs1Code": zod.string().nullish(),
+  "egsCode": zod.string().nullish(),
+  "unitCode": zod.string().nullish()
 })
 
 
@@ -1282,6 +1316,10 @@ export const UpdateInventoryItemResponse = zod.object({
   "averageCost": zod.number(),
   "stockValue": zod.number(),
   "inventoryAccountId": zod.string(),
+  "itemCodeType": zod.enum(['gs1', 'egs', 'internal']).nullish(),
+  "gs1Code": zod.string().nullish(),
+  "egsCode": zod.string().nullish(),
+  "unitCode": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -1921,7 +1959,7 @@ export const createCustomerBodyCreditLimitMin = 0;
 
 export const createCustomerBodyCreditPeriodDaysMin = 0;
 
-
+export const createCustomerBodyEInvoiceEnabledDefault = false;
 
 export const CreateCustomerBody = zod.object({
   "nameAr": zod.string().min(1),
@@ -1935,6 +1973,13 @@ export const CreateCustomerBody = zod.object({
   "currency": zod.string().nullish(),
   "creditLimit": zod.number().min(createCustomerBodyCreditLimitMin).nullish(),
   "creditPeriodDays": zod.number().min(createCustomerBodyCreditPeriodDaysMin).nullish(),
+  "governorate": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "postalCode": zod.string().nullish(),
+  "streetAddress": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(createCustomerBodyEInvoiceEnabledDefault),
+  "gln": zod.string().nullish(),
+  "externalErpCode": zod.string().nullish(),
   "controlAccountId": zod.string().uuid(),
   "isActive": zod.boolean().optional()
 })
@@ -1952,7 +1997,7 @@ export const updateCustomerBodyCreditLimitMin = 0;
 
 export const updateCustomerBodyCreditPeriodDaysMin = 0;
 
-
+export const updateCustomerBodyEInvoiceEnabledDefault = false;
 
 export const UpdateCustomerBody = zod.object({
   "nameAr": zod.string().min(1).optional(),
@@ -1966,6 +2011,13 @@ export const UpdateCustomerBody = zod.object({
   "currency": zod.string().nullish(),
   "creditLimit": zod.number().min(updateCustomerBodyCreditLimitMin).nullish(),
   "creditPeriodDays": zod.number().min(updateCustomerBodyCreditPeriodDaysMin).nullish(),
+  "governorate": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "postalCode": zod.string().nullish(),
+  "streetAddress": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(updateCustomerBodyEInvoiceEnabledDefault),
+  "gln": zod.string().nullish(),
+  "externalErpCode": zod.string().nullish(),
   "controlAccountId": zod.string().uuid().optional(),
   "isActive": zod.boolean().optional()
 })
@@ -2037,7 +2089,7 @@ export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
 
 export const createSupplierBodyCreditPeriodDaysMin = 0;
 
-
+export const createSupplierBodyEInvoiceEnabledDefault = false;
 
 export const CreateSupplierBody = zod.object({
   "nameAr": zod.string().min(1),
@@ -2050,6 +2102,13 @@ export const CreateSupplierBody = zod.object({
   "address": zod.string().nullish(),
   "currency": zod.string().nullish(),
   "creditPeriodDays": zod.number().min(createSupplierBodyCreditPeriodDaysMin).nullish(),
+  "governorate": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "postalCode": zod.string().nullish(),
+  "streetAddress": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(createSupplierBodyEInvoiceEnabledDefault),
+  "gln": zod.string().nullish(),
+  "externalErpCode": zod.string().nullish(),
   "controlAccountId": zod.string().uuid(),
   "isActive": zod.boolean().optional()
 })
@@ -2065,7 +2124,7 @@ export const UpdateSupplierParams = zod.object({
 
 export const updateSupplierBodyCreditPeriodDaysMin = 0;
 
-
+export const updateSupplierBodyEInvoiceEnabledDefault = false;
 
 export const UpdateSupplierBody = zod.object({
   "nameAr": zod.string().min(1).optional(),
@@ -2078,6 +2137,13 @@ export const UpdateSupplierBody = zod.object({
   "address": zod.string().nullish(),
   "currency": zod.string().nullish(),
   "creditPeriodDays": zod.number().min(updateSupplierBodyCreditPeriodDaysMin).nullish(),
+  "governorate": zod.string().nullish(),
+  "city": zod.string().nullish(),
+  "postalCode": zod.string().nullish(),
+  "streetAddress": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(updateSupplierBodyEInvoiceEnabledDefault),
+  "gln": zod.string().nullish(),
+  "externalErpCode": zod.string().nullish(),
   "controlAccountId": zod.string().uuid().optional(),
   "isActive": zod.boolean().optional()
 })
@@ -2123,6 +2189,8 @@ export const ListInvoicesQueryParams = zod.object({
   "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return'])
 })
 
+export const listInvoicesResponseEInvoiceRequiredDefault = false;
+
 export const ListInvoicesResponseItem = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
@@ -2145,6 +2213,11 @@ export const ListInvoicesResponseItem = zod.object({
   "amountPaid": zod.number(),
   "balance": zod.number(),
   "journalEntryId": zod.string().nullish(),
+  "eInvoiceRequired": zod.boolean().default(listInvoicesResponseEInvoiceRequiredDefault),
+  "eInvoiceStatus": zod.enum(['pending', 'submitted', 'accepted', 'rejected']).nullish(),
+  "eInvoiceUuid": zod.string().nullish(),
+  "eInvoiceSubmissionDate": zod.string().nullish(),
+  "eInvoiceError": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListInvoicesResponse = zod.array(ListInvoicesResponseItem)
@@ -2206,6 +2279,8 @@ export const GetInvoiceParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const getInvoiceResponseOneEInvoiceRequiredDefault = false;
+
 export const GetInvoiceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
@@ -2228,6 +2303,11 @@ export const GetInvoiceResponse = zod.object({
   "amountPaid": zod.number(),
   "balance": zod.number(),
   "journalEntryId": zod.string().nullish(),
+  "eInvoiceRequired": zod.boolean().default(getInvoiceResponseOneEInvoiceRequiredDefault),
+  "eInvoiceStatus": zod.enum(['pending', 'submitted', 'accepted', 'rejected']).nullish(),
+  "eInvoiceUuid": zod.string().nullish(),
+  "eInvoiceSubmissionDate": zod.string().nullish(),
+  "eInvoiceError": zod.string().nullish(),
   "createdAt": zod.string()
 }).and(zod.object({
   "notes": zod.string().nullish(),
@@ -2311,6 +2391,8 @@ export const UpdateInvoiceBody = zod.object({
 }))
 })
 
+export const updateInvoiceResponseOneEInvoiceRequiredDefault = false;
+
 export const UpdateInvoiceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
@@ -2333,6 +2415,11 @@ export const UpdateInvoiceResponse = zod.object({
   "amountPaid": zod.number(),
   "balance": zod.number(),
   "journalEntryId": zod.string().nullish(),
+  "eInvoiceRequired": zod.boolean().default(updateInvoiceResponseOneEInvoiceRequiredDefault),
+  "eInvoiceStatus": zod.enum(['pending', 'submitted', 'accepted', 'rejected']).nullish(),
+  "eInvoiceUuid": zod.string().nullish(),
+  "eInvoiceSubmissionDate": zod.string().nullish(),
+  "eInvoiceError": zod.string().nullish(),
   "createdAt": zod.string()
 }).and(zod.object({
   "notes": zod.string().nullish(),
@@ -2383,6 +2470,8 @@ export const ApproveInvoiceParams = zod.object({
   "id": zod.coerce.string()
 })
 
+export const approveInvoiceResponseOneEInvoiceRequiredDefault = false;
+
 export const ApproveInvoiceResponse = zod.object({
   "id": zod.string(),
   "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
@@ -2405,6 +2494,11 @@ export const ApproveInvoiceResponse = zod.object({
   "amountPaid": zod.number(),
   "balance": zod.number(),
   "journalEntryId": zod.string().nullish(),
+  "eInvoiceRequired": zod.boolean().default(approveInvoiceResponseOneEInvoiceRequiredDefault),
+  "eInvoiceStatus": zod.enum(['pending', 'submitted', 'accepted', 'rejected']).nullish(),
+  "eInvoiceUuid": zod.string().nullish(),
+  "eInvoiceSubmissionDate": zod.string().nullish(),
+  "eInvoiceError": zod.string().nullish(),
   "createdAt": zod.string()
 }).and(zod.object({
   "notes": zod.string().nullish(),

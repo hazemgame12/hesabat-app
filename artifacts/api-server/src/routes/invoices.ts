@@ -257,6 +257,13 @@ function toListItem(
     amountPaid,
     balance: round2(total - amountPaid),
     journalEntryId: inv.journalEntryId,
+    eInvoiceRequired: inv.eInvoiceRequired,
+    eInvoiceStatus: inv.eInvoiceStatus,
+    eInvoiceUuid: inv.eInvoiceUuid,
+    eInvoiceSubmissionDate: inv.eInvoiceSubmissionDate
+      ? inv.eInvoiceSubmissionDate.toISOString()
+      : null,
+    eInvoiceError: inv.eInvoiceError,
     createdAt: inv.createdAt.toISOString(),
   };
 }

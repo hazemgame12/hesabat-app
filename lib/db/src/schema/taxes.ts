@@ -25,6 +25,12 @@ export const taxesTable = pgTable("taxes", {
     () => accountsTable.id,
     { onDelete: "set null" },
   ),
+  // E-Invoice: tax type classification for tax-authority submission.
+  // 'vat_standard' | 'vat_zero' | 'exempt' | 'wht' | 'schedule'
+  taxType: text("tax_type"),
+  // E-Invoice: tax category for tax-authority classification.
+  // 'taxable' | 'zero_rated' | 'exempt' | 'not_subject'
+  taxCategory: text("tax_category"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

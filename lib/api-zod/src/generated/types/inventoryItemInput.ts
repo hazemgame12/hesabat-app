@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { InventoryItemInputItemCodeType } from './inventoryItemInputItemCodeType';
 
 export interface InventoryItemInput {
   /** @minLength 1 */
@@ -17,4 +18,12 @@ export interface InventoryItemInput {
   category?: string | null;
   isActive?: boolean;
   inventoryAccountId: string;
+  /** @nullable */
+  itemCodeType?: InventoryItemInputItemCodeType;
+  /** @nullable */
+  gs1Code?: string | null;
+  /** @nullable */
+  egsCode?: string | null;
+  /** @nullable */
+  unitCode?: string | null;
 }

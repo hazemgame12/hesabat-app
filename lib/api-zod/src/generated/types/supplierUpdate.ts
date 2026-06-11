@@ -30,6 +30,19 @@ export interface SupplierUpdate {
      * @nullable
      */
   creditPeriodDays?: number | null;
+  /** @nullable */
+  governorate?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  postalCode?: string | null;
+  /** @nullable */
+  streetAddress?: string | null;
+  eInvoiceEnabled?: boolean;
+  /** @nullable */
+  gln?: string | null;
+  /** @nullable */
+  externalErpCode?: string | null;
   controlAccountId?: string;
   isActive?: boolean;
 }

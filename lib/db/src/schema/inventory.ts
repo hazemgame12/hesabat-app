@@ -40,6 +40,11 @@ export const inventoryItemsTable = pgTable(
     inventoryAccountId: uuid("inventory_account_id")
       .notNull()
       .references(() => accountsTable.id, { onDelete: "restrict" }),
+    // E-Invoice: item identification codes for tax-authority submission.
+    itemCodeType: text("item_code_type"), // 'gs1' | 'egs' | 'internal' | null
+    gs1Code: text("gs1_code"), // GS1 Global Trade Item Number
+    egsCode: text("egs_code"), // Egyptian GS1 (ETA-specific)
+    unitCode: text("unit_code"), // UN/CEFACT unit code: C62, KGM, LTR, etc.
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

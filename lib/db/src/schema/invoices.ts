@@ -4,6 +4,7 @@ import {
   text,
   numeric,
   integer,
+  boolean,
   date,
   timestamp,
   unique,
@@ -92,6 +93,14 @@ export const invoicesTable = pgTable(
       onDelete: "set null",
     }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
+    // E-Invoice: tracking fields for electronic submission.
+    eInvoiceRequired: boolean("e_invoice_required").notNull().default(false),
+    eInvoiceStatus: text("e_invoice_status"), // 'pending' | 'submitted' | 'accepted' | 'rejected' | null
+    eInvoiceUuid: text("e_invoice_uuid"),
+    eInvoiceSubmissionDate: timestamp("e_invoice_submission_date", {
+      withTimezone: true,
+    }),
+    eInvoiceError: text("e_invoice_error"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

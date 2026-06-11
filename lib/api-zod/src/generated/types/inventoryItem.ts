@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { InventoryItemItemCodeType } from './inventoryItemItemCodeType';
 
 export interface InventoryItem {
   id: string;
@@ -20,5 +21,13 @@ export interface InventoryItem {
   averageCost: number;
   stockValue: number;
   inventoryAccountId: string;
+  /** @nullable */
+  itemCodeType?: InventoryItemItemCodeType;
+  /** @nullable */
+  gs1Code?: string | null;
+  /** @nullable */
+  egsCode?: string | null;
+  /** @nullable */
+  unitCode?: string | null;
   createdAt: string;
 }

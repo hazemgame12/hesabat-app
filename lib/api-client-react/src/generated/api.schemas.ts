@@ -173,6 +173,11 @@ export interface Company {
   address?: string | null;
   /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  commercialRegistrationNumber?: string | null;
+  /** @nullable */
+  branchCode?: string | null;
+  eInvoiceEnabled?: boolean;
 }
 
 export type CompanyUpdateCountry = typeof CompanyUpdateCountry[keyof typeof CompanyUpdateCountry];
@@ -217,6 +222,11 @@ export interface CompanyUpdate {
   address?: string | null;
   /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  commercialRegistrationNumber?: string | null;
+  /** @nullable */
+  branchCode?: string | null;
+  eInvoiceEnabled?: boolean;
 }
 
 export interface LoginInput {
@@ -347,6 +357,33 @@ export const TaxKind = {
   zakat: 'zakat',
 } as const;
 
+/**
+ * @nullable
+ */
+export type TaxTaxType = typeof TaxTaxType[keyof typeof TaxTaxType] | null;
+
+
+export const TaxTaxType = {
+  vat_standard: 'vat_standard',
+  vat_zero: 'vat_zero',
+  exempt: 'exempt',
+  wht: 'wht',
+  schedule: 'schedule',
+} as const;
+
+/**
+ * @nullable
+ */
+export type TaxTaxCategory = typeof TaxTaxCategory[keyof typeof TaxTaxCategory] | null;
+
+
+export const TaxTaxCategory = {
+  taxable: 'taxable',
+  zero_rated: 'zero_rated',
+  exempt: 'exempt',
+  not_subject: 'not_subject',
+} as const;
+
 export interface Tax {
   id: string;
   nameAr: string;
@@ -359,6 +396,10 @@ export interface Tax {
   /** @nullable */
   linkedAccountId?: string | null;
   isActive: boolean;
+  /** @nullable */
+  taxType?: TaxTaxType;
+  /** @nullable */
+  taxCategory?: TaxTaxCategory;
   createdAt: string;
 }
 
@@ -371,6 +412,33 @@ export const TaxInputKind = {
   income: 'income',
   payroll: 'payroll',
   zakat: 'zakat',
+} as const;
+
+/**
+ * @nullable
+ */
+export type TaxInputTaxType = typeof TaxInputTaxType[keyof typeof TaxInputTaxType] | null;
+
+
+export const TaxInputTaxType = {
+  vat_standard: 'vat_standard',
+  vat_zero: 'vat_zero',
+  exempt: 'exempt',
+  wht: 'wht',
+  schedule: 'schedule',
+} as const;
+
+/**
+ * @nullable
+ */
+export type TaxInputTaxCategory = typeof TaxInputTaxCategory[keyof typeof TaxInputTaxCategory] | null;
+
+
+export const TaxInputTaxCategory = {
+  taxable: 'taxable',
+  zero_rated: 'zero_rated',
+  exempt: 'exempt',
+  not_subject: 'not_subject',
 } as const;
 
 export interface TaxInput {
@@ -386,6 +454,10 @@ export interface TaxInput {
   /** @nullable */
   linkedAccountId?: string | null;
   isActive?: boolean;
+  /** @nullable */
+  taxType?: TaxInputTaxType;
+  /** @nullable */
+  taxCategory?: TaxInputTaxCategory;
 }
 
 export type TaxUpdateKind = typeof TaxUpdateKind[keyof typeof TaxUpdateKind];
@@ -397,6 +469,33 @@ export const TaxUpdateKind = {
   income: 'income',
   payroll: 'payroll',
   zakat: 'zakat',
+} as const;
+
+/**
+ * @nullable
+ */
+export type TaxUpdateTaxType = typeof TaxUpdateTaxType[keyof typeof TaxUpdateTaxType] | null;
+
+
+export const TaxUpdateTaxType = {
+  vat_standard: 'vat_standard',
+  vat_zero: 'vat_zero',
+  exempt: 'exempt',
+  wht: 'wht',
+  schedule: 'schedule',
+} as const;
+
+/**
+ * @nullable
+ */
+export type TaxUpdateTaxCategory = typeof TaxUpdateTaxCategory[keyof typeof TaxUpdateTaxCategory] | null;
+
+
+export const TaxUpdateTaxCategory = {
+  taxable: 'taxable',
+  zero_rated: 'zero_rated',
+  exempt: 'exempt',
+  not_subject: 'not_subject',
 } as const;
 
 export interface TaxUpdate {
@@ -412,6 +511,10 @@ export interface TaxUpdate {
   /** @nullable */
   linkedAccountId?: string | null;
   isActive?: boolean;
+  /** @nullable */
+  taxType?: TaxUpdateTaxType;
+  /** @nullable */
+  taxCategory?: TaxUpdateTaxCategory;
 }
 
 export interface Currency {
@@ -623,6 +726,18 @@ export interface RunDepreciationResult {
   skipped: number;
 }
 
+/**
+ * @nullable
+ */
+export type InventoryItemItemCodeType = typeof InventoryItemItemCodeType[keyof typeof InventoryItemItemCodeType] | null;
+
+
+export const InventoryItemItemCodeType = {
+  gs1: 'gs1',
+  egs: 'egs',
+  internal: 'internal',
+} as const;
+
 export interface InventoryItem {
   id: string;
   code: string;
@@ -637,8 +752,28 @@ export interface InventoryItem {
   averageCost: number;
   stockValue: number;
   inventoryAccountId: string;
+  /** @nullable */
+  itemCodeType?: InventoryItemItemCodeType;
+  /** @nullable */
+  gs1Code?: string | null;
+  /** @nullable */
+  egsCode?: string | null;
+  /** @nullable */
+  unitCode?: string | null;
   createdAt: string;
 }
+
+/**
+ * @nullable
+ */
+export type InventoryItemInputItemCodeType = typeof InventoryItemInputItemCodeType[keyof typeof InventoryItemInputItemCodeType] | null;
+
+
+export const InventoryItemInputItemCodeType = {
+  gs1: 'gs1',
+  egs: 'egs',
+  internal: 'internal',
+} as const;
 
 export interface InventoryItemInput {
   /** @minLength 1 */
@@ -651,6 +786,14 @@ export interface InventoryItemInput {
   category?: string | null;
   isActive?: boolean;
   inventoryAccountId: string;
+  /** @nullable */
+  itemCodeType?: InventoryItemInputItemCodeType;
+  /** @nullable */
+  gs1Code?: string | null;
+  /** @nullable */
+  egsCode?: string | null;
+  /** @nullable */
+  unitCode?: string | null;
 }
 
 export interface InventoryItemUpdate {
@@ -1469,6 +1612,19 @@ export interface CustomerInput {
      * @nullable
      */
   creditPeriodDays?: number | null;
+  /** @nullable */
+  governorate?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  postalCode?: string | null;
+  /** @nullable */
+  streetAddress?: string | null;
+  eInvoiceEnabled?: boolean;
+  /** @nullable */
+  gln?: string | null;
+  /** @nullable */
+  externalErpCode?: string | null;
   controlAccountId: string;
   isActive?: boolean;
 }
@@ -1509,6 +1665,19 @@ export interface CustomerUpdate {
      * @nullable
      */
   creditPeriodDays?: number | null;
+  /** @nullable */
+  governorate?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  postalCode?: string | null;
+  /** @nullable */
+  streetAddress?: string | null;
+  eInvoiceEnabled?: boolean;
+  /** @nullable */
+  gln?: string | null;
+  /** @nullable */
+  externalErpCode?: string | null;
   controlAccountId?: string;
   isActive?: boolean;
 }
@@ -1581,6 +1750,19 @@ export interface SupplierInput {
      * @nullable
      */
   creditPeriodDays?: number | null;
+  /** @nullable */
+  governorate?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  postalCode?: string | null;
+  /** @nullable */
+  streetAddress?: string | null;
+  eInvoiceEnabled?: boolean;
+  /** @nullable */
+  gln?: string | null;
+  /** @nullable */
+  externalErpCode?: string | null;
   controlAccountId: string;
   isActive?: boolean;
 }
@@ -1616,6 +1798,19 @@ export interface SupplierUpdate {
      * @nullable
      */
   creditPeriodDays?: number | null;
+  /** @nullable */
+  governorate?: string | null;
+  /** @nullable */
+  city?: string | null;
+  /** @nullable */
+  postalCode?: string | null;
+  /** @nullable */
+  streetAddress?: string | null;
+  eInvoiceEnabled?: boolean;
+  /** @nullable */
+  gln?: string | null;
+  /** @nullable */
+  externalErpCode?: string | null;
   controlAccountId?: string;
   isActive?: boolean;
 }
@@ -1770,6 +1965,19 @@ export const InvoiceSummaryStatus = {
   cancelled: 'cancelled',
 } as const;
 
+/**
+ * @nullable
+ */
+export type InvoiceSummaryEInvoiceStatus = typeof InvoiceSummaryEInvoiceStatus[keyof typeof InvoiceSummaryEInvoiceStatus] | null;
+
+
+export const InvoiceSummaryEInvoiceStatus = {
+  pending: 'pending',
+  submitted: 'submitted',
+  accepted: 'accepted',
+  rejected: 'rejected',
+} as const;
+
 export interface InvoiceSummary {
   id: string;
   kind: InvoiceSummaryKind;
@@ -1800,6 +2008,15 @@ export interface InvoiceSummary {
   balance: number;
   /** @nullable */
   journalEntryId?: string | null;
+  eInvoiceRequired?: boolean;
+  /** @nullable */
+  eInvoiceStatus?: InvoiceSummaryEInvoiceStatus;
+  /** @nullable */
+  eInvoiceUuid?: string | null;
+  /** @nullable */
+  eInvoiceSubmissionDate?: string | null;
+  /** @nullable */
+  eInvoiceError?: string | null;
   createdAt: string;
 }
 

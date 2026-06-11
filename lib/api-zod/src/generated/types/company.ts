@@ -23,4 +23,9 @@ export interface Company {
   address?: string | null;
   /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  commercialRegistrationNumber?: string | null;
+  /** @nullable */
+  branchCode?: string | null;
+  eInvoiceEnabled?: boolean;
 }

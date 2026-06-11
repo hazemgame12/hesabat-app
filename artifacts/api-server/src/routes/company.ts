@@ -24,6 +24,9 @@ function toCompany(row: Company) {
     baseCurrency: row.baseCurrency,
     address: row.address,
     phone: row.phone,
+    commercialRegistrationNumber: row.commercialRegistrationNumber,
+    branchCode: row.branchCode,
+    eInvoiceEnabled: row.eInvoiceEnabled,
   };
 }
 
@@ -87,6 +90,13 @@ router.patch(
           }),
           ...(data.address !== undefined && { address: data.address }),
           ...(data.phone !== undefined && { phone: data.phone }),
+          ...(data.commercialRegistrationNumber !== undefined && {
+            commercialRegistrationNumber: data.commercialRegistrationNumber,
+          }),
+          ...(data.branchCode !== undefined && { branchCode: data.branchCode }),
+          ...(data.eInvoiceEnabled !== undefined && {
+            eInvoiceEnabled: data.eInvoiceEnabled,
+          }),
         })
         .where(eq(companiesTable.id, req.auth!.companyId))
         .returning();

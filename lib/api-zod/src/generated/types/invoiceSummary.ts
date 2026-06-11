@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { InvoiceSummaryEInvoiceStatus } from './invoiceSummaryEInvoiceStatus';
 import type { InvoiceSummaryKind } from './invoiceSummaryKind';
 import type { InvoiceSummaryStatus } from './invoiceSummaryStatus';
 
@@ -38,5 +39,14 @@ export interface InvoiceSummary {
   balance: number;
   /** @nullable */
   journalEntryId?: string | null;
+  eInvoiceRequired?: boolean;
+  /** @nullable */
+  eInvoiceStatus?: InvoiceSummaryEInvoiceStatus;
+  /** @nullable */
+  eInvoiceUuid?: string | null;
+  /** @nullable */
+  eInvoiceSubmissionDate?: string | null;
+  /** @nullable */
+  eInvoiceError?: string | null;
   createdAt: string;
 }
