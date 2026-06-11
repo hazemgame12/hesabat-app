@@ -541,6 +541,16 @@
       "saveError": "Could not save the details",
       "logoUpdated": "Company logo updated",
       "logoError": "Could not upload the logo"
+    },
+    "password": {
+      "title": "Change Password",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "change": "Change password",
+      "changing": "Changing...",
+      "success": "Password changed successfully",
+      "error": "Failed to change password"
     }
   },
   "comingSoon": {

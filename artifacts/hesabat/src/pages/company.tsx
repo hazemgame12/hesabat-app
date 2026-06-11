@@ -36,7 +36,10 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Upload, Globe, Coins, ImageOff } from "lucide-react";
+import { Building2, Upload, Globe, Coins, ImageOff, Lock } from "lucide-react";
+
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 type FormValues = {
   name: string;
@@ -73,6 +76,45 @@ export function CompanyProfile() {
   const updateCompany = useUpdateCompany();
   const [uploading, setUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const changePasswordSchema = z.object({
+    currentPassword: z.string().min(1, "passwordRequired"),
+    newPassword: z.string().min(8, "passwordMin"),
+    confirmPassword: z.string().min(1, "passwordRequired"),
+  }).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "passwordMismatch",
+    path: ["confirmPassword"],
+  });
+
+  const pwForm = useForm<z.infer<typeof changePasswordSchema>>({
+    resolver: zodResolver(changePasswordSchema),
+  });
+  const [pwLoading, setPwLoading] = React.useState(false);
+
+  const onChangePassword = async (data: z.infer<typeof changePasswordSchema>) => {
+    setPwLoading(true);
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: data.currentPassword,
+          newPassword: data.newPassword,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: t("company.password.success") });
+        pwForm.reset();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        toast({ variant: "destructive", title: body.error || t("company.password.error") });
+      }
+    } catch {
+      toast({ variant: "destructive", title: t("company.password.error") });
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   const { register, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
     defaultValues: {
@@ -357,6 +399,57 @@ export function CompanyProfile() {
                 </Button>
               </div>
             )}
+          </form>
+        </Card>
+
+        {/* Password change section */}
+        <Card className="p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-primary/5 p-2.5 rounded-xl text-primary">
+              <Lock className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg font-bold">{t("company.password.title")}</h2>
+          </div>
+          <form onSubmit={pwForm.handleSubmit(onChangePassword)} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="currentPassword">{t("company.password.current")}</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                dir="ltr"
+                className="text-start focus-visible:ring-primary"
+                {...pwForm.register("currentPassword")}
+              />
+              {pwForm.formState.errors.currentPassword && <span className="text-xs text-destructive">{t(`auth.validation.${pwForm.formState.errors.currentPassword.message}`)}</span>}
+            </div>
+            <div />
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="newPassword">{t("company.password.new")}</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                dir="ltr"
+                className="text-start focus-visible:ring-primary"
+                {...pwForm.register("newPassword")}
+              />
+              {pwForm.formState.errors.newPassword && <span className="text-xs text-destructive">{t(`auth.validation.${pwForm.formState.errors.newPassword.message}`)}</span>}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="confirmPassword">{t("company.password.confirm")}</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                dir="ltr"
+                className="text-start focus-visible:ring-primary"
+                {...pwForm.register("confirmPassword")}
+              />
+              {pwForm.formState.errors.confirmPassword && <span className="text-xs text-destructive">{t(`auth.validation.${pwForm.formState.errors.confirmPassword.message}`)}</span>}
+            </div>
+            <div className="md:col-span-2 flex justify-end">
+              <Button type="submit" disabled={pwLoading} className="h-11 px-8 font-bold">
+                {pwLoading ? t("company.password.changing") : t("company.password.change")}
+              </Button>
+            </div>
           </form>
         </Card>
       </div>
