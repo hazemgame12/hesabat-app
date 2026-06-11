@@ -47,3 +47,4 @@ export * from "./bank";
 export * from "./audit";
 export * from "./e-invoice";
 export * from "./password-reset";
+export * from "./support";

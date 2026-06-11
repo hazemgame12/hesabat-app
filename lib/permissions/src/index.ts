@@ -96,6 +96,9 @@ export const CAPABILITIES = [
   "audit:read",
   "fiscalyear:read",
   "fiscalyear:manage",
+  "support:read",
+  "support:create",
+  "support:admin",
 ] as const;
 
 export type Capability = (typeof CAPABILITIES)[number];
@@ -234,6 +237,9 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "audit:read",
     "fiscalyear:read",
     "fiscalyear:manage",
+    "support:read",
+    "support:create",
+    "support:admin",
   ],
   manager: [
     "company:manage",
@@ -256,6 +262,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "audit:read",
     "fiscalyear:read",
     "fiscalyear:manage",
+    "support:read",
+    "support:create",
   ],
   accountant: [
     "accounts:read",
@@ -342,6 +350,8 @@ export const ROLE_CAPABILITIES: Record<RoleId, Capability[]> = {
     "custodies:create",
     "revaluation:read",
     "fiscalyear:read",
+    "support:read",
+    "support:create",
   ],
   viewer: [
     "accounts:read",

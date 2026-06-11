@@ -30,6 +30,8 @@ import {
   UserCog,
   BarChart3,
   ChevronDown,
+  LifeBuoy,
+  ShieldCheck,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -114,6 +116,8 @@ const navEntries: NavEntry[] = [
     ],
   },
   { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },
+  { labelKey: "nav.support", icon: LifeBuoy, href: "/support", requires: "support:read" },
+  { labelKey: "nav.supportAdmin", icon: ShieldCheck, href: "/admin/support", requires: "support:admin" },
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 
