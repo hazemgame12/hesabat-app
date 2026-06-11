@@ -50,3 +50,6 @@ channel = "stable-25_05"
 
 [userenv.shared]
 RESEND_API_KEY = "re_3SGAhFKU_E5ayzGJkB5WG2K2fEUbyAHpt"
+
+[userenv.development]
+SMTP_FROM = "onboarding@resend.dev"
