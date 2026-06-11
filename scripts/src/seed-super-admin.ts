@@ -1,6 +1,6 @@
 import { db, superAdminsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { hashPassword } from "../../artifacts/api-server/src/lib/auth";
+import { hashPassword } from "./lib/hash";
 
 const DEFAULT_SUPER_ADMIN = {
   email: "admin@hesabat.app",

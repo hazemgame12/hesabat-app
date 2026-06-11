@@ -115,6 +115,10 @@ export interface AuthUser {
   role: string;
   companyId: string;
   companyName: string;
+  subscriptionStatus?: string | null;
+  trialEndsAt?: string | null;
+  planId?: string | null;
+  country?: string | null;
 }
 
 export type SignupInputCountry = typeof SignupInputCountry[keyof typeof SignupInputCountry];

@@ -13,8 +13,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (isError) {
       setLocation("/login");
+      return;
     }
-  }, [isError, setLocation]);
+    if (user) {
+      const isExpired = user.subscriptionStatus === "expired";
+      const isTrialWithoutPlan = user.subscriptionStatus === "trial" && !user.planId;
+      if (isExpired || isTrialWithoutPlan) {
+        setLocation("/choose-plan");
+      }
+    }
+  }, [isError, user, setLocation]);
 
   if (isLoading) {
     return (
@@ -28,6 +36,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
+    return null;
+  }
+
+  // Prevent showing the app layout when the user needs to choose a plan
+  const isExpired = user.subscriptionStatus === "expired";
+  const isTrialWithoutPlan = user.subscriptionStatus === "trial" && !user.planId;
+  if (isExpired || isTrialWithoutPlan) {
     return null;
   }
 

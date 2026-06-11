@@ -25,7 +25,7 @@ import { seedDefaultTaxes } from "../lib/seed-taxes";
 
 const router = Router();
 
-function toAuthUser(user: User, companyName: string) {
+function toAuthUser(user: User, companyName: string, companyExtra?: { subscriptionStatus?: string | null; trialEndsAt?: Date | null; planId?: string | null; country?: string | null }) {
   return {
     id: user.id,
     name: user.name,
@@ -33,6 +33,10 @@ function toAuthUser(user: User, companyName: string) {
     role: user.role,
     companyId: user.companyId,
     companyName,
+    subscriptionStatus: companyExtra?.subscriptionStatus ?? null,
+    trialEndsAt: companyExtra?.trialEndsAt?.toISOString() ?? null,
+    planId: companyExtra?.planId ?? null,
+    country: companyExtra?.country ?? null,
   };
 }
 
@@ -63,12 +67,15 @@ router.post("/auth/signup", async (req, res) => {
 
     const passwordHash = await hashPassword(password);
     const created = await db.transaction(async (tx) => {
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
       const [company] = await tx
         .insert(companiesTable)
         .values({
           name: companyName,
           country: resolvedCountry,
           baseCurrency: resolvedCurrency,
+          subscriptionStatus: "trial",
+          trialEndsAt,
         })
         .returning();
       const [user] = await tx
@@ -88,7 +95,12 @@ router.post("/auth/signup", async (req, res) => {
 
     const token = await createSession(created.user.id);
     setSessionCookie(res, token);
-    res.status(201).json(toAuthUser(created.user, created.company.name));
+    res.status(201).json(toAuthUser(created.user, created.company.name, {
+      subscriptionStatus: created.company.subscriptionStatus,
+      trialEndsAt: created.company.trialEndsAt,
+      planId: created.company.planId,
+      country: created.company.country,
+    }));
   } catch (err) {
     req.log.error({ err }, "Signup failed");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -119,13 +131,14 @@ router.post("/auth/login", async (req, res) => {
       return;
     }
     const companyRows = await db
-      .select({ name: companiesTable.name })
+      .select({ name: companiesTable.name, subscriptionStatus: companiesTable.subscriptionStatus, trialEndsAt: companiesTable.trialEndsAt, planId: companiesTable.planId, country: companiesTable.country })
       .from(companiesTable)
       .where(eq(companiesTable.id, user.companyId))
       .limit(1);
     const token = await createSession(user.id);
     setSessionCookie(res, token);
-    res.json(toAuthUser(user, companyRows[0]?.name ?? ""));
+    const company = companyRows[0];
+    res.json(toAuthUser(user, company?.name ?? "", company));
   } catch (err) {
     req.log.error({ err }, "Login failed");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -145,8 +158,19 @@ router.post("/auth/logout", async (req, res) => {
   res.json({ status: "ok" });
 });
 
-router.get("/auth/me", requireAuth, (req, res) => {
+router.get("/auth/me", requireAuth, async (req, res) => {
   const auth = req.auth!;
+  const companyRows = await db
+    .select({
+      subscriptionStatus: companiesTable.subscriptionStatus,
+      trialEndsAt: companiesTable.trialEndsAt,
+      planId: companiesTable.planId,
+      country: companiesTable.country,
+    })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, auth.companyId))
+    .limit(1);
+  const company = companyRows[0];
   res.json({
     id: auth.userId,
     name: auth.name,
@@ -154,6 +178,10 @@ router.get("/auth/me", requireAuth, (req, res) => {
     role: auth.role,
     companyId: auth.companyId,
     companyName: auth.companyName,
+    subscriptionStatus: company?.subscriptionStatus ?? null,
+    trialEndsAt: company?.trialEndsAt?.toISOString() ?? null,
+    planId: company?.planId ?? null,
+    country: company?.country ?? null,
   });
 });
 

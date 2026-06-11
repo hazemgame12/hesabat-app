@@ -32,6 +32,7 @@ import { EInvoice } from "@/pages/e-invoice";
 import { Support } from "@/pages/support";
 import { AdminSupport } from "@/pages/admin-support";
 import { AcceptInvite } from "@/pages/accept-invite";
+import { ChoosePlan } from "@/pages/choose-plan";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SuperAdminLayout } from "@/components/super-admin-layout";
 import { SuperAdminLogin } from "@/pages/super-admin/login";
@@ -126,6 +127,7 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/invite/:token" component={AcceptInvite} />
+      <Route path="/choose-plan" component={ChoosePlan} />
       <Route path="/super-admin/login" component={SuperAdminLogin} />
       <Route path="/super-admin" component={SuperAdminRoutes} />
       <Route path="/super-admin/*" component={SuperAdminRoutes} />

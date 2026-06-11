@@ -10,6 +10,7 @@ import {
   superAdminsTable,
 } from "@workspace/db";
 import { requireSuperAdmin, requireSuperAdminRole } from "../middleware/super-admin";
+import { hashPassword } from "../lib/auth";
 import { z } from "zod/v4";
 
 const router = Router();
@@ -94,7 +95,9 @@ router.get("/super-admin/companies", async (req, res) => {
       name: companiesTable.name,
       country: companiesTable.country,
       baseCurrency: companiesTable.baseCurrency,
+      planId: companiesTable.planId,
       subscriptionStatus: companiesTable.subscriptionStatus,
+      trialEndsAt: companiesTable.trialEndsAt,
       isActive: companiesTable.isActive,
       createdAt: companiesTable.createdAt,
       updatedAt: companiesTable.updatedAt,
@@ -395,6 +398,41 @@ router.get("/super-admin/stats", async (req, res) => {
     byCountry,
     byStatus,
   });
+});
+
+// DELETE /super-admin/companies/:id
+router.delete("/super-admin/companies/:id", async (req, res) => {
+  const { id } = req.params;
+  await db.delete(companiesTable).where(eq(companiesTable.id, id));
+  res.json({ ok: true });
+});
+
+// PATCH /super-admin/users/:id/password
+const UpdatePassword = z.object({
+  password: z.string().min(1),
+});
+
+router.patch("/super-admin/users/:id/password", async (req, res) => {
+  const { id } = req.params;
+  const body = UpdatePassword.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+
+  const passwordHash = await hashPassword(body.data.password);
+  const result = await db
+    .update(usersTable)
+    .set({ passwordHash, updatedAt: new Date() })
+    .where(eq(usersTable.id, id))
+    .returning();
+
+  if (result.length === 0) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  res.json({ ok: true });
 });
 
 export default router;

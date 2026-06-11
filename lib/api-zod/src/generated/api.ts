@@ -53,7 +53,11 @@ export const LoginResponse = zod.object({
   "email": zod.string(),
   "role": zod.string(),
   "companyId": zod.string(),
-  "companyName": zod.string()
+  "companyName": zod.string(),
+  "subscriptionStatus": zod.string().nullish(),
+  "trialEndsAt": zod.string().nullish(),
+  "planId": zod.string().nullish(),
+  "country": zod.string().nullish()
 })
 
 
@@ -74,7 +78,11 @@ export const GetCurrentUserResponse = zod.object({
   "email": zod.string(),
   "role": zod.string(),
   "companyId": zod.string(),
-  "companyName": zod.string()
+  "companyName": zod.string(),
+  "subscriptionStatus": zod.string().nullish(),
+  "trialEndsAt": zod.string().nullish(),
+  "planId": zod.string().nullish(),
+  "country": zod.string().nullish()
 })
 
 

@@ -25,9 +25,16 @@ export function Login() {
   const login = useLogin();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
+  const redirectForUser = (u: any) => {
+    const isExpired = u.subscriptionStatus === "expired";
+    const isTrialWithoutPlan = u.subscriptionStatus === "trial" && !u.planId;
+    if (isExpired || isTrialWithoutPlan) return "/choose-plan";
+    return "/dashboard";
+  };
+
   React.useEffect(() => {
     if (user && !isUserLoading) {
-      setLocation("/dashboard");
+      setLocation(redirectForUser(user));
     }
   }, [user, isUserLoading, setLocation]);
 
@@ -38,9 +45,9 @@ export function Login() {
   const onSubmit = (data: z.infer<typeof loginSchema>) => {
     setErrorMsg(null);
     login.mutate({ data }, {
-      onSuccess: () => {
+      onSuccess: (u: any) => {
         queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
-        setLocation("/dashboard");
+        setLocation(redirectForUser(u));
       },
       onError: (err: any) => {
         setErrorMsg(err?.data?.error || t("auth.login.errorGeneric"));

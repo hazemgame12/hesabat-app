@@ -4211,6 +4211,18 @@ components:
           type: string
         companyName:
           type: string
+        subscriptionStatus:
+          type: string
+          nullable: true
+        trialEndsAt:
+          type: string
+          nullable: true
+        planId:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
 
     SignupInput:
       type: object

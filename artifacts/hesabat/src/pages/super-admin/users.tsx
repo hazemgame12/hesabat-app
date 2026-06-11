@@ -1,28 +1,55 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQuery } from "@tanstack/react-query";
-import { Users, Search } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Users, Search, KeyRound, Check, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 async function fetchUsers(q?: string) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
-  const res = await fetch(
-    `/api/super-admin/users?${params}`,
-    { credentials: "include" },
-  );
+  const res = await fetch(`/api/super-admin/users?${params}`, { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch users");
+  return res.json();
+}
+
+async function updatePassword(id: string, password: string) {
+  const res = await fetch(`/api/super-admin/users/${id}/password`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) throw new Error("Failed to update password");
   return res.json();
 }
 
 export function SuperAdminUsers() {
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [editingPassword, setEditingPassword] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+
   const { data, isLoading } = useQuery({
     queryKey: ["super-admin-users", search],
     queryFn: () => fetchUsers(search),
+  });
+
+  const updatePwd = useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) => updatePassword(id, password),
+    onSuccess: () => {
+      setEditingPassword(null);
+      setNewPassword("");
+      toast({ title: t("common.success") });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
   });
 
   return (
@@ -34,12 +61,7 @@ export function SuperAdminUsers() {
 
       <div className="relative max-w-sm">
         <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          className="ps-9"
-          placeholder={t("superAdmin.searchUsers")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <Input className="ps-9" placeholder={t("superAdmin.searchUsers")} value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <div className="space-y-2">
@@ -60,7 +82,30 @@ export function SuperAdminUsers() {
                     </div>
                   </div>
                 </div>
-                <Badge variant="outline">{user.role}</Badge>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline">{user.role}</Badge>
+                  {editingPassword === user.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="text"
+                        className="w-40 text-sm"
+                        placeholder="كلمة مرور جديدة"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                      />
+                      <Button size="sm" variant="ghost" onClick={() => updatePwd.mutate({ id: user.id, password: newPassword })}>
+                        <Check className="w-3 h-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingPassword(null); setNewPassword(""); }}>
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => setEditingPassword(user.id)}>
+                      <KeyRound className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CreditCard, Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import { CreditCard, Plus, Trash2, Pencil, Check, X, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,9 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 async function fetchPlans() {
-  const res = await fetch(`/api/super-admin/plans`, {
-    credentials: "include",
-  });
+  const res = await fetch(`/api/super-admin/plans`, { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch plans");
   return res.json();
 }
@@ -101,25 +99,12 @@ export function SuperAdminPlans() {
   });
 
   const resetForm = () => {
-    setForm({
-      nameAr: "",
-      nameEn: "",
-      country: "EG",
-      maxUsers: 1,
-      maxTransactions: 1000,
-      price: "",
-      currency: "EGP",
-      billingCycle: "monthly",
-      features: "",
-    });
+    setForm({ nameAr: "", nameEn: "", country: "EG", maxUsers: 1, maxTransactions: 1000, price: "", currency: "EGP", billingCycle: "monthly", features: "" });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      ...form,
-      features: form.features.split(",").map((f) => f.trim()).filter(Boolean),
-    };
+    const payload = { ...form, features: form.features.split(",").map((f) => f.trim()).filter(Boolean) };
     if (editingId) {
       update.mutate({ id: editingId, data: payload });
     } else {
@@ -141,6 +126,33 @@ export function SuperAdminPlans() {
       features: (plan.features || []).join(", "),
     });
     setShowForm(true);
+  };
+
+  const plansByCountry: Record<string, any[]> = {};
+  data?.forEach((plan: any) => {
+    if (!plansByCountry[plan.country]) plansByCountry[plan.country] = [];
+    plansByCountry[plan.country].push(plan);
+  });
+
+  const countryNames: Record<string, string> = {
+    EG: "مصر",
+    SA: "السعودية",
+    AE: "الإمارات",
+    KW: "الكويت",
+    QA: "قطر",
+    BH: "البحرين",
+    OM: "عمان",
+    JO: "الأردن",
+    IQ: "العراق",
+    LB: "لبنان",
+    YE: "اليمن",
+    SD: "السودان",
+    DZ: "الجزائر",
+    MA: "المغرب",
+    TN: "تونس",
+    LY: "ليبيا",
+    PS: "فلسطين",
+    SY: "سوريا",
   };
 
   return (
@@ -182,7 +194,11 @@ export function SuperAdminPlans() {
               </div>
               <div className="space-y-2">
                 <Label>{t("superAdmin.billingCycle")}</Label>
-                <Input value={form.billingCycle} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })} required />
+                <select className="w-full border rounded-md px-3 py-2 text-sm" value={form.billingCycle} onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}>
+                  <option value="monthly">شهري</option>
+                  <option value="quarterly">ربع سنوي</option>
+                  <option value="yearly">سنوي</option>
+                </select>
               </div>
               <div className="space-y-2">
                 <Label>{t("superAdmin.maxUsers")}</Label>
@@ -202,8 +218,7 @@ export function SuperAdminPlans() {
                   {editingId ? t("common.update") : t("common.save")}
                 </Button>
                 <Button variant="outline" onClick={() => setShowForm(false)}>
-                  <X className="w-4 h-4 me-2" />
-                  {t("common.cancel")}
+                  <X className="w-4 h-4 me-2" /> {t("common.cancel")}
                 </Button>
               </div>
             </form>
@@ -211,37 +226,51 @@ export function SuperAdminPlans() {
         </Card>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-6">
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">{t("common.loading")}</div>
         ) : (
-          data?.map((plan: any) => (
-            <Card key={plan.id}>
-              <CardContent className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                    <CreditCard className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-semibold">
-                      {plan.nameAr} / {plan.nameEn}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {plan.country} · {plan.price} {plan.currency} / {plan.billingCycle}
-                      · {plan.maxUsers} users · {plan.maxTransactions} tx
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => startEdit(plan)}>
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => remove.mutate(plan.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          Object.entries(plansByCountry).map(([country, plans]) => (
+            <div key={country} className="space-y-2">
+              <div className="flex items-center gap-2 text-lg font-bold text-foreground">
+                <Globe className="w-5 h-5 text-primary" />
+                <span>{countryNames[country] || country} ({country})</span>
+                <span className="text-sm font-normal text-muted-foreground">{plans.length} باقات</span>
+              </div>
+              <div className="space-y-2">
+                {plans.map((plan: any) => (
+                  <Card key={plan.id}>
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                          <CreditCard className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="font-semibold">{plan.nameAr} / {plan.nameEn}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {plan.price} {plan.currency} / {plan.billingCycle === "monthly" ? "شهري" : plan.billingCycle === "quarterly" ? "ربع سنوي" : "سنوي"}
+                            · {plan.maxUsers} مستخدم · {plan.maxTransactions} عملية
+                            <div className="text-xs mt-1">
+                              {(plan.features || []).map((f: string, i: number) => (
+                                <span key={i} className="inline-block bg-muted px-2 py-0.5 rounded-full me-1">{f}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(plan)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => remove.mutate(plan.id)}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           ))
         )}
       </div>

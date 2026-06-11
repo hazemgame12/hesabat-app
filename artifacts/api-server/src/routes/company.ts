@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import path from "path";
 import crypto from "crypto";
 import multer from "multer";
-import { eq } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 import {
   db,
   companiesTable,
@@ -42,6 +42,7 @@ import { UpdateCompanyBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { uploadsDir } from "./uploads";
+import { subscriptionPlansTable } from "@workspace/db";
 
 const router = Router();
 
@@ -296,6 +297,57 @@ router.get("/company/export", requireAuth, async (req, res) => {
     req.log.error({ err }, "Failed to export company data");
     res.status(500).json({ error: "حدث خطأ في تصدير البيانات" });
   }
+});
+
+// GET /plans — available subscription plans (public-ish, no auth required for browsing)
+router.get("/plans", async (req, res) => {
+  const country = req.query["country"] as string | undefined;
+  const conditions = [];
+  if (country) {
+    conditions.push(eq(subscriptionPlansTable.country, country));
+  }
+  conditions.push(eq(subscriptionPlansTable.isActive, true));
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const plans = await db
+    .select()
+    .from(subscriptionPlansTable)
+    .where(whereClause)
+    .orderBy(asc(subscriptionPlansTable.order));
+  res.json(plans);
+});
+
+// POST /company/select-plan — user chooses a plan
+router.post("/company/select-plan", requireAuth, async (req, res) => {
+  const { planId } = req.body as { planId?: string };
+  if (!planId || typeof planId !== "string") {
+    res.status(400).json({ error: "planId required" });
+    return;
+  }
+  const planRows = await db
+    .select()
+    .from(subscriptionPlansTable)
+    .where(eq(subscriptionPlansTable.id, planId))
+    .limit(1);
+  if (planRows.length === 0) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+  const plan = planRows[0];
+  const now = new Date();
+  const endsAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+  await db
+    .update(companiesTable)
+    .set({
+      planId: plan.id,
+      subscriptionStatus: "trial",
+      trialEndsAt: endsAt,
+      updatedAt: now,
+    })
+    .where(eq(companiesTable.id, req.auth!.companyId));
+
+  res.json({ ok: true, trialEndsAt: endsAt.toISOString() });
 });
 
 export default router;
