@@ -78,6 +78,7 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
       { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
       { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
+      { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },
     ],
   },
   {
@@ -115,7 +116,6 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
     ],
   },
-  { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },
   {
     groupKey: "support",
     labelKey: "nav.groups.support",
