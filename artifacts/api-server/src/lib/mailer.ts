@@ -37,7 +37,7 @@ function getEmailProvider(): "resend" | "smtp" | "none" {
 function getFromAddress(): string {
   const from = process.env["SMTP_FROM"] ?? process.env["SMTP_USER"];
   if (from) return from;
-  return "noreply@hesabat.app";
+  return "info@hg-audit.com";
 }
 
 function escapeHtml(s: string): string {
