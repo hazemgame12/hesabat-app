@@ -106,6 +106,7 @@
     "audit": "Activity Log",
     "fiscalYears": "Fiscal Years",
     "revaluation": "Currency Revaluation",
+    "eInvoice": "E-Invoice",
     "groups": {
       "accounting": "Accounting",
       "salesPurchases": "Sales & Purchases",
@@ -477,6 +478,18 @@
     "title": "Coming very soon",
     "body": "We're working hard to add this feature soon to make managing your books easier and more comprehensive.",
     "backHome": "Back to home"
+  },
+  "eInvoice": {
+    "title": "E-Invoice",
+    "subtitle": "Connect your invoices to government e-invoicing systems",
+    "comingSoonTitle": "Coming very soon",
+    "comingSoonBody": "We're working on e-invoice integration with government authorities in Egypt, Saudi Arabia, UAE, and other countries.",
+    "feature1Title": "Quick Compliance",
+    "feature1Body": "Send invoices directly to government authorities with one click.",
+    "feature2Title": "Multi-Country Support",
+    "feature2Body": "Compatible with e-invoice standards in Egypt, Saudi Arabia, UAE, and more.",
+    "feature3Title": "Audit Trail",
+    "feature3Body": "UUID-based verification for every invoice to prevent tampering and fraud."
   },
   "notFound": {
     "title": "Page not found",

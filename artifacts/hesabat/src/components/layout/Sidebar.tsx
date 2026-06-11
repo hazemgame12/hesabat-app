@@ -113,6 +113,7 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
     ],
   },
+  { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 

@@ -26,6 +26,7 @@ import { Revaluation } from "@/pages/revaluation";
 import { Audit } from "@/pages/audit";
 import { OpeningBalances } from "@/pages/opening-balances";
 import { Settings } from "@/pages/settings";
+import { EInvoice } from "@/pages/e-invoice";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { AppLayout } from "@/components/layout/AppLayout";
 
@@ -73,6 +74,7 @@ function ProtectedRoutes() {
         <Route path="/revaluation" component={Revaluation} />
         <Route path="/reports" component={Reports} />
         <Route path="/audit" component={Audit} />
+        <Route path="/e-invoice" component={EInvoice} />
         <Route path="/fiscal-years">
           <Redirect to="/settings/fiscal-years" />
         </Route>
