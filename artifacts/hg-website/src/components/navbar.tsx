@@ -36,6 +36,8 @@ export default function Navbar() {
     { name: t.navbar.contact, id: "contact" },
   ];
 
+  const hesabatLink = `${base}/hesabat/`;
+
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? "bg-white shadow-md py-2" : "bg-white/90 backdrop-blur-md py-4"}`}>
       <div className="container mx-auto px-4 md:px-6">
@@ -66,6 +68,12 @@ export default function Navbar() {
             >
               {t.navbar.articles}
             </Link>
+            <a
+              href={hesabatLink}
+              className="text-primary font-bold hover:text-primary/80 transition-colors text-base"
+            >
+              {lang === "ar" ? "حسابات" : "Hesabat"}
+            </a>
           </div>
 
           <div className="hidden md:flex items-center gap-4">
@@ -110,6 +118,13 @@ export default function Navbar() {
           >
             {t.navbar.articles}
           </Link>
+          <a
+            href={hesabatLink}
+            onClick={() => setMobileMenuOpen(false)}
+            className="text-primary font-bold text-lg py-2 border-b border-gray-50 last:border-0"
+          >
+            {lang === "ar" ? "حسابات" : "Hesabat"}
+          </a>
           <div className="flex items-center gap-2 text-primary font-bold py-2" dir="ltr">
             <Phone className="w-5 h-5" />
             <span>01025812666</span>

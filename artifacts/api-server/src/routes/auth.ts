@@ -46,7 +46,7 @@ router.post("/auth/signup", async (req, res) => {
     res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
     return;
   }
-  const { companyName, name, email, password, country, baseCurrency } =
+  const { companyName, name, email, password, country, baseCurrency, planId } =
     parsed.data;
   const normalizedEmail = email.toLowerCase().trim();
   const resolvedCountry = country && isCountry(country) ? country : "EG";
@@ -68,7 +68,7 @@ router.post("/auth/signup", async (req, res) => {
     const passwordHash = await hashPassword(password);
     const created = await db.transaction(async (tx) => {
       const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
-      const [company] = await tx
+      const companyInsert = await tx
         .insert(companiesTable)
         .values({
           name: companyName,
@@ -76,8 +76,10 @@ router.post("/auth/signup", async (req, res) => {
           baseCurrency: resolvedCurrency,
           subscriptionStatus: "trial",
           trialEndsAt,
+          planId: planId ?? null,
         })
         .returning();
+      const company = companyInsert[0];
       const [user] = await tx
         .insert(usersTable)
         .values({

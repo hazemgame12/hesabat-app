@@ -33,6 +33,7 @@ import { Support } from "@/pages/support";
 import { AdminSupport } from "@/pages/admin-support";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { ChoosePlan } from "@/pages/choose-plan";
+import { LandingPage } from "@/pages/landing";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SuperAdminLayout } from "@/components/super-admin-layout";
 import { SuperAdminLogin } from "@/pages/super-admin/login";
@@ -122,6 +123,7 @@ function SuperAdminRoutes() {
 function Router() {
   return (
     <Switch>
+      <Route path="/" component={LandingPage} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/forgot-password" component={ForgotPassword} />
