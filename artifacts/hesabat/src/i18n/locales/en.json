@@ -188,6 +188,9 @@
     "createdAt": "Created",
     "ticketDetail": "Ticket Details",
     "ticketNumber": "Ticket #",
+    "featureRequestsTab": "Feature Requests",
+    "sortByVotes": "Sort by Votes",
+    "export": "Export",
     "admin": {
       "title": "Support Dashboard",
       "allTickets": "All Tickets",

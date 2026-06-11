@@ -12,7 +12,7 @@ import { requireCapability } from "../middleware/require-capability";
 const router = Router();
 
 // User: list my tickets
-router.get("/support/tickets", requireAuth, async (req, res) => {
+router.get("/support/tickets", requireAuth, requireCapability("support:read"), async (req, res) => {
   const companyId = req.auth!.companyId;
   const userId = req.auth!.userId;
   try {
@@ -29,6 +29,49 @@ router.get("/support/tickets", requireAuth, async (req, res) => {
     res.json({ tickets });
   } catch (err) {
     req.log.error({ err }, "Failed to list tickets");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// User: list all company feature requests (cross-user, with vote counts)
+router.get("/support/feature-requests", requireAuth, requireCapability("support:read"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  const userId = req.auth!.userId;
+  try {
+    const tickets = await db
+      .select()
+      .from(supportTicketsTable)
+      .where(
+        and(
+          eq(supportTicketsTable.companyId, companyId),
+          eq(supportTicketsTable.type, "feature_request"),
+        ),
+      )
+      .orderBy(desc(supportTicketsTable.createdAt));
+    // Fetch vote counts per ticket
+    const voteCounts = await db
+      .select({
+        ticketId: featureVotesTable.ticketId,
+        count: count(),
+      })
+      .from(featureVotesTable)
+      .groupBy(featureVotesTable.ticketId);
+    // Fetch current user's votes
+    const userVotes = await db
+      .select({ ticketId: featureVotesTable.ticketId })
+      .from(featureVotesTable)
+      .where(eq(featureVotesTable.userId, userId));
+    const userVotedSet = new Set(userVotes.map((v) => v.ticketId));
+    const countMap = new Map(voteCounts.map((v) => [v.ticketId, v.count]));
+    res.json({
+      tickets: tickets.map((t) => ({
+        ...t,
+        votes: countMap.get(t.id) ?? 0,
+        userVoted: userVotedSet.has(t.id),
+      })),
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to list feature requests");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });
@@ -70,7 +113,7 @@ router.post("/support/tickets", requireAuth, requireCapability("support:create")
 });
 
 // User: get ticket detail with comments
-router.get("/support/tickets/:id", requireAuth, async (req, res) => {
+router.get("/support/tickets/:id", requireAuth, requireCapability("support:read"), async (req, res) => {
   const companyId = req.auth!.companyId;
   const userId = req.auth!.userId;
   const ticketId = req.params.id as string;
@@ -127,7 +170,7 @@ router.get("/support/tickets/:id", requireAuth, async (req, res) => {
 });
 
 // User: add comment
-router.post("/support/tickets/:id/comments", requireAuth, async (req, res) => {
+router.post("/support/tickets/:id/comments", requireAuth, requireCapability("support:create"), async (req, res) => {
   const userId = req.auth!.userId;
   const ticketId = req.params.id as string;
   const { body: commentBody } = req.body as { body?: string };
@@ -161,17 +204,17 @@ router.post("/support/tickets/:id/comments", requireAuth, async (req, res) => {
   }
 });
 
-// User: vote on feature request
-router.post("/support/tickets/:id/vote", requireAuth, async (req, res) => {
+// User: vote on feature request (any company user can vote)
+router.post("/support/tickets/:id/vote", requireAuth, requireCapability("support:read"), async (req, res) => {
   const userId = req.auth!.userId;
   const ticketId = req.params.id as string;
   try {
     const [ticket] = await db
-      .select({ type: supportTicketsTable.type, companyId: supportTicketsTable.companyId, userId: supportTicketsTable.userId })
+      .select({ type: supportTicketsTable.type, companyId: supportTicketsTable.companyId })
       .from(supportTicketsTable)
       .where(eq(supportTicketsTable.id, ticketId))
       .limit(1);
-    if (!ticket || ticket.companyId !== req.auth!.companyId || ticket.userId !== userId) {
+    if (!ticket || ticket.companyId !== req.auth!.companyId) {
       res.status(404).json({ error: "التذكرة غير موجودة" });
       return;
     }

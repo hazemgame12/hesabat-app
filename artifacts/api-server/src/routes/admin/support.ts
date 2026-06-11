@@ -53,7 +53,21 @@ router.get("/admin/support/tickets", requireAuth, requireCapability("support:adm
       .leftJoin(companiesTable, eq(companiesTable.id, supportTicketsTable.companyId))
       .where(and(...filters))
       .orderBy(desc(supportTicketsTable.createdAt));
-    res.json({ tickets });
+    // Fetch vote counts for all tickets
+    const voteCounts = await db
+      .select({
+        ticketId: featureVotesTable.ticketId,
+        count: count(),
+      })
+      .from(featureVotesTable)
+      .groupBy(featureVotesTable.ticketId);
+    const countMap = new Map(voteCounts.map((v) => [v.ticketId, v.count]));
+    res.json({
+      tickets: tickets.map((t) => ({
+        ...t,
+        votes: countMap.get(t.id) ?? 0,
+      })),
+    });
   } catch (err) {
     req.log.error({ err }, "Failed to list admin tickets");
     res.status(500).json({ error: "حدث خطأ في الخادم" });

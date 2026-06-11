@@ -69,6 +69,7 @@ export const featureVotesTable = pgTable(
   (t) => [
     index("feature_votes_ticket_idx").on(t.ticketId),
     index("feature_votes_user_idx").on(t.userId),
+    index("feature_votes_unique_idx").on(t.ticketId, t.userId),
   ],
 );
 

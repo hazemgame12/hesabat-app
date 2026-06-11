@@ -188,6 +188,9 @@
     "createdAt": "تاريخ الإنشاء",
     "ticketDetail": "تفاصيل التذكرة",
     "ticketNumber": "تذكرة #",
+    "featureRequestsTab": "طلبات الميزات",
+    "sortByVotes": "الترتيب بالتصويت",
+    "export": "تصدير",
     "admin": {
       "title": "درج الدعم",
       "allTickets": "كافة التذاكر",

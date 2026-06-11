@@ -488,10 +488,114 @@ function TicketDetailView({
   );
 }
 
+/* ─── Feature Requests Tab ─── */
+function FeatureRequestsTab({
+  requests,
+  isLoading,
+  onBack,
+  t,
+  lang,
+}: {
+  requests: Array<SupportTicket & { votes: number; userVoted: boolean }>;
+  isLoading: boolean;
+  onBack: () => void;
+  t: any;
+  lang: string;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const voteMutation = useMutation({
+    mutationFn: (ticketId: string) =>
+      apiFetch(`/support/tickets/${ticketId}/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["support", "feature-requests"] });
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: err?.message || t("support.error") });
+    },
+  });
+
+  const fmtDate = (iso: string) =>
+    new Intl.DateTimeFormat(lang, { dateStyle: "medium" }).format(new Date(iso));
+
+  return (
+    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        {t("support.back")}
+      </button>
+
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <Lightbulb className="w-5 h-5" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{t("support.featureRequestsTab")}</h1>
+          <p className="text-sm text-muted-foreground">{requests.length} {t("support.featureRequests")}</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-16">
+          <Spinner />
+        </div>
+      ) : requests.length === 0 ? (
+        <div className="py-16 text-center text-sm text-muted-foreground">
+          {t("support.noTickets")}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {requests.map((req) => (
+            <Card key={req.id} className="p-5 shadow-sm border-border">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className="bg-purple-50 text-purple-700">
+                      <Lightbulb className="w-3 h-3 me-1" />
+                      {t("support.typeFeature")}
+                    </Badge>
+                    <Badge variant="secondary" className={statusMap[req.status].color}>
+                      {t(`support.${statusMap[req.status].label}`)}
+                    </Badge>
+                    <Badge variant="secondary" className={priorityMap[req.priority].color}>
+                      {t(`support.${priorityMap[req.priority].label}`)}
+                    </Badge>
+                  </div>
+                  <h3 className="font-bold text-foreground text-lg">{req.subject}</h3>
+                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{req.body}</p>
+                  <p className="text-xs text-muted-foreground mt-2">{fmtDate(req.createdAt)}</p>
+                </div>
+                <Button
+                  variant={req.userVoted ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => voteMutation.mutate(req.id)}
+                  disabled={voteMutation.isPending}
+                  className="shrink-0"
+                >
+                  <ThumbsUp className="w-4 h-4 me-1" />
+                  {req.userVoted ? t("support.voted") : t("support.vote")}
+                  <span className="ms-1 font-bold">{req.votes}</span>
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Main Page ─── */
 export function Support() {
   const { t, i18n } = useTranslation();
-  const [view, setView] = useState<"list" | "create" | "detail">("list");
+  const [view, setView] = useState<"list" | "create" | "detail" | "features">("list");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -501,7 +605,15 @@ export function Support() {
     queryFn: () => apiFetch("/support/tickets"),
   });
 
+  const { data: featureData, isLoading: featureLoading } = useQuery<{
+    tickets: Array<SupportTicket & { votes: number; userVoted: boolean }>;
+  }>({
+    queryKey: ["support", "feature-requests"],
+    queryFn: () => apiFetch("/support/feature-requests"),
+  });
+
   const tickets = ticketsData?.tickets ?? [];
+  const featureRequests = featureData?.tickets ?? [];
 
   const filtered = tickets.filter((t) => {
     if (filterType !== "all" && t.type !== filterType) return false;
@@ -509,7 +621,7 @@ export function Support() {
     return true;
   });
 
-  const featureRequests = tickets.filter((t) => t.type === "feature_request");
+  const myFeatureRequests = tickets.filter((t) => t.type === "feature_request");
 
   if (view === "create") {
     return (
@@ -522,6 +634,18 @@ export function Support() {
 
   if (view === "detail" && detailId) {
     return <TicketDetailView ticketId={detailId} onBack={() => setView("list")} />;
+  }
+
+  if (view === "features") {
+    return (
+      <FeatureRequestsTab
+        requests={featureRequests}
+        isLoading={featureLoading}
+        onBack={() => setView("list")}
+        t={t as any}
+        lang={i18n.language}
+      />
+    );
   }
 
   return (
@@ -537,13 +661,23 @@ export function Support() {
             <p className="text-sm text-muted-foreground">{t("support.subtitle")}</p>
           </div>
         </div>
-        <Button
-          onClick={() => setView("create")}
-          className="h-10 text-sm font-bold shadow-md hover:opacity-90"
-        >
-          <Plus className="w-4 h-4 me-2" />
-          {t("support.newTicket")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setView("features")}
+            className="h-10 text-sm font-bold"
+          >
+            <Lightbulb className="w-4 h-4 me-2" />
+            {t("support.featureRequestsTab")}
+          </Button>
+          <Button
+            onClick={() => setView("create")}
+            className="h-10 text-sm font-bold shadow-md hover:opacity-90"
+          >
+            <Plus className="w-4 h-4 me-2" />
+            {t("support.newTicket")}
+          </Button>
+        </div>
       </div>
 
       {/* Quick stats */}
@@ -565,7 +699,7 @@ export function Support() {
           <div className="text-xs text-muted-foreground">{t("support.statusResolved")}</div>
         </Card>
         <Card className="p-4 shadow-sm border-border">
-          <div className="text-2xl font-bold text-foreground">{featureRequests.length}</div>
+          <div className="text-2xl font-bold text-foreground">{myFeatureRequests.length}</div>
           <div className="text-xs text-muted-foreground">{t("support.featureRequests")}</div>
         </Card>
       </div>

@@ -64,6 +64,7 @@ interface AdminTicket {
   userName?: string;
   userEmail?: string;
   companyName?: string;
+  votes?: number;
 }
 
 interface TicketComment {
@@ -413,6 +414,7 @@ export function AdminSupport() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [sortByVotes, setSortByVotes] = useState<boolean>(false);
 
   const { data: stats } = useQuery<Stats>({
     queryKey: ["admin", "support", "stats"],
@@ -438,6 +440,34 @@ export function AdminSupport() {
       new Date(iso),
     );
 
+  const handleExport = () => {
+    const rows = [
+      ["Type", "Subject", "Status", "Priority", "Votes", "Company", "User", "Created"],
+      ...tickets.map((tk) => [
+        tk.type,
+        tk.subject,
+        tk.status,
+        tk.priority,
+        String(tk.votes ?? 0),
+        tk.companyName || "",
+        tk.userName || tk.userEmail || "",
+        tk.createdAt,
+      ]),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `support-tickets-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const displayTickets = sortByVotes
+    ? [...tickets].sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0))
+    : tickets;
+
   if (view === "detail" && detailId) {
     return <AdminTicketDetail ticketId={detailId} onBack={() => setView("list")} />;
   }
@@ -458,7 +488,7 @@ export function AdminSupport() {
       {/* Stats */}
       {stats && <StatsCards stats={stats} t={t as any} />}
 
-      {/* Filters */}
+      {/* Filters + Actions */}
       <div className="flex flex-wrap items-end gap-3 mt-2 mb-4">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -509,6 +539,24 @@ export function AdminSupport() {
             </SelectContent>
           </Select>
         </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">{t("support.sortByVotes")}</label>
+          <Button
+            variant={sortByVotes ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSortByVotes((v) => !v)}
+            className="h-9"
+          >
+            <ThumbsUp className="w-4 h-4 me-1" />
+            {sortByVotes ? t("common.all") : t("support.sortByVotes")}
+          </Button>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">{t("support.export")}</label>
+          <Button variant="outline" size="sm" onClick={handleExport} className="h-9">
+            {t("support.export")}
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -517,7 +565,7 @@ export function AdminSupport() {
           <div className="flex justify-center py-16">
             <Spinner />
           </div>
-        ) : tickets.length === 0 ? (
+        ) : displayTickets.length === 0 ? (
           <div className="py-16 text-center text-sm text-muted-foreground">
             {t("support.noTickets")}
           </div>
@@ -529,6 +577,7 @@ export function AdminSupport() {
                 <TableHead>{t("support.subject")}</TableHead>
                 <TableHead>{t("support.status")}</TableHead>
                 <TableHead>{t("support.priority")}</TableHead>
+                <TableHead>{t("support.votes")}</TableHead>
                 <TableHead>{t("support.admin.assign")}</TableHead>
                 <TableHead>{t("support.company")}</TableHead>
                 <TableHead>{t("support.user")}</TableHead>
@@ -536,7 +585,7 @@ export function AdminSupport() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tickets.map((tk) => (
+              {displayTickets.map((tk) => (
                 <TableRow
                   key={tk.id}
                   className="cursor-pointer hover:bg-muted/50"
@@ -574,6 +623,9 @@ export function AdminSupport() {
                     <Badge variant="secondary" className={priorityMap[tk.priority].color}>
                       {t(`support.${priorityMap[tk.priority].label}`)}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {tk.votes ?? 0}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {tk.assignedTo ? tk.assignedTo.slice(0, 8) + "..." : "—"}
