@@ -145,7 +145,8 @@
       "inventoryAssets": "Inventory & Assets",
       "treasury": "Treasury & Banks",
       "hr": "Human Resources",
-      "reports": "Reports & Audit"
+      "reports": "Reports & Audit",
+      "support": "Support"
     }
   },
   "support": {

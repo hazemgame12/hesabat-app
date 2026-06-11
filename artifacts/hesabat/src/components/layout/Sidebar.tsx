@@ -116,8 +116,15 @@ const navEntries: NavEntry[] = [
     ],
   },
   { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },
-  { labelKey: "nav.support", icon: LifeBuoy, href: "/support", requires: "support:read" },
-  { labelKey: "nav.supportAdmin", icon: ShieldCheck, href: "/admin/support", requires: "support:admin" },
+  {
+    groupKey: "support",
+    labelKey: "nav.groups.support",
+    icon: LifeBuoy,
+    children: [
+      { labelKey: "nav.support", icon: LifeBuoy, href: "/support", requires: "support:read" },
+      { labelKey: "nav.supportAdmin", icon: ShieldCheck, href: "/admin/support", requires: "support:admin" },
+    ],
+  },
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 
