@@ -39,6 +39,35 @@
       "createAccount": "Create your company account now",
       "errorGeneric": "An error occurred while signing in"
     },
+    "forgot": {
+      "title": "Reset your password",
+      "subtitle": "Enter your email to receive a reset link",
+      "email": "Email",
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "success": "Reset link sent successfully",
+      "error": "Failed to send reset link, please try again",
+      "sentTitle": "Check your email",
+      "sentBody": "We've sent you a password reset link. If you don't see it, check your spam folder.",
+      "backToLogin": "Back to sign in"
+    },
+    "reset": {
+      "title": "Set new password",
+      "subtitle": "Enter your new password",
+      "password": "New password",
+      "confirmPassword": "Confirm password",
+      "submit": "Set password",
+      "submitting": "Setting...",
+      "success": "Password changed successfully",
+      "error": "Failed to change password",
+      "validating": "Verifying link...",
+      "invalidTitle": "Invalid link",
+      "invalidBody": "This link is invalid or has expired. Request a new one.",
+      "requestNew": "Request a new link",
+      "doneTitle": "Password changed",
+      "doneBody": "You can now sign in with your new password.",
+      "login": "Sign in"
+    },
     "signup": {
       "title": "Register a new company",
       "subtitle": "Create your account and start managing your books",
@@ -75,6 +104,7 @@
       "emailInvalid": "Invalid email address",
       "passwordRequired": "Password is required",
       "passwordMin": "Password must be at least 8 characters",
+      "passwordMismatch": "Passwords do not match",
       "companyNameRequired": "Company name is required",
       "fullNameRequired": "Full name is required"
     }

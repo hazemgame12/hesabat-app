@@ -1,15 +1,17 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, gt, isNull } from "drizzle-orm";
 import {
   db,
   usersTable,
   companiesTable,
+  passwordResetTokensTable,
   type User,
   type Company,
 } from "@workspace/db";
 import { SignupBody, LoginBody } from "@workspace/api-zod";
 import { COUNTRY_INFO, isCountry, isCurrency } from "@workspace/locale";
-import { hashPassword, verifyPassword } from "../lib/auth";
+import { hashPassword, verifyPassword, hashToken, generateSessionToken } from "../lib/auth";
+import { sendPasswordResetEmail } from "../lib/mailer";
 import {
   createSession,
   destroySession,
@@ -153,6 +155,132 @@ router.get("/auth/me", requireAuth, (req, res) => {
     companyId: auth.companyId,
     companyName: auth.companyName,
   });
+});
+
+// ---- Password reset --------------------------------------------------------
+
+router.post("/auth/forgot-password", async (req, res) => {
+  const { email } = req.body as { email?: string };
+  if (!email || typeof email !== "string") {
+    res.status(400).json({ error: "البريد الإلكتروني مطلوب" });
+    return;
+  }
+  const normalizedEmail = email.toLowerCase().trim();
+  try {
+    const rows = await db
+      .select({ id: usersTable.id, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.email, normalizedEmail))
+      .limit(1);
+    const user = rows[0];
+    if (!user) {
+      // Don't reveal whether email exists for privacy
+      res.json({ status: "ok" });
+      return;
+    }
+    // Rate limit: max 3 active tokens per user
+    const activeTokens = await db
+      .select({ id: passwordResetTokensTable.id })
+      .from(passwordResetTokensTable)
+      .where(
+        and(
+          eq(passwordResetTokensTable.userId, user.id),
+          isNull(passwordResetTokensTable.usedAt),
+          gt(passwordResetTokensTable.expiresAt, new Date())
+        )
+      );
+    if (activeTokens.length >= 3) {
+      res.json({ status: "ok" });
+      return;
+    }
+    const rawToken = generateSessionToken();
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+    await db.insert(passwordResetTokensTable).values({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+    });
+    // Send email via Resend
+    const emailSent = await sendPasswordResetEmail(normalizedEmail, user.name, rawToken);
+    if (!emailSent) {
+      req.log.error("Failed to send password reset email");
+    }
+    res.json({ status: "ok" });
+  } catch (err) {
+    req.log.error({ err }, "Forgot password failed");
+    res.json({ status: "ok" });
+  }
+});
+
+router.post("/auth/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body as {
+    token?: string;
+    newPassword?: string;
+  };
+  if (!token || !newPassword || typeof token !== "string" || typeof newPassword !== "string") {
+    res.status(400).json({ error: "الرمز وكلمة المرور الجديدة مطلوبان" });
+    return;
+  }
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" });
+    return;
+  }
+  const tokenHash = hashToken(token);
+  try {
+    const rows = await db
+      .select({
+        id: passwordResetTokensTable.id,
+        userId: passwordResetTokensTable.userId,
+        expiresAt: passwordResetTokensTable.expiresAt,
+        usedAt: passwordResetTokensTable.usedAt,
+      })
+      .from(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.tokenHash, tokenHash))
+      .limit(1);
+    const record = rows[0];
+    if (!record || record.usedAt || record.expiresAt.getTime() < Date.now()) {
+      res.status(400).json({ error: "الرمز غير صالح أو منتهي الصلاحية" });
+      return;
+    }
+    const passwordHash = await hashPassword(newPassword);
+    await db.transaction(async (tx) => {
+      await tx
+        .update(usersTable)
+        .set({ passwordHash })
+        .where(eq(usersTable.id, record.userId));
+      await tx
+        .update(passwordResetTokensTable)
+        .set({ usedAt: new Date() })
+        .where(eq(passwordResetTokensTable.id, record.id));
+    });
+    res.json({ status: "ok" });
+  } catch (err) {
+    req.log.error({ err }, "Reset password failed");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+router.get("/auth/verify-reset-token", async (req, res) => {
+  const token = req.query["token"] as string | undefined;
+  if (!token) {
+    res.status(400).json({ error: "الرمز مطلوب" });
+    return;
+  }
+  const tokenHash = hashToken(token);
+  try {
+    const rows = await db
+      .select({ id: passwordResetTokensTable.id, usedAt: passwordResetTokensTable.usedAt, expiresAt: passwordResetTokensTable.expiresAt })
+      .from(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.tokenHash, tokenHash))
+      .limit(1);
+    const record = rows[0];
+    const valid = !!record && !record.usedAt && record.expiresAt.getTime() > Date.now();
+    res.json({ valid });
+  } catch (err) {
+    req.log.error({ err }, "Verify reset token failed");
+    res.json({ valid: false });
+  }
 });
 
 export default router;
