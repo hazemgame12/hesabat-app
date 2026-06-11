@@ -1,10 +1,17 @@
+import { Resend } from "resend";
 import nodemailer, { type Transporter } from "nodemailer";
 import { logger } from "./logger";
 
-let cachedTransporter: Transporter | null = null;
+let cachedSmtp: Transporter | null = null;
 
-function getTransporter(): Transporter | null {
-  if (cachedTransporter) return cachedTransporter;
+function getResendClient(): Resend | null {
+  const apiKey = process.env["RESEND_API_KEY"];
+  if (!apiKey) return null;
+  return new Resend(apiKey);
+}
+
+function getSmtpTransporter(): Transporter | null {
+  if (cachedSmtp) return cachedSmtp;
   const host = process.env["SMTP_HOST"];
   const port = process.env["SMTP_PORT"];
   const user = process.env["SMTP_USER"];
@@ -12,13 +19,71 @@ function getTransporter(): Transporter | null {
   if (!host || !port || !user || !pass) {
     return null;
   }
-  cachedTransporter = nodemailer.createTransport({
+  cachedSmtp = nodemailer.createTransport({
     host,
     port: Number(port),
     secure: Number(port) === 465,
     auth: { user, pass },
   });
-  return cachedTransporter;
+  return cachedSmtp;
+}
+
+function getEmailProvider(): "resend" | "smtp" | "none" {
+  if (process.env["RESEND_API_KEY"]) return "resend";
+  if (getSmtpTransporter()) return "smtp";
+  return "none";
+}
+
+function getFromAddress(): string {
+  const from = process.env["SMTP_FROM"] ?? process.env["SMTP_USER"];
+  if (from) return from;
+  return "noreply@hesabat.app";
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
+async function sendEmailViaResend(to: string, subject: string, html: string): Promise<boolean> {
+  const resend = getResendClient();
+  if (!resend) return false;
+  const from = getFromAddress();
+  try {
+    const { error } = await resend.emails.send({ from, to, subject, html });
+    if (error) {
+      logger.error({ error }, "Resend email failed");
+      return false;
+    }
+    return true;
+  } catch (err) {
+    logger.error({ err }, "Resend email threw");
+    return false;
+  }
+}
+
+async function sendEmailViaSmtp(to: string, subject: string, html: string): Promise<boolean> {
+  const transporter = getSmtpTransporter();
+  if (!transporter) return false;
+  const from = getFromAddress();
+  try {
+    await transporter.sendMail({ from, to, subject, html });
+    return true;
+  } catch (err) {
+    logger.error({ err }, "SMTP email failed");
+    return false;
+  }
+}
+
+async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  const provider = getEmailProvider();
+  if (provider === "none") {
+    logger.warn("No email provider configured");
+    return false;
+  }
+  if (provider === "resend") {
+    return sendEmailViaResend(to, subject, html);
+  }
+  return sendEmailViaSmtp(to, subject, html);
 }
 
 export async function sendLeadNotification(lead: {
@@ -28,14 +93,8 @@ export async function sendLeadNotification(lead: {
   message: string;
   service?: string;
 }): Promise<boolean> {
-  const transporter = getTransporter();
-  if (!transporter) {
-    logger.warn("SMTP not configured — skipping email notification");
-    return false;
-  }
   const to = process.env["LEAD_NOTIFICATION_TO"] ?? process.env["SMTP_USER"];
-  const from = process.env["SMTP_FROM"] ?? process.env["SMTP_USER"];
-  if (!to || !from) return false;
+  if (!to) return false;
 
   const subject = `طلب جديد من الموقع - ${lead.name}`;
   const html = `
@@ -56,17 +115,7 @@ export async function sendLeadNotification(lead: {
     </div>
   `;
 
-  try {
-    await transporter.sendMail({ from, to, subject, html, replyTo: lead.email || undefined });
-    return true;
-  } catch (err) {
-    logger.error({ err }, "Failed to send lead email");
-    return false;
-  }
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  return sendEmail(to, subject, html);
 }
 
 export async function sendPasswordResetEmail(
@@ -74,14 +123,6 @@ export async function sendPasswordResetEmail(
   name: string,
   token: string,
 ): Promise<boolean> {
-  const transporter = getTransporter();
-  if (!transporter) {
-    logger.warn("SMTP not configured — skipping password reset email");
-    return false;
-  }
-  const from = process.env["SMTP_FROM"] ?? process.env["SMTP_USER"];
-  if (!from) return false;
-
   const baseUrl = process.env["APP_BASE_URL"] ?? "https://app.hg-audit.com";
   const resetLink = `${baseUrl}/reset-password?token=${token}`;
 
@@ -104,11 +145,5 @@ export async function sendPasswordResetEmail(
     </div>
   `;
 
-  try {
-    await transporter.sendMail({ from, to, subject, html });
-    return true;
-  } catch (err) {
-    logger.error({ err }, "Failed to send password reset email");
-    return false;
-  }
+  return sendEmail(to, subject, html);
 }

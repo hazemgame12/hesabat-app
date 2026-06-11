@@ -34,11 +34,11 @@ export function ForgotPassword() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: data.email }),
       });
+      const body = await res.json().catch(() => ({}));
       if (res.ok) {
         setSubmitted(true);
-        toast({ title: t("auth.forgot.success") });
+        toast({ title: body.message || t("auth.forgot.success") });
       } else {
-        const body = await res.json().catch(() => ({}));
         toast({ variant: "destructive", title: body.error || t("auth.forgot.error") });
       }
     } catch {

@@ -205,6 +205,8 @@ router.post("/auth/forgot-password", async (req, res) => {
     const emailSent = await sendPasswordResetEmail(normalizedEmail, user.name, rawToken);
     if (!emailSent) {
       req.log.error("Failed to send password reset email");
+      res.status(500).json({ error: "تعذر إرسال بريد الإستعادة. خدمة البريد الإلكتروني غير مفعلة." });
+      return;
     }
     res.json({ status: "ok" });
   } catch (err) {
