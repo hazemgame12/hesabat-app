@@ -337,9 +337,9 @@ async function seedCompany(cfg: CompanyConfig): Promise<"created" | "skipped"> {
 
     const bankId = codeToId.get("1112")!; // National-bank style cash account
     const capitalId = codeToId.get("311")!;
-    const rentId = codeToId.get("512")!;
+    const rentId = codeToId.get("522")!;
     const revenueId = codeToId.get("411")!;
-    const expenseId = codeToId.get("513")!; // operating expenses (purchases)
+    const expenseId = codeToId.get("524")!; // operating expenses (purchases)
     const customerControlId = codeToId.get("112")!;
     const supplierControlId = codeToId.get("211")!;
 

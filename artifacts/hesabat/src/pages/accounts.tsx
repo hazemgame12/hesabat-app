@@ -689,7 +689,7 @@ export function Accounts() {
       {modalMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={closeModals} />
-          <form onSubmit={handleSubmit(onSubmit)} className="relative bg-card rounded-2xl shadow-2xl w-full max-w-lg border flex flex-col max-h-[90vh]">
+          <div className="relative bg-card rounded-2xl shadow-2xl w-full max-w-lg border flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <div className="flex items-center gap-2">
                 {modalMode === "bulk" ? <ListPlus className="w-5 h-5 text-primary" /> : <Plus className="w-5 h-5 text-primary" />}
@@ -737,7 +737,7 @@ export function Accounts() {
                 </div>
               </div>
             ) : (
-              <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+              <form onSubmit={handleSubmit(onSubmit)} className="p-6 flex flex-col gap-5 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-bold text-foreground">{t("accounts.accountCode")}</label>
@@ -847,7 +847,7 @@ export function Accounts() {
                   <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${isGroup ? 'translate-x-4 rtl:-translate-x-4' : 'translate-x-0'}`} />
                 </div>
               </div>
-            </div>
+            </form>
           )}
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-muted/30">
@@ -859,15 +859,16 @@ export function Accounts() {
                 {t("common.cancel")}
               </button>
               <button 
-                type="submit" 
-                disabled={createAccount.isPending || updateAccount.isPending}
+                type={modalMode === "bulk" ? "button" : "submit"}
+                onClick={modalMode === "bulk" ? handleBulkSubmit : undefined}
+                disabled={createAccount.isPending || updateAccount.isPending || bulkPending}
                 className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-5 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
               >
                 <Check className="w-4 h-4" />
-                {createAccount.isPending || updateAccount.isPending ? t("common.saving") : t("accounts.saveAccount")}
+                {createAccount.isPending || updateAccount.isPending || bulkPending ? t("common.saving") : t("accounts.saveAccount")}
               </button>
             </div>
-          </form>
+          </div>
         </div>
       )}
 

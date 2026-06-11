@@ -347,6 +347,8 @@
       "defaultsLoaded": "Default chart of accounts loaded successfully",
       "defaultsError": "Could not load the default chart of accounts",
       "bulkAdded": "Added {{count}} accounts",
+      "bulkFailed": "Failed to add {{count}} accounts",
+      "bulkEmpty": "No accounts to add",
       "bulkError": "Could not add accounts"
     }
   },
