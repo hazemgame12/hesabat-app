@@ -434,7 +434,7 @@ async function seedCompany(cfg: CompanyConfig): Promise<"created" | "skipped"> {
   return "created";
 }
 
-async function main() {
+export async function seedDemoData() {
   logger.info("Seeding Hesabat demo data (EG / SA / AE)...");
   for (const cfg of COMPANIES) {
     const result = await seedCompany(cfg);
@@ -445,6 +445,10 @@ async function main() {
   }
   logger.info("Demo seed complete.");
   await db.$client.end();
+}
+
+async function main() {
+  await seedDemoData();
 }
 
 main().catch((err) => {

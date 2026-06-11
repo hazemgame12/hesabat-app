@@ -9,6 +9,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed:demo": "tsx ./src/seed/demo-data.ts",
+    "seed:reset": "tsx ./src/seed/reset-demo.ts",
     "test": "vitest run"
   },
   "dependencies": {

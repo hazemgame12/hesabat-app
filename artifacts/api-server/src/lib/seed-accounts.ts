@@ -53,7 +53,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
 
   // ---- Revenue (4 / 41 / 42) ----
   { code: "4", nameAr: "الإيرادات", nameEn: "Revenue", type: "revenue", isGroup: true, parentCode: null },
-  { code: "41", nameAr: "إيرادات النشاط الرئيسي", nameEn: "Operating Revenue", type: "revenue", isGroup: true, parentCode: "4" },
+  { code: "41", nameAr: "الإيرادات التشغيلية", nameEn: "Operating Revenue", type: "revenue", isGroup: true, parentCode: "4" },
   { code: "411", nameAr: "إيرادات المبيعات", nameEn: "Sales Revenue", type: "revenue", isGroup: false, parentCode: "41" },
   { code: "412", nameAr: "إيرادات الخدمات", nameEn: "Service Revenue", type: "revenue", isGroup: false, parentCode: "41" },
   { code: "413", nameAr: "إيرادات أخرى", nameEn: "Other Operating Revenue", type: "revenue", isGroup: false, parentCode: "41" },
@@ -78,14 +78,14 @@ export const DEFAULT_CHART_OF_ACCOUNTS: SeedAccount[] = [
   { code: "525", nameAr: "أتعاب مهنية", nameEn: "Professional Fees", type: "expense", isGroup: false, parentCode: "52" },
   { code: "526", nameAr: "إهلاك", nameEn: "Depreciation", type: "expense", isGroup: false, parentCode: "52" },
   { code: "527", nameAr: "مصروفات بنكية", nameEn: "Bank Charges", type: "expense", isGroup: false, parentCode: "52" },
-  { code: "53", nameAr: "المصروفات التسويقية", nameEn: "Marketing Expenses", type: "expense", isGroup: true, parentCode: "5" },
+  { code: "53", nameAr: "مصروفات البيع والتسويق", nameEn: "Marketing Expenses", type: "expense", isGroup: true, parentCode: "5" },
   { code: "531", nameAr: "إعلان ودعاية", nameEn: "Advertising", type: "expense", isGroup: false, parentCode: "53" },
   { code: "532", nameAr: "عمولات تسويق", nameEn: "Marketing Commissions", type: "expense", isGroup: false, parentCode: "53" },
   { code: "533", nameAr: "نقل وشحن", nameEn: "Transportation & Shipping", type: "expense", isGroup: false, parentCode: "53" },
-  { code: "54", nameAr: "مصروفات التمويل", nameEn: "Financing Expenses", type: "expense", isGroup: true, parentCode: "5" },
+  { code: "54", nameAr: "المصروفات التمويلية", nameEn: "Financing Expenses", type: "expense", isGroup: true, parentCode: "5" },
   { code: "541", nameAr: "فوائد", nameEn: "Interest", type: "expense", isGroup: false, parentCode: "54" },
   { code: "542", nameAr: "عمولات تمويل", nameEn: "Financing Commissions", type: "expense", isGroup: false, parentCode: "54" },
-  { code: "55", nameAr: "مصروفات غير تشغيلية", nameEn: "Non-operating Expenses", type: "expense", isGroup: true, parentCode: "5" },
+  { code: "55", nameAr: "فروق العملة والخسائر", nameEn: "FX & Other Non-operating Expenses", type: "expense", isGroup: true, parentCode: "5" },
   { code: "551", nameAr: "خسائر فروق العملة", nameEn: "Foreign Exchange Losses", type: "expense", isGroup: false, parentCode: "55" },
 ];
 
