@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, count, sql, desc, asc, ilike, and, gte, lte, isNull } from "drizzle-orm";
+import { eq, count, sql, desc, asc, ilike, and, gte, lte, isNull, inArray } from "drizzle-orm";
 import {
   db,
   companiesTable,
@@ -111,7 +111,7 @@ router.get("/super-admin/companies", async (req, res) => {
     ? await db
         .select({ companyId: usersTable.companyId, count: count() })
         .from(usersTable)
-        .where(sql`${usersTable.companyId} = ANY(${companyIds})`)
+        .where(inArray(usersTable.companyId, companyIds))
         .groupBy(usersTable.companyId)
     : [];
 
@@ -257,7 +257,7 @@ router.get("/super-admin/users", async (req, res) => {
     ? await db
         .select({ id: companiesTable.id, name: companiesTable.name })
         .from(companiesTable)
-        .where(sql`${companiesTable.id} = ANY(${companyIds})`)
+        .where(inArray(companiesTable.id, companyIds))
     : [];
 
   const companyMap = new Map(companies.map((c) => [c.id, c.name]));
