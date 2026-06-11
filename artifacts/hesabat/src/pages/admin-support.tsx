@@ -88,8 +88,8 @@ interface Stats {
   inProgress: number;
   resolved: number;
   closed: number;
-  featureRequests: number;
-  issues: number;
+  byType: { type: string; count: number }[];
+  byPriority: { priority: string; count: number }[];
 }
 
 /* ─── API helpers ─── */

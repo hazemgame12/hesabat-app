@@ -15,14 +15,14 @@ const router = Router();
 
 // Admin: list all tickets with filters
 router.get("/admin/support/tickets", requireAuth, requireCapability("support:admin"), async (req, res) => {
+  const companyId = req.auth!.companyId;
   const { status, type, priority } = req.query as {
     status?: string;
     type?: string;
     priority?: string;
   };
   try {
-    let conditions = undefined;
-    const filters = [];
+    const filters = [eq(supportTicketsTable.companyId, companyId)];
     if (status && ["open", "in_progress", "resolved", "closed"].includes(status)) {
       filters.push(eq(supportTicketsTable.status, status as "open" | "in_progress" | "resolved" | "closed"));
     }
@@ -31,9 +31,6 @@ router.get("/admin/support/tickets", requireAuth, requireCapability("support:adm
     }
     if (priority && ["low", "medium", "high", "critical"].includes(priority)) {
       filters.push(eq(supportTicketsTable.priority, priority as "low" | "medium" | "high" | "critical"));
-    }
-    if (filters.length > 0) {
-      conditions = and(...filters);
     }
     const tickets = await db
       .select({
@@ -54,7 +51,7 @@ router.get("/admin/support/tickets", requireAuth, requireCapability("support:adm
       .from(supportTicketsTable)
       .leftJoin(usersTable, eq(usersTable.id, supportTicketsTable.userId))
       .leftJoin(companiesTable, eq(companiesTable.id, supportTicketsTable.companyId))
-      .where(conditions)
+      .where(and(...filters))
       .orderBy(desc(supportTicketsTable.createdAt));
     res.json({ tickets });
   } catch (err) {
@@ -63,8 +60,64 @@ router.get("/admin/support/tickets", requireAuth, requireCapability("support:adm
   }
 });
 
+// Admin: stats — MUST come before /:id
+router.get("/admin/support/tickets/stats", requireAuth, requireCapability("support:admin"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  try {
+    const totalResult = await db
+      .select({ count: count() })
+      .from(supportTicketsTable)
+      .where(eq(supportTicketsTable.companyId, companyId));
+    const openResult = await db
+      .select({ count: count() })
+      .from(supportTicketsTable)
+      .where(and(eq(supportTicketsTable.companyId, companyId), eq(supportTicketsTable.status, "open")));
+    const inProgressResult = await db
+      .select({ count: count() })
+      .from(supportTicketsTable)
+      .where(and(eq(supportTicketsTable.companyId, companyId), eq(supportTicketsTable.status, "in_progress")));
+    const resolvedResult = await db
+      .select({ count: count() })
+      .from(supportTicketsTable)
+      .where(and(eq(supportTicketsTable.companyId, companyId), eq(supportTicketsTable.status, "resolved")));
+    const closedResult = await db
+      .select({ count: count() })
+      .from(supportTicketsTable)
+      .where(and(eq(supportTicketsTable.companyId, companyId), eq(supportTicketsTable.status, "closed")));
+    const byType = await db
+      .select({
+        type: supportTicketsTable.type,
+        count: count(),
+      })
+      .from(supportTicketsTable)
+      .where(eq(supportTicketsTable.companyId, companyId))
+      .groupBy(supportTicketsTable.type);
+    const byPriority = await db
+      .select({
+        priority: supportTicketsTable.priority,
+        count: count(),
+      })
+      .from(supportTicketsTable)
+      .where(eq(supportTicketsTable.companyId, companyId))
+      .groupBy(supportTicketsTable.priority);
+    res.json({
+      total: totalResult[0]?.count ?? 0,
+      open: openResult[0]?.count ?? 0,
+      inProgress: inProgressResult[0]?.count ?? 0,
+      resolved: resolvedResult[0]?.count ?? 0,
+      closed: closedResult[0]?.count ?? 0,
+      byType,
+      byPriority,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get stats");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
 // Admin: get ticket detail
 router.get("/admin/support/tickets/:id", requireAuth, requireCapability("support:admin"), async (req, res) => {
+  const companyId = req.auth!.companyId;
   const ticketId = req.params.id as string;
   try {
     const [ticket] = await db
@@ -87,7 +140,12 @@ router.get("/admin/support/tickets/:id", requireAuth, requireCapability("support
       .from(supportTicketsTable)
       .leftJoin(usersTable, eq(usersTable.id, supportTicketsTable.userId))
       .leftJoin(companiesTable, eq(companiesTable.id, supportTicketsTable.companyId))
-      .where(eq(supportTicketsTable.id, ticketId))
+      .where(
+        and(
+          eq(supportTicketsTable.id, ticketId),
+          eq(supportTicketsTable.companyId, companyId),
+        ),
+      )
       .limit(1);
     if (!ticket) {
       res.status(404).json({ error: "التذكرة غير موجودة" });
@@ -124,6 +182,7 @@ router.get("/admin/support/tickets/:id", requireAuth, requireCapability("support
 
 // Admin: update ticket
 router.patch("/admin/support/tickets/:id", requireAuth, requireCapability("support:admin"), async (req, res) => {
+  const companyId = req.auth!.companyId;
   const ticketId = req.params.id as string;
   const { status, priority, assignedTo } = req.body as {
     status?: string;
@@ -148,7 +207,12 @@ router.patch("/admin/support/tickets/:id", requireAuth, requireCapability("suppo
     const [ticket] = await db
       .update(supportTicketsTable)
       .set(updates)
-      .where(eq(supportTicketsTable.id, ticketId))
+      .where(
+        and(
+          eq(supportTicketsTable.id, ticketId),
+          eq(supportTicketsTable.companyId, companyId),
+        ),
+      )
       .returning();
     if (!ticket) {
       res.status(404).json({ error: "التذكرة غير موجودة" });
@@ -163,6 +227,7 @@ router.patch("/admin/support/tickets/:id", requireAuth, requireCapability("suppo
 
 // Admin: add comment (can be internal)
 router.post("/admin/support/tickets/:id/comments", requireAuth, requireCapability("support:admin"), async (req, res) => {
+  const companyId = req.auth!.companyId;
   const userId = req.auth!.userId;
   const ticketId = req.params.id as string;
   const { body: commentBody, isInternal } = req.body as {
@@ -174,6 +239,20 @@ router.post("/admin/support/tickets/:id/comments", requireAuth, requireCapabilit
     return;
   }
   try {
+    const [ticket] = await db
+      .select({ id: supportTicketsTable.id })
+      .from(supportTicketsTable)
+      .where(
+        and(
+          eq(supportTicketsTable.id, ticketId),
+          eq(supportTicketsTable.companyId, companyId),
+        ),
+      )
+      .limit(1);
+    if (!ticket) {
+      res.status(404).json({ error: "التذكرة غير موجودة" });
+      return;
+    }
     const [comment] = await db
       .insert(ticketCommentsTable)
       .values({
@@ -186,50 +265,6 @@ router.post("/admin/support/tickets/:id/comments", requireAuth, requireCapabilit
     res.status(201).json({ comment });
   } catch (err) {
     req.log.error({ err }, "Failed to add admin comment");
-    res.status(500).json({ error: "حدث خطأ في الخادم" });
-  }
-});
-
-// Admin: stats
-router.get("/admin/support/tickets/stats", requireAuth, requireCapability("support:admin"), async (req, res) => {
-  try {
-    const totalResult = await db.select({ count: count() }).from(supportTicketsTable);
-    const openResult = await db
-      .select({ count: count() })
-      .from(supportTicketsTable)
-      .where(eq(supportTicketsTable.status, "open"));
-    const inProgressResult = await db
-      .select({ count: count() })
-      .from(supportTicketsTable)
-      .where(eq(supportTicketsTable.status, "in_progress"));
-    const resolvedResult = await db
-      .select({ count: count() })
-      .from(supportTicketsTable)
-      .where(eq(supportTicketsTable.status, "resolved"));
-    const byType = await db
-      .select({
-        type: supportTicketsTable.type,
-        count: count(),
-      })
-      .from(supportTicketsTable)
-      .groupBy(supportTicketsTable.type);
-    const byPriority = await db
-      .select({
-        priority: supportTicketsTable.priority,
-        count: count(),
-      })
-      .from(supportTicketsTable)
-      .groupBy(supportTicketsTable.priority);
-    res.json({
-      total: totalResult[0]?.count ?? 0,
-      open: openResult[0]?.count ?? 0,
-      inProgress: inProgressResult[0]?.count ?? 0,
-      resolved: resolvedResult[0]?.count ?? 0,
-      byType,
-      byPriority,
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to get stats");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });

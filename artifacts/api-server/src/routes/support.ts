@@ -82,6 +82,7 @@ router.get("/support/tickets/:id", requireAuth, async (req, res) => {
         and(
           eq(supportTicketsTable.id, ticketId),
           eq(supportTicketsTable.companyId, companyId),
+          eq(supportTicketsTable.userId, userId),
         ),
       )
       .limit(1);
@@ -89,11 +90,15 @@ router.get("/support/tickets/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "التذكرة غير موجودة" });
       return;
     }
-    // Only the ticket owner or admin can view; auth middleware already ensures company scope
     const comments = await db
       .select()
       .from(ticketCommentsTable)
-      .where(eq(ticketCommentsTable.ticketId, ticketId))
+      .where(
+        and(
+          eq(ticketCommentsTable.ticketId, ticketId),
+          eq(ticketCommentsTable.isInternal, false),
+        ),
+      )
       .orderBy(ticketCommentsTable.createdAt);
     const voteCount = await db
       .select({ count: count() })
@@ -131,13 +136,13 @@ router.post("/support/tickets/:id/comments", requireAuth, async (req, res) => {
     return;
   }
   try {
-    // Verify ticket exists and belongs to user's company
+    // Verify ticket exists and belongs to the requesting user
     const [ticket] = await db
-      .select({ companyId: supportTicketsTable.companyId })
+      .select({ companyId: supportTicketsTable.companyId, userId: supportTicketsTable.userId })
       .from(supportTicketsTable)
       .where(eq(supportTicketsTable.id, ticketId))
       .limit(1);
-    if (!ticket || ticket.companyId !== req.auth!.companyId) {
+    if (!ticket || ticket.companyId !== req.auth!.companyId || ticket.userId !== userId) {
       res.status(404).json({ error: "التذكرة غير موجودة" });
       return;
     }
@@ -162,11 +167,11 @@ router.post("/support/tickets/:id/vote", requireAuth, async (req, res) => {
   const ticketId = req.params.id as string;
   try {
     const [ticket] = await db
-      .select({ type: supportTicketsTable.type, companyId: supportTicketsTable.companyId })
+      .select({ type: supportTicketsTable.type, companyId: supportTicketsTable.companyId, userId: supportTicketsTable.userId })
       .from(supportTicketsTable)
       .where(eq(supportTicketsTable.id, ticketId))
       .limit(1);
-    if (!ticket || ticket.companyId !== req.auth!.companyId) {
+    if (!ticket || ticket.companyId !== req.auth!.companyId || ticket.userId !== userId) {
       res.status(404).json({ error: "التذكرة غير موجودة" });
       return;
     }
