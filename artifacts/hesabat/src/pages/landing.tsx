@@ -305,7 +305,18 @@ export function LandingPage() {
     },
   });
 
-  const visibleCountries = showAllCountries ? COUNTRIES : COUNTRIES.slice(0, 3);
+  const { data: settings } = useQuery({
+    queryKey: ["landing-settings"],
+    queryFn: async () => {
+      const res = await fetch(`/api/super-admin/landing-page`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch settings");
+      return res.json();
+    },
+  });
+
+  const showCountries = (settings?.showCountries || "EG,SA,AE,KW,QA,BH,OM").split(",").map((c: string) => c.trim()).filter(Boolean);
+  const filteredCountries = COUNTRIES.filter((c) => showCountries.includes(c.code));
+  const visibleCountries = showAllCountries ? filteredCountries : filteredCountries.slice(0, 3);
 
   return (
     <div className="min-h-screen bg-background font-sans overflow-x-hidden" dir={t("lang.ar") === "العربية" ? "rtl" : "ltr"}>

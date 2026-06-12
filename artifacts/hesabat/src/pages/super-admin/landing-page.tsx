@@ -106,6 +106,7 @@ const DEFAULT_FORM: Record<string, string> = {
   ctaSubtitle: "14 يوم تجربة مجانية — لا بطاقة ائتمان — انقل بياناتك مجاناً — دعم 24/7",
   supportTitle: "دعم 24/7",
   supportSubtitle: "من محاسبين مراجعين معتمدين",
+  showCountries: "EG,SA,AE,KW,QA,BH,OM",
 };
 
 export function SuperAdminLandingPage() {
@@ -319,6 +320,11 @@ export function SuperAdminLandingPage() {
           <Field label="العنوان" value={form.supportTitle} onChange={(v) => updateField("supportTitle", v)} />
           <Field label="الوصف الفرعي" value={form.supportSubtitle} onChange={(v) => updateField("supportSubtitle", v)} textarea />
         </SectionCard>
+
+        {/* Country Visibility */}
+        <SectionCard title="ظهور الدول في الرئيسية" icon={Globe}>
+          <CountryVisibilityToggle form={form} updateField={updateField} />
+        </SectionCard>
       </div>
 
       {/* ═══════════════════════════ Articles Section ═══════════════════════════ */}
@@ -496,6 +502,39 @@ function Field({ label, value, onChange, textarea, placeholder }: {
       ) : (
         <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
       )}
+    </div>
+  );
+}
+
+const ALL_COUNTRIES = [
+  { code: "EG", name: "مصر" },
+  { code: "SA", name: "السعودية" },
+  { code: "AE", name: "الإمارات" },
+  { code: "KW", name: "الكويت" },
+  { code: "QA", name: "قطر" },
+  { code: "BH", name: "البحرين" },
+  { code: "OM", name: "عمان" },
+];
+
+function CountryVisibilityToggle({ form, updateField }: { form: Record<string, string>; updateField: (k: string, v: string) => void }) {
+  const visible = new Set((form.showCountries || "EG,SA,AE,KW,QA,BH,OM").split(",").map((c) => c.trim()).filter(Boolean));
+  const toggle = (code: string) => {
+    const next = new Set(visible);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
+    updateField("showCountries", Array.from(next).join(","));
+  };
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">اختر الدول التي تظهر في جدول الأسعار على الصفحة الرئيسية</p>
+      <div className="flex flex-wrap gap-3">
+        {ALL_COUNTRIES.map((c) => (
+          <label key={c.code} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${visible.has(c.code) ? "bg-[#1e3a5f]/10 border-[#1e3a5f]/30" : "bg-white border-[#e8eaed] opacity-60"}`}>
+            <input type="checkbox" checked={visible.has(c.code)} onChange={() => toggle(c.code)} className="w-4 h-4" />
+            <span className="text-sm font-medium">{c.name}</span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

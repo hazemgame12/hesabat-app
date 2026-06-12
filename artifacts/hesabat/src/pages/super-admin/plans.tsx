@@ -9,6 +9,24 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
+const PREDEFINED_FEATURES = [
+  "مستخدم واحد",
+  "مستخدمين حتى 3",
+  "مستخدمين حتى 10",
+  "مستخدمين حتى 50",
+  "فاتورة",
+  "الدخل المبيعات",
+  "التقارير",
+  "التباشير",
+  "المخزون",
+  "تقارير أساسية",
+  "جميع الميزات",
+  "دعم أولوي",
+  "دعم بالبريد",
+  "تكامل مخصص",
+  "نقل بيانات مجاني",
+];
+
 async function fetchPlans() {
   const res = await fetch(`/api/super-admin/plans`, { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch plans");
@@ -239,8 +257,26 @@ export function SuperAdminPlans() {
               <div className="space-y-2 md:col-span-2">
                 <Label>{t("superAdmin.features")}</Label>
                 <div className="flex gap-2">
-                  <Input value={featureInput} onChange={(e) => setFeatureInput(e.target.value)} placeholder="اضغط Enter لإضافة" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addFeature(); } }} />
-                  <Button type="button" variant="outline" onClick={addFeature}><Plus className="w-4 h-4" /></Button>
+                  <select
+                    className="flex-1 border rounded-md px-3 py-2 text-sm"
+                    value=""
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val && !form.features.includes(val)) {
+                        setForm((p) => ({ ...p, features: [...p.features, val] }));
+                      }
+                      e.target.value = "";
+                    }}
+                  >
+                    <option value="">-- اختر ميزة جهزة --</option>
+                    {PREDEFINED_FEATURES.filter((f) => !form.features.includes(f)).map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                  <div className="flex-1 flex gap-2">
+                    <Input value={featureInput} onChange={(e) => setFeatureInput(e.target.value)} placeholder="أو أضف ميزة مخصصة" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addFeature(); } }} />
+                    <Button type="button" variant="outline" onClick={addFeature}><Plus className="w-4 h-4" /></Button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {form.features.map((f, i) => (

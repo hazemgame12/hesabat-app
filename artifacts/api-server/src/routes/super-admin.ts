@@ -454,6 +454,7 @@ const LANDING_KEYS = [
   "pricingTitle", "pricingSubtitle",
   "ctaTitle", "ctaSubtitle",
   "supportTitle", "supportSubtitle",
+  "showCountries",
 ];
 
 // GET /super-admin/landing-page
