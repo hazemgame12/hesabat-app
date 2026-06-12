@@ -98,18 +98,57 @@ pm2 start "$APP_DIR/artifacts/api-server/dist/index.mjs" \
   -- --enable-source-maps
 pm2 save
 
-# ── 10. nginx config ─────────────────────────────────────────
+# ── 10. nginx — Rate Limiting + config ───────────────────────
+# Inject rate-limit zones into the http block (idempotent)
+NGINX_CONF=/etc/nginx/nginx.conf
+if ! grep -q "hesabat_login" "$NGINX_CONF"; then
+  sed -i '/http {/a\\n\t# Hesabat rate limits\n\tlimit_req_zone $binary_remote_addr zone=hesabat_login:10m rate=5r/m;\n\tlimit_req_zone $binary_remote_addr zone=hesabat_api:10m rate=60r/m;\n\tlimit_req_status 429;\n' "$NGINX_CONF"
+  echo "   ✅ Rate limiting zones added to nginx.conf"
+fi
+
 cat > /etc/nginx/sites-available/hesabat << NGINX
 server {
     listen 80;
     server_name $DOMAIN;
 
-    # Serve static Hesabat frontend
     root $APP_DIR/artifacts/hesabat/dist/public;
     index index.html;
 
-    # API — proxy to Node
+    # ── Rate-limited auth endpoints ──────────────────────────
+    location = /api/auth/login {
+        limit_req zone=hesabat_login burst=5 nodelay;
+        limit_req_log_level warn;
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /api/auth/forgot-password {
+        limit_req zone=hesabat_login burst=2 nodelay;
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location = /api/auth/reset-password {
+        limit_req zone=hesabat_login burst=2 nodelay;
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    # ── General API — rate limited ────────────────────────────
     location /api/ {
+        limit_req zone=hesabat_api burst=30 nodelay;
         proxy_pass http://127.0.0.1:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
@@ -121,7 +160,7 @@ server {
         proxy_cache_bypass \$http_upgrade;
     }
 
-    # SPA fallback — كل route يرجّع index.html
+    # ── SPA fallback ──────────────────────────────────────────
     location / {
         try_files \$uri \$uri/ /index.html;
     }
@@ -130,6 +169,7 @@ NGINX
 
 ln -sf /etc/nginx/sites-available/hesabat /etc/nginx/sites-enabled/hesabat
 nginx -t && systemctl reload nginx
+echo "   ✅ nginx configured with rate limiting"
 
 # ── 11. SSL via Certbot ───────────────────────────────────────
 echo ""
@@ -141,6 +181,38 @@ ufw allow OpenSSH
 ufw allow 'Nginx Full'
 ufw --force enable
 
+# ── 13. Backup system ────────────────────────────────────────
+echo ""
+echo "🗄️  Setting up daily backup system ..."
+
+BACKUP_ROOT=/var/backups/hesabat
+mkdir -p "$BACKUP_ROOT/postgres" "$BACKUP_ROOT/uploads"
+
+# Copy backup scripts
+cp "$APP_DIR/scripts/backup.sh" /usr/local/bin/hesabat-backup
+cp "$APP_DIR/scripts/restore-test.sh" /usr/local/bin/hesabat-restore-test
+chmod +x /usr/local/bin/hesabat-backup /usr/local/bin/hesabat-restore-test
+
+# Install cron job — daily at 2:00 AM server time
+CRON_LINE="0 2 * * * root /usr/local/bin/hesabat-backup >> /var/backups/hesabat/backup.log 2>&1"
+CRON_FILE=/etc/cron.d/hesabat-backup
+
+if ! grep -qF "hesabat-backup" "$CRON_FILE" 2>/dev/null; then
+  echo "$CRON_LINE" > "$CRON_FILE"
+  chmod 644 "$CRON_FILE"
+  echo "   ✅ Cron job installed: daily at 02:00 AM"
+else
+  echo "   ✅ Cron job already installed"
+fi
+
+# Run first backup immediately to verify it works
+echo "   Running first backup now ..."
+/usr/local/bin/hesabat-backup && echo "   ✅ First backup succeeded" || echo "   ⚠️  First backup failed — check $BACKUP_ROOT/backup.log"
+
+# Run restore test
+echo "   Running restore test ..."
+/usr/local/bin/hesabat-restore-test && echo "   ✅ Restore test passed" || echo "   ⚠️  Restore test failed — check $BACKUP_ROOT/restore-test.log"
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ Setup complete!"
@@ -149,4 +221,5 @@ echo ""
 echo "⚠️  تذكّر:"
 echo "   1. عدّل $APP_DIR/.env بكلمات مرور حقيقية"
 echo "   2. pm2 restart hesabat-api"
+echo "   3. Backups: $BACKUP_ROOT (daily 02:00 AM, 7-day retention)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

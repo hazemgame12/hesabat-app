@@ -1,16 +1,27 @@
-name: Deploy Hesabat to VPS
+name: Deploy Hesabat Production
 
 on:
-  push:
-    branches: [main]
+  # ⚠️ Production deploy is MANUAL ONLY during Beta phase
+  # Change to push: branches: [main] after Beta is approved
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DEPLOY to confirm production deployment"
+        required: true
 
 jobs:
-  deploy:
+  deploy-production:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: production
 
     steps:
+      - name: Guard — require explicit confirmation
+        if: ${{ github.event.inputs.confirm != 'DEPLOY' }}
+        run: |
+          echo "❌ You must type DEPLOY in the confirm field to deploy production."
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -36,7 +47,7 @@ jobs:
       - name: Build API server
         run: pnpm --filter @workspace/api-server run build
 
-      - name: Deploy to VPS via SSH
+      - name: Deploy Production to VPS via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -45,11 +56,13 @@ jobs:
           script: |
             set -e
             cd /var/www/hesabat
+            git fetch origin
+            git checkout main
             git pull origin main
             pnpm install --frozen-lockfile
             pnpm run typecheck:libs
             NODE_ENV=production pnpm --filter @workspace/hesabat exec vite build --config vite.production.config.ts
             pnpm --filter @workspace/api-server run build
-            pm2 reload ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production
+            pm2 reload hesabat-api --env production || pm2 start ecosystem.config.cjs --env production
             pm2 save
-            echo "✅ Deployed at $(date)"
+            echo "✅ Production deployed at $(date)"

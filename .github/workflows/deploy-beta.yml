@@ -1,0 +1,63 @@
+name: Deploy Hesabat Beta
+
+on:
+  push:
+    branches: [beta]
+  workflow_dispatch:
+
+jobs:
+  deploy-beta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: beta
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build libs
+        run: pnpm run typecheck:libs
+
+      - name: Build Hesabat frontend
+        run: NODE_ENV=production pnpm --filter @workspace/hesabat exec vite build --config vite.production.config.ts
+
+      - name: Build API server
+        run: pnpm --filter @workspace/api-server run build
+
+      - name: Deploy Beta to VPS via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/hesabat
+            git fetch origin
+            git checkout beta
+            git pull origin beta
+            pnpm install --frozen-lockfile
+            pnpm run typecheck:libs
+            NODE_ENV=production pnpm --filter @workspace/hesabat exec vite build --config vite.production.config.ts
+            pnpm --filter @workspace/api-server run build
+            pm2 reload hesabat-beta --env beta 2>/dev/null || \
+              ENV_FILE=/var/www/hesabat/.env.beta pm2 start \
+                /var/www/hesabat/artifacts/api-server/dist/index.mjs \
+                --name hesabat-beta \
+                --interpreter none \
+                --env beta
+            pm2 save
+            echo "✅ Beta deployed at $(date)"
