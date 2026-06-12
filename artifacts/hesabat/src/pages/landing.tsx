@@ -999,17 +999,20 @@ export function LandingPage() {
               const isHidden = !showCountries.includes(c.code);
               if (isHidden) {
                 return (
-                  <div
+                  <motion.button
                     key={c.code}
-                    title={t("landing.comingSoon")}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-[#e8eaed] bg-[#fafafa] text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setContactOpen(true)}
+                    title={t("landing.comingSoonContact")}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-[#c9a96e]/50 bg-[#fffbf5] text-sm font-medium text-[#c9a96e] hover:border-[#c9a96e] hover:bg-[#fef5e7] transition-colors cursor-pointer select-none"
                   >
-                    <span className="text-lg opacity-50">{c.flag}</span>
+                    <span className="text-lg opacity-60">{c.flag}</span>
                     <span>{c.name}</span>
-                    <span className="text-[10px] bg-[#f0f0f0] text-muted-foreground px-1.5 py-0.5 rounded-full">
+                    <span className="text-[10px] bg-[#c9a96e]/10 text-[#c9a96e] px-1.5 py-0.5 rounded-full">
                       {t("landing.comingSoon")}
                     </span>
-                  </div>
+                  </motion.button>
                 );
               }
               return (
