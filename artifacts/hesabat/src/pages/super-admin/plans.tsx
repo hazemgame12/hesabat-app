@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CreditCard, Plus, Trash2, Pencil, Check, X, Globe } from "lucide-react";
+import { CreditCard, Plus, Trash2, Pencil, Check, X, Globe, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 
 async function fetchPlans() {
@@ -60,8 +61,10 @@ export function SuperAdminPlans() {
     price: "",
     currency: "EGP",
     billingCycle: "monthly",
-    features: "",
+    features: [] as string[],
+    showOnLanding: true,
   });
+  const [featureInput, setFeatureInput] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["super-admin-plans"],
@@ -99,12 +102,13 @@ export function SuperAdminPlans() {
   });
 
   const resetForm = () => {
-    setForm({ nameAr: "", nameEn: "", country: "EG", maxUsers: 1, maxTransactions: 1000, price: "", currency: "EGP", billingCycle: "monthly", features: "" });
+    setForm({ nameAr: "", nameEn: "", country: "EG", maxUsers: 1, maxTransactions: 1000, price: "", currency: "EGP", billingCycle: "monthly", features: [], showOnLanding: true });
+    setFeatureInput("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { ...form, features: form.features.split(",").map((f) => f.trim()).filter(Boolean) };
+    const payload = { ...form };
     if (editingId) {
       update.mutate({ id: editingId, data: payload });
     } else {
@@ -123,10 +127,34 @@ export function SuperAdminPlans() {
       price: plan.price,
       currency: plan.currency,
       billingCycle: plan.billingCycle,
-      features: (plan.features || []).join(", "),
+      features: (plan.features || []) as string[],
+      showOnLanding: plan.showOnLanding ?? true,
     });
+    setFeatureInput("");
     setShowForm(true);
   };
+
+  const addFeature = () => {
+    const text = featureInput.trim();
+    if (!text || form.features.includes(text)) return;
+    setForm((p) => ({ ...p, features: [...p.features, text] }));
+    setFeatureInput("");
+  };
+
+  const removeFeature = (idx: number) => {
+    setForm((p) => ({ ...p, features: p.features.filter((_, i) => i !== idx) }));
+  };
+
+  async function toggleShowOnLanding(plan: any) {
+    const res = await fetch(`/api/super-admin/plans/${plan.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ showOnLanding: !plan.showOnLanding }),
+    });
+    if (!res.ok) throw new Error("Failed to update");
+    queryClient.invalidateQueries({ queryKey: ["super-admin-plans"] });
+  }
 
   const plansByCountry: Record<string, any[]> = {};
   data?.forEach((plan: any) => {
@@ -210,7 +238,22 @@ export function SuperAdminPlans() {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>{t("superAdmin.features")}</Label>
-                <Input value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} placeholder="Feature 1, Feature 2, ..." />
+                <div className="flex gap-2">
+                  <Input value={featureInput} onChange={(e) => setFeatureInput(e.target.value)} placeholder="اضغط Enter لإضافة" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addFeature(); } }} />
+                  <Button type="button" variant="outline" onClick={addFeature}><Plus className="w-4 h-4" /></Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {form.features.map((f, i) => (
+                    <Badge key={i} variant="secondary" className="flex items-center gap-1">
+                      {f}
+                      <button type="button" onClick={() => removeFeature(i)} className="ml-1 text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2 flex items-center gap-2 md:col-span-2">
+                <input type="checkbox" id="showOnLanding" checked={form.showOnLanding} onChange={(e) => setForm({ ...form, showOnLanding: e.target.checked })} className="w-4 h-4" />
+                <Label htmlFor="showOnLanding">{t("superAdmin.showOnLanding")}</Label>
               </div>
               <div className="md:col-span-2 flex gap-2">
                 <Button type="submit" disabled={create.isPending || update.isPending}>
@@ -249,7 +292,7 @@ export function SuperAdminPlans() {
                           <div className="font-semibold">{plan.nameAr} / {plan.nameEn}</div>
                           <div className="text-sm text-muted-foreground">
                             {plan.price} {plan.currency} / {plan.billingCycle === "monthly" ? "شهري" : plan.billingCycle === "quarterly" ? "ربع سنوي" : "سنوي"}
-                            · {plan.maxUsers} مستخدم · {plan.maxTransactions} عملية
+                            · {plan.maxUsers} {t("landing.planUsers")} · {plan.maxTransactions} {t("landing.planTransactions")}
                             <div className="text-xs mt-1">
                               {(plan.features || []).map((f: string, i: number) => (
                                 <span key={i} className="inline-block bg-muted px-2 py-0.5 rounded-full me-1">{f}</span>
@@ -259,6 +302,9 @@ export function SuperAdminPlans() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => toggleShowOnLanding(plan)} title={plan.showOnLanding ? "\u0645\u0638\u0647\u0631 \u0641\u064a \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629" : "\u0645\u062e\u0641\u064a \u0645\u0646 \u0627\u0644\u0631\u0626\u064a\u0633\u064a\u0629"}>
+                          {plan.showOnLanding ? <Eye className="w-4 h-4 text-emerald-600" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => startEdit(plan)}>
                           <Pencil className="w-4 h-4" />
                         </Button>

@@ -2139,6 +2139,7 @@
     "maxUsers": "Max Users",
     "maxTransactions": "Max Transactions",
     "features": "Features",
+    "showOnLanding": "Show on Landing Page",
     "subscriptionsTitle": "Subscriptions",
     "subscriptionsSubtitle": "All active subscriptions",
     "ticketsTitle": "Support Tickets",

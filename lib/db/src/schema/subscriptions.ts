@@ -21,6 +21,7 @@ export const subscriptionPlansTable = pgTable(
       .default("monthly"),
     features: json("features").$type<string[]>().notNull().default([]),
     isActive: boolean("is_active").notNull().default(true),
+    showOnLanding: boolean("show_on_landing").notNull().default(true),
     order: integer("order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -31,6 +32,7 @@ export const subscriptionPlansTable = pgTable(
   (t) => [
     index("subscription_plans_country_idx").on(t.country),
     index("subscription_plans_active_idx").on(t.isActive),
+    index("subscription_plans_show_idx").on(t.showOnLanding),
   ],
 );
 

@@ -2139,6 +2139,7 @@
     "maxUsers": "أقصى عدد المستخدمين",
     "maxTransactions": "أقصى عدد المعاملات",
     "features": "المميزات",
+    "showOnLanding": "مرئي في الرئيسية",
     "subscriptionsTitle": "الاشتراكات",
     "subscriptionsSubtitle": "كل الاشتراكات النشطة",
     "ticketsTitle": "تذاكر الدعم",

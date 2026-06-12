@@ -40,7 +40,7 @@ catalogs:
       specifier: ^2.1.1
       version: 2.1.1
     drizzle-orm:
-      specifier: ^0.45.2
+      specifier: 0.45.2
       version: 0.45.2
     framer-motion:
       specifier: 12.38.0
@@ -897,6 +897,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../lib/db
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@types/pg@8.20.0)(pg@8.20.0)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -3213,7 +3216,7 @@ packages:
     engines: {node: '>=0.10.0'}
 
   npm-run-path@6.0.0:
-    resolution: {integrity: sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA==, tarball: https://registry.npmjs.org/npm-run-path/-/npm-run-path-6.0.0.tgz}
+    resolution: {integrity: sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA==}
     engines: {node: '>=18'}
 
   object-assign@4.1.1:

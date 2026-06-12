@@ -38,6 +38,9 @@ import {
 import {
   Check,
   Clock,
+  Calendar,
+  Tag,
+  ImageIcon,
   BarChart3,
   Receipt,
   Users,
@@ -291,6 +294,15 @@ export function LandingPage() {
   const { data: plans, isLoading } = useQuery({
     queryKey: ["landing-plans", selectedCountry],
     queryFn: () => fetchPlans(selectedCountry),
+  });
+
+  const { data: articles } = useQuery({
+    queryKey: ["landing-articles"],
+    queryFn: async () => {
+      const res = await fetch(`/api/articles`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch articles");
+      return res.json();
+    },
   });
 
   const visibleCountries = showAllCountries ? COUNTRIES : COUNTRIES.slice(0, 3);
@@ -1118,6 +1130,70 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ═══════════════════  Articles  ═══════════════════ */}
+      {articles && articles.length > 0 && (
+        <section className="py-16 bg-[#f8f9fb]" id="articles">
+          <div className="container mx-auto px-4">
+            <SectionTitle
+              title={t("articles.pageTitle")}
+              subtitle={t("articles.pageSubtitle")}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {articles.slice(0, 3).map((article: any, i: number) => (
+                <motion.div
+                  key={article.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.15 }}
+                  whileHover={{ y: -5 }}
+                  className="bg-white rounded-2xl overflow-hidden border shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                  onClick={() => setLocation(`/article/${article.slug}`)}
+                >
+                  <div className="h-48 bg-muted overflow-hidden">
+                    {article.image ? (
+                      <img src={article.image} alt={lang === "ar" ? article.titleAr : article.titleEn} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-[#1e3a5f]/5">
+                        <ImageIcon className="w-10 h-10 text-[#1e3a5f]/30" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5 space-y-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      {article.categoryAr && (
+                        <Badge variant="outline" className="text-[#1e3a5f] border-[#1e3a5f]/20">
+                          <Tag className="w-3 h-3 me-1" />
+                          {lang === "ar" ? article.categoryAr : article.categoryEn}
+                        </Badge>
+                      )}
+                    </div>
+                    <h3 className="font-bold text-lg text-[#1e3a5f] leading-snug group-hover:text-[#c9a96e] transition-colors">
+                      {lang === "ar" ? article.titleAr : article.titleEn}
+                    </h3>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {lang === "ar" ? article.excerptAr : article.excerptEn}
+                    </p>
+                    <div className="flex items-center gap-3 pt-2 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {article.date}
+                      </span>
+                      {(lang === "ar" ? article.readTimeAr : article.readTimeEn) && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {lang === "ar" ? article.readTimeAr : article.readTimeEn}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ═══════════════════  CTA Footer  ═══════════════════ */}
       <section className="py-16 bg-[#f8f9fb]">

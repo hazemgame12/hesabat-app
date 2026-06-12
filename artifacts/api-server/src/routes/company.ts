@@ -299,14 +299,19 @@ router.get("/company/export", requireAuth, async (req, res) => {
   }
 });
 
-// GET /plans — available subscription plans (public-ish, no auth required for browsing)
+// GET /plans — available subscription plans
+// Public browsing: only showOnLanding=true; authenticated users: all active plans
 router.get("/plans", async (req, res) => {
   const country = req.query["country"] as string | undefined;
+  const isAuthenticated = !!(req as any).auth?.userId;
   const conditions = [];
   if (country) {
     conditions.push(eq(subscriptionPlansTable.country, country));
   }
   conditions.push(eq(subscriptionPlansTable.isActive, true));
+  if (!isAuthenticated) {
+    conditions.push(eq(subscriptionPlansTable.showOnLanding, true));
+  }
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const plans = await db

@@ -37,6 +37,7 @@ import { LandingPage } from "@/pages/landing";
 import { FAQ } from "@/pages/faq";
 import { Terms } from "@/pages/terms";
 import { ArticlesPage } from "@/pages/articles";
+import { ArticleDetailPage } from "@/pages/article-detail";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SuperAdminLayout } from "@/components/super-admin-layout";
 import { SuperAdminLogin } from "@/pages/super-admin/login";
@@ -138,6 +139,7 @@ function Router() {
       <Route path="/faq" component={FAQ} />
       <Route path="/terms" component={Terms} />
       <Route path="/articles" component={ArticlesPage} />
+      <Route path="/article/:slug" component={ArticleDetailPage} />
       <Route path="/super-admin/login" component={SuperAdminLogin} />
       <Route path="/super-admin" component={SuperAdminRoutes} />
       <Route path="/super-admin/*" component={SuperAdminRoutes} />

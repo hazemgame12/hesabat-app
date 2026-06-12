@@ -300,6 +300,7 @@ const CreatePlan = z.object({
   currency: z.string().min(1),
   billingCycle: z.enum(["monthly", "quarterly", "yearly"]),
   features: z.array(z.string()).optional(),
+  showOnLanding: z.boolean().optional(),
   order: z.number().optional(),
 });
 
