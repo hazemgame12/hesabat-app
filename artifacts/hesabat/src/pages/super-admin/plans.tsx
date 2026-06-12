@@ -475,21 +475,46 @@ function AddPlanForm({ country, onDone }: { country: string; onDone: () => void 
 }
 
 /* ─── Country group ─── */
-function CountryGroup({ country, plans, onDelete }: { country: string; plans: any[]; onDelete: (id: string) => void }) {
+function CountryGroup({
+  country, plans, onDelete, isHidden, onToggleVisibility, togglingVisibility,
+}: {
+  country: string; plans: any[]; onDelete: (id: string) => void;
+  isHidden: boolean; onToggleVisibility: () => void; togglingVisibility: boolean;
+}) {
   const [adding, setAdding] = useState(false);
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 rounded-xl p-4 border-2 transition-colors ${isHidden ? "border-dashed border-muted bg-muted/30" : "border-transparent"}`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Globe className="w-5 h-5 text-primary" />
-          <h2 className="text-base font-bold text-foreground">{COUNTRY_NAMES[country] ?? country}</h2>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Globe className={`w-5 h-5 ${isHidden ? "text-muted-foreground" : "text-primary"}`} />
+          <h2 className={`text-base font-bold ${isHidden ? "text-muted-foreground" : "text-foreground"}`}>
+            {COUNTRY_NAMES[country] ?? country}
+          </h2>
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{plans.length} باقة</span>
+          {isHidden && (
+            <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+              مخفية — تظهر «قريباً» في الرئيسية
+            </span>
+          )}
         </div>
-        {!adding && (
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setAdding(true)}>
-            <Plus className="w-3.5 h-3.5" /> إضافة باقة
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-7 text-xs gap-1 ${isHidden ? "text-amber-600 border-amber-300 hover:bg-amber-50" : "text-emerald-600 border-emerald-300 hover:bg-emerald-50"}`}
+            onClick={onToggleVisibility}
+            disabled={togglingVisibility}
+            title={isHidden ? "اضغط لإظهار الدولة في الرئيسية" : "اضغط لإخفاء الدولة من الرئيسية (قريباً)"}
+          >
+            {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            {isHidden ? "مخفية" : "مرئية"}
           </Button>
-        )}
+          {!adding && (
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => setAdding(true)}>
+              <Plus className="w-3.5 h-3.5" /> إضافة باقة
+            </Button>
+          )}
+        </div>
       </div>
       <div className="space-y-2">
         {plans.map((plan) => (
@@ -512,6 +537,37 @@ export function SuperAdminPlans() {
   const { data, isLoading } = useQuery({
     queryKey: ["super-admin-plans"],
     queryFn: () => apiFetch("/api/super-admin/plans"),
+  });
+
+  /* fetch showCountries from landing-page settings */
+  const { data: landingSettings } = useQuery({
+    queryKey: ["super-admin-landing-page"],
+    queryFn: () => apiFetch("/api/super-admin/landing-page"),
+    retry: false,
+  });
+
+  const showCountries: string[] = (
+    (landingSettings?.showCountries as string | undefined) ?? "EG,SA,AE,KW,QA,BH,OM"
+  ).split(",").map((c: string) => c.trim()).filter(Boolean);
+
+  /* toggle a single country's visibility and persist */
+  const toggleCountry = useMutation({
+    mutationFn: async (country: string) => {
+      const next = showCountries.includes(country)
+        ? showCountries.filter((c) => c !== country)
+        : [...showCountries, country];
+      return apiFetch("/api/super-admin/landing-page", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...(landingSettings ?? {}), showCountries: next.join(",") }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["super-admin-landing-page"] });
+      toast({ title: "تم تحديث ظهور الدولة" });
+    },
+    onError: (err: Error) =>
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" }),
   });
 
   const remove = useMutation({
@@ -554,6 +610,12 @@ export function SuperAdminPlans() {
         </Button>
       </div>
 
+      {/* legend */}
+      <div className="flex items-center gap-4 text-xs text-muted-foreground bg-muted/40 rounded-lg px-4 py-2.5 border">
+        <div className="flex items-center gap-1.5"><Eye className="w-3.5 h-3.5 text-emerald-600" /><span>مرئية — تظهر كاملةً في الرئيسية</span></div>
+        <div className="flex items-center gap-1.5"><EyeOff className="w-3.5 h-3.5 text-amber-600" /><span>مخفية — تظهر كـ«قريباً» في الرئيسية</span></div>
+      </div>
+
       {addingCountry && (
         <Card className="border-dashed">
           <CardContent className="p-4 flex items-end gap-3">
@@ -580,13 +642,16 @@ export function SuperAdminPlans() {
       {isLoading ? (
         <div className="text-center py-16 text-muted-foreground">{t("common.loading")}</div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-4">
           {sortedCountries.map((country) => (
             <CountryGroup
               key={country}
               country={country}
               plans={plansByCountry[country]}
               onDelete={(id) => remove.mutate(id)}
+              isHidden={!showCountries.includes(country)}
+              onToggleVisibility={() => toggleCountry.mutate(country)}
+              togglingVisibility={toggleCountry.isPending}
             />
           ))}
         </div>
