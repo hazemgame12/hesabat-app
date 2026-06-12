@@ -314,9 +314,13 @@ export function LandingPage() {
     },
   });
 
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+
   const showCountries = (settings?.showCountries || "EG,SA,AE,KW,QA,BH,OM").split(",").map((c: string) => c.trim()).filter(Boolean);
   const filteredCountries = COUNTRIES.filter((c) => showCountries.includes(c.code));
   const visibleCountries = showAllCountries ? filteredCountries : filteredCountries.slice(0, 3);
+  // For pricing: always show all countries, hidden ones as "coming soon"
+  const pricingVisibleCountries = showAllCountries ? COUNTRIES : COUNTRIES.slice(0, Math.max(3, filteredCountries.slice(0, 3).length));
 
   return (
     <div className="min-h-screen bg-background font-sans overflow-x-hidden" dir={t("lang.ar") === "العربية" ? "rtl" : "ltr"}>
@@ -956,106 +960,183 @@ export function LandingPage() {
             subtitle={t("landing.pricingSubtitle")}
           />
 
-          {/* Country Selector */}
-          <div className="flex flex-wrap justify-center gap-2 mb-10">
-            {visibleCountries.map((c) => (
-              <motion.button
-                key={c.code}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setSelectedCountry(c.code)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                  selectedCountry === c.code
-                    ? "bg-[#1e3a5f] text-white border-[#1e3a5f]"
-                    : "bg-white text-[#1e3a5f] border-[#e8eaed] hover:bg-[#f8f9fb]"
+          {/* Billing Cycle Toggle */}
+          <div className="flex justify-center mb-8">
+            <div className="inline-flex items-center bg-[#f4f6f9] rounded-xl p-1 gap-1">
+              <button
+                onClick={() => setBillingCycle("monthly")}
+                className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                  billingCycle === "monthly"
+                    ? "bg-white text-[#1e3a5f] shadow-sm"
+                    : "text-muted-foreground hover:text-[#1e3a5f]"
                 }`}
               >
-                <span className="text-lg">{c.flag}</span>
-                <span>{c.name}</span>
-              </motion.button>
-            ))}
-            {!showAllCountries && (
-              <button
-                onClick={() => setShowAllCountries(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#e8eaed] bg-white text-sm font-medium text-muted-foreground hover:bg-[#f8f9fb] transition-colors"
-              >
-                <ChevronDown className="w-4 h-4" />
-                {t("landing.moreCountries")}
+                {t("landing.billingMonthly")}
               </button>
-            )}
+              <button
+                onClick={() => setBillingCycle("yearly")}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                  billingCycle === "yearly"
+                    ? "bg-[#1e3a5f] text-white shadow-sm"
+                    : "text-muted-foreground hover:text-[#1e3a5f]"
+                }`}
+              >
+                {t("landing.billingYearly")}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                  billingCycle === "yearly"
+                    ? "bg-[#c9a96e] text-[#1e3a5f]"
+                    : "bg-emerald-100 text-emerald-700"
+                }`}>
+                  {t("landing.yearlyDiscount")}
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Country Selector — all countries, hidden ones shown as "coming soon" */}
+          <div className="flex flex-wrap justify-center gap-2 mb-10">
+            {COUNTRIES.map((c) => {
+              const isHidden = !showCountries.includes(c.code);
+              if (isHidden) {
+                return (
+                  <div
+                    key={c.code}
+                    title={t("landing.comingSoon")}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-[#e8eaed] bg-[#fafafa] text-sm font-medium text-muted-foreground/50 cursor-not-allowed select-none"
+                  >
+                    <span className="text-lg opacity-50">{c.flag}</span>
+                    <span>{c.name}</span>
+                    <span className="text-[10px] bg-[#f0f0f0] text-muted-foreground px-1.5 py-0.5 rounded-full">
+                      {t("landing.comingSoon")}
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <motion.button
+                  key={c.code}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedCountry(c.code)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    selectedCountry === c.code
+                      ? "bg-[#1e3a5f] text-white border-[#1e3a5f]"
+                      : "bg-white text-[#1e3a5f] border-[#e8eaed] hover:bg-[#f8f9fb]"
+                  }`}
+                >
+                  <span className="text-lg">{c.flag}</span>
+                  <span>{c.name}</span>
+                </motion.button>
+              );
+            })}
           </div>
 
           {/* Plans Grid */}
           {isLoading ? (
             <div className="text-center py-12 text-muted-foreground">{t("landing.pricingLoading")}</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {(plans || []).map((plan: any, i: number) => (
-                <motion.div
-                  key={plan.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.15 }}
-                  whileHover={{ y: -8 }}
-                  className={`relative rounded-2xl border-2 transition-all hover:shadow-xl ${
-                    plan.nameEn === "Professional"
-                      ? "border-[#1e3a5f] ring-4 ring-[#1e3a5f]/10 shadow-lg"
-                      : "border-[#e8eaed]"
-                  }`}
-                >
-                  {plan.nameEn === "Professional" && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-[#c9a96e] text-[#1e3a5f] font-bold px-4 py-1">
-                        {t("landing.pricingPopular")}
-                      </Badge>
-                    </div>
-                  )}
-                  <div className="p-6 space-y-5">
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-bold text-[#1e3a5f]">{lang === "ar" ? plan.nameAr : plan.nameEn}</h3>
-                      <p className="text-sm text-muted-foreground">{lang === "ar" ? plan.nameEn : plan.nameAr}</p>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-[#1e3a5f]">{plan.price}</span>
-                      <span className="text-muted-foreground">{plan.currency}</span>
-                      <span className="text-sm text-muted-foreground">/ {BillingLabelI18n(plan.billingCycle, t)}</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        {plan.maxUsers} {t("landing.planUsers")}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <FileText className="w-4 h-4" />
-                        {plan.maxTransactions} {t("landing.planTransactions")}
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {(plan.features || []).map((feature: string, fi: number) => (
-                        <div key={fi} className="flex items-center gap-2 text-sm">
-                          <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <span className="text-[#1e3a5f]/80">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      className="w-full h-12 text-base font-bold"
-                      variant={plan.nameEn === "Professional" ? "default" : "outline"}
-                      style={plan.nameEn === "Professional" ? { backgroundColor: "#1e3a5f", color: "white" } : {}}
-                      onClick={() => setLocation(`/signup?plan=${plan.id}&country=${selectedCountry}`)}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${selectedCountry}-${billingCycle}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+              >
+                {(plans || []).map((plan: any, i: number) => {
+                  const monthlyPrice = Number(plan.price);
+                  const displayPrice = billingCycle === "yearly"
+                    ? Math.round(monthlyPrice * 10)
+                    : monthlyPrice;
+                  const isPopular = plan.nameEn === "Professional";
+                  return (
+                    <motion.div
+                      key={plan.id}
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5, delay: i * 0.1 }}
+                      whileHover={{ y: -8 }}
+                      className={`relative rounded-2xl border-2 transition-all hover:shadow-xl ${
+                        isPopular
+                          ? "border-[#1e3a5f] ring-4 ring-[#1e3a5f]/10 shadow-lg"
+                          : "border-[#e8eaed]"
+                      }`}
                     >
-                      <ArrowLeft className="w-4 h-4 me-2" />
-                      {t("landing.planCta")}
-                    </Button>
-                    <p className="text-xs text-center text-muted-foreground">
-                      <Clock className="w-3 h-3 inline me-1" />
-                      {t("landing.planTrial")}
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                      {isPopular && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <Badge className="bg-[#c9a96e] text-[#1e3a5f] font-bold px-4 py-1">
+                            {t("landing.pricingPopular")}
+                          </Badge>
+                        </div>
+                      )}
+                      <div className="p-6 space-y-5">
+                        <div className="space-y-1">
+                          <h3 className="text-xl font-bold text-[#1e3a5f]">{lang === "ar" ? plan.nameAr : plan.nameEn}</h3>
+                          <p className="text-sm text-muted-foreground">{lang === "ar" ? plan.nameEn : plan.nameAr}</p>
+                        </div>
+                        <div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-4xl font-bold text-[#1e3a5f]">{displayPrice.toLocaleString()}</span>
+                            <span className="text-muted-foreground">{plan.currency}</span>
+                            <span className="text-sm text-muted-foreground">
+                              / {billingCycle === "yearly" ? t("landing.billingYearly") : t("landing.billingMonthly")}
+                            </span>
+                          </div>
+                          {billingCycle === "yearly" && (
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground line-through">
+                                {Math.round(monthlyPrice * 12).toLocaleString()} {plan.currency}
+                              </span>
+                              <Badge className="bg-emerald-100 text-emerald-700 text-xs border-0 font-semibold">
+                                {t("landing.yearlyDiscount")}
+                              </Badge>
+                            </div>
+                          )}
+                          {billingCycle === "monthly" && (
+                            <p className="text-xs text-[#c9a96e] mt-1 font-medium">
+                              {t("landing.yearlySavingHint", { amount: Math.round(monthlyPrice * 2).toLocaleString(), currency: plan.currency })}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Users className="w-4 h-4" />
+                            {plan.maxUsers} {t("landing.planUsers")}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-4 h-4" />
+                            {plan.maxTransactions} {t("landing.planTransactions")}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {(plan.features || []).map((feature: string, fi: number) => (
+                            <div key={fi} className="flex items-center gap-2 text-sm">
+                              <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <span className="text-[#1e3a5f]/80">{feature}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          className="w-full h-12 text-base font-bold"
+                          variant={isPopular ? "default" : "outline"}
+                          style={isPopular ? { backgroundColor: "#1e3a5f", color: "white" } : {}}
+                          onClick={() => setLocation(`/signup?plan=${plan.id}&country=${selectedCountry}&billing=${billingCycle}`)}
+                        >
+                          <ArrowLeft className="w-4 h-4 me-2" />
+                          {t("landing.planCta")}
+                        </Button>
+                        <p className="text-xs text-center text-muted-foreground">
+                          <Clock className="w-3 h-3 inline me-1" />
+                          {t("landing.planTrial")}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </motion.div>
+            </AnimatePresence>
           )}
         </div>
       </section>
