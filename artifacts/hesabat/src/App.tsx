@@ -34,6 +34,8 @@ import { AdminSupport } from "@/pages/admin-support";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { ChoosePlan } from "@/pages/choose-plan";
 import { LandingPage } from "@/pages/landing";
+import { FAQ } from "@/pages/faq";
+import { Terms } from "@/pages/terms";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SuperAdminLayout } from "@/components/super-admin-layout";
 import { SuperAdminLogin } from "@/pages/super-admin/login";
@@ -44,6 +46,7 @@ import { SuperAdminPlans } from "@/pages/super-admin/plans";
 import { SuperAdminSubscriptions } from "@/pages/super-admin/subscriptions";
 import { SuperAdminSupportTickets } from "@/pages/super-admin/support-tickets";
 import { SuperAdminAnalytics } from "@/pages/super-admin/analytics";
+import { SuperAdminLandingPage } from "@/pages/super-admin/landing-page";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -114,6 +117,7 @@ function SuperAdminRoutes() {
         <Route path="/super-admin/subscriptions" component={SuperAdminSubscriptions} />
         <Route path="/super-admin/support-tickets" component={SuperAdminSupportTickets} />
         <Route path="/super-admin/analytics" component={SuperAdminAnalytics} />
+        <Route path="/super-admin/landing-page" component={SuperAdminLandingPage} />
         <Route component={SuperAdminDashboard} />
       </Switch>
     </SuperAdminLayout>
@@ -130,6 +134,8 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/invite/:token" component={AcceptInvite} />
       <Route path="/choose-plan" component={ChoosePlan} />
+      <Route path="/faq" component={FAQ} />
+      <Route path="/terms" component={Terms} />
       <Route path="/super-admin/login" component={SuperAdminLogin} />
       <Route path="/super-admin" component={SuperAdminRoutes} />
       <Route path="/super-admin/*" component={SuperAdminRoutes} />

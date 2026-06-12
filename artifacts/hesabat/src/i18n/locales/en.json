@@ -2105,7 +2105,8 @@
       "plans": "Plans",
       "subscriptions": "Subscriptions",
       "supportTickets": "Support Tickets",
-      "analytics": "Analytics"
+      "analytics": "Analytics",
+      "landingPage": "Landing Page"
     },
     "dashboardTitle": "Dashboard",
     "dashboardSubtitle": "Overview of the Hesabat system",

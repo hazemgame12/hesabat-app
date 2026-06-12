@@ -12,6 +12,7 @@ import {
   LogOut,
   Shield,
   ChevronDown,
+  Globe,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,6 +24,7 @@ const navItems = [
   { labelKey: "superAdmin.nav.subscriptions", icon: Receipt, href: "/super-admin/subscriptions" },
   { labelKey: "superAdmin.nav.supportTickets", icon: LifeBuoy, href: "/super-admin/support-tickets" },
   { labelKey: "superAdmin.nav.analytics", icon: BarChart3, href: "/super-admin/analytics" },
+  { labelKey: "superAdmin.nav.landingPage", icon: Globe, href: "/super-admin/landing-page" },
 ];
 
 function useLinkActive() {

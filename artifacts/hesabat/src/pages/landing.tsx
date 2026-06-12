@@ -6,6 +6,16 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { type CountryCode } from "@workspace/locale";
 import { motion, useInView, AnimatePresence } from "framer-motion";
@@ -263,6 +273,7 @@ export function LandingPage() {
   const [showAllCountries, setShowAllCountries] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
   const [expandedComparison, setExpandedComparison] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   useEffect(() => {
     if (user) setLocation("/dashboard");
@@ -277,6 +288,8 @@ export function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background font-sans overflow-x-hidden" dir="rtl">
+      <SEOHead />
+      <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
       {/* ═══════════════════  Navbar  ═══════════════════ */}
       <nav className="sticky top-0 z-50 border-b bg-white/90 backdrop-blur-md shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -304,6 +317,15 @@ export function LandingPage() {
 
       {/* ═══════════════════  Hero  ═══════════════════ */}
       <section className="relative overflow-hidden py-20 lg:py-32 bg-[#1e3a5f]">
+        {/* Hero background image */}
+        <div className="absolute inset-0">
+          <img
+            src="/hero-image.png"
+            alt="Hesabat Dashboard"
+            className="w-full h-full object-cover opacity-20"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1e3a5f]/80 via-[#1e3a5f]/90 to-[#1e3a5f]" />
+        </div>
         {/* Animated background particles */}
         <div className="absolute inset-0 overflow-hidden">
           {[...Array(20)].map((_, i) => (
@@ -406,8 +428,64 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ═══════════════════  Why Us Banner  ═══════════════════ */}
+      {/* ═══════════════════  About Us  ═══════════════════ */}
       <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="order-2 md:order-1 relative"
+            >
+              <div className="absolute inset-0 bg-[#1e3a5f]/10 rounded-3xl transform translate-x-4 translate-y-4 -z-10" />
+              <div className="rounded-3xl shadow-xl w-full h-[400px] bg-gradient-to-br from-[#1e3a5f] to-[#2a4a6f] flex items-center justify-center">
+                <div className="text-center text-white">
+                  <div className="w-20 h-20 rounded-2xl bg-[#c9a96e]/20 flex items-center justify-center mx-auto mb-4">
+                    <span className="text-4xl font-bold text-[#c9a96e]">ح</span>
+                  </div>
+                  <div className="text-3xl font-bold">حسابات</div>
+                  <div className="text-white/70 mt-2">نظام محاسبة سحابي متكامل</div>
+                </div>
+              </div>
+              <div className="absolute -bottom-6 -right-6 bg-white p-6 rounded-2xl shadow-xl max-w-[250px] border">
+                <div className="text-[#1e3a5f] font-bold text-4xl mb-2">20+</div>
+                <div className="text-sm font-semibold text-muted-foreground">عامًا من الخبرة في الاستشارات المالية</div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="order-1 md:order-2 space-y-6"
+            >
+              <div className="inline-block px-4 py-1.5 bg-[#1e3a5f]/10 text-[#1e3a5f] rounded-full font-semibold text-sm mb-2">
+                من نحن
+              </div>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#1e3a5f] leading-tight">
+                نبذة عنا | حسابات للاستشارات المالية
+              </h2>
+              <div className="w-20 h-1.5 bg-[#c9a96e] rounded-full mb-6" />
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                تأسس حسابات لتكون واحدة من أهم صروح المجال المحاسبي والمالي في الوطن العربي – وذلك من خلال الاعتماد على كوادرها التي تؤهلها لكسب احترام عملائنا.
+              </p>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                نقدم في حسابات فريقًا من المحترفين المؤهلين لتقديم أعلى مستوى من الخدمات المالية والمحاسبية. سواء كنت رائد أعمال أو شركة قائمة، فإننا نقدم لك الدعم والخبرة اللازمة لتحقيق النجاح المالي.
+              </p>
+              <div className="pt-6 border-t border-gray-200 mt-6">
+                <p className="font-bold text-xl text-[#1e3a5f]">أ/ حازم جميل سيد سليم</p>
+                <p className="text-[#c9a96e] font-medium">مؤسس الشركة</p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════  Why Us Banner  ═══════════════════ */}
+      <section className="py-16 bg-[#f8f9fb]">
         <div className="container mx-auto px-4">
           <SectionTitle
             title="ليش حسابات؟"
@@ -753,7 +831,7 @@ export function LandingPage() {
               </div>
               <Button
                 className="bg-[#1e3a5f] hover:bg-[#152d4d] h-12 px-6"
-                onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
+                onClick={() => setContactOpen(true)}
               >
                 <MessageCircle className="w-5 h-5 me-2" />
                 تواصل معنا
@@ -1067,7 +1145,7 @@ export function LandingPage() {
                 size="lg"
                 variant="outline"
                 className="h-14 text-lg px-8 border-[#1e3a5f] text-[#1e3a5f] hover:bg-[#1e3a5f]/5"
-                onClick={() => setLocation("/support")}
+                onClick={() => setContactOpen(true)}
               >
                 <MessageCircle className="w-5 h-5 me-2" />
                 اسألنا سؤال
@@ -1103,9 +1181,9 @@ export function LandingPage() {
             <div>
               <h4 className="font-bold text-[#1e3a5f] mb-4">الشركة</h4>
               <div className="space-y-2 text-sm">
-                <button onClick={() => setLocation("/support")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">تواصل معنا</button>
-                <button onClick={() => setLocation("/support")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">الأسئلة الشائعة</button>
-                <button onClick={() => setLocation("/support")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">الشروط والأحكام</button>
+                <button onClick={() => setContactOpen(true)} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">تواصل معنا</button>
+                <button onClick={() => setLocation("/faq")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">الأسئلة الشائعة</button>
+                <button onClick={() => setLocation("/terms")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">الشروط والأحكام</button>
               </div>
             </div>
             <div>
@@ -1113,7 +1191,7 @@ export function LandingPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="w-4 h-4 text-[#1e3a5f]" />
-                  <span>support@hesabat.app</span>
+                  <span>Info@hg-audit.com</span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Phone className="w-4 h-4 text-[#1e3a5f]" />
@@ -1148,3 +1226,107 @@ function Factory(props: any) { return <Building2 {...props} />; }
 function Stethoscope(props: any) { return <HeartHandshake {...props} />; }
 function GraduationCap(props: any) { return <Award {...props} />; }
 function Hotel(props: any) { return <Building2 {...props} />; }
+
+/* ═══════════════════ Contact Modal  ═══════════════════ */
+
+function ContactModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [loading, setLoading] = React.useState(false);
+  const [success, setSuccess] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const formRef = React.useRef<HTMLFormElement>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const fd = new FormData(e.currentTarget);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fd.get("name"),
+          email: fd.get("email"),
+          phone: fd.get("phone"),
+          message: fd.get("message"),
+          source: "hesabat-landing",
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setSuccess(true);
+      formRef.current?.reset();
+      setTimeout(() => {
+        setSuccess(false);
+        onClose();
+      }, 3000);
+    } catch {
+      setError("حدث خطأ، يرجى المحاولة مرة أخرى أو التواصل عبر الواتساب.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-right">تواصل معنا</DialogTitle>
+          <DialogDescription className="text-right">
+            فريقنا جاهز للإجابة على استفساراتك
+          </DialogDescription>
+        </DialogHeader>
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">الاسم</label>
+            <Input name="name" required placeholder="اسمك الكامل" className="h-12" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">البريد الإلكتروني</label>
+              <Input name="email" type="email" placeholder="name@company.com" className="h-12" dir="ltr" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">رقم الهاتف</label>
+              <Input name="phone" type="tel" placeholder="+20 10 0000 0000" className="h-12" dir="ltr" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">الرسالة</label>
+            <Textarea name="message" placeholder="كيف يمكننا مساعدتك؟" className="min-h-[100px] resize-none" />
+          </div>
+          {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              إلغاء
+            </Button>
+            <Button type="submit" disabled={loading || success} className="bg-[#1e3a5f] hover:bg-[#152d4d]">
+              {success ? "✓ تم الإرسال" : (loading ? "جاري الإرسال..." : "إرسال")}
+            </Button>
+          </DialogFooter>
+        </form>
+        <div className="border-t pt-4 mt-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground justify-center">
+            <Mail className="w-4 h-4" />
+            <span>Info@hg-audit.com</span>
+            <span className="mx-2">·</span>
+            <Phone className="w-4 h-4" />
+            <span dir="ltr">+20 102 581 2666</span>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ═══════════════════ SEO Meta  ═══════════════════ */
+
+function SEOHead() {
+  React.useEffect(() => {
+    document.title = "حسابات | برنامج محاسبة سحابي متكامل للشركات العربية";
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) {
+      meta.setAttribute("content", "نظام محاسبة سحابي متكامل للشركات الصغيرة والمتوسطة. فواتير، تقارير، ضرائب، موردين، مخزون، ودعم 24/7. 14 يوم تجربة مجانية.");
+    }
+  }, []);
+  return null;
+}

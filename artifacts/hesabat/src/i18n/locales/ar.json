@@ -2105,7 +2105,8 @@
       "plans": "الباقات",
       "subscriptions": "الاشتراكات",
       "supportTickets": "تذاكر الدعم",
-      "analytics": "التحليلات"
+      "analytics": "التحليلات",
+      "landingPage": "صفحة الهبوف"
     },
     "dashboardTitle": "لوحة المعلومات",
     "dashboardSubtitle": "نظرة عامة على نظام حسابات",
