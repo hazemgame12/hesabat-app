@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+attached_assets/*.dmg
+attached_assets/*.exe
+attached_assets/*.pkg
