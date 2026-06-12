@@ -36,6 +36,7 @@ import { ChoosePlan } from "@/pages/choose-plan";
 import { LandingPage } from "@/pages/landing";
 import { FAQ } from "@/pages/faq";
 import { Terms } from "@/pages/terms";
+import { ArticlesPage } from "@/pages/articles";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SuperAdminLayout } from "@/components/super-admin-layout";
 import { SuperAdminLogin } from "@/pages/super-admin/login";
@@ -136,6 +137,7 @@ function Router() {
       <Route path="/choose-plan" component={ChoosePlan} />
       <Route path="/faq" component={FAQ} />
       <Route path="/terms" component={Terms} />
+      <Route path="/articles" component={ArticlesPage} />
       <Route path="/super-admin/login" component={SuperAdminLogin} />
       <Route path="/super-admin" component={SuperAdminRoutes} />
       <Route path="/super-admin/*" component={SuperAdminRoutes} />

@@ -262,11 +262,20 @@ function BillingLabel(cycle: string) {
     default: return cycle;
   }
 }
+function BillingLabelI18n(cycle: string, t: any) {
+  switch (cycle) {
+    case "monthly": return t("landing.billingMonthly");
+    case "quarterly": return t("landing.billingQuarterly");
+    case "yearly": return t("landing.billingYearly");
+    default: return cycle;
+  }
+}
 
 /* ───────────────────────────────  Main Page  ─────────────────────────────── */
 
 export function LandingPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language as "ar" | "en";
   const { data: user } = useGetCurrentUser();
   const [, setLocation] = useLocation();
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>("EG");
@@ -287,7 +296,7 @@ export function LandingPage() {
   const visibleCountries = showAllCountries ? COUNTRIES : COUNTRIES.slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-background font-sans overflow-x-hidden" dir="rtl">
+    <div className="min-h-screen bg-background font-sans overflow-x-hidden" dir={t("lang.ar") === "العربية" ? "rtl" : "ltr"}>
       <SEOHead />
       <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
       {/* ═══════════════════  Navbar  ═══════════════════ */}
@@ -295,9 +304,9 @@ export function LandingPage() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setLocation("/")}>
             <div className="w-10 h-10 rounded-xl bg-[#1e3a5f] flex items-center justify-center text-white font-bold text-xl shadow-md">
-              ح
+              {t("common.appInitial")}
             </div>
-            <span className="font-bold text-xl text-[#1e3a5f]">حسابات</span>
+            <span className="font-bold text-xl text-[#1e3a5f]">{t("common.appName")}</span>
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher className="hidden sm:inline-flex" />
@@ -309,7 +318,7 @@ export function LandingPage() {
               onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
             >
               <Zap className="w-4 h-4 me-2" />
-              جرب مجاناً
+              {t("landing.ctaNav")}
             </Button>
           </div>
         </div>
@@ -355,7 +364,7 @@ export function LandingPage() {
             >
               <Badge className="text-base px-5 py-2 bg-[#c9a96e]/20 text-[#c9a96e] border-[#c9a96e]/30 mb-4">
                 <Sparkles className="w-4 h-4 me-2" />
-                14 يوم تجربة مجانية — لا بطاقة ائتمان مطلوبة
+                {t("landing.heroBadge")}
               </Badge>
             </motion.div>
             <motion.h1
@@ -364,9 +373,9 @@ export function LandingPage() {
               transition={{ duration: 0.7, delay: 0.2 }}
               className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white"
             >
-              برنامج محاسبة ذكي
+              {t("landing.heroTitle")}
               <br />
-              <span className="text-[#c9a96e]">للشركات الصغيرة والمتوسطة</span>
+              <span className="text-[#c9a96e]">{t("landing.heroSubtitle")}</span>
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
@@ -374,8 +383,7 @@ export function LandingPage() {
               transition={{ duration: 0.7, delay: 0.4 }}
               className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto leading-relaxed"
             >
-              نظام محاسبة سحابي متكامل عربي — سهل الاستخدام، تقارير مالية مميزة، ضرائب حسب دولتك،
-              تقارير متعددة العملات، ودعم 24/7 من محاسبين مراجعين معتمدين.
+              {t("landing.heroDescription")}
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -389,7 +397,7 @@ export function LandingPage() {
                 onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
               >
                 <Zap className="w-5 h-5 me-2" />
-                ابدأ تجربتك المجانية
+                {t("landing.ctaPrimary")}
               </Button>
               <Button
                 size="lg"
@@ -398,7 +406,7 @@ export function LandingPage() {
                 onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })}
               >
                 <Play className="w-5 h-5 me-2" />
-                شوف المميزات
+                {t("landing.ctaSecondary")}
               </Button>
             </motion.div>
             {/* Trust badges */}
@@ -408,10 +416,10 @@ export function LandingPage() {
               transition={{ delay: 1 }}
               className="flex flex-wrap justify-center gap-6 pt-8 text-white/60 text-sm"
             >
-              <span className="flex items-center gap-2"><Lock className="w-4 h-4" /> أمان سحابي 256-bit</span>
-              <span className="flex items-center gap-2"><Globe className="w-4 h-4" /> 7 دول عربية</span>
-              <span className="flex items-center gap-2"><Download className="w-4 h-4" /> نقل البيانات مجاناً</span>
-              <span className="flex items-center gap-2"><Headphones className="w-4 h-4" /> دعم 24/7</span>
+              <span className="flex items-center gap-2"><Lock className="w-4 h-4" /> {t("landing.trustCloud")}</span>
+              <span className="flex items-center gap-2"><Globe className="w-4 h-4" /> {t("landing.trustCountries")}</span>
+              <span className="flex items-center gap-2"><Download className="w-4 h-4" /> {t("landing.trustMigration")}</span>
+              <span className="flex items-center gap-2"><Headphones className="w-4 h-4" /> {t("landing.trustSupport")}</span>
             </motion.div>
           </div>
         </div>
@@ -445,13 +453,13 @@ export function LandingPage() {
                   <div className="w-20 h-20 rounded-2xl bg-[#c9a96e]/20 flex items-center justify-center mx-auto mb-4">
                     <span className="text-4xl font-bold text-[#c9a96e]">ح</span>
                   </div>
-                  <div className="text-3xl font-bold">حسابات</div>
-                  <div className="text-white/70 mt-2">نظام محاسبة سحابي متكامل</div>
+                  <div className="text-3xl font-bold">{t("common.appName")}</div>
+                  <div className="text-white/70 mt-2">{t("landing.heroSubtitle")}</div>
                 </div>
               </div>
               <div className="absolute -bottom-6 -right-6 bg-white p-6 rounded-2xl shadow-xl max-w-[250px] border">
                 <div className="text-[#1e3a5f] font-bold text-4xl mb-2">20+</div>
-                <div className="text-sm font-semibold text-muted-foreground">عامًا من الخبرة في الاستشارات المالية</div>
+                <div className="text-sm font-semibold text-muted-foreground">{t("landing.aboutYears")}</div>
               </div>
             </motion.div>
 
@@ -463,21 +471,21 @@ export function LandingPage() {
               className="order-1 md:order-2 space-y-6"
             >
               <div className="inline-block px-4 py-1.5 bg-[#1e3a5f]/10 text-[#1e3a5f] rounded-full font-semibold text-sm mb-2">
-                من نحن
+                {t("landing.aboutLabel")}
               </div>
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[#1e3a5f] leading-tight">
-                نبذة عنا | حسابات للاستشارات المالية
+                {t("landing.aboutTitle")}
               </h2>
               <div className="w-20 h-1.5 bg-[#c9a96e] rounded-full mb-6" />
               <p className="text-lg text-muted-foreground leading-relaxed">
-                تأسس حسابات لتكون واحدة من أهم صروح المجال المحاسبي والمالي في الوطن العربي – وذلك من خلال الاعتماد على كوادرها التي تؤهلها لكسب احترام عملائنا.
+                {t("landing.aboutParagraph1")}
               </p>
               <p className="text-lg text-muted-foreground leading-relaxed">
-                نقدم في حسابات فريقًا من المحترفين المؤهلين لتقديم أعلى مستوى من الخدمات المالية والمحاسبية. سواء كنت رائد أعمال أو شركة قائمة، فإننا نقدم لك الدعم والخبرة اللازمة لتحقيق النجاح المالي.
+                {t("landing.aboutParagraph2")}
               </p>
               <div className="pt-6 border-t border-gray-200 mt-6">
-                <p className="font-bold text-xl text-[#1e3a5f]">أ/ حازم جميل سيد سليم</p>
-                <p className="text-[#c9a96e] font-medium">مؤسس الشركة</p>
+                <p className="font-bold text-xl text-[#1e3a5f]">{t("landing.aboutFounderName")}</p>
+                <p className="text-[#c9a96e] font-medium">{t("landing.aboutFounderRole")}</p>
               </div>
             </motion.div>
           </div>
@@ -488,19 +496,19 @@ export function LandingPage() {
       <section className="py-16 bg-[#f8f9fb]">
         <div className="container mx-auto px-4">
           <SectionTitle
-            title="ليش حسابات؟"
-            subtitle="فريق من مراجعين حسابات معتمدين بنا برنامج يحل مشاكل الشركات العربية"
+            title={t("landing.whyUsTitle")}
+            subtitle={t("landing.whyUsSubtitle")}
           />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { icon: MousePointer, title: "سهل جداً", desc: "مايحتاج خبرة محاسبية. تصميم بسيط وخطوات واضحة. خلاص من Excel المعقد!" },
-              { icon: BarChart3, title: "تقارير مالية مميزة", desc: "رسوم بيانية تفاعلية، تقارير مخصصة، تصدير لـ Excel/PDF، ولوحات تحكم ذكية" },
-              { icon: FileText, title: "ضرائب حسب دولتك", desc: "تقارير ضريبية جاهزة تتوافق مع قوانين مصر، السعودية، الإمارات، وكل الدول اللي بنخدمها" },
-              { icon: Globe, title: "تقارير متعددة العملات", desc: "تابع أعمالك بأي عملة. تحويل تلقائي، تقارير مقارنة، وإعادة تقييم آلية" },
-              { icon: Sparkles, title: "تطوير مستمر", desc: "نضيف ميزات جديدة كل شهر. النظام يكبر مع شركتك ويتطور حسب احتياجات السوق" },
-              { icon: Wrench, title: "ميزات مخصصة ليك", desc: "عندك فكرة ميزة محتاجها؟ قولنا ونبنيها لك. نشتغل معك مش بس نبيعلك برنامج" },
-              { icon: Truck, title: "نقل البيانات مجاناً", desc: "ننقل بياناتك من أي برنامج أو Excel لحسابات مجاناً لفترة محدودة. ماياخد منك وقت" },
-              { icon: Headphones, title: "دعم 24/7 من محاسبين", desc: "فريق دعم متخصص من مراجعين حسابات معتمدين. مش بس دعم فني، دعم محاسبي احترافي" },
+              { icon: MousePointer, title: t("landing.whyUsEasy"), desc: t("landing.whyUsEasyDesc") },
+              { icon: BarChart3, title: t("landing.whyUsReports"), desc: t("landing.whyUsReportsDesc") },
+              { icon: FileText, title: t("landing.whyUsTaxes"), desc: t("landing.whyUsTaxesDesc") },
+              { icon: Globe, title: t("landing.whyUsMultiCurrency"), desc: t("landing.whyUsMultiCurrencyDesc") },
+              { icon: Sparkles, title: t("landing.whyUsContinuous"), desc: t("landing.whyUsContinuousDesc") },
+              { icon: Wrench, title: t("landing.whyUsCustom"), desc: t("landing.whyUsCustomDesc") },
+              { icon: Truck, title: t("landing.whyUsMigration"), desc: t("landing.whyUsMigrationDesc") },
+              { icon: Headphones, title: t("landing.whyUsSupport"), desc: t("landing.whyUsSupportDesc") },
             ].map((item, i) => (
               <motion.div
                 key={i}
@@ -526,8 +534,8 @@ export function LandingPage() {
       <section className="py-16 bg-[#f8f9fb]">
         <div className="container mx-auto px-4">
           <SectionTitle
-            title="تقارير مالية تفاعلية"
-            subtitle="شوف أعمالك من زوايا مختلفة — رسوم بيانية، مقارنات، وتحليلات متقدمة"
+            title={t("landing.chartsTitle")}
+            subtitle={t("landing.chartsSubtitle")}
           />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Bar Chart */}
@@ -538,16 +546,16 @@ export function LandingPage() {
               transition={{ duration: 0.6 }}
               className="bg-white rounded-2xl p-6 shadow-sm border"
             >
-              <h3 className="font-bold text-[#1e3a5f] mb-6 text-center">الأداء المالي الشهري</h3>
+              <h3 className="font-bold text-[#1e3a5f] mb-6 text-center">{t("landing.chartMonthly")}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={CHART_DATA}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
                   <XAxis dataKey="name" tick={{ fill: "#666", fontSize: 12 }} />
                   <YAxis tick={{ fill: "#666", fontSize: 12 }} />
                   <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }} />
-                  <Bar dataKey="revenue" fill="#1e3a5f" radius={[4, 4, 0, 0]} name="الإيرادات" />
-                  <Bar dataKey="expenses" fill="#c9a96e" radius={[4, 4, 0, 0]} name="المصروفات" />
-                  <Bar dataKey="profit" fill="#10b981" radius={[4, 4, 0, 0]} name="الربح" />
+                  <Bar dataKey="revenue" fill="#1e3a5f" radius={[4, 4, 0, 0]} name={t("landing.chartRevenue")} />
+                  <Bar dataKey="expenses" fill="#c9a96e" radius={[4, 4, 0, 0]} name={t("landing.chartExpenses")} />
+                  <Bar dataKey="profit" fill="#10b981" radius={[4, 4, 0, 0]} name={t("landing.chartProfit")} />
                 </BarChart>
               </ResponsiveContainer>
             </motion.div>
@@ -561,7 +569,7 @@ export function LandingPage() {
                 transition={{ duration: 0.6, delay: 0.1 }}
                 className="bg-white rounded-2xl p-6 shadow-sm border"
               >
-                <h3 className="font-bold text-[#1e3a5f] mb-4 text-center">توزيع الإيرادات</h3>
+                <h3 className="font-bold text-[#1e3a5f] mb-4 text-center">{t("landing.chartDistribution")}</h3>
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
                     <Pie data={PIE_DATA} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value">
@@ -589,7 +597,7 @@ export function LandingPage() {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="bg-white rounded-2xl p-6 shadow-sm border"
               >
-                <h3 className="font-bold text-[#1e3a5f] mb-4 text-center">تقارير متعددة العملات</h3>
+                <h3 className="font-bold text-[#1e3a5f] mb-4 text-center">{t("landing.chartMultiCurrency")}</h3>
                 <ResponsiveContainer width="100%" height={160}>
                   <AreaChart data={CURRENCY_DATA}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e8eaed" />
@@ -612,8 +620,8 @@ export function LandingPage() {
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <SectionTitle
-            title="لمن صممنا حسابات؟"
-            subtitle="نظام مرن يناسب مختلف أنواع الشركات والمؤسسات في العالم العربي"
+            title={t("landing.targetTitle")}
+            subtitle={t("landing.targetSubtitle")}
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {TARGET_AUDIENCES.map((item, i) => (
@@ -647,7 +655,7 @@ export function LandingPage() {
               viewport={{ once: true }}
               className="text-3xl md:text-4xl font-bold text-white mb-3"
             >
-              12+ ميزة في نظام واحد
+              {t("landing.featuresCount")}
             </motion.h2>
             <motion.p
               initial={{ opacity: 0, y: 10 }}
@@ -656,7 +664,7 @@ export function LandingPage() {
               transition={{ delay: 0.1 }}
               className="text-lg text-white/70"
             >
-              اضغط على أي ميزة لمعرفة التفاصيل
+              {t("landing.featuresInstruction")}
             </motion.p>
           </div>
 
@@ -709,15 +717,15 @@ export function LandingPage() {
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <SectionTitle
-            title="قارن بنفسك"
-            subtitle="شوف الفرق بين حسابات والطريقة التقليدية (Excel / البرامج المعقدة)"
+            title={t("landing.compareTitle")}
+            subtitle={t("landing.compareSubtitle")}
           />
           <div className="max-w-3xl mx-auto">
             <div className="bg-[#f8f9fb] rounded-2xl border overflow-hidden">
               <div className="grid grid-cols-[1fr_100px_100px] bg-[#1e3a5f] text-white p-4 font-bold text-center">
-                <div className="text-right">الميزة</div>
-                <div>حسابات</div>
-                <div>التقليدي</div>
+                <div className="text-right">{t("landing.compareFeature")}</div>
+                <div>{t("common.appName")}</div>
+                <div>{t("landing.compareTraditional")}</div>
               </div>
               {COMPARISON.slice(0, expandedComparison ? undefined : 6).map((row, i) => (
                 <motion.div
@@ -743,7 +751,7 @@ export function LandingPage() {
                   className="w-full py-3 text-[#1e3a5f] font-medium hover:bg-[#1e3a5f]/5 transition-colors flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
-                  عرض المزيد
+                  {t("landing.compareShowMore")}
                 </button>
               )}
             </div>
@@ -882,8 +890,8 @@ export function LandingPage() {
       <section className="py-16 bg-[#f8f9fb]">
         <div className="container mx-auto px-4">
           <SectionTitle
-            title="شركات تثق بنا"
-            subtitle="من مصر للسعودية للإمارات — شركات من كل القطاعات بتستخدم حسابات"
+            title={t("landing.testimonialsTitle")}
+            subtitle={t("landing.testimonialsSubtitle")}
           />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {TESTIMONIALS.map((t, i) => (
@@ -921,8 +929,8 @@ export function LandingPage() {
       <section id="pricing" className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <SectionTitle
-            title="اختر الباقة المناسبة"
-            subtitle="باقات مرنة تناسب كل حجم عمل — ابدأ مجاناً لـ 14 يوم"
+            title={t("landing.pricingTitle")}
+            subtitle={t("landing.pricingSubtitle")}
           />
 
           {/* Country Selector */}
@@ -949,14 +957,14 @@ export function LandingPage() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#e8eaed] bg-white text-sm font-medium text-muted-foreground hover:bg-[#f8f9fb] transition-colors"
               >
                 <ChevronDown className="w-4 h-4" />
-                المزيد
+                {t("landing.moreCountries")}
               </button>
             )}
           </div>
 
           {/* Plans Grid */}
           {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">جاري تحميل الباقات...</div>
+            <div className="text-center py-12 text-muted-foreground">{t("landing.pricingLoading")}</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {(plans || []).map((plan: any, i: number) => (
@@ -976,28 +984,28 @@ export function LandingPage() {
                   {plan.nameEn === "Professional" && (
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                       <Badge className="bg-[#c9a96e] text-[#1e3a5f] font-bold px-4 py-1">
-                        الأكثر شيوعاً
+                        {t("landing.pricingPopular")}
                       </Badge>
                     </div>
                   )}
                   <div className="p-6 space-y-5">
                     <div className="space-y-1">
-                      <h3 className="text-xl font-bold text-[#1e3a5f]">{plan.nameAr}</h3>
-                      <p className="text-sm text-muted-foreground">{plan.nameEn}</p>
+                      <h3 className="text-xl font-bold text-[#1e3a5f]">{lang === "ar" ? plan.nameAr : plan.nameEn}</h3>
+                      <p className="text-sm text-muted-foreground">{lang === "ar" ? plan.nameEn : plan.nameAr}</p>
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-bold text-[#1e3a5f]">{plan.price}</span>
                       <span className="text-muted-foreground">{plan.currency}</span>
-                      <span className="text-sm text-muted-foreground">/ {BillingLabel(plan.billingCycle)}</span>
+                      <span className="text-sm text-muted-foreground">/ {BillingLabelI18n(plan.billingCycle, t)}</span>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        {plan.maxUsers} مستخدم
+                        {plan.maxUsers} {t("landing.planUsers")}
                       </span>
                       <span className="flex items-center gap-1">
                         <FileText className="w-4 h-4" />
-                        {plan.maxTransactions} عملية
+                        {plan.maxTransactions} {t("landing.planTransactions")}
                       </span>
                     </div>
                     <div className="space-y-2">
@@ -1015,11 +1023,11 @@ export function LandingPage() {
                       onClick={() => setLocation(`/signup?plan=${plan.id}&country=${selectedCountry}`)}
                     >
                       <ArrowLeft className="w-4 h-4 me-2" />
-                      ابدأ التجربة المجانية
+                      {t("landing.planCta")}
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
                       <Clock className="w-3 h-3 inline me-1" />
-                      14 يوم مجاناً — لا بطاقة ائتمان
+                      {t("landing.planTrial")}
                     </p>
                   </div>
                 </motion.div>
@@ -1044,20 +1052,17 @@ export function LandingPage() {
                   <Headphones className="w-7 h-7 text-[#c9a96e]" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold text-white">دعم 24/7</h2>
-                  <p className="text-[#c9a96e]">من محاسبين مراجعين معتمدين</p>
+                  <h2 className="text-3xl font-bold text-white">{t("landing.supportTitle")}</h2>
+                  <p className="text-[#c9a96e]">{t("landing.supportSubtitle")}</p>
                 </div>
               </div>
-              <p className="text-white/80 leading-relaxed mb-6">
-                فريق الدعم عندنا مش بس فني — احنا محاسبين مراجعين معتمدين. يعني لما تسأل سؤال محاسبي،
-                هتحصل على إجابة من خبير. نجاوبك في أي وقت، يوم أو ليل.
-              </p>
+              <p className="text-white/80 leading-relaxed mb-6">{t("landing.supportDesc")}</p>
               <div className="space-y-3 mb-6">
                 {[
-                  "دعم فني ومحاسبي في آنٍ واحد",
-                  "استشارات مجانية في الباقات المدفوعة",
-                  "رد في أقل من ساعة",
-                  "دعم عبر شات، واتساب، وemail",
+                  t("landing.support1"),
+                  t("landing.support2"),
+                  t("landing.support3"),
+                  t("landing.support4"),
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-[#c9a96e] shrink-0" />
@@ -1068,11 +1073,11 @@ export function LandingPage() {
               <div className="flex gap-3">
                 <Button className="bg-[#c9a96e] hover:bg-[#b8956a] text-[#1e3a5f] font-bold h-12 px-6">
                   <MessageCircle className="w-5 h-5 me-2" />
-                  شات مباشر
+                  {t("landing.supportChat")}
                 </Button>
                 <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 h-12 px-6">
                   <Phone className="w-5 h-5 me-2" />
-                  اتصل بنا
+                  {t("landing.supportCall")}
                 </Button>
               </div>
             </motion.div>
@@ -1086,29 +1091,26 @@ export function LandingPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-[#c9a96e] flex items-center justify-center text-[#1e3a5f] font-bold">
-                    أ
+                    {t("landing.supportUserInitial")}
                   </div>
                   <div className="bg-white/20 rounded-lg p-3 rounded-tr-none">
-                    <p className="text-white text-sm">عندي سؤال عن ضريبة القيمة المضافة في مصر</p>
+                    <p className="text-white text-sm">{t("landing.supportChat1")}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 flex-row-reverse">
                   <div className="w-12 h-12 rounded-full bg-[#1e3a5f] border border-[#c9a96e] flex items-center justify-center text-[#c9a96e] font-bold">
-                    ح
+                    {t("common.appInitial")}
                   </div>
                   <div className="bg-[#c9a96e]/30 rounded-lg p-3 rounded-tl-none">
-                    <p className="text-white text-sm">
-                      في مصر، VAT = 14% على معظم السلع. النظام بيحسبها آلياً ويطلع تقرير جاهز للإيداع.
-                      محتاج مساعدة في إعداد التقرير؟
-                    </p>
+                    <p className="text-white text-sm">{t("landing.supportChat2")}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-[#c9a96e] flex items-center justify-center text-[#1e3a5f] font-bold">
-                    أ
+                    {t("landing.supportUserInitial")}
                   </div>
                   <div className="bg-white/20 rounded-lg p-3 rounded-tr-none">
-                    <p className="text-white text-sm">أيوة، يساعدني جداً شكراً!</p>
+                    <p className="text-white text-sm">{t("landing.supportChat3")}</p>
                   </div>
                 </div>
               </div>
@@ -1127,10 +1129,10 @@ export function LandingPage() {
             className="max-w-3xl mx-auto text-center"
           >
             <h2 className="text-3xl md:text-4xl font-bold text-[#1e3a5f] mb-4">
-              جاهز تبدأ مع حسابات؟
+              {t("landing.ctaTitle")}
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              14 يوم تجربة مجانية — لا بطاقة ائتمان — انقل بياناتك مجاناً — دعم 24/7
+              {t("landing.ctaDescription")}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
@@ -1139,7 +1141,7 @@ export function LandingPage() {
                 onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
               >
                 <Zap className="w-5 h-5 me-2" />
-                ابدأ تجربتك المجانية
+                {t("landing.ctaPrimary")}
               </Button>
               <Button
                 size="lg"
@@ -1148,7 +1150,7 @@ export function LandingPage() {
                 onClick={() => setContactOpen(true)}
               >
                 <MessageCircle className="w-5 h-5 me-2" />
-                اسألنا سؤال
+                {t("landing.ctaSecondary")}
               </Button>
             </div>
           </motion.div>
@@ -1162,32 +1164,33 @@ export function LandingPage() {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 rounded-xl bg-[#1e3a5f] flex items-center justify-center text-white font-bold text-lg">
-                  ح
+                  {t("common.appInitial")}
                 </div>
-                <span className="font-bold text-xl text-[#1e3a5f]">حسابات</span>
+                <span className="font-bold text-xl text-[#1e3a5f]">{t("common.appName")}</span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                نظام محاسبة سحابي متكامل للشركات العربية. سهل، ذكي، ومدعوم من مراجعين حسابات معتمدين.
+                {t("landing.footerDescription")}
               </p>
             </div>
             <div>
-              <h4 className="font-bold text-[#1e3a5f] mb-4">المنتج</h4>
+              <h4 className="font-bold text-[#1e3a5f] mb-4">{t("landing.footerProduct")}</h4>
               <div className="space-y-2 text-sm">
-                <button onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">المميزات</button>
-                <button onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">الباقات</button>
-                <button onClick={() => setLocation("/support")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">الدعم</button>
+                <button onClick={() => document.getElementById("features")?.scrollIntoView({ behavior: "smooth" })} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.footerFeatures")}</button>
+                <button onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.footerPricing")}</button>
+                <button onClick={() => setLocation("/support")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.footerSupport")}</button>
               </div>
             </div>
             <div>
-              <h4 className="font-bold text-[#1e3a5f] mb-4">الشركة</h4>
+              <h4 className="font-bold text-[#1e3a5f] mb-4">{t("landing.footerCompany")}</h4>
               <div className="space-y-2 text-sm">
-                <button onClick={() => setContactOpen(true)} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">تواصل معنا</button>
-                <button onClick={() => setLocation("/faq")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">الأسئلة الشائعة</button>
-                <button onClick={() => setLocation("/terms")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">الشروط والأحكام</button>
+                <button onClick={() => setContactOpen(true)} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.footerContact")}</button>
+                <button onClick={() => setLocation("/articles")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("articles.pageTitle")}</button>
+                <button onClick={() => setLocation("/faq")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.faqTitle")}</button>
+                <button onClick={() => setLocation("/terms")} className="block text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.termsTitle")}</button>
               </div>
             </div>
             <div>
-              <h4 className="font-bold text-[#1e3a5f] mb-4">تواصل معنا</h4>
+              <h4 className="font-bold text-[#1e3a5f] mb-4">{t("landing.footerContactUs")}</h4>
               <div className="space-y-3 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Mail className="w-4 h-4 text-[#1e3a5f]" />
@@ -1199,19 +1202,19 @@ export function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4 text-[#1e3a5f]" />
-                  <span>القاهرة، مصر</span>
+                  <span>{t("landing.footerAddress")}</span>
                 </div>
               </div>
             </div>
           </div>
           <div className="border-t pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-sm text-muted-foreground">
-              © 2026 حسابات. جميع الحقوق محفوظة.
+              {t("landing.footerCopyright")}
             </div>
             <div className="flex items-center gap-6 text-sm">
-              <button onClick={() => setLocation("/login")} className="text-muted-foreground hover:text-[#1e3a5f] transition-colors">تسجيل الدخول</button>
-              <button onClick={() => setLocation("/signup")} className="text-muted-foreground hover:text-[#1e3a5f] transition-colors">إنشاء حساب</button>
-              <button onClick={() => setLocation("/support")} className="text-muted-foreground hover:text-[#1e3a5f] transition-colors">الدعم</button>
+              <button onClick={() => setLocation("/login")} className="text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.footerLogin")}</button>
+              <button onClick={() => setLocation("/signup")} className="text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.footerSignup")}</button>
+              <button onClick={() => setLocation("/support")} className="text-muted-foreground hover:text-[#1e3a5f] transition-colors">{t("landing.footerSupport2")}</button>
             </div>
           </div>
         </div>
@@ -1230,6 +1233,7 @@ function Hotel(props: any) { return <Building2 {...props} />; }
 /* ═══════════════════ Contact Modal  ═══════════════════ */
 
 function ContactModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -1260,7 +1264,7 @@ function ContactModal({ open, onClose }: { open: boolean; onClose: () => void })
         onClose();
       }, 3000);
     } catch {
-      setError("حدث خطأ، يرجى المحاولة مرة أخرى أو التواصل عبر الواتساب.");
+      setError(t("landing.contactError"));
     } finally {
       setLoading(false);
     }
@@ -1270,37 +1274,37 @@ function ContactModal({ open, onClose }: { open: boolean; onClose: () => void })
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-right">تواصل معنا</DialogTitle>
+          <DialogTitle className="text-right">{t("landing.contactTitle")}</DialogTitle>
           <DialogDescription className="text-right">
-            فريقنا جاهز للإجابة على استفساراتك
+            {t("landing.contactSubtitle")}
           </DialogDescription>
         </DialogHeader>
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div>
-            <label className="block text-sm font-medium mb-1">الاسم</label>
-            <Input name="name" required placeholder="اسمك الكامل" className="h-12" />
+            <label className="block text-sm font-medium mb-1">{t("landing.contactName")}</label>
+            <Input name="name" required placeholder={t("landing.contactNamePlaceholder")} className="h-12" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">البريد الإلكتروني</label>
+              <label className="block text-sm font-medium mb-1">{t("landing.contactEmail")}</label>
               <Input name="email" type="email" placeholder="name@company.com" className="h-12" dir="ltr" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">رقم الهاتف</label>
+              <label className="block text-sm font-medium mb-1">{t("landing.contactPhone")}</label>
               <Input name="phone" type="tel" placeholder="+20 10 0000 0000" className="h-12" dir="ltr" />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">الرسالة</label>
-            <Textarea name="message" placeholder="كيف يمكننا مساعدتك؟" className="min-h-[100px] resize-none" />
+            <label className="block text-sm font-medium mb-1">{t("landing.contactMessage")}</label>
+            <Textarea name="message" placeholder={t("landing.contactMessagePlaceholder")} className="min-h-[100px] resize-none" />
           </div>
           {error && <p className="text-sm text-red-500 font-medium">{error}</p>}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>
-              إلغاء
+              {t("landing.contactCancel")}
             </Button>
             <Button type="submit" disabled={loading || success} className="bg-[#1e3a5f] hover:bg-[#152d4d]">
-              {success ? "✓ تم الإرسال" : (loading ? "جاري الإرسال..." : "إرسال")}
+              {success ? t("landing.contactSent") : (loading ? t("landing.contactSending") : t("landing.contactSend"))}
             </Button>
           </DialogFooter>
         </form>
@@ -1320,7 +1324,7 @@ function ContactModal({ open, onClose }: { open: boolean; onClose: () => void })
 
 /* ═══════════════════ SEO Meta  ═══════════════════ */
 
-function SEOHead() {
+export function SEOHead() {
   React.useEffect(() => {
     document.title = "حسابات | برنامج محاسبة سحابي متكامل للشركات العربية";
     const meta = document.querySelector('meta[name="description"]');

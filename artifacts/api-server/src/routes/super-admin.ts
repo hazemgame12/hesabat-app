@@ -8,6 +8,10 @@ import {
   subscriptionPlansTable,
   subscriptionsTable,
   superAdminsTable,
+  siteSettingsTable,
+  articlesTable,
+  insertArticleSchema,
+  updateArticleSchema,
 } from "@workspace/db";
 import { requireSuperAdmin, requireSuperAdminRole } from "../middleware/super-admin";
 import { hashPassword } from "../lib/auth";
@@ -433,6 +437,131 @@ router.patch("/super-admin/users/:id/password", async (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+/* ══════════════════  Landing Page Settings (site_settings)  ══════════════════ */
+
+const LANDING_KEYS = [
+  "heroTitle", "heroSubtitle", "heroDescription", "ctaPrimary", "ctaSecondary",
+  "badgeText", "aboutTitle", "aboutText", "metaTitle", "metaDescription",
+  "keywords", "ogImage", "trialDays", "companyCount", "userCount",
+  "countryCount", "featureCount", "heroImage",
+  "whyUsTitle", "whyUsSubtitle",
+  "featuresTitle", "featuresSubtitle",
+  "targetAudiencesTitle", "targetAudiencesSubtitle",
+  "testimonialsTitle", "testimonialsSubtitle",
+  "pricingTitle", "pricingSubtitle",
+  "ctaTitle", "ctaSubtitle",
+  "supportTitle", "supportSubtitle",
+];
+
+// GET /super-admin/landing-page
+router.get("/super-admin/landing-page", async (req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(siteSettingsTable)
+      .where(inArray(siteSettingsTable.key, LANDING_KEYS));
+    const result: Record<string, string> = {};
+    for (const row of rows) {
+      result[row.key] = row.value;
+    }
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch landing page settings");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /super-admin/landing-page
+router.post("/super-admin/landing-page", async (req, res) => {
+  try {
+    const body = req.body as Record<string, string>;
+    for (const [key, value] of Object.entries(body)) {
+      if (LANDING_KEYS.includes(key)) {
+        await db
+          .insert(siteSettingsTable)
+          .values({ key, value: String(value ?? ""), updatedAt: new Date() })
+          .onConflictDoUpdate({
+            target: siteSettingsTable.key,
+            set: { value: String(value ?? ""), updatedAt: new Date() },
+          });
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to save landing page settings");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+/* ══════════════════  Articles (super-admin CRUD)  ══════════════════ */
+
+// GET /super-admin/articles
+router.get("/super-admin/articles", async (req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(articlesTable)
+      .orderBy(desc(articlesTable.createdAt));
+    res.json(rows);
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch super-admin articles");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /super-admin/articles
+router.post("/super-admin/articles", async (req, res) => {
+  const parsed = insertArticleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues });
+    return;
+  }
+  try {
+    const [row] = await db.insert(articlesTable).values(parsed.data).returning();
+    res.status(201).json(row);
+  } catch (err) {
+    req.log.error({ err }, "Failed to create article");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// PUT /super-admin/articles/:id
+router.put("/super-admin/articles/:id", async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
+  const parsed = updateArticleSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues });
+    return;
+  }
+  try {
+    const [row] = await db
+      .update(articlesTable)
+      .set({ ...parsed.data, updatedAt: new Date() })
+      .where(eq(articlesTable.id, id))
+      .returning();
+    if (!row) {
+      res.status(404).json({ error: "Article not found" });
+      return;
+    }
+    res.json(row);
+  } catch (err) {
+    req.log.error({ err }, "Failed to update article");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// DELETE /super-admin/articles/:id
+router.delete("/super-admin/articles/:id", async (req, res) => {
+  const id = parseInt(req.params["id"] as string);
+  try {
+    await db.delete(articlesTable).where(eq(articlesTable.id, id));
+    res.status(204).send();
+  } catch (err) {
+    req.log.error({ err }, "Failed to delete article");
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 export default router;
