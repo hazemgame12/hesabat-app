@@ -41,7 +41,8 @@ import {
   buildTransferLines,
   type BankMovementType,
 } from "../lib/bank-posting";
-import { exportWorkbook, parseSheet } from "../lib/excel";
+import { exportWorkbook, parseSheet, cellStr } from "../lib/excel";
+import { z } from "zod/v4";
 import { safeAudit } from "../lib/audit";
 
 const router = Router();
@@ -1167,6 +1168,133 @@ router.post(
       req.log.error({ err }, "Failed to import bank movements");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Import Wizard — Step 1: parse file and return raw rows (no DB write)
+// ---------------------------------------------------------------------------
+router.post(
+  "/bank/movements/parse-preview",
+  requireAuth,
+  requireCapability("bank:create"),
+  handleXlsxUpload,
+  async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: "لم يتم رفع أي ملف" });
+      return;
+    }
+    try {
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(req.file.buffer as unknown as ArrayBuffer);
+      const ws = wb.worksheets[0];
+      if (!ws) {
+        res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
+        return;
+      }
+      const headerRow = ws.getRow(1);
+      const headers: string[] = [];
+      headerRow.eachCell({ includeEmpty: false }, (cell) => {
+        const s = cellStr(cell.value);
+        if (s) headers.push(s);
+      });
+      if (headers.length === 0) {
+        res.status(400).json({ error: "لا توجد أعمدة في الملف" });
+        return;
+      }
+      const rows: Array<{ rowNo: number; cells: string[] }> = [];
+      for (let r = 2; r <= ws.rowCount; r++) {
+        const row = ws.getRow(r);
+        const cells = headers.map((_, i) => cellStr(row.getCell(i + 1).value));
+        if (cells.every((c) => !c)) continue;
+        rows.push({ rowNo: r, cells });
+      }
+      if (rows.length === 0) {
+        res.status(400).json({ error: "الملف لا يحتوي على حركات" });
+        return;
+      }
+      res.json({ headers, rows, totalRows: rows.length });
+    } catch (err) {
+      req.log.error({ err }, "parse-preview failed");
+      res.status(500).json({ error: "تعذّر قراءة الملف" });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Import Wizard — Step 3: save pre-validated rows from wizard
+// ---------------------------------------------------------------------------
+const ImportBatchRowSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "صيغة التاريخ يجب أن تكون YYYY-MM-DD"),
+  direction: z.enum(["in", "out"]),
+  amount: z.number().positive("المبلغ يجب أن يكون أكبر من صفر"),
+  notes: z.string().nullish(),
+  reference: z.string().nullish(),
+});
+const ImportBatchBodySchema = z.object({
+  rows: z.array(ImportBatchRowSchema).min(1, "يجب أن يحتوي الملف على حركة واحدة على الأقل"),
+});
+
+router.post(
+  "/bank/movements/import-batch",
+  requireAuth,
+  requireCapability("bank:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const bankAccountId = req.query["bankAccountId"];
+    if (typeof bankAccountId !== "string" || !bankAccountId) {
+      res.status(400).json({ error: "يجب تحديد الحساب البنكي" });
+      return;
+    }
+    const parsed = ImportBatchBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "بيانات غير صحيحة", details: parsed.error.flatten() });
+      return;
+    }
+    const [bank] = await db
+      .select()
+      .from(bankAccountsTable)
+      .where(
+        and(
+          eq(bankAccountsTable.id, bankAccountId),
+          eq(bankAccountsTable.companyId, companyId),
+        ),
+      )
+      .limit(1);
+    if (!bank) {
+      res.status(404).json({ error: "الحساب البنكي غير موجود" });
+      return;
+    }
+    await db.transaction(async (tx) => {
+      for (const r of parsed.data.rows) {
+        await tx.insert(bankMovementsTable).values({
+          companyId,
+          bankAccountId: bank.id,
+          date: r.date,
+          type: r.direction === "in" ? "deposit" : "withdrawal",
+          direction: r.direction,
+          amount: String(r.amount),
+          currency: bank.currency,
+          exchangeRate: "1",
+          notes: r.notes ?? null,
+          reference: r.reference ?? null,
+          createdBy: req.auth!.userId,
+        });
+      }
+    });
+    await safeAudit(
+      db,
+      {
+        companyId,
+        userId: req.auth!.userId,
+        action: "import",
+        entity: "bank_movement",
+        entityLabel: `${parsed.data.rows.length} حركة بنكية (wizard)`,
+        newValue: { imported: parsed.data.rows.length, bankAccountId: bank.id },
+      },
+      req.log,
+    );
+    res.json({ imported: parsed.data.rows.length });
   },
 );
 
