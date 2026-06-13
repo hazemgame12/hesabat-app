@@ -9,13 +9,14 @@ import {
   useGetCurrentUser,
   useGetCompany,
   useListCurrencies,
+  useListBankAccounts,
   getListAccountsQueryKey,
   getGetDashboardSummaryQueryKey,
   type Account,
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus, ChevronDown, ChevronLeft, Check, X, Trash2, Edit2, Lock, Unlock, Search, FolderOpen, FolderClosed, ListPlus, ChevronUp } from "lucide-react";
+import { Building2, Plus, ChevronDown, ChevronLeft, Check, X, Trash2, Edit2, Lock, Unlock, Search, FolderOpen, FolderClosed, ListPlus, ChevronUp, Landmark } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -160,6 +161,11 @@ export function Accounts() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: accounts = [], isLoading } = useListAccounts();
+  const { data: bankAccounts = [] } = useListBankAccounts();
+  const linkedBankAccountIds = React.useMemo(
+    () => new Set(bankAccounts.map((b) => b.accountId).filter(Boolean) as string[]),
+    [bankAccounts],
+  );
   const { data: company } = useGetCompany();
   const baseCurrency = company?.baseCurrency ?? "EGP";
   const createAccount = useCreateAccount();
@@ -273,6 +279,9 @@ export function Accounts() {
   const onSubmit = (data: z.infer<typeof accountSchema>) => {
     if (data.currencyType !== "fixed") {
       data.currency = null;
+    }
+    if ((data.parentId as string) === "") {
+      data.parentId = null;
     }
     if (modalMode === "create") {
       createAccount.mutate({ data }, {
@@ -434,6 +443,12 @@ export function Accounts() {
             {node.isGroup && (
               <span className="text-[10px] font-bold text-secondary-foreground bg-secondary px-2 py-0.5 rounded-full flex-shrink-0">
                 {t("accounts.mainAccountBadge")}
+              </span>
+            )}
+            {!node.isGroup && linkedBankAccountIds.has(node.id) && (
+              <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1">
+                <Landmark className="w-3 h-3" />
+                {t("accounts.bankLinkedBadge", { defaultValue: "مرتبط بالبنك" })}
               </span>
             )}
             {isLocked && (

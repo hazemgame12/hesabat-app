@@ -128,6 +128,10 @@ export function Bank() {
     () => chartAccounts.filter((a: Account) => !a.isGroup),
     [chartAccounts],
   );
+  const cashLeafAccounts = useMemo(
+    () => chartAccounts.filter((a: Account) => !a.isGroup && a.type === "asset"),
+    [chartAccounts],
+  );
 
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
@@ -278,7 +282,7 @@ export function Bank() {
         <AccountModal
           mode={accountModal.mode}
           account={accountModal.account}
-          leafAccounts={leafAccounts}
+          leafAccounts={cashLeafAccounts}
           accountLabel={accountLabel}
           t={t}
           onClose={() => setAccountModal(null)}

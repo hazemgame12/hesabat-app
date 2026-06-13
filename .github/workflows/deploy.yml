@@ -36,7 +36,7 @@ jobs:
           version: 9
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build libs
         run: pnpm run typecheck:libs
@@ -59,7 +59,7 @@ jobs:
             git fetch origin
             git checkout main
             git pull origin main
-            pnpm install --frozen-lockfile
+            pnpm install --no-frozen-lockfile
             pnpm run typecheck:libs
             NODE_ENV=production pnpm --filter @workspace/hesabat exec vite build --config vite.production.config.ts
             pnpm --filter @workspace/api-server run build
