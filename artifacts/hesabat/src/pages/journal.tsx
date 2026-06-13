@@ -54,6 +54,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ImportWizard } from "@/components/import-wizard/ImportWizard";
 
 function displayName(
   e: { nameAr: string; nameEn?: string | null },
@@ -151,6 +152,7 @@ export function Journal() {
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   const onImportChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -264,6 +266,13 @@ export function Journal() {
                 accept=".xlsx,.xls"
                 onChange={onImportChange}
               />
+              <button
+                onClick={() => setImportWizardOpen(true)}
+                className="flex items-center gap-2 bg-card border px-4 py-2 rounded-full text-sm font-bold text-foreground hover:bg-muted/50 transition-colors"
+              >
+                <Upload className="w-4 h-4" />
+                {t("importWizard.openButton")}
+              </button>
               <button
                 onClick={() => importInputRef.current?.click()}
                 disabled={importing}
@@ -379,6 +388,17 @@ export function Journal() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {importWizardOpen && (
+        <ImportWizard
+          moduleType="journal"
+          onClose={() => setImportWizardOpen(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey() });
+            setImportWizardOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

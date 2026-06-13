@@ -39,6 +39,7 @@ import {
   RotateCcw,
   ArrowDownLeft,
   ArrowUpRight,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -57,6 +58,7 @@ import { PaymentModal } from "./PaymentModal";
 import { InvoiceReports } from "./InvoiceReports";
 import { PartyView, type PartyViewParty } from "./PartyView";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
+import { ImportWizard } from "@/components/import-wizard/ImportWizard";
 
 type Kind = "sales" | "purchase";
 type Tab = "invoices" | "returns" | "payments" | "reports";
@@ -90,6 +92,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | undefined>(undefined);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -344,6 +347,15 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {tab === "invoices" && canCreate && (
+            <button
+              onClick={() => setImportWizardOpen(true)}
+              className="flex items-center gap-2 bg-card border px-4 py-2 rounded-full text-sm font-bold text-foreground hover:bg-muted/50 transition-colors"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              {t("importWizard.openButton")}
+            </button>
+          )}
           {tab === "invoices" && (
             <ExcelToolbar
               exportPath={`/api/invoices/export?kind=${kind}`}
@@ -1169,6 +1181,19 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {importWizardOpen && (
+        <ImportWizard
+          moduleType={kind}
+          onClose={() => setImportWizardOpen(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({
+              queryKey: getListInvoicesQueryKey({ kind }),
+            });
+            setImportWizardOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

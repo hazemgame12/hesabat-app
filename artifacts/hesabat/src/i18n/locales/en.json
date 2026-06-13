@@ -2494,5 +2494,8 @@
     "backToArticles": "Back to Articles",
     "noArticles": "No articles published yet",
     "articleNotFound": "Article not found"
+  },
+  "importWizard": {
+    "openButton": "Import Wizard"
   }
 }

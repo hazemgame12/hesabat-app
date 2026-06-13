@@ -2494,5 +2494,8 @@
     "backToArticles": "الرجوع للمقالات",
     "noArticles": "لم يتم نشر أي مقالات بعد",
     "articleNotFound": "المقالة غير موجودة"
+  },
+  "importWizard": {
+    "openButton": "استيراد احترافي"
   }
 }
