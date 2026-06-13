@@ -41,7 +41,7 @@ import {
   buildTransferLines,
   type BankMovementType,
 } from "../lib/bank-posting";
-import { exportWorkbook, parseSheet, cellStr } from "../lib/excel";
+import { exportWorkbook, parseSheet } from "../lib/excel";
 import { z } from "zod/v4";
 import { safeAudit } from "../lib/audit";
 
@@ -1230,9 +1230,14 @@ const ImportBatchRowSchema = z.object({
   amount: z.number().positive("المبلغ يجب أن يكون أكبر من صفر"),
   notes: z.string().nullish(),
   reference: z.string().nullish(),
+  counterpartAccountId: z.string().nullish(),
+  costCenterId: z.string().nullish(),
+  description: z.string().nullish(),
 });
 const ImportBatchBodySchema = z.object({
-  rows: z.array(ImportBatchRowSchema).min(1, "يجب أن يحتوي الملف على حركة واحدة على الأقل"),
+  rows: z
+    .array(ImportBatchRowSchema)
+    .min(1, "يجب أن يحتوي الملف على حركة واحدة على الأقل"),
 });
 
 router.post(
@@ -1248,7 +1253,9 @@ router.post(
     }
     const parsed = ImportBatchBodySchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "بيانات غير صحيحة", details: parsed.error.flatten() });
+      res
+        .status(400)
+        .json({ error: "بيانات غير صحيحة", details: parsed.error.flatten() });
       return;
     }
     const [bank] = await db
@@ -1265,23 +1272,103 @@ router.post(
       res.status(404).json({ error: "الحساب البنكي غير موجود" });
       return;
     }
+    // Validate bank's linked chart account (needed for JE posting).
+    if (!(await isLeafAccount(bank.accountId, companyId))) {
+      res.status(400).json({ error: "الحساب المحاسبي المرتبط بالحساب البنكي غير صحيح" });
+      return;
+    }
+    // Pre-validate all unique counterpart accounts referenced in this batch.
+    const uniqueCounterpartIds = [
+      ...new Set(
+        parsed.data.rows
+          .map((r) => r.counterpartAccountId ?? null)
+          .filter((x): x is string => !!x),
+      ),
+    ];
+    for (const id of uniqueCounterpartIds) {
+      if (!(await isLeafAccount(id, companyId))) {
+        res
+          .status(400)
+          .json({ error: `الحساب المقابل غير صحيح أو حساب رئيسي: ${id}` });
+        return;
+      }
+    }
+    const uniqueCostCenterIds = [
+      ...new Set(
+        parsed.data.rows
+          .map((r) => r.costCenterId ?? null)
+          .filter((x): x is string => !!x),
+      ),
+    ];
+    for (const id of uniqueCostCenterIds) {
+      if (!(await isCompanyCostCenter(id, companyId))) {
+        res.status(400).json({ error: `مركز التكلفة غير صحيح: ${id}` });
+        return;
+      }
+    }
+    const baseCurrency = await loadBaseCurrency(companyId);
+    let postedCount = 0;
+    let pendingCount = 0;
     await db.transaction(async (tx) => {
       for (const r of parsed.data.rows) {
-        await tx.insert(bankMovementsTable).values({
-          companyId,
-          bankAccountId: bank.id,
-          date: r.date,
-          type: r.direction === "in" ? "deposit" : "withdrawal",
-          direction: r.direction,
-          amount: String(r.amount),
-          currency: bank.currency,
-          exchangeRate: "1",
-          notes: r.notes ?? null,
-          reference: r.reference ?? null,
-          createdBy: req.auth!.userId,
-        });
+        const counterpartAccountId = r.counterpartAccountId ?? null;
+        if (counterpartAccountId) {
+          // ---- Classified row: post a journal entry immediately ----
+          const entry = await createDraftJournalEntry(tx, {
+            companyId,
+            baseCurrency,
+            date: r.date,
+            reference: r.reference ?? "حركة بنكية",
+            notes: r.description ?? null,
+            createdBy: req.auth!.userId,
+            status: "posted",
+            lines: buildMovementLines({
+              direction: r.direction,
+              bankChartAccountId: bank.accountId,
+              counterpartAccountId,
+              amountBase: r.amount,
+              description: r.description ?? null,
+              costCenterId: r.costCenterId ?? null,
+            }),
+          });
+          await tx.insert(bankMovementsTable).values({
+            companyId,
+            bankAccountId: bank.id,
+            date: r.date,
+            type: r.direction === "in" ? "deposit" : "withdrawal",
+            direction: r.direction,
+            amount: String(r.amount),
+            currency: bank.currency,
+            exchangeRate: "1",
+            counterpartAccountId,
+            costCenterId: r.costCenterId ?? null,
+            description: r.description ?? null,
+            notes: r.notes ?? null,
+            reference: r.reference ?? null,
+            journalEntryId: entry.id,
+            createdBy: req.auth!.userId,
+          });
+          postedCount++;
+        } else {
+          // ---- Unclassified row: save as pending ----
+          await tx.insert(bankMovementsTable).values({
+            companyId,
+            bankAccountId: bank.id,
+            date: r.date,
+            type: r.direction === "in" ? "deposit" : "withdrawal",
+            direction: r.direction,
+            amount: String(r.amount),
+            currency: bank.currency,
+            exchangeRate: "1",
+            notes: r.notes ?? null,
+            reference: r.reference ?? null,
+            createdBy: req.auth!.userId,
+          });
+          pendingCount++;
+        }
       }
     });
+    const total = parsed.data.rows.length;
     await safeAudit(
       db,
       {
@@ -1289,12 +1376,17 @@ router.post(
         userId: req.auth!.userId,
         action: "import",
         entity: "bank_movement",
-        entityLabel: `${parsed.data.rows.length} حركة بنكية (wizard)`,
-        newValue: { imported: parsed.data.rows.length, bankAccountId: bank.id },
+        entityLabel: `${total} حركة بنكية (wizard)`,
+        newValue: {
+          imported: total,
+          posted: postedCount,
+          pending: pendingCount,
+          bankAccountId: bank.id,
+        },
       },
       req.log,
     );
-    res.json({ imported: parsed.data.rows.length });
+    res.json({ imported: total, posted: postedCount, pending: pendingCount });
   },
 );
 

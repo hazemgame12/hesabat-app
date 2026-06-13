@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
+import { BankImportWizard } from "@/components/bank-import-wizard";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -953,17 +954,18 @@ function MovementsTab({
         </div>
         <div className="flex items-center gap-2">
           {effectiveId && (
-            <ExcelToolbar
-              exportPath={`/api/bank/movements/export?bankAccountId=${effectiveId}`}
-              importPath={`/api/bank/movements/import?bankAccountId=${effectiveId}`}
-              canImport={canCreate}
-              invalidateKeys={[
-                getListBankMovementsQueryKey({ bankAccountId: effectiveId }),
-                getListBankAccountsQueryKey(),
-                getListJournalEntriesQueryKey(),
-              ]}
-              onImported={() => invalidate()}
-            />
+            <>
+              <ExcelToolbar
+                exportPath={`/api/bank/movements/export?bankAccountId=${effectiveId}`}
+              />
+              <BankImportWizard
+                bankAccountId={effectiveId}
+                canImport={canCreate}
+                leafAccounts={leafAccounts}
+                costCenters={costCenters}
+                onDone={() => invalidate()}
+              />
+            </>
           )}
           {canCreate && (
             <button
