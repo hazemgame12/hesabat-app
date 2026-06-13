@@ -754,7 +754,7 @@ export function Accounts() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit(onSubmit)} className="p-6 flex flex-col gap-5 overflow-y-auto">
+              <form id="account-form" onSubmit={handleSubmit(onSubmit)} className="p-6 flex flex-col gap-5 overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-bold text-foreground">{t("accounts.accountCode")}</label>
@@ -877,6 +877,7 @@ export function Accounts() {
               </button>
               <button 
                 type={modalMode === "bulk" ? "button" : "submit"}
+                form={modalMode === "bulk" ? undefined : "account-form"}
                 onClick={modalMode === "bulk" ? handleBulkSubmit : undefined}
                 disabled={createAccount.isPending || updateAccount.isPending || bulkPending}
                 className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-5 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"

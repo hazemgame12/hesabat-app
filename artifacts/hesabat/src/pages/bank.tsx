@@ -147,9 +147,19 @@ export function Bank() {
   const updateAccount = useUpdateBankAccount();
   const deleteAccount = useDeleteBankAccount();
 
+  const linkedChartAccountIds = useMemo(
+    () => new Set(accounts.map((a) => a.accountId).filter(Boolean)),
+    [accounts],
+  );
+  const unlinkedCashAccounts = useMemo(
+    () => cashLeafAccounts.filter((a) => !linkedChartAccountIds.has(a.id)),
+    [cashLeafAccounts, linkedChartAccountIds],
+  );
+
   const [accountModal, setAccountModal] = useState<{
     mode: "create" | "edit";
     account: BankAccount | null;
+    preselectedAccountId?: string;
   } | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<BankAccount | null>(
     null,
@@ -235,6 +245,7 @@ export function Bank() {
         {tab === "accounts" && (
           <AccountsTable
             accounts={accounts}
+            unlinkedCashAccounts={unlinkedCashAccounts}
             loading={accountsLoading}
             fmt={fmt}
             lang={lang}
@@ -248,6 +259,13 @@ export function Bank() {
             }
             onEdit={(a) => setAccountModal({ mode: "edit", account: a })}
             onDelete={(a) => setAccountToDelete(a)}
+            onQuickAdd={(chartAccount) =>
+              setAccountModal({
+                mode: "create",
+                account: null,
+                preselectedAccountId: chartAccount.id,
+              })
+            }
           />
         )}
         {tab === "movements" && (
@@ -282,6 +300,7 @@ export function Bank() {
         <AccountModal
           mode={accountModal.mode}
           account={accountModal.account}
+          preselectedAccountId={accountModal.preselectedAccountId}
           leafAccounts={cashLeafAccounts}
           accountLabel={accountLabel}
           t={t}
@@ -326,6 +345,7 @@ export function Bank() {
 // ---------------------------------------------------------------------------
 function AccountsTable({
   accounts,
+  unlinkedCashAccounts,
   loading,
   fmt,
   lang,
@@ -337,8 +357,10 @@ function AccountsTable({
   onCreate,
   onEdit,
   onDelete,
+  onQuickAdd,
 }: {
   accounts: BankAccount[];
+  unlinkedCashAccounts: Account[];
   loading: boolean;
   fmt: (n: number) => string;
   lang: string;
@@ -350,6 +372,7 @@ function AccountsTable({
   onCreate: () => void;
   onEdit: (a: BankAccount) => void;
   onDelete: (a: BankAccount) => void;
+  onQuickAdd: (chartAccount: Account) => void;
 }) {
   return (
     <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
@@ -487,6 +510,44 @@ function AccountsTable({
           </tbody>
         </table>
       )}
+      {!loading && unlinkedCashAccounts.length > 0 && (
+        <div className="border-t">
+          <div className="px-6 py-3 bg-muted/30 flex items-center gap-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+              {t("bank.unlinkedAccounts")}
+            </span>
+            <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              {unlinkedCashAccounts.length}
+            </span>
+          </div>
+          <div className="divide-y">
+            {unlinkedCashAccounts.map((ca) => (
+              <div
+                key={ca.id}
+                className="flex items-center justify-between px-6 py-3 hover:bg-muted/20 transition-colors"
+              >
+                <div>
+                  <span className="text-sm font-medium text-foreground">
+                    {displayName(ca, lang)}
+                  </span>
+                  <span className="text-xs text-muted-foreground ms-2 font-mono">
+                    {ca.code}
+                  </span>
+                </div>
+                {canCreate && (
+                  <button
+                    onClick={() => onQuickAdd(ca)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-primary hover:bg-primary/10 px-3 py-1.5 rounded-full transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {t("bank.registerAccount")}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -497,6 +558,7 @@ function AccountsTable({
 function AccountModal({
   mode,
   account,
+  preselectedAccountId,
   leafAccounts,
   accountLabel,
   t,
@@ -507,6 +569,7 @@ function AccountModal({
 }: {
   mode: "create" | "edit";
   account: BankAccount | null;
+  preselectedAccountId?: string;
   leafAccounts: Account[];
   accountLabel: (a: Account) => string;
   t: (k: string, o?: any) => string;
@@ -542,7 +605,7 @@ function AccountModal({
   const [openingBalanceDate, setOpeningBalanceDate] = useState(
     account?.openingBalanceDate ?? "",
   );
-  const [accountId, setAccountId] = useState(account?.accountId ?? "");
+  const [accountId, setAccountId] = useState(preselectedAccountId ?? account?.accountId ?? "");
   const [isActive, setIsActive] = useState(account?.isActive ?? true);
 
   const submit = () => {

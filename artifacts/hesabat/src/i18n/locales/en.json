@@ -1492,6 +1492,8 @@
     "noAccounts": "No bank or cash accounts",
     "noAccountsHint": "Add a bank account or cash box and link it to a chart account.",
     "addFirst": "Add your first account",
+    "unlinkedAccounts": "Unlinked cash accounts",
+    "registerAccount": "Register in bank module",
     "noMovements": "No movements",
     "noMovementsHint": "Record the first movement on this account.",
     "selectAccount": "Select account",

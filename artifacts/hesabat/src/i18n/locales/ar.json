@@ -1492,6 +1492,8 @@
     "noAccounts": "لا توجد حسابات بنكية أو نقدية",
     "noAccountsHint": "أضف حساباً بنكياً أو خزينة نقدية وربطه بحساب في شجرة الحسابات.",
     "addFirst": "أضف أول حساب",
+    "unlinkedAccounts": "حسابات نقدية غير مرتبطة",
+    "registerAccount": "تسجيل في البنوك",
     "noMovements": "لا توجد حركات",
     "noMovementsHint": "سجّل أول حركة على هذا الحساب.",
     "selectAccount": "اختر الحساب",
