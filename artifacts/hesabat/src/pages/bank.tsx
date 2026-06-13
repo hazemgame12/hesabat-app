@@ -129,16 +129,30 @@ export function Bank() {
     [chartAccounts],
   );
   const cashLeafAccounts = useMemo(() => {
-    const accountMap = new Map<string, Account>(chartAccounts.map((a: Account) => [a.id, a]));
-    function isUnderCashGroup(a: Account): boolean {
-      let cur: Account | undefined = a.parentId ? accountMap.get(a.parentId) : undefined;
-      while (cur) {
-        if (cur.nameAr?.includes("نقد") || cur.nameEn?.toLowerCase().includes("cash")) return true;
-        cur = cur.parentId ? accountMap.get(cur.parentId) : undefined;
-      }
-      return false;
+    // Find group accounts that represent "cash & cash equivalents"
+    // by matching Arabic name (نقدية) or English name (cash), excluding
+    // non-cash groups like "Petty Cash Advance" (leaf) or "Advances & Custody"
+    const cashGroupCodes = chartAccounts
+      .filter((a: Account) => {
+        if (!a.isGroup) return false;
+        const ar = a.nameAr ?? "";
+        const en = (a.nameEn ?? "").toLowerCase();
+        return (
+          ar.includes("نقدية") ||
+          (en.includes("cash") && !en.includes("advance") && !en.includes("custody") && !en.includes("petty"))
+        );
+      })
+      .map((a: Account) => a.code);
+
+    if (cashGroupCodes.length === 0) {
+      // Fallback: all leaf asset accounts (old behavior)
+      return chartAccounts.filter((a: Account) => !a.isGroup && a.type === "asset");
     }
-    return chartAccounts.filter((a: Account) => !a.isGroup && isUnderCashGroup(a));
+
+    // Show only leaf accounts whose code starts with a cash group code
+    return chartAccounts.filter((a: Account) =>
+      !a.isGroup && cashGroupCodes.some((prefix: string) => a.code.startsWith(prefix))
+    );
   }, [chartAccounts]);
 
   const { data: user } = useGetCurrentUser();
