@@ -5,6 +5,7 @@ import {
   useCreateBankAccount,
   useUpdateBankAccount,
   useDeleteBankAccount,
+  useGetCompany,
   useListCurrencies,
   useListBankMovements,
   useCreateBankMovement,
@@ -511,14 +512,16 @@ function AccountModal({
   updateAccount: ReturnType<typeof useUpdateBankAccount>;
 }) {
   const { toast } = useToast();
+  const { data: company } = useGetCompany();
+  const baseCurrency = company?.baseCurrency ?? "EGP";
   const { data: currencies = [] } = useListCurrencies();
   const currencyCodes = useMemo(() => {
-    const codes = ["EGP"];
+    const codes = [baseCurrency];
     for (const c of currencies) {
-      if (c.isActive && c.code !== "EGP") codes.push(c.code);
+      if (c.isActive && c.code !== baseCurrency) codes.push(c.code);
     }
     return codes;
-  }, [currencies]);
+  }, [currencies, baseCurrency]);
   const [nameAr, setNameAr] = useState(account?.nameAr ?? "");
   const [nameEn, setNameEn] = useState(account?.nameEn ?? "");
   const [type, setType] = useState<AccountType>(
@@ -528,7 +531,7 @@ function AccountModal({
   const [accountNumber, setAccountNumber] = useState(
     account?.accountNumber ?? "",
   );
-  const [currency, setCurrency] = useState(account?.currency ?? "EGP");
+  const [currency, setCurrency] = useState(account?.currency ?? baseCurrency);
   const [openingBalance, setOpeningBalance] = useState(
     account ? String(account.openingBalance) : "0",
   );
@@ -553,7 +556,7 @@ function AccountModal({
       type,
       bankName: bankName.trim() || null,
       accountNumber: accountNumber.trim() || null,
-      currency: currency.trim().toUpperCase() || "EGP",
+      currency: currency.trim().toUpperCase() || baseCurrency,
       openingBalance: Number(openingBalance) || 0,
       openingBalanceDate: openingBalanceDate || null,
       accountId,

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type Account, useListCurrencies } from "@workspace/api-client-react";
+import { type Account, useListCurrencies, useGetCompany } from "@workspace/api-client-react";
 import { Plus, X, Check, Trash2, Edit2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
@@ -139,14 +139,16 @@ export function PartyManager({
   const ns = config.ns;
   const Icon = config.icon;
 
+  const { data: company } = useGetCompany();
+  const baseCurrency = company?.baseCurrency ?? "EGP";
   const { data: currencies = [] } = useListCurrencies();
   const currencyCodes = useMemo(() => {
-    const codes = ["EGP"];
+    const codes = [baseCurrency];
     for (const c of currencies) {
-      if (c.isActive && c.code !== "EGP") codes.push(c.code);
+      if (c.isActive && c.code !== baseCurrency) codes.push(c.code);
     }
     return codes;
-  }, [currencies]);
+  }, [currencies, baseCurrency]);
 
   const groupAccounts = useMemo(
     () => accounts.filter((a: Account) => a.isGroup),

@@ -11,6 +11,7 @@ import {
   useListTaxes,
   useListCostCenters,
   useListCurrencies,
+  useGetCompany,
   type Account,
   type InvoiceLineInput,
   type Tax,
@@ -97,6 +98,8 @@ export function InvoiceEditor({
     { query: { enabled: isEdit } as any },
   );
 
+  const { data: company } = useGetCompany();
+  const baseCurrency = company?.baseCurrency ?? "EGP";
   const { data: customers = [] } = useListCustomers();
   const { data: suppliers = [] } = useListSuppliers();
   const { data: items = [] } = useListInventoryItems();
@@ -105,14 +108,14 @@ export function InvoiceEditor({
   const { data: currencies = [] } = useListCurrencies();
 
   const currencyOptions = useMemo(() => {
-    const opts: { code: string; rate: string }[] = [{ code: "EGP", rate: "1" }];
+    const opts: { code: string; rate: string }[] = [{ code: baseCurrency, rate: "1" }];
     for (const c of currencies) {
-      if (c.isActive && c.code !== "EGP") {
+      if (c.isActive && c.code !== baseCurrency) {
         opts.push({ code: c.code, rate: String(c.exchangeRate) });
       }
     }
     return opts;
-  }, [currencies]);
+  }, [currencies, baseCurrency]);
 
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice();
@@ -147,7 +150,7 @@ export function InvoiceEditor({
   const [relatedInvoiceId, setRelatedInvoiceId] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
   const [notes, setNotes] = useState("");
-  const [currency, setCurrency] = useState("EGP");
+  const [currency, setCurrency] = useState(baseCurrency);
   const [exchangeRate, setExchangeRate] = useState("1");
   const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
 
@@ -164,10 +167,10 @@ export function InvoiceEditor({
     const src = baseInvoices.find((i) => i.id === relatedInvoiceId);
     if (src) {
       setPartyId(src.partyId ?? "");
-      const cur = src.currency ?? "EGP";
+      const cur = src.currency ?? baseCurrency;
       setCurrency(cur);
       const opt = currencyOptions.find((o) => o.code === cur);
-      setExchangeRate(cur === "EGP" ? "1" : opt?.rate ?? "1");
+      setExchangeRate(cur === baseCurrency ? "1" : opt?.rate ?? "1");
     }
   }, [relatedInvoiceId, returnMode, isEdit, baseInvoices, currencyOptions]);
 
@@ -179,7 +182,7 @@ export function InvoiceEditor({
       setRelatedInvoiceId(detail.relatedInvoiceId ?? "");
       setCostCenterId(detail.costCenterId ?? "");
       setNotes(detail.notes ?? "");
-      setCurrency(detail.currency ?? "EGP");
+      setCurrency(detail.currency ?? baseCurrency);
       setExchangeRate(
         detail.exchangeRate != null ? String(detail.exchangeRate) : "1",
       );
@@ -335,8 +338,8 @@ export function InvoiceEditor({
       customerId: kind === "sales" ? partyId : null,
       supplierId: kind === "purchase" ? partyId : null,
       costCenterId: costCenterId || null,
-      currency: currency || "EGP",
-      exchangeRate: currency === "EGP" ? 1 : Number(exchangeRate) || 1,
+      currency: currency || baseCurrency,
+      exchangeRate: currency === baseCurrency ? 1 : Number(exchangeRate) || 1,
       notes: notes.trim() || null,
       lines: payloadLines,
     };
@@ -527,7 +530,7 @@ export function InvoiceEditor({
                     const code = e.target.value;
                     setCurrency(code);
                     const opt = currencyOptions.find((o) => o.code === code);
-                    setExchangeRate(code === "EGP" ? "1" : opt?.rate ?? "1");
+                    setExchangeRate(code === baseCurrency ? "1" : opt?.rate ?? "1");
                   }}
                 >
                   {currencyOptions.map((o) => (
@@ -537,7 +540,7 @@ export function InvoiceEditor({
                   ))}
                 </select>
               </div>
-              {currency !== "EGP" && (
+              {currency !== baseCurrency && (
                 <div>
                   <label className={labelCls}>{t("invoices.exchangeRate")}</label>
                   <input

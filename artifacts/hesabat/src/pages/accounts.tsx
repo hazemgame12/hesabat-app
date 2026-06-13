@@ -7,6 +7,7 @@ import {
   useDeleteAccount,
   useSeedDefaultAccounts,
   useGetCurrentUser,
+  useGetCompany,
   useListCurrencies,
   getListAccountsQueryKey,
   getGetDashboardSummaryQueryKey,
@@ -103,7 +104,6 @@ const accountSchema = z.object({
   isGroup: z.boolean().default(false),
 });
 
-const BASE_CURRENCY = "EGP";
 
 type TreeNode = Account & {
   children?: TreeNode[];
@@ -160,6 +160,8 @@ export function Accounts() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: accounts = [], isLoading } = useListAccounts();
+  const { data: company } = useGetCompany();
+  const baseCurrency = company?.baseCurrency ?? "EGP";
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
@@ -201,12 +203,12 @@ export function Accounts() {
 
   const { data: currencies = [] } = useListCurrencies();
   const currencyCodes = React.useMemo(() => {
-    const codes = [BASE_CURRENCY];
+    const codes = [baseCurrency];
     for (const c of currencies) {
-      if (c.isActive && c.code !== BASE_CURRENCY) codes.push(c.code);
+      if (c.isActive && c.code !== baseCurrency) codes.push(c.code);
     }
     return codes;
-  }, [currencies]);
+  }, [currencies, baseCurrency]);
 
   useEffect(() => {
     if (watchedCurrencyType !== "fixed") {
