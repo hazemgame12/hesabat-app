@@ -465,7 +465,7 @@
     "currency": "العملة",
     "currencyType": "نوع العملة",
     "currencyTypes": {
-      "base": "بعملة الأساس (جنيه)",
+      "base": "بعملة الأساس ({{currency}})",
       "fixed": "بعملة أجنبية ثابتة",
       "multi": "متعدد العملات"
     },

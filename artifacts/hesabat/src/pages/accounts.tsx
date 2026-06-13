@@ -183,8 +183,26 @@ export function Accounts() {
   const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
   const [search, setSearch] = useState("");
-  const [expandTick, setExpandTick] = useState<number>(0);
-  const [collapseTick, setCollapseTick] = useState<number>(0);
+  const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (accounts.length === 0) return;
+    setOpenIds((prev) => {
+      if (prev.size > 0) return prev;
+      const accountMap = new Map(accounts.map((a) => [a.id, a]));
+      const ids = new Set<string>();
+      for (const a of accounts) {
+        if (!a.isGroup) continue;
+        if (!a.parentId) {
+          ids.add(a.id);
+        } else {
+          const parent = accountMap.get(a.parentId);
+          if (parent && !parent.parentId) ids.add(a.id);
+        }
+      }
+      return ids;
+    });
+  }, [accounts]);
   const [bulkParentId, setBulkParentId] = useState<string>("");
   const [bulkNames, setBulkNames] = useState("");
 
@@ -376,21 +394,17 @@ export function Accounts() {
 
   const TreeRow = ({ node, depth }: { node: TreeNode; depth: number }) => {
     const hasChildren = !!node.children?.length;
-    const [open, setOpen] = useState(depth < 2);
+    const open = search.trim() ? true : openIds.has(node.id);
+    const toggleOpen = () => {
+      if (search.trim()) return;
+      setOpenIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(node.id)) next.delete(node.id); else next.add(node.id);
+        return next;
+      });
+    };
     const typeStyle = TYPE_BG_STYLES[node.type as AccountType];
     const isLocked = node.hasEntries;
-
-    useEffect(() => {
-      setOpen(true);
-    }, [expandTick]);
-
-    useEffect(() => {
-      setOpen(false);
-    }, [collapseTick]);
-
-    useEffect(() => {
-      if (search.trim()) setOpen(true);
-    }, [search]);
 
     const matchesSearch = search.trim()
       ? (node.code.includes(search) ||
@@ -424,7 +438,7 @@ export function Accounts() {
         >
           <button
             className="w-5 flex-shrink-0 text-muted-foreground flex items-center justify-center"
-            onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+            onClick={(e) => { e.stopPropagation(); toggleOpen(); }}
           >
             {hasChildren ? (
               open ? <ChevronDown className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4 rtl:-scale-x-100" />
@@ -433,7 +447,7 @@ export function Accounts() {
             )}
           </button>
 
-          <div className="flex-1 flex items-center gap-3 min-w-0" onClick={() => hasChildren && setOpen((o) => !o)}>
+          <div className="flex-1 flex items-center gap-3 min-w-0" onClick={() => hasChildren && toggleOpen()}>
             <span className="font-sans text-xs font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-md flex-shrink-0 min-w-12 text-center" dir="ltr">
               {node.code}
             </span>
@@ -600,7 +614,7 @@ export function Accounts() {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={() => setExpandTick((n) => n + 1)}
+              onClick={() => setOpenIds(new Set(accounts.filter((a) => a.isGroup).map((a) => a.id)))}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors border"
               title={t("accounts.expandAll")}
             >
@@ -608,7 +622,7 @@ export function Accounts() {
               <span className="hidden sm:inline">{t("accounts.expandAll")}</span>
             </button>
             <button
-              onClick={() => setCollapseTick((n) => n + 1)}
+              onClick={() => setOpenIds(new Set())}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors border"
               title={t("accounts.collapseAll")}
             >
@@ -790,7 +804,7 @@ export function Accounts() {
                       {...register("currencyType")}
                     >
                       {(["base", "fixed", "multi"] as const).map((val) => (
-                        <option key={val} value={val}>{t(`accounts.currencyTypes.${val}`)}</option>
+                        <option key={val} value={val}>{t(`accounts.currencyTypes.${val}`, { currency: baseCurrency })}</option>
                       ))}
                     </select>
                     <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />

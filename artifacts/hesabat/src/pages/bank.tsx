@@ -128,10 +128,18 @@ export function Bank() {
     () => chartAccounts.filter((a: Account) => !a.isGroup),
     [chartAccounts],
   );
-  const cashLeafAccounts = useMemo(
-    () => chartAccounts.filter((a: Account) => !a.isGroup && a.type === "asset"),
-    [chartAccounts],
-  );
+  const cashLeafAccounts = useMemo(() => {
+    const accountMap = new Map<string, Account>(chartAccounts.map((a: Account) => [a.id, a]));
+    function isUnderCashGroup(a: Account): boolean {
+      let cur: Account | undefined = a.parentId ? accountMap.get(a.parentId) : undefined;
+      while (cur) {
+        if (cur.nameAr?.includes("نقد") || cur.nameEn?.toLowerCase().includes("cash")) return true;
+        cur = cur.parentId ? accountMap.get(cur.parentId) : undefined;
+      }
+      return false;
+    }
+    return chartAccounts.filter((a: Account) => !a.isGroup && isUnderCashGroup(a));
+  }, [chartAccounts]);
 
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
