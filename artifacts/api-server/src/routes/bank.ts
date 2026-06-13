@@ -1832,6 +1832,101 @@ router.patch(
   },
 );
 
+// ---------------------------------------------------------------------------
+// Bulk delete movements
+// ---------------------------------------------------------------------------
+router.delete(
+  "/bank/movements",
+  requireAuth,
+  requireCapability("bank:delete"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const parsed = z.object({ ids: z.array(z.string()).min(1) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "يجب تحديد حركة واحدة على الأقل" });
+      return;
+    }
+    const { ids } = parsed.data;
+    let deleted = 0;
+    let skipped = 0;
+    const processedGroups = new Set<string>();
+    await db.transaction(async (tx) => {
+      const rows = await tx
+        .select()
+        .from(bankMovementsTable)
+        .where(
+          and(
+            eq(bankMovementsTable.companyId, companyId),
+            inArray(bankMovementsTable.id, ids),
+          ),
+        );
+      const jeIds = new Set<string>();
+      for (const m of rows) {
+        if (m.isCleared || m.reconciliationId) {
+          skipped++;
+          continue;
+        }
+        if (m.transferGroupId) {
+          if (processedGroups.has(m.transferGroupId)) continue;
+          processedGroups.add(m.transferGroupId);
+          const groupRows = await tx
+            .select()
+            .from(bankMovementsTable)
+            .where(
+              and(
+                eq(bankMovementsTable.companyId, companyId),
+                eq(bankMovementsTable.transferGroupId, m.transferGroupId),
+              ),
+            );
+          if (groupRows.some((r) => r.isCleared || r.reconciliationId)) {
+            skipped += groupRows.filter((r) => ids.includes(r.id)).length;
+            continue;
+          }
+          for (const r of groupRows) if (r.journalEntryId) jeIds.add(r.journalEntryId);
+          await tx
+            .delete(bankMovementsTable)
+            .where(
+              and(
+                eq(bankMovementsTable.companyId, companyId),
+                eq(bankMovementsTable.transferGroupId, m.transferGroupId),
+              ),
+            );
+          deleted += groupRows.filter((r) => ids.includes(r.id)).length;
+        } else {
+          if (m.journalEntryId) jeIds.add(m.journalEntryId);
+          await tx
+            .delete(bankMovementsTable)
+            .where(
+              and(
+                eq(bankMovementsTable.id, m.id),
+                eq(bankMovementsTable.companyId, companyId),
+              ),
+            );
+          deleted++;
+        }
+      }
+      if (jeIds.size > 0) {
+        await tx
+          .delete(journalEntriesTable)
+          .where(inArray(journalEntriesTable.id, [...jeIds]));
+      }
+    });
+    await safeAudit(
+      db,
+      {
+        companyId,
+        userId: req.auth!.userId,
+        action: "bulk_delete",
+        entity: "bank_movement",
+        entityLabel: `${deleted} حركة`,
+        newValue: { deleted, skipped },
+      },
+      req.log,
+    );
+    res.json({ deleted, skipped });
+  },
+);
+
 router.delete(
   "/bank/movements/:id",
   requireAuth,

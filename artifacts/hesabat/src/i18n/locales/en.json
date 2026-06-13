@@ -1723,6 +1723,15 @@
     },
     "confirmDeleteAccount": "Delete this account?",
     "confirmDeleteMovement": "Delete this movement and its entry?",
+    "bulkDelete": {
+      "selected": "{{count}} selected",
+      "deleteSelected": "Delete selected",
+      "cancel": "Clear selection",
+      "confirmTitle": "Delete selected movements",
+      "confirmDescription": "{{count}} movement(s) and their journal entries will be permanently deleted. Reconciled movements will be automatically skipped.",
+      "bulkDeleted": "{{count}} movement(s) deleted",
+      "bulkDeletePartial": "{{deleted}} deleted ({{skipped}} protected and skipped)"
+    },
     "confirmDeleteReconciliation": "Delete this reconciliation?"
   },
   "invoices": {

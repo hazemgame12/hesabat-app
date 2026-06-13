@@ -889,6 +889,9 @@ function MovementsTab({
   const [inlineClassify, setInlineClassify] = useState<
     Record<string, { counterpartAccountId: string; costCenterId: string; description: string }>
   >({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const { data: costCenters = [] } = useListCostCenters();
 
@@ -922,6 +925,37 @@ function MovementsTab({
         },
       },
     );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const resp = await fetch("/api/bank/movements", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ ids: [...selectedIds] }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        toast({ variant: "destructive", title: t("bank.toast.error"), description: data?.error });
+        return;
+      }
+      const { deleted, skipped } = data as { deleted: number; skipped: number };
+      if (skipped > 0) {
+        toast({ title: t("bank.bulkDelete.bulkDeletePartial", { deleted, skipped }) });
+      } else {
+        toast({ title: t("bank.bulkDelete.bulkDeleted", { count: deleted }) });
+      }
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      invalidate();
+    } catch {
+      toast({ variant: "destructive", title: t("bank.toast.error") });
+    } finally {
+      setBulkDeleting(false);
+    }
   };
 
   if (accounts.length === 0) {
@@ -985,6 +1019,27 @@ function MovementsTab({
         </p>
       )}
 
+      {canDelete && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-destructive/10 border border-destructive/30 rounded-xl text-sm">
+          <span className="font-medium text-destructive">
+            {t("bank.bulkDelete.selected", { count: selectedIds.size })}
+          </span>
+          <button
+            onClick={() => setBulkDeleteOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {t("bank.bulkDelete.deleteSelected")}
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {t("bank.bulkDelete.cancel")}
+          </button>
+        </div>
+      )}
+
       <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[280px]">
         {isLoading ? (
           <div className="flex items-center justify-center p-12">
@@ -1000,6 +1055,36 @@ function MovementsTab({
             <table className="w-full text-sm min-w-[1100px]">
               <thead>
                 <tr className="text-xs font-bold text-muted-foreground bg-muted/50 border-b">
+                  {canDelete && (
+                    <th className="px-3 py-2.5 w-10">
+                      {(() => {
+                        const deletable = movements.filter(
+                          (m) => !m.isCleared && !m.reconciliationId && m.type !== "transfer",
+                        );
+                        const allSelected =
+                          deletable.length > 0 &&
+                          deletable.every((m) => selectedIds.has(m.id));
+                        const someSelected =
+                          !allSelected && deletable.some((m) => selectedIds.has(m.id));
+                        return (
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                            onChange={() => {
+                              if (allSelected) {
+                                setSelectedIds(new Set());
+                              } else {
+                                setSelectedIds(new Set(deletable.map((m) => m.id)));
+                              }
+                            }}
+                            className="rounded border-border w-3.5 h-3.5 cursor-pointer"
+                            title={allSelected ? t("bank.bulkDelete.cancel") : t("bank.bulkDelete.deleteSelected")}
+                          />
+                        );
+                      })()}
+                    </th>
+                  )}
                   <th className="text-start px-4 py-2.5 w-28">
                     {t("bank.movementsTable.date")}
                   </th>
@@ -1047,11 +1132,33 @@ function MovementsTab({
                     const bal = balances.get(m.id) ?? 0;
                     const inline = inlineClassify[m.id];
                     const isPending = m.status === "pending";
+                    const isDeletable =
+                      !m.isCleared && !m.reconciliationId && m.type !== "transfer";
                     return (
                       <tr
                         key={m.id}
-                        className="group border-b border-border/50 hover:bg-muted/30 transition-colors"
+                        className={`group border-b border-border/50 hover:bg-muted/30 transition-colors ${selectedIds.has(m.id) ? "bg-destructive/5" : ""}`}
                       >
+                        {/* Checkbox */}
+                        {canDelete && (
+                          <td className="px-3 py-2">
+                            {isDeletable && (
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(m.id)}
+                                onChange={() => {
+                                  setSelectedIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(m.id)) next.delete(m.id);
+                                    else next.add(m.id);
+                                    return next;
+                                  });
+                                }}
+                                className="rounded border-border w-3.5 h-3.5 cursor-pointer"
+                              />
+                            )}
+                          </td>
+                        )}
                         {/* Date */}
                         <td className="px-4 py-2 tabular-nums text-foreground/80" dir="ltr">
                           <div className="flex items-center gap-1.5">
@@ -1357,6 +1464,30 @@ function MovementsTab({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={bulkDeleteOpen}
+        onOpenChange={(o) => !o && setBulkDeleteOpen(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("bank.bulkDelete.confirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("bank.bulkDelete.confirmDescription", { count: selectedIds.size })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? t("common.saving") : t("common.delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

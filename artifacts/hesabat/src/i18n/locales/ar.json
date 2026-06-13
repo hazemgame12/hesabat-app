@@ -1723,6 +1723,15 @@
     },
     "confirmDeleteAccount": "هل تريد حذف هذا الحساب؟",
     "confirmDeleteMovement": "هل تريد حذف هذه الحركة وقيدها؟",
+    "bulkDelete": {
+      "selected": "{{count}} محدد",
+      "deleteSelected": "حذف المحدد",
+      "cancel": "إلغاء التحديد",
+      "confirmTitle": "حذف الحركات المحددة",
+      "confirmDescription": "سيتم حذف {{count}} حركة وقيودها المحاسبية بشكل نهائي. الحركات المسوّاة بنكياً ستُتجاهل تلقائياً.",
+      "bulkDeleted": "تم حذف {{count}} حركة",
+      "bulkDeletePartial": "تم حذف {{deleted}} حركة ({{skipped}} محمية وتم تجاهلها)"
+    },
     "confirmDeleteReconciliation": "هل تريد حذف هذه التسوية؟"
   },
   "invoices": {
