@@ -465,7 +465,7 @@
     "currency": "Currency",
     "currencyType": "Currency type",
     "currencyTypes": {
-      "base": "Base currency ({{currency}})",
+      "base": "Base currency ({{currencyCode}})",
       "fixed": "Fixed foreign currency",
       "multi": "Multi-currency"
     },

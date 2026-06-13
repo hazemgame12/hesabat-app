@@ -804,7 +804,7 @@ export function Accounts() {
                       {...register("currencyType")}
                     >
                       {(["base", "fixed", "multi"] as const).map((val) => (
-                        <option key={val} value={val}>{t(`accounts.currencyTypes.${val}`, { currency: baseCurrency })}</option>
+                        <option key={val} value={val}>{t(`accounts.currencyTypes.${val}`, { currencyCode: baseCurrency })}</option>
                       ))}
                     </select>
                     <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
