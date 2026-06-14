@@ -10,6 +10,8 @@ import {
   accountsTable,
   companiesTable,
   journalEntriesTable,
+  bankAccountsTable,
+  bankMovementsTable,
   type Payment,
 } from "@workspace/db";
 import { CreatePaymentBody } from "@workspace/api-zod";
@@ -558,6 +560,44 @@ router.post(
             })),
           );
         }
+
+        // If the cash account is linked to a bank/cash account in the bank
+        // module, create a corresponding movement so it appears in the bank
+        // register and is available for reconciliation.
+        const [bankAccount] = await tx
+          .select({ id: bankAccountsTable.id, currency: bankAccountsTable.currency })
+          .from(bankAccountsTable)
+          .where(
+            and(
+              eq(bankAccountsTable.companyId, companyId),
+              eq(bankAccountsTable.accountId, d.cashAccountId),
+              eq(bankAccountsTable.isActive, true),
+            ),
+          )
+          .limit(1);
+        if (bankAccount) {
+          const movementType =
+            d.kind === "collection" ? "customer_collection" : "supplier_payment";
+          const direction = d.kind === "collection" ? "in" : "out";
+          await tx.insert(bankMovementsTable).values({
+            companyId,
+            bankAccountId: bankAccount.id,
+            date: d.date,
+            type: movementType,
+            direction,
+            amount: String(round2(d.amount)),
+            currency: d.currency ?? bankAccount.currency,
+            exchangeRate: String(rate),
+            counterpartAccountId: partyAccountId,
+            description:
+              d.kind === "collection"
+                ? `تحصيل من ${partyName}`
+                : `دفعة إلى ${partyName}`,
+            journalEntryId: entry.id,
+            createdBy: req.auth!.userId,
+          });
+        }
+
         return payment!;
       });
       const [serialized] = await serializePayments([created], companyId);

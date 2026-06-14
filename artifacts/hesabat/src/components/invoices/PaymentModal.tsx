@@ -6,6 +6,7 @@ import {
   useListSuppliers,
   useListCurrencies,
   useGetOutstandingInvoices,
+  useGetCompany,
   type Account,
 } from "@workspace/api-client-react";
 import { X } from "lucide-react";
@@ -42,29 +43,40 @@ export function PaymentModal({
   const { data: suppliers = [] } = useListSuppliers();
   const { data: currencies = [] } = useListCurrencies();
   const { data: outstanding = [] } = useGetOutstandingInvoices({ kind });
+  const { data: company } = useGetCompany();
   const createPayment = useCreatePayment();
+
+  const baseCurrency = (company?.baseCurrency ?? "EGP").toUpperCase();
 
   const parties = kind === "sales" ? customers : suppliers;
 
   const currencyOptions = useMemo(() => {
-    const opts: { code: string; rate: string }[] = [{ code: "EGP", rate: "1" }];
+    // Base currency always at rate 1. All other active currencies at their
+    // stored exchange-rate (relative to the base). Never hard-code "EGP = 1" —
+    // the base may be AED, USD, etc.
+    const opts: { code: string; rate: string }[] = [{ code: baseCurrency, rate: "1" }];
     for (const c of currencies) {
-      if (c.isActive && c.code !== "EGP") {
+      if (c.isActive && c.code.toUpperCase() !== baseCurrency) {
         opts.push({ code: c.code, rate: String(c.exchangeRate) });
       }
     }
     return opts;
-  }, [currencies]);
+  }, [currencies, baseCurrency]);
 
   const [date, setDate] = useState(today());
   const [partyId, setPartyId] = useState("");
   const [method, setMethod] = useState<"cash" | "bank" | "cheque" | "card">("cash");
   const [cashAccountId, setCashAccountId] = useState("");
-  const [currency, setCurrency] = useState("EGP");
+  const [currency, setCurrency] = useState(baseCurrency);
   const [exchangeRate, setExchangeRate] = useState("1");
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [allocs, setAllocs] = useState<Record<string, string>>({});
+
+  // Keep default currency in sync once company loads.
+  useEffect(() => {
+    setCurrency((prev) => (prev === "EGP" || prev === baseCurrency ? baseCurrency : prev));
+  }, [baseCurrency]);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat(lang, {
@@ -73,13 +85,16 @@ export function PaymentModal({
     }).format(n);
 
   // Filter outstanding invoices to those of the selected party (by stable id,
-  // never by localized display name).
+  // never by localized display name). Use baseCurrency as the fallback invoice
+  // currency so EGP invoices show correctly when base is AED.
   const partyInvoices = useMemo(() => {
     if (!partyId) return [];
     return outstanding.filter(
-      (inv) => inv.partyId === partyId && (inv.currency ?? "EGP") === currency,
+      (inv) =>
+        inv.partyId === partyId &&
+        (inv.currency ?? baseCurrency).toUpperCase() === currency.toUpperCase(),
     );
-  }, [outstanding, partyId, currency]);
+  }, [outstanding, partyId, currency, baseCurrency]);
 
   // Currencies that the selected party actually has outstanding invoices in,
   // so the user only picks a currency that has something to settle.
@@ -89,12 +104,14 @@ export function PaymentModal({
       ...new Set(
         outstanding
           .filter((inv) => inv.partyId === partyId)
-          .map((inv) => inv.currency ?? "EGP"),
+          .map((inv) => (inv.currency ?? baseCurrency).toUpperCase()),
       ),
     ];
-  }, [outstanding, partyId]);
+  }, [outstanding, partyId, baseCurrency]);
 
-  const isForeign = currency !== "EGP";
+  // A payment is "foreign" when its currency differs from the company base.
+  // Never hard-code "EGP" — the base may be AED, USD, etc.
+  const isForeign = currency.toUpperCase() !== baseCurrency;
 
   // Auto-fill when opened from a specific invoice row.
   const prefillInvoice = useMemo(() => {
@@ -107,8 +124,8 @@ export function PaymentModal({
       setPartyId(prefillInvoice.partyId);
       const cur = prefillInvoice.currency ?? "EGP";
       setCurrency(cur);
-      const opt = currencyOptions.find((o) => o.code === cur);
-      setExchangeRate(cur === "EGP" ? "1" : opt ? opt.rate : "1");
+      const opt = currencyOptions.find((o) => o.code.toUpperCase() === cur.toUpperCase());
+      setExchangeRate(cur.toUpperCase() === baseCurrency ? "1" : opt ? opt.rate : "1");
       setAmount(String(prefillInvoice.balance));
       setAllocs({ [prefillInvoice.id]: String(prefillInvoice.balance) });
     }
@@ -120,17 +137,18 @@ export function PaymentModal({
     setPartyId(id);
     setAllocs({});
     const firstCur =
-      outstanding.find((inv) => inv.partyId === id)?.currency ?? "EGP";
+      (outstanding.find((inv) => inv.partyId === id)?.currency ?? baseCurrency).toUpperCase();
     setCurrency(firstCur);
-    const opt = currencyOptions.find((o) => o.code === firstCur);
-    setExchangeRate(opt ? opt.rate : "1");
+    const opt = currencyOptions.find((o) => o.code.toUpperCase() === firstCur);
+    setExchangeRate(firstCur === baseCurrency ? "1" : opt ? opt.rate : "1");
   };
 
   const onSelectCurrency = (code: string) => {
-    setCurrency(code);
+    const upper = code.toUpperCase();
+    setCurrency(upper);
     setAllocs({});
-    const opt = currencyOptions.find((o) => o.code === code);
-    setExchangeRate(code === "EGP" ? "1" : opt ? opt.rate : "1");
+    const opt = currencyOptions.find((o) => o.code.toUpperCase() === upper);
+    setExchangeRate(upper === baseCurrency ? "1" : opt ? opt.rate : "1");
   };
 
   const allocSum = useMemo(
@@ -175,6 +193,8 @@ export function PaymentModal({
           cashAccountId,
           amount: Number(amount),
           currency: currency || "EGP",
+          // For non-base currencies, use the rate entered by the user.
+          // For the base currency itself, rate is always exactly 1.
           exchangeRate: isForeign ? Number(exchangeRate) || 1 : 1,
           notes: notes.trim() || null,
           allocations,
