@@ -52,7 +52,7 @@ import {
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
-import { BankImportWizard } from "@/components/bank-import-wizard";
+import { ImportWizard } from "@/components/import-wizard/ImportWizard";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -892,6 +892,7 @@ function MovementsTab({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bankImportOpen, setBankImportOpen] = useState(false);
 
   const { data: costCenters = [] } = useListCostCenters();
 
@@ -969,6 +970,17 @@ function MovementsTab({
 
   return (
     <>
+      {bankImportOpen && effectiveId && (
+        <ImportWizard
+          moduleType="bank-statement"
+          extraContext={{ bankAccountId: effectiveId }}
+          onClose={() => setBankImportOpen(false)}
+          onSuccess={() => {
+            invalidate();
+            setBankImportOpen(false);
+          }}
+        />
+      )}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm font-bold text-muted-foreground">
@@ -992,13 +1004,15 @@ function MovementsTab({
               <ExcelToolbar
                 exportPath={`/api/bank/movements/export?bankAccountId=${effectiveId}`}
               />
-              <BankImportWizard
-                bankAccountId={effectiveId}
-                canImport={canCreate}
-                leafAccounts={leafAccounts}
-                costCenters={costCenters}
-                onDone={() => invalidate()}
-              />
+              {canCreate && (
+                <button
+                  onClick={() => setBankImportOpen(true)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-full text-sm font-semibold border border-primary/40 text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  {t("importWizard.openButton")}
+                </button>
+              )}
             </>
           )}
           {canCreate && (

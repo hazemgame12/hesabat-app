@@ -12,6 +12,9 @@ import {
   invoicesTable,
   invoiceLinesTable,
   companiesTable,
+  bankAccountsTable,
+  bankMovementsTable,
+  inventoryItemsTable,
 } from "@workspace/db";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
@@ -170,7 +173,11 @@ router.post(
   (req: Request, res: Response, next) => {
     const type = req.body?.type;
     const cap =
-      type === "journal" ? "journal:create" : "invoices:create";
+      type === "journal" || type === "opening-balances"
+        ? "journal:create"
+        : type === "bank-statement"
+          ? "bank:create"
+          : "invoices:create";
     requireCapability(cap)(req, res, next);
   },
   async (req: Request, res: Response) => {
@@ -208,6 +215,25 @@ router.post(
           columnMap,
           dateFormat,
           dryRun: Boolean(dryRun),
+        });
+      } else if (type === "opening-balances") {
+        await handleOpeningBalancesImport(req, res, {
+          companyId,
+          userId,
+          rows,
+          columnMap,
+          dryRun: Boolean(dryRun),
+        });
+      } else if (type === "bank-statement") {
+        const bankAccountId = (req.body?.bankAccountId ?? "") as string;
+        await handleBankStatementImport(req, res, {
+          companyId,
+          userId,
+          rows,
+          columnMap,
+          dateFormat,
+          dryRun: Boolean(dryRun),
+          bankAccountId,
         });
       } else {
         res.status(400).json({ error: "نوع غير معروف" });
@@ -881,6 +907,463 @@ async function handleInvoiceImport(
     imported: createdIds.length,
     skipped: validated.length - valid.length,
     total: validated.length,
+  });
+}
+
+// =============================================================================
+// LOAD OPENING BALANCE SNAPSHOT (for import merge)
+// =============================================================================
+async function loadObSnapshot(companyId: string): Promise<{
+  date: string | null;
+  banks: Array<{ bankAccountId: string; balance: number }>;
+  customers: Array<{ customerId: string; balance: number }>;
+  suppliers: Array<{ supplierId: string; balance: number }>;
+  inventory: Array<{ itemId: string; quantity: number; unitCost: number }>;
+}> {
+  const [entry] = await db
+    .select({ id: journalEntriesTable.id, date: journalEntriesTable.date })
+    .from(journalEntriesTable)
+    .where(
+      and(
+        eq(journalEntriesTable.companyId, companyId),
+        eq(journalEntriesTable.isOpeningBalance, true),
+      ),
+    )
+    .limit(1);
+
+  const lines = entry
+    ? await db
+        .select({
+          accountId: journalEntryLinesTable.accountId,
+          debit: journalEntryLinesTable.debitBase,
+          credit: journalEntryLinesTable.creditBase,
+        })
+        .from(journalEntryLinesTable)
+        .where(eq(journalEntryLinesTable.entryId, entry.id))
+    : [];
+
+  const [banks, customers, suppliers, items] = await Promise.all([
+    db
+      .select({ id: bankAccountsTable.id, openingBalance: bankAccountsTable.openingBalance })
+      .from(bankAccountsTable)
+      .where(eq(bankAccountsTable.companyId, companyId)),
+    db
+      .select({ id: customersTable.id, accountId: customersTable.accountId })
+      .from(customersTable)
+      .where(eq(customersTable.companyId, companyId)),
+    db
+      .select({ id: suppliersTable.id, accountId: suppliersTable.accountId })
+      .from(suppliersTable)
+      .where(eq(suppliersTable.companyId, companyId)),
+    db
+      .select({
+        id: inventoryItemsTable.id,
+        quantityOnHand: inventoryItemsTable.quantityOnHand,
+        averageCost: inventoryItemsTable.averageCost,
+      })
+      .from(inventoryItemsTable)
+      .where(eq(inventoryItemsTable.companyId, companyId)),
+  ]);
+
+  const custByAccount = new Map(customers.map((c) => [c.accountId, c.id]));
+  const suppByAccount = new Map(suppliers.map((s) => [s.accountId, s.id]));
+  const MONEY_EPS = 0.005;
+
+  const customersOut: Array<{ customerId: string; balance: number }> = [];
+  const suppliersOut: Array<{ supplierId: string; balance: number }> = [];
+
+  for (const l of lines) {
+    const debit = round2(Number(l.debit));
+    const credit = round2(Number(l.credit));
+    if (custByAccount.has(l.accountId)) {
+      customersOut.push({
+        customerId: custByAccount.get(l.accountId)!,
+        balance: round2(debit - credit),
+      });
+    } else if (suppByAccount.has(l.accountId)) {
+      suppliersOut.push({
+        supplierId: suppByAccount.get(l.accountId)!,
+        balance: round2(credit - debit),
+      });
+    }
+  }
+
+  const banksOut = banks
+    .map((b) => ({ bankAccountId: b.id, balance: round2(Number(b.openingBalance)) }))
+    .filter((b) => Math.abs(b.balance) > MONEY_EPS);
+
+  const inventoryOut = items
+    .map((i) => ({
+      itemId: i.id,
+      quantity: Math.round(Number(i.quantityOnHand) * 10000) / 10000,
+      unitCost: Math.round(Number(i.averageCost) * 10000) / 10000,
+    }))
+    .filter((i) => Math.abs(i.quantity) > 0.00005);
+
+  return {
+    date: entry?.date ?? null,
+    banks: banksOut,
+    customers: customersOut,
+    suppliers: suppliersOut,
+    inventory: inventoryOut,
+  };
+}
+
+// =============================================================================
+// OPENING BALANCES IMPORT HANDLER
+// =============================================================================
+async function handleOpeningBalancesImport(
+  req: Request,
+  res: Response,
+  opts: {
+    companyId: string;
+    userId: string;
+    rows: Record<string, string>[];
+    columnMap: Record<string, string>;
+    dryRun: boolean;
+  },
+): Promise<void> {
+  const { companyId, rows, columnMap, dryRun } = opts;
+
+  const [accounts, banks, customers, suppliers, inventory] = await Promise.all([
+    db
+      .select({ id: accountsTable.id, code: accountsTable.code, isGroup: accountsTable.isGroup })
+      .from(accountsTable)
+      .where(eq(accountsTable.companyId, companyId)),
+    db
+      .select({ accountId: bankAccountsTable.accountId })
+      .from(bankAccountsTable)
+      .where(eq(bankAccountsTable.companyId, companyId)),
+    db
+      .select({ accountId: customersTable.accountId, controlAccountId: customersTable.controlAccountId })
+      .from(customersTable)
+      .where(eq(customersTable.companyId, companyId)),
+    db
+      .select({ accountId: suppliersTable.accountId, controlAccountId: suppliersTable.controlAccountId })
+      .from(suppliersTable)
+      .where(eq(suppliersTable.companyId, companyId)),
+    db
+      .select({ inventoryAccountId: inventoryItemsTable.inventoryAccountId })
+      .from(inventoryItemsTable)
+      .where(eq(inventoryItemsTable.companyId, companyId)),
+  ]);
+
+  const byCode = new Map(accounts.map((a) => [a.code, a]));
+  const managedAccountIds = new Set<string>([
+    ...banks.map((b) => b.accountId),
+    ...customers.flatMap((c) =>
+      [c.accountId, c.controlAccountId].filter((x): x is string => Boolean(x)),
+    ),
+    ...suppliers.flatMap((s) =>
+      [s.accountId, s.controlAccountId].filter((x): x is string => Boolean(x)),
+    ),
+    ...inventory.map((i) => i.inventoryAccountId),
+  ]);
+
+  type PrepRow = {
+    key: string;
+    date: null;
+    lineCount: number;
+    total: number;
+    accountCode: string;
+    debit: number;
+    credit: number;
+    accountId?: string;
+    _status: "ok" | "warning" | "error";
+    _errors: string[];
+    rows: Array<Record<string, unknown>>;
+  };
+
+  const prepared: PrepRow[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    const accountCode = getMappedStr(row, columnMap, "accountCode");
+    if (!accountCode) continue;
+    const debit = getMappedNum(row, columnMap, "debit");
+    const credit = getMappedNum(row, columnMap, "credit");
+
+    const errors: string[] = [];
+    let status: "ok" | "warning" | "error" = "ok";
+    let accountId: string | undefined;
+
+    const acc = byCode.get(accountCode);
+    if (!acc) {
+      errors.push(`كود الحساب "${accountCode}" غير موجود في شجرة الحسابات`);
+      status = "error";
+    } else if (acc.isGroup) {
+      errors.push(`الحساب "${accountCode}" حساب مجموعة — لا يقبل ترحيلاً مباشراً`);
+      status = "error";
+    } else if (managedAccountIds.has(acc.id)) {
+      errors.push(`الحساب "${accountCode}" يُدار عبر قسمه الخاص (بنوك / عملاء / موردون / مخزون)`);
+      status = "error";
+    } else if (debit > 0 && credit > 0) {
+      errors.push("لا يمكن تعبئة مدين ودائن معاً في نفس السطر");
+      status = "error";
+    } else if (debit === 0 && credit === 0) {
+      errors.push("المدين والدائن كلاهما صفر — سيتم تجاهل هذا السطر");
+      status = "warning";
+    } else {
+      accountId = acc.id;
+    }
+
+    prepared.push({
+      key: accountCode,
+      date: null,
+      lineCount: 1,
+      total: debit || credit,
+      accountCode,
+      debit,
+      credit,
+      accountId,
+      _status: status,
+      _errors: errors,
+      rows: [row as Record<string, unknown>],
+    });
+  }
+
+  if (prepared.length === 0) {
+    res.status(400).json({ error: "لا توجد بيانات للاستيراد" });
+    return;
+  }
+
+  const summary = {
+    total: prepared.length,
+    ok: prepared.filter((p) => p._status === "ok").length,
+    warning: prepared.filter((p) => p._status === "warning").length,
+    error: prepared.filter((p) => p._status === "error").length,
+    totalRows: rows.length,
+  };
+
+  if (dryRun) {
+    res.json({
+      groups: prepared.map((p) => ({
+        key: p.key,
+        date: p.date,
+        lineCount: 1,
+        total: p.total,
+        _status: p._status,
+        _errors: p._errors,
+        rows: [{ accountCode: p.accountCode, debit: p.debit, credit: p.credit }],
+      })),
+      summary,
+    });
+    return;
+  }
+
+  const validAccounts = prepared
+    .filter((p) => p._status !== "error" && p.accountId)
+    .map((p) => ({ accountId: p.accountId!, debit: p.debit, credit: p.credit }));
+
+  if (validAccounts.length === 0) {
+    res.status(400).json({ error: "لا توجد حسابات صحيحة للاستيراد" });
+    return;
+  }
+
+  const snapshot = await loadObSnapshot(companyId);
+  const saveDate = snapshot.date ?? new Date().toISOString().slice(0, 10);
+
+  const port = process.env.PORT ?? "5000";
+  const saveRes = await fetch(`http://localhost:${port}/api/opening-balances`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(req.headers.cookie ? { Cookie: req.headers.cookie as string } : {}),
+    },
+    body: JSON.stringify({
+      date: saveDate,
+      accounts: validAccounts,
+      banks: snapshot.banks,
+      customers: snapshot.customers,
+      suppliers: snapshot.suppliers,
+      inventory: snapshot.inventory,
+    }),
+  });
+
+  if (!saveRes.ok) {
+    const errBody = await saveRes.json().catch(() => ({}));
+    res
+      .status(saveRes.status)
+      .json({ error: (errBody as { error?: string })?.error ?? "تعذّر حفظ الأرصدة الافتتاحية" });
+    return;
+  }
+
+  res.status(201).json({
+    imported: validAccounts.length,
+    skipped: prepared.length - validAccounts.length,
+    total: prepared.length,
+  });
+}
+
+// =============================================================================
+// BANK STATEMENT IMPORT HANDLER
+// =============================================================================
+async function handleBankStatementImport(
+  req: Request,
+  res: Response,
+  opts: {
+    companyId: string;
+    userId: string;
+    rows: Record<string, string>[];
+    columnMap: Record<string, string>;
+    dateFormat: string;
+    dryRun: boolean;
+    bankAccountId: string;
+  },
+): Promise<void> {
+  const { companyId, userId, rows, columnMap, dateFormat, dryRun, bankAccountId } = opts;
+
+  if (!bankAccountId) {
+    res.status(400).json({ error: "لم يُحدَّد الحساب البنكي — أغلق الويزارد وحدد حساباً أولاً" });
+    return;
+  }
+
+  const [bankAccount] = await db
+    .select({ id: bankAccountsTable.id, currency: bankAccountsTable.currency })
+    .from(bankAccountsTable)
+    .where(
+      and(
+        eq(bankAccountsTable.id, bankAccountId),
+        eq(bankAccountsTable.companyId, companyId),
+      ),
+    );
+
+  if (!bankAccount) {
+    res.status(400).json({ error: "الحساب البنكي غير موجود أو لا تملك صلاحية الوصول إليه" });
+    return;
+  }
+
+  type PrepRow = {
+    key: string;
+    date: string | null;
+    lineCount: number;
+    total: number;
+    notes: string;
+    direction: "in" | "out";
+    amount: number;
+    reference: string;
+    _status: "ok" | "warning" | "error";
+    _errors: string[];
+    rows: Array<Record<string, unknown>>;
+  };
+
+  const prepared: PrepRow[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
+    const rawDate = getMappedStr(row, columnMap, "date");
+    const debitRaw = getMappedNum(row, columnMap, "debit");
+    const creditRaw = getMappedNum(row, columnMap, "credit");
+    const notes = getMappedStr(row, columnMap, "notes");
+    const reference = getMappedStr(row, columnMap, "reference");
+
+    if (!rawDate && debitRaw === 0 && creditRaw === 0) continue;
+
+    const errors: string[] = [];
+    let status: "ok" | "warning" | "error" = "ok";
+
+    const date = rawDate ? parseDateValue(rawDate, dateFormat) : null;
+    if (!date) {
+      errors.push("التاريخ مفقود أو غير صحيح");
+      status = "error";
+    }
+
+    let direction: "in" | "out" = "in";
+    let amount = 0;
+
+    if (debitRaw > 0 && creditRaw === 0) {
+      direction = "in";
+      amount = debitRaw;
+    } else if (creditRaw > 0 && debitRaw === 0) {
+      direction = "out";
+      amount = creditRaw;
+    } else if (debitRaw > 0 && creditRaw > 0) {
+      errors.push("مدين ودائن في نفس السطر — تحقق من البيانات");
+      status = "error";
+    } else {
+      errors.push("لا يوجد مبلغ — تحقق من ربط عمود الوارد أو الصادر");
+      status = "error";
+    }
+
+    prepared.push({
+      key: String(i + 1),
+      date,
+      lineCount: 1,
+      total: amount,
+      notes,
+      direction,
+      amount,
+      reference,
+      _status: status,
+      _errors: errors,
+      rows: [row as Record<string, unknown>],
+    });
+  }
+
+  if (prepared.length === 0) {
+    res.status(400).json({ error: "لا توجد بيانات للاستيراد" });
+    return;
+  }
+
+  const summary = {
+    total: prepared.length,
+    ok: prepared.filter((p) => p._status === "ok").length,
+    warning: prepared.filter((p) => p._status === "warning").length,
+    error: prepared.filter((p) => p._status === "error").length,
+    totalRows: rows.length,
+  };
+
+  if (dryRun) {
+    res.json({
+      groups: prepared.map((p) => ({
+        key: p.key,
+        date: p.date,
+        lineCount: 1,
+        total: p.total,
+        notes: p.notes,
+        _status: p._status,
+        _errors: p._errors,
+        rows: [
+          {
+            date: p.date,
+            direction: p.direction === "in" ? "↑ وارد" : "↓ صادر",
+            amount: p.amount,
+            notes: p.notes,
+            reference: p.reference,
+          },
+        ],
+      })),
+      summary,
+    });
+    return;
+  }
+
+  const valid = prepared.filter((p) => p._status !== "error");
+  if (valid.length === 0) {
+    res.status(400).json({ error: "لا توجد حركات صحيحة للاستيراد" });
+    return;
+  }
+
+  await db.insert(bankMovementsTable).values(
+    valid.map((p) => ({
+      companyId,
+      bankAccountId,
+      date: p.date!,
+      type: p.direction === "in" ? "deposit" : "withdrawal",
+      direction: p.direction,
+      amount: String(round2(p.amount)),
+      currency: bankAccount.currency,
+      exchangeRate: "1",
+      description: null,
+      notes: p.notes || null,
+      reference: p.reference || null,
+      createdBy: userId,
+    })),
+  );
+
+  res.status(201).json({
+    imported: valid.length,
+    skipped: prepared.length - valid.length,
+    total: prepared.length,
   });
 }
 

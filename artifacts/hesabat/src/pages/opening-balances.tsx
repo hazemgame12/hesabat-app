@@ -31,9 +31,11 @@ import {
   Save,
   CheckCircle2,
   AlertTriangle,
+  Upload,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
+import { ImportWizard } from "@/components/import-wizard/ImportWizard";
 
 function displayName(
   e: { nameAr: string; nameEn?: string | null },
@@ -99,6 +101,7 @@ export function OpeningBalances() {
   const [invQty, setInvQty] = useState<Record<string, string>>({});
   const [invCost, setInvCost] = useState<Record<string, string>>({});
   const [hydrated, setHydrated] = useState(false);
+  const [importWizardOpen, setImportWizardOpen] = useState(false);
 
   // Leaf, non-bank, non-control accounts: bank/customer/supplier/inventory
   // balances are entered in their own dedicated sections.
@@ -311,18 +314,41 @@ export function OpeningBalances() {
 
   return (
     <div className="max-w-5xl mx-auto pb-32">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-          <Scale className="w-6 h-6" />
+      {importWizardOpen && (
+        <ImportWizard
+          moduleType="opening-balances"
+          onClose={() => setImportWizardOpen(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({
+              queryKey: getGetOpeningBalancesQueryKey(),
+            });
+            setImportWizardOpen(false);
+          }}
+        />
+      )}
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <Scale className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              {t("openingBalances.title")}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {t("openingBalances.subtitle")}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {t("openingBalances.title")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {t("openingBalances.subtitle")}
-          </p>
-        </div>
+        {canEdit && (
+          <button
+            onClick={() => setImportWizardOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border border-primary/40 text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            {t("importWizard.openButton")}
+          </button>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-4 mb-6 flex flex-wrap items-center gap-4">

@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 // =====================================================================
 // Types
 // =====================================================================
-export type ImportModuleType = "journal" | "sales" | "purchase";
+export type ImportModuleType = "journal" | "sales" | "purchase" | "opening-balances" | "bank-statement";
 type WizardStep = 1 | 2 | 3 | 4 | 5;
 
 interface FieldDef {
@@ -38,6 +38,7 @@ interface ModuleConfig {
   fields: FieldDef[];
   autoMap: Record<string, string[]>;
   previewCols: Array<{ key: string; labelAr: string; labelEn: string }>;
+  showDateFormat?: boolean;
 }
 
 interface ValidationGroup {
@@ -187,6 +188,54 @@ const MODULE_CONFIGS: Record<ImportModuleType, ModuleConfig> = {
       { key: "unitPrice", labelAr: "السعر", labelEn: "Price" },
     ],
   },
+  "opening-balances": {
+    titleAr: "استيراد أرصدة افتتاحية",
+    titleEn: "Import Opening Balances",
+    groupLabelAr: "حساب",
+    groupLabelEn: "Account",
+    showDateFormat: false,
+    fields: [
+      { key: "accountCode", labelAr: "كود الحساب", labelEn: "Account Code", required: true, hint: "كود الحساب الدفتري (حسابات مستوى التفصيل فقط)" },
+      { key: "debit", labelAr: "مدين (رصيد مدين)", labelEn: "Debit Balance", required: false },
+      { key: "credit", labelAr: "دائن (رصيد دائن)", labelEn: "Credit Balance", required: false },
+    ],
+    autoMap: {
+      accountCode: ["كود الحساب", "Account Code", "Account", "الكود", "Code", "AccountCode", "Acct Code"],
+      debit: ["مدين", "Debit", "Dr", "المدين", "Debit Balance", "رصيد مدين"],
+      credit: ["دائن", "Credit", "Cr", "الدائن", "Credit Balance", "رصيد دائن"],
+    },
+    previewCols: [
+      { key: "accountCode", labelAr: "كود الحساب", labelEn: "Account Code" },
+      { key: "debit", labelAr: "مدين", labelEn: "Debit" },
+      { key: "credit", labelAr: "دائن", labelEn: "Credit" },
+    ],
+  },
+  "bank-statement": {
+    titleAr: "استيراد كشف حساب بنكي",
+    titleEn: "Import Bank Statement",
+    groupLabelAr: "حركة",
+    groupLabelEn: "Movement",
+    fields: [
+      { key: "date", labelAr: "التاريخ", labelEn: "Date", required: true },
+      { key: "debit", labelAr: "وارد (إيداع)", labelEn: "In (Deposit)", required: false, hint: "المبالغ الواردة للحساب" },
+      { key: "credit", labelAr: "صادر (سحب)", labelEn: "Out (Withdrawal)", required: false, hint: "المبالغ الصادرة من الحساب" },
+      { key: "notes", labelAr: "البيان / الوصف", labelEn: "Description", required: false },
+      { key: "reference", labelAr: "المرجع", labelEn: "Reference", required: false },
+    ],
+    autoMap: {
+      date: ["التاريخ", "Date", "Transaction Date", "Trans Date", "Value Date"],
+      debit: ["وارد", "Debit", "Dr", "إيداع", "Deposit", "Credit Amount", "In", "Inflow"],
+      credit: ["صادر", "Credit", "Cr", "سحب", "Withdrawal", "Debit Amount", "Out", "Outflow"],
+      notes: ["البيان", "Description", "Details", "Narration", "الوصف", "ملاحظات"],
+      reference: ["المرجع", "Reference", "Ref", "Trans Ref", "Cheque No"],
+    },
+    previewCols: [
+      { key: "date", labelAr: "التاريخ", labelEn: "Date" },
+      { key: "direction", labelAr: "النوع", labelEn: "Type" },
+      { key: "amount", labelAr: "المبلغ", labelEn: "Amount" },
+      { key: "notes", labelAr: "البيان", labelEn: "Description" },
+    ],
+  },
 };
 
 const DATE_FORMAT_OPTIONS = [
@@ -213,9 +262,10 @@ export interface ImportWizardProps {
   moduleType: ImportModuleType;
   onClose: () => void;
   onSuccess?: () => void;
+  extraContext?: Record<string, unknown>;
 }
 
-export function ImportWizard({ moduleType, onClose, onSuccess }: ImportWizardProps) {
+export function ImportWizard({ moduleType, onClose, onSuccess, extraContext }: ImportWizardProps) {
   const { i18n } = useTranslation();
   const isAr = i18n.language.startsWith("ar");
   const { toast } = useToast();
@@ -320,6 +370,7 @@ export function ImportWizard({ moduleType, onClose, onSuccess }: ImportWizardPro
           rows: rawRows,
           dateFormat,
           dryRun: true,
+          ...(extraContext ?? {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -350,6 +401,7 @@ export function ImportWizard({ moduleType, onClose, onSuccess }: ImportWizardPro
           rows: rawRows,
           dateFormat,
           dryRun: false,
+          ...(extraContext ?? {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -561,24 +613,26 @@ export function ImportWizard({ moduleType, onClose, onSuccess }: ImportWizardPro
               </p>
             </div>
 
-            {/* Date format */}
-            <div className="mb-6 p-4 bg-muted/30 rounded-xl border">
-              <label className="flex items-center gap-2 text-sm font-semibold mb-2">
-                <Info className="w-4 h-4 text-primary" />
-                صيغة التاريخ في الملف
-              </label>
-              <select
-                value={dateFormat}
-                onChange={(e) => setDateFormat(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                {DATE_FORMAT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {isAr ? opt.labelAr : opt.labelEn}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Date format — hidden for modules that have no date column */}
+            {config.showDateFormat !== false && (
+              <div className="mb-6 p-4 bg-muted/30 rounded-xl border">
+                <label className="flex items-center gap-2 text-sm font-semibold mb-2">
+                  <Info className="w-4 h-4 text-primary" />
+                  صيغة التاريخ في الملف
+                </label>
+                <select
+                  value={dateFormat}
+                  onChange={(e) => setDateFormat(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {DATE_FORMAT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {isAr ? opt.labelAr : opt.labelEn}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Field mapping table */}
             <div className="border rounded-xl overflow-hidden">
