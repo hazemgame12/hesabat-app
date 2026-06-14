@@ -359,8 +359,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           {tab === "invoices" && (
             <ExcelToolbar
               exportPath={`/api/invoices/export?kind=${kind}`}
-              importPath={`/api/invoices/import?kind=${kind}`}
-              canImport={canCreate}
+              canImport={false}
               invalidateKeys={[["invoices", kind]]}
             />
           )}
