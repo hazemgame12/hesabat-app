@@ -23,6 +23,13 @@ git checkout main
 git pull origin main
 log "✅ Code updated — $(git log -1 --format='%h %s')"
 
+# Re-exec self so the rest of the script runs from the NEWLY pulled version.
+# Only do this on the first run (HESABAT_REEXECED not set).
+if [ -z "${HESABAT_REEXECED:-}" ]; then
+  export HESABAT_REEXECED=1
+  exec bash "$APP_DIR/scripts/update-vps.sh" "$@"
+fi
+
 # ── 2. Load NVM ──────────────────────────────────────────────
 export NVM_DIR="$HOME/.nvm"
 # shellcheck disable=SC1091
