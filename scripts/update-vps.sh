@@ -56,7 +56,7 @@ fi
 
 # ── 6. Reload PM2 ────────────────────────────────────────────
 section "5/5 — reload PM2"
-pm2 reload hesabat-api --env production
+pm2 reload hesabat-api
 pm2 save
 log "✅ hesabat-api reloaded"
 
