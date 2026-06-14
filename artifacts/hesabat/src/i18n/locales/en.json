@@ -1278,7 +1278,13 @@
     "bulkDeleteConfirmTitle": "Delete selected entries",
     "bulkDeleteConfirmBody": "{{count}} draft journal entr(ies) will be permanently deleted. This cannot be undone.",
     "bulkReverseConfirmTitle": "Reverse selected entries",
-    "bulkReverseConfirmBody": "Reversal entries will be created for {{count}} posted entr(ies)."
+    "bulkReverseConfirmBody": "Reversal entries will be created for {{count}} posted entr(ies).",
+    "bulkUnpost": "Unpost {{count}} entr(ies)",
+    "bulkUnpostConfirmTitle": "Unpost selected entries",
+    "bulkUnpostConfirmBody": "{{count}} posted entr(ies) will be reverted to draft. Entries linked to invoices, payments, or cleared bank movements cannot be unposted.",
+    "toast": {
+      "bulkUnposted": "{{count}} entr(ies) unposted"
+    }
   },
   "payroll": {
     "title": "Payroll & Employees",
@@ -1940,7 +1946,13 @@
     "bulkInvDelConfirmTitle": "Delete selected invoices",
     "bulkInvDelConfirmBody": "{{count}} draft invoice(s) will be permanently deleted. This cannot be undone.",
     "bulkPayDelConfirmTitle": "Delete selected payments",
-    "bulkPayDelConfirmBody": "{{count}} payment(s) and their journal entries will be permanently deleted. This cannot be undone."
+    "bulkPayDelConfirmBody": "{{count}} payment(s) and their journal entries will be permanently deleted. This cannot be undone.",
+    "bulkUnpostInvoices": "Revert to draft ({{count}})",
+    "bulkInvUnpostConfirmTitle": "Revert invoices to draft",
+    "bulkInvUnpostConfirmBody": "{{count}} invoice(s) will be unapproved and their journal entries deleted. Delete payments first for paid invoices.",
+    "toast": {
+      "bulkInvoiceUnposted": "{{count}} invoice(s) reverted to draft"
+    }
   },
   "print": {
     "print": "Print",

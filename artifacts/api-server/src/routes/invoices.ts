@@ -1255,6 +1255,82 @@ router.post(
   },
 );
 
+// ---- Bulk unpost (approved → draft, removes approval JE) ----
+// Only works on invoices with status = 'approved' (no payments).
+// If invoice is paid/partially_paid, delete payments first via bulk-delete.
+router.post(
+  "/invoices/bulk-unpost",
+  requireAuth,
+  requireCapability("invoices:update"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "ids مطلوب" });
+      return;
+    }
+    if (ids.length > 200) {
+      res.status(400).json({ error: "الحد الأقصى 200 فاتورة في المرة" });
+      return;
+    }
+    try {
+      const candidates = await db
+        .select()
+        .from(invoicesTable)
+        .where(
+          and(
+            inArray(invoicesTable.id, ids),
+            eq(invoicesTable.companyId, companyId),
+            eq(invoicesTable.status, "approved"),
+          ),
+        );
+      if (candidates.length === 0) {
+        res.json({ unposted: 0, skipped: ids.length });
+        return;
+      }
+      const invoiceIds = candidates.map((i) => i.id);
+      const jeIds = candidates.filter((i) => i.journalEntryId).map((i) => i.journalEntryId!);
+
+      await db.transaction(async (tx) => {
+        // 1. Reset invoices to draft first (breaks FK reference to JE)
+        await tx
+          .update(invoicesTable)
+          .set({ status: "draft", journalEntryId: null, approvedAt: null })
+          .where(
+            and(
+              inArray(invoicesTable.id, invoiceIds),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          );
+        // 2. Delete the approval journal entries (lines cascade)
+        if (jeIds.length > 0) {
+          await tx
+            .delete(journalEntriesTable)
+            .where(inArray(journalEntriesTable.id, jeIds));
+        }
+      });
+
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "bulk_unpost",
+          entity: "invoice",
+          entityId: companyId,
+          entityLabel: `فك اعتماد جماعي ${candidates.length} فاتورة`,
+          oldValue: { count: candidates.length },
+        },
+        req.log,
+      );
+      res.json({ unposted: candidates.length, skipped: ids.length - candidates.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to bulk unpost invoices");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
 // ---- Approve + post one balanced journal entry ----
 router.post(
   "/invoices/:id/approve",

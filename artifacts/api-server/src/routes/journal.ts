@@ -14,6 +14,9 @@ import {
   taxesTable,
   costCentersTable,
   companiesTable,
+  bankMovementsTable,
+  invoicesTable,
+  paymentsTable,
   type JournalEntry,
   type JournalEntryLine,
   type JournalEntryAttachment,
@@ -1924,6 +1927,116 @@ router.post(
       res.json({ reversed, skipped: ids.length - reversed });
     } catch (err) {
       req.log.error({ err }, "Failed to bulk reverse journal entries");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Bulk unpost (posted → draft, guards cleared + invoice/payment linked JEs) ----
+router.post(
+  "/journal/bulk-unpost",
+  requireAuth,
+  requireCapability("journal:approve"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "ids مطلوب" });
+      return;
+    }
+    if (ids.length > 200) {
+      res.status(400).json({ error: "الحد الأقصى 200 قيد في المرة" });
+      return;
+    }
+    try {
+      const candidates = await db
+        .select({ id: journalEntriesTable.id })
+        .from(journalEntriesTable)
+        .where(
+          and(
+            inArray(journalEntriesTable.id, ids),
+            eq(journalEntriesTable.companyId, companyId),
+            eq(journalEntriesTable.status, "posted"),
+          ),
+        );
+      if (candidates.length === 0) {
+        res.json({ unposted: 0, skipped: ids.length });
+        return;
+      }
+      const candidateIds = candidates.map((e) => e.id);
+
+      // Guard: cleared bank movements cannot be unposted
+      const clearedMovements = await db
+        .select({ journalEntryId: bankMovementsTable.journalEntryId })
+        .from(bankMovementsTable)
+        .where(
+          and(
+            inArray(bankMovementsTable.journalEntryId, candidateIds),
+            eq(bankMovementsTable.companyId, companyId),
+            eq(bankMovementsTable.isCleared, true),
+          ),
+        );
+      const clearedJeIds = new Set(clearedMovements.map((m) => m.journalEntryId!));
+
+      // Guard: JEs linked to invoices — unpost via invoice route instead
+      const invoiceJeRows = await db
+        .select({ journalEntryId: invoicesTable.journalEntryId })
+        .from(invoicesTable)
+        .where(
+          and(
+            inArray(invoicesTable.journalEntryId, candidateIds),
+            eq(invoicesTable.companyId, companyId),
+          ),
+        );
+      const invoiceJeIds = new Set(invoiceJeRows.map((i) => i.journalEntryId!));
+
+      // Guard: JEs linked to payments
+      const paymentJeRows = await db
+        .select({ journalEntryId: paymentsTable.journalEntryId })
+        .from(paymentsTable)
+        .where(
+          and(
+            inArray(paymentsTable.journalEntryId, candidateIds),
+            eq(paymentsTable.companyId, companyId),
+          ),
+        );
+      const paymentJeIds = new Set(paymentJeRows.map((p) => p.journalEntryId!));
+
+      const unpostableIds = candidateIds.filter(
+        (id) => !clearedJeIds.has(id) && !invoiceJeIds.has(id) && !paymentJeIds.has(id),
+      );
+
+      if (unpostableIds.length === 0) {
+        res.json({ unposted: 0, skipped: ids.length });
+        return;
+      }
+
+      await db
+        .update(journalEntriesTable)
+        .set({ status: "draft", approvedBy: null, approvedAt: null })
+        .where(
+          and(
+            inArray(journalEntriesTable.id, unpostableIds),
+            eq(journalEntriesTable.companyId, companyId),
+          ),
+        );
+
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "bulk_unpost",
+          entity: "journal_entry",
+          entityId: companyId,
+          entityLabel: `فك ترحيل جماعي ${unpostableIds.length} قيد`,
+          oldValue: { count: unpostableIds.length },
+        },
+        req.log,
+      );
+      res.json({ unposted: unpostableIds.length, skipped: ids.length - unpostableIds.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to bulk unpost journal entries");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

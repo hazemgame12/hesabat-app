@@ -97,6 +97,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [selectedPayIds, setSelectedPayIds] = useState<Set<string>>(new Set());
   const [bulkInvDelConfirm, setBulkInvDelConfirm] = useState(false);
   const [bulkPayDelConfirm, setBulkPayDelConfirm] = useState(false);
+  const [bulkInvUnpostConfirm, setBulkInvUnpostConfirm] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -295,6 +296,35 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     );
   };
 
+  const bulkUnpostInvoicesMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch(`${base}api/invoices/bulk-unpost`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let msg = t("invoices.toast.error");
+        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
+        throw new Error(msg);
+      }
+      return (await res.json()) as { unposted: number; skipped: number };
+    },
+    onSuccess: (data) => {
+      invalidateInvoices();
+      invalidateJournal();
+      toast({ title: t("invoices.toast.bulkInvoiceUnposted", { count: data.unposted }) });
+      setSelectedInvIds(new Set());
+      setBulkInvUnpostConfirm(false);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: t("common.error"), description: err.message });
+      setBulkInvUnpostConfirm(false);
+    },
+  });
+
   const bulkDeletePaymentsMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const res = await fetch(`${base}api/payments/bulk-delete`, {
@@ -371,6 +401,16 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const draftInvoices = useMemo(
     () => invoices.filter((inv) => inv.status === "draft"),
     [invoices],
+  );
+
+  const approvedInvoices = useMemo(
+    () => invoices.filter((inv) => inv.status === "approved"),
+    [invoices],
+  );
+
+  const selectedApprovedIds = useMemo(
+    () => [...selectedInvIds].filter((id) => approvedInvoices.some((inv) => inv.id === id)),
+    [selectedInvIds, approvedInvoices],
   );
 
   const allDraftsSelected =
@@ -687,19 +727,31 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
             </div>
 
             {/* Bulk action bar — invoices */}
-            {selectedInvIds.size > 0 && canDelete && (
+            {selectedInvIds.size > 0 && (
               <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5">
                 <span className="text-sm font-bold text-rose-700">
                   {t("invoices.bulkSelected", { count: selectedInvIds.size })}
                 </span>
-                <button
-                  onClick={() => setBulkInvDelConfirm(true)}
-                  disabled={bulkDeleteInvoicesMutation.isPending}
-                  className="flex items-center gap-1.5 text-sm font-bold text-rose-600 hover:text-rose-800 disabled:opacity-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {t("invoices.bulkDeleteInvoices")}
-                </button>
+                {canDelete && (
+                  <button
+                    onClick={() => setBulkInvDelConfirm(true)}
+                    disabled={bulkDeleteInvoicesMutation.isPending}
+                    className="flex items-center gap-1.5 text-sm font-bold text-rose-600 hover:text-rose-800 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {t("invoices.bulkDeleteInvoices")}
+                  </button>
+                )}
+                {canUpdate && selectedApprovedIds.length > 0 && (
+                  <button
+                    onClick={() => setBulkInvUnpostConfirm(true)}
+                    disabled={bulkUnpostInvoicesMutation.isPending}
+                    className="flex items-center gap-1.5 text-sm font-bold text-amber-600 hover:text-amber-800 disabled:opacity-50"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    {t("invoices.bulkUnpostInvoices", { count: selectedApprovedIds.length })}
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedInvIds(new Set())}
                   className="text-xs text-muted-foreground hover:text-foreground ms-auto"
@@ -735,17 +787,19 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                   <table className="w-full text-sm min-w-[1000px] border-collapse">
                     <thead>
                       <tr className="text-[11px] font-bold text-muted-foreground bg-slate-50 border-b border-slate-200">
-                        {canDelete && (
+                        {(canDelete || canUpdate) && (
                           <th className="px-3 py-2 w-10 border-b border-slate-200 text-center">
                             <input
                               type="checkbox"
                               checked={allDraftsSelected}
-                              disabled={draftInvoices.length === 0}
-                              onChange={() =>
-                                allDraftsSelected
+                              disabled={draftInvoices.length === 0 && approvedInvoices.length === 0}
+                              onChange={() => {
+                                const selectable = [...draftInvoices, ...approvedInvoices].map((inv) => inv.id);
+                                const allSelected = selectable.every((id) => selectedInvIds.has(id));
+                                allSelected
                                   ? setSelectedInvIds(new Set())
-                                  : setSelectedInvIds(new Set(draftInvoices.map((inv) => inv.id)))
-                              }
+                                  : setSelectedInvIds(new Set(selectable));
+                              }}
                               className="rounded cursor-pointer accent-primary"
                             />
                           </th>
@@ -788,9 +842,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           key={inv.id}
                           className={`border-b border-slate-100 hover:bg-slate-50/50 transition-colors ${selectedInvIds.has(inv.id) ? "bg-rose-50/60" : ""}`}
                         >
-                          {canDelete && (
+                          {(canDelete || canUpdate) && (
                             <td className="px-3 py-2.5 text-center">
-                              {inv.status === "draft" && (
+                              {(inv.status === "draft" || inv.status === "approved") && (
                                 <input
                                   type="checkbox"
                                   checked={selectedInvIds.has(inv.id)}
@@ -1407,6 +1461,27 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t("invoices.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkInvUnpostConfirm} onOpenChange={setBulkInvUnpostConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("invoices.bulkInvUnpostConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("invoices.bulkInvUnpostConfirmBody", { count: selectedApprovedIds.length })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("invoices.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkUnpostInvoicesMutation.mutate(selectedApprovedIds)}
+              disabled={bulkUnpostInvoicesMutation.isPending}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {bulkUnpostInvoicesMutation.isPending ? t("common.saving") : t("invoices.bulkUnpostInvoices", { count: selectedApprovedIds.length })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

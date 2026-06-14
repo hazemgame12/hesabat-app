@@ -154,6 +154,7 @@ export function Journal() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [bulkReverseConfirm, setBulkReverseConfirm] = useState(false);
+  const [bulkUnpostConfirm, setBulkUnpostConfirm] = useState(false);
 
   const openCreate = () => {
     setEditingId(null);
@@ -199,6 +200,34 @@ export function Journal() {
     onError: (err: Error) => {
       toast({ variant: "destructive", title: t("common.error"), description: err.message });
       setBulkDeleteConfirm(false);
+    },
+  });
+
+  const bulkUnpostMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch(`${base}api/journal/bulk-unpost`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let msg = t("common.error");
+        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
+        throw new Error(msg);
+      }
+      return (await res.json()) as { unposted: number; skipped: number };
+    },
+    onSuccess: (data) => {
+      invalidateList();
+      toast({ title: t("journal.toast.bulkUnposted", { count: data.unposted }) });
+      setSelectedIds(new Set());
+      setBulkUnpostConfirm(false);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: t("common.error"), description: err.message });
+      setBulkUnpostConfirm(false);
     },
   });
 
@@ -365,6 +394,16 @@ export function Journal() {
                   {t("journal.bulkReverse", { count: selectedPostedIds.length })}
                 </button>
               )}
+              {canApprove && selectedPostedIds.length > 0 && (
+                <button
+                  onClick={() => setBulkUnpostConfirm(true)}
+                  disabled={bulkUnpostMutation.isPending}
+                  className="flex items-center gap-1.5 text-sm font-bold text-amber-600 hover:text-amber-800 disabled:opacity-50"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  {t("journal.bulkUnpost", { count: selectedPostedIds.length })}
+                </button>
+              )}
               <button
                 onClick={() => setSelectedIds(new Set())}
                 className="text-xs text-muted-foreground hover:text-foreground ms-auto"
@@ -509,6 +548,27 @@ export function Journal() {
               disabled={bulkReverseMutation.isPending}
             >
               {bulkReverseMutation.isPending ? t("common.saving") : t("journal.bulkReverse", { count: selectedPostedIds.length })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkUnpostConfirm} onOpenChange={setBulkUnpostConfirm}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">{t("journal.bulkUnpostConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              {t("journal.bulkUnpostConfirmBody", { count: selectedPostedIds.length })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkUnpostMutation.mutate(selectedPostedIds)}
+              disabled={bulkUnpostMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {bulkUnpostMutation.isPending ? t("common.saving") : t("journal.bulkUnpost", { count: selectedPostedIds.length })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1278,7 +1278,13 @@
     "bulkDeleteConfirmTitle": "حذف القيود المحددة",
     "bulkDeleteConfirmBody": "سيتم حذف {{count}} مسودة قيد نهائياً. لا يمكن التراجع عن هذا الإجراء.",
     "bulkReverseConfirmTitle": "عكس القيود المحددة",
-    "bulkReverseConfirmBody": "سيتم إنشاء قيود عكسية لـ {{count}} قيد مرحَّل."
+    "bulkReverseConfirmBody": "سيتم إنشاء قيود عكسية لـ {{count}} قيد مرحَّل.",
+    "bulkUnpost": "فك ترحيل {{count}} قيد",
+    "bulkUnpostConfirmTitle": "فك ترحيل القيود المحددة",
+    "bulkUnpostConfirmBody": "سيتم إعادة {{count}} قيد مرحَّل إلى حالة المسودة. لا يمكن فك ترحيل القيود المرتبطة بفواتير أو دفعات أو بنك مُسوَّى.",
+    "toast": {
+      "bulkUnposted": "تم فك ترحيل {{count}} قيد"
+    }
   },
   "payroll": {
     "title": "الرواتب والموظفين",
@@ -1940,7 +1946,13 @@
     "bulkInvDelConfirmTitle": "حذف الفواتير المحددة",
     "bulkInvDelConfirmBody": "سيتم حذف {{count}} مسودة فاتورة نهائياً. لا يمكن التراجع عن هذا الإجراء.",
     "bulkPayDelConfirmTitle": "حذف السدادات المحددة",
-    "bulkPayDelConfirmBody": "سيتم حذف {{count}} دفعة وقيودها المحاسبية نهائياً. لا يمكن التراجع عن هذا الإجراء."
+    "bulkPayDelConfirmBody": "سيتم حذف {{count}} دفعة وقيودها المحاسبية نهائياً. لا يمكن التراجع عن هذا الإجراء.",
+    "bulkUnpostInvoices": "تحويل لمسودة ({{count}})",
+    "bulkInvUnpostConfirmTitle": "تحويل الفواتير إلى مسودة",
+    "bulkInvUnpostConfirmBody": "سيتم إلغاء اعتماد {{count}} فاتورة وحذف قيودها المحاسبية. يجب حذف الدفعات أولاً للفواتير المدفوعة.",
+    "toast": {
+      "bulkInvoiceUnposted": "تم تحويل {{count}} فاتورة إلى مسودة"
+    }
   },
   "print": {
     "print": "طباعة",
