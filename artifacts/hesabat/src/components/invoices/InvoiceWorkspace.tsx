@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useListInvoices,
   useDeleteInvoice,
@@ -63,7 +63,7 @@ import { ImportWizard } from "@/components/import-wizard/ImportWizard";
 type Kind = "sales" | "purchase";
 type Tab = "invoices" | "returns" | "payments" | "reports";
 
-function getPartyDisplayName(
+function displayName(
   e: { nameAr: string; nameEn?: string | null },
   lang: string,
 ): string {
@@ -93,11 +93,6 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | undefined>(undefined);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
-  const [selectedInvIds, setSelectedInvIds] = useState<Set<string>>(new Set());
-  const [selectedPayIds, setSelectedPayIds] = useState<Set<string>>(new Set());
-  const [bulkInvDelConfirm, setBulkInvDelConfirm] = useState(false);
-  const [bulkPayDelConfirm, setBulkPayDelConfirm] = useState(false);
-  const [bulkInvUnpostConfirm, setBulkInvUnpostConfirm] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -295,130 +290,6 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
       },
     );
   };
-
-  const bulkUnpostInvoicesMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const res = await fetch(`${base}api/invoices/bulk-unpost`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        let msg = t("invoices.toast.error");
-        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
-        throw new Error(msg);
-      }
-      return (await res.json()) as { unposted: number; skipped: number };
-    },
-    onSuccess: (data) => {
-      invalidateInvoices();
-      invalidateJournal();
-      toast({ title: t("invoices.toast.bulkInvoiceUnposted", { count: data.unposted }) });
-      setSelectedInvIds(new Set());
-      setBulkInvUnpostConfirm(false);
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: t("common.error"), description: err.message });
-      setBulkInvUnpostConfirm(false);
-    },
-  });
-
-  const bulkDeletePaymentsMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const res = await fetch(`${base}api/payments/bulk-delete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        let msg = t("invoices.toast.error");
-        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
-        throw new Error(msg);
-      }
-      return (await res.json()) as { deleted: number };
-    },
-    onSuccess: (data) => {
-      invalidatePayments();
-      invalidateInvoices();
-      invalidateJournal();
-      toast({ title: t("invoices.toast.bulkPaymentDeleted", { count: data.deleted }) });
-      setSelectedPayIds(new Set());
-      setBulkPayDelConfirm(false);
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: t("common.error"), description: err.message });
-      setBulkPayDelConfirm(false);
-    },
-  });
-
-  const bulkDeleteInvoicesMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const res = await fetch(`${base}api/invoices/bulk-delete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        let msg = t("invoices.toast.error");
-        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
-        throw new Error(msg);
-      }
-      return (await res.json()) as { deleted: number; skipped: number };
-    },
-    onSuccess: (data) => {
-      invalidateInvoices();
-      invalidateJournal();
-      toast({ title: t("invoices.toast.bulkInvoiceDeleted", { count: data.deleted }) });
-      setSelectedInvIds(new Set());
-      setBulkInvDelConfirm(false);
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: t("common.error"), description: err.message });
-      setBulkInvDelConfirm(false);
-    },
-  });
-
-  const toggleInv = (id: string) =>
-    setSelectedInvIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-
-  const togglePay = (id: string) =>
-    setSelectedPayIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-
-  const draftInvoices = useMemo(
-    () => invoices.filter((inv) => inv.status === "draft"),
-    [invoices],
-  );
-
-  const approvedInvoices = useMemo(
-    () => invoices.filter((inv) => inv.status === "approved"),
-    [invoices],
-  );
-
-  const selectedApprovedIds = useMemo(
-    () => [...selectedInvIds].filter((id) => approvedInvoices.some((inv) => inv.id === id)),
-    [selectedInvIds, approvedInvoices],
-  );
-
-  const allDraftsSelected =
-    draftInvoices.length > 0 &&
-    draftInvoices.every((inv) => selectedInvIds.has(inv.id));
-
-  const allPaysSelected =
-    payments.length > 0 && payments.every((p: Payment) => selectedPayIds.has(p.id));
 
   const statusBadge = (inv: InvoiceSummary) => {
     const map: Record<string, { cls: string; icon: React.ReactNode }> = {
@@ -726,41 +597,6 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
               )}
             </div>
 
-            {/* Bulk action bar — invoices */}
-            {selectedInvIds.size > 0 && (
-              <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5">
-                <span className="text-sm font-bold text-rose-700">
-                  {t("invoices.bulkSelected", { count: selectedInvIds.size })}
-                </span>
-                {canDelete && (
-                  <button
-                    onClick={() => setBulkInvDelConfirm(true)}
-                    disabled={bulkDeleteInvoicesMutation.isPending}
-                    className="flex items-center gap-1.5 text-sm font-bold text-rose-600 hover:text-rose-800 disabled:opacity-50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    {t("invoices.bulkDeleteInvoices")}
-                  </button>
-                )}
-                {canUpdate && selectedApprovedIds.length > 0 && (
-                  <button
-                    onClick={() => setBulkInvUnpostConfirm(true)}
-                    disabled={bulkUnpostInvoicesMutation.isPending}
-                    className="flex items-center gap-1.5 text-sm font-bold text-amber-600 hover:text-amber-800 disabled:opacity-50"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    {t("invoices.bulkUnpostInvoices", { count: selectedApprovedIds.length })}
-                  </button>
-                )}
-                <button
-                  onClick={() => setSelectedInvIds(new Set())}
-                  className="text-xs text-muted-foreground hover:text-foreground ms-auto"
-                >
-                  {t("common.deselectAll")}
-                </button>
-              </div>
-            )}
-
             {/* Invoice Table */}
             <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
               {invLoading ? (
@@ -787,23 +623,6 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                   <table className="w-full text-sm min-w-[1000px] border-collapse">
                     <thead>
                       <tr className="text-[11px] font-bold text-muted-foreground bg-slate-50 border-b border-slate-200">
-                        {(canDelete || canUpdate) && (
-                          <th className="px-3 py-2 w-10 border-b border-slate-200 text-center">
-                            <input
-                              type="checkbox"
-                              checked={allDraftsSelected}
-                              disabled={draftInvoices.length === 0 && approvedInvoices.length === 0}
-                              onChange={() => {
-                                const selectable = [...draftInvoices, ...approvedInvoices].map((inv) => inv.id);
-                                const allSelected = selectable.every((id) => selectedInvIds.has(id));
-                                allSelected
-                                  ? setSelectedInvIds(new Set())
-                                  : setSelectedInvIds(new Set(selectable));
-                              }}
-                              className="rounded cursor-pointer accent-primary"
-                            />
-                          </th>
-                        )}
                         <th className="text-center px-2 py-2 w-[180px] border-b border-slate-200">
                           {t("invoices.actions")}
                         </th>
@@ -840,21 +659,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                       {invoices.map((inv) => (
                         <tr
                           key={inv.id}
-                          className={`border-b border-slate-100 hover:bg-slate-50/50 transition-colors ${selectedInvIds.has(inv.id) ? "bg-rose-50/60" : ""}`}
+                          className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
                         >
-                          {(canDelete || canUpdate) && (
-                            <td className="px-3 py-2.5 text-center">
-                              {(inv.status === "draft" || inv.status === "approved") && (
-                                <input
-                                  type="checkbox"
-                                  checked={selectedInvIds.has(inv.id)}
-                                  onChange={() => toggleInv(inv.id)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="rounded cursor-pointer accent-primary"
-                                />
-                              )}
-                            </td>
-                          )}
                           {/* Actions */}
                           <td className="px-2 py-2">
                             <div className="flex items-center justify-center gap-1">
@@ -1159,29 +965,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         )}
 
         {tab === "payments" && (
-          <div className="flex flex-col gap-3">
-            {selectedPayIds.size > 0 && canDeletePay && (
-              <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5">
-                <span className="text-sm font-bold text-rose-700">
-                  {t("invoices.bulkSelected", { count: selectedPayIds.size })}
-                </span>
-                <button
-                  onClick={() => setBulkPayDelConfirm(true)}
-                  disabled={bulkDeletePaymentsMutation.isPending}
-                  className="flex items-center gap-1.5 text-sm font-bold text-rose-600 hover:text-rose-800 disabled:opacity-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {t("invoices.bulkDeletePayments")}
-                </button>
-                <button
-                  onClick={() => setSelectedPayIds(new Set())}
-                  className="text-xs text-muted-foreground hover:text-foreground ms-auto"
-                >
-                  {t("common.deselectAll")}
-                </button>
-              </div>
-            )}
-            <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
+          <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
             {payLoading ? (
               <div className="flex items-center justify-center p-12">
                 <Spinner className="w-8 h-8 text-primary" />
@@ -1205,21 +989,6 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 <table className="w-full text-sm min-w-[700px] border-collapse">
                   <thead>
                     <tr className="text-[11px] font-bold text-muted-foreground bg-slate-50 border-b border-slate-200">
-                      {canDeletePay && (
-                        <th className="px-3 py-2 w-10 border-b border-slate-200 text-center">
-                          <input
-                            type="checkbox"
-                            checked={allPaysSelected}
-                            disabled={payments.length === 0}
-                            onChange={() =>
-                              allPaysSelected
-                                ? setSelectedPayIds(new Set())
-                                : setSelectedPayIds(new Set((payments as Payment[]).map((p) => p.id)))
-                            }
-                            className="rounded cursor-pointer accent-primary"
-                          />
-                        </th>
-                      )}
                       <th className="text-center px-2 py-2 w-[100px] border-b border-slate-200">
                         {t("invoices.actions")}
                       </th>
@@ -1244,19 +1013,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                     {payments.map((p) => (
                       <tr
                         key={p.id}
-                        className={`border-b border-slate-100 hover:bg-slate-50/50 transition-colors ${selectedPayIds.has(p.id) ? "bg-rose-50/60" : ""}`}
+                        className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
                       >
-                        {canDeletePay && (
-                          <td className="px-3 py-2.5 text-center">
-                            <input
-                              type="checkbox"
-                              checked={selectedPayIds.has(p.id)}
-                              onChange={() => togglePay(p.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="rounded cursor-pointer accent-primary"
-                            />
-                          </td>
-                        )}
                         {/* Actions */}
                         <td className="px-2 py-2">
                           <div className="flex items-center justify-center gap-1">
@@ -1304,7 +1062,6 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 </table>
               </div>
             )}
-            </div>
           </div>
         )}
 
@@ -1424,69 +1181,6 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={bulkInvDelConfirm} onOpenChange={setBulkInvDelConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("invoices.bulkInvDelConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("invoices.bulkInvDelConfirmBody", { count: selectedInvIds.size })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("invoices.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => bulkDeleteInvoicesMutation.mutate([...selectedInvIds])}
-              disabled={bulkDeleteInvoicesMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t("invoices.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={bulkPayDelConfirm} onOpenChange={setBulkPayDelConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("invoices.bulkPayDelConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("invoices.bulkPayDelConfirmBody", { count: selectedPayIds.size })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("invoices.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => bulkDeletePaymentsMutation.mutate([...selectedPayIds])}
-              disabled={bulkDeletePaymentsMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t("invoices.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={bulkInvUnpostConfirm} onOpenChange={setBulkInvUnpostConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("invoices.bulkInvUnpostConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("invoices.bulkInvUnpostConfirmBody", { count: selectedApprovedIds.length })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("invoices.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => bulkUnpostInvoicesMutation.mutate(selectedApprovedIds)}
-              disabled={bulkUnpostInvoicesMutation.isPending}
-              className="bg-amber-600 text-white hover:bg-amber-700"
-            >
-              {bulkUnpostInvoicesMutation.isPending ? t("common.saving") : t("invoices.bulkUnpostInvoices", { count: selectedApprovedIds.length })}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       {importWizardOpen && (
         <ImportWizard
           moduleType={kind}
@@ -1503,4 +1197,4 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   );
 }
 
-export { getPartyDisplayName as displayName };
+export { displayName };

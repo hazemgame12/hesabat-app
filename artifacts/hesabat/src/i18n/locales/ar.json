@@ -20,8 +20,7 @@
     "exportExcel": "تصدير Excel",
     "importExcel": "استيراد Excel",
     "importSuccess": "تم استيراد {{count}} سجل",
-    "importError": "تعذّر استيراد الملف",
-    "deselectAll": "إلغاء التحديد"
+    "importError": "تعذّر استيراد الملف"
   },
   "lang": {
     "switch": "اللغة",
@@ -1230,9 +1229,7 @@
       "submitError": "تعذّر إرسال القيد",
       "approveError": "تعذّر اعتماد القيد",
       "rejectError": "تعذّر رفض القيد",
-      "reverseError": "تعذّر عكس القيد",
-      "bulkDeleted": "تم حذف {{count}} قيد",
-      "bulkReversed": "تم عكس {{count}} قيد"
+      "reverseError": "تعذّر عكس القيد"
     },
     "deleteTitle": "حذف القيد",
     "deleteBody": "هل أنت متأكد من حذف القيد رقم {{no}}؟ لا يمكن التراجع عن هذا الإجراء.",
@@ -1271,20 +1268,7 @@
     "reversalBadge": "قيد عكسي",
     "adjustmentBadge": "قيد تسوية",
     "submitLockHint": "هذا القيد بانتظار الاعتماد ولا يمكن تعديله",
-    "approvedLockHint": "هذا القيد معتمد وجاهز للترحيل",
-    "bulkSelected": "{{count}} محدد",
-    "bulkDelete": "حذف {{count}} مسودة",
-    "bulkReverse": "عكس {{count}} قيد",
-    "bulkDeleteConfirmTitle": "حذف القيود المحددة",
-    "bulkDeleteConfirmBody": "سيتم حذف {{count}} مسودة قيد نهائياً. لا يمكن التراجع عن هذا الإجراء.",
-    "bulkReverseConfirmTitle": "عكس القيود المحددة",
-    "bulkReverseConfirmBody": "سيتم إنشاء قيود عكسية لـ {{count}} قيد مرحَّل.",
-    "bulkUnpost": "فك ترحيل {{count}} قيد",
-    "bulkUnpostConfirmTitle": "فك ترحيل القيود المحددة",
-    "bulkUnpostConfirmBody": "سيتم إعادة {{count}} قيد مرحَّل إلى حالة المسودة. لا يمكن فك ترحيل القيود المرتبطة بفواتير أو دفعات أو بنك مُسوَّى.",
-    "toast": {
-      "bulkUnposted": "تم فك ترحيل {{count}} قيد"
-    }
+    "approvedLockHint": "هذا القيد معتمد وجاهز للترحيل"
   },
   "payroll": {
     "title": "الرواتب والموظفين",
@@ -1932,27 +1916,12 @@
       "paymentCreated": "تم تسجيل السند",
       "paymentDeleted": "تم حذف السند",
       "error": "حدث خطأ",
-      "unbalanced": "البنود غير مكتملة",
-      "bulkInvoiceDeleted": "تم حذف {{count}} فاتورة",
-      "bulkPaymentDeleted": "تم حذف {{count}} دفعة"
+      "unbalanced": "البنود غير مكتملة"
     },
     "confirmDelete": "تأكيد الحذف",
     "confirmDeleteInvoice": "هل أنت متأكد من حذف هذه الفاتورة؟",
     "confirmDeletePayment": "هل أنت متأكد من حذف هذا السند؟",
-    "confirmApprove": "سيتم ترحيل قيد محاسبي معتمد ولا يمكن تعديل الفاتورة بعدها. متابعة؟",
-    "bulkSelected": "{{count}} محدد",
-    "bulkDeleteInvoices": "حذف الفواتير المحددة",
-    "bulkDeletePayments": "حذف السدادات المحددة",
-    "bulkInvDelConfirmTitle": "حذف الفواتير المحددة",
-    "bulkInvDelConfirmBody": "سيتم حذف {{count}} مسودة فاتورة نهائياً. لا يمكن التراجع عن هذا الإجراء.",
-    "bulkPayDelConfirmTitle": "حذف السدادات المحددة",
-    "bulkPayDelConfirmBody": "سيتم حذف {{count}} دفعة وقيودها المحاسبية نهائياً. لا يمكن التراجع عن هذا الإجراء.",
-    "bulkUnpostInvoices": "تحويل لمسودة ({{count}})",
-    "bulkInvUnpostConfirmTitle": "تحويل الفواتير إلى مسودة",
-    "bulkInvUnpostConfirmBody": "سيتم إلغاء اعتماد {{count}} فاتورة وحذف قيودها المحاسبية. يجب حذف الدفعات أولاً للفواتير المدفوعة.",
-    "toast": {
-      "bulkInvoiceUnposted": "تم تحويل {{count}} فاتورة إلى مسودة"
-    }
+    "confirmApprove": "سيتم ترحيل قيد محاسبي معتمد ولا يمكن تعديل الفاتورة بعدها. متابعة؟"
   },
   "print": {
     "print": "طباعة",
