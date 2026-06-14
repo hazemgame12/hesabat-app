@@ -1148,6 +1148,54 @@ router.delete(
   },
 );
 
+// ---- Bulk delete (draft only) ----
+router.post(
+  "/invoices/bulk-delete",
+  requireAuth,
+  requireCapability("invoices:delete"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) {
+      res.status(400).json({ error: "ids مطلوب" });
+      return;
+    }
+    if (ids.length > 200) {
+      res.status(400).json({ error: "الحد الأقصى 200 فاتورة في المرة" });
+      return;
+    }
+    try {
+      const deleted = await db
+        .delete(invoicesTable)
+        .where(
+          and(
+            inArray(invoicesTable.id, ids),
+            eq(invoicesTable.companyId, companyId),
+            eq(invoicesTable.status, "draft"),
+          ),
+        )
+        .returning({ id: invoicesTable.id });
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "bulk_delete",
+          entity: "invoice",
+          entityId: companyId,
+          entityLabel: `حذف جماعي ${deleted.length} فاتورة`,
+          oldValue: { count: deleted.length },
+        },
+        req.log,
+      );
+      res.json({ deleted: deleted.length, skipped: ids.length - deleted.length });
+    } catch (err) {
+      req.log.error({ err }, "Failed to bulk delete invoices");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
 // ---- Approve + post one balanced journal entry ----
 router.post(
   "/invoices/:id/approve",

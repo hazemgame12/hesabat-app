@@ -25,7 +25,7 @@ import {
   type Account,
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   FileText,
   Plus,
@@ -151,6 +151,9 @@ export function Journal() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [bulkReverseConfirm, setBulkReverseConfirm] = useState(false);
 
   const openCreate = () => {
     setEditingId(null);
@@ -168,6 +171,72 @@ export function Journal() {
   const deleteEntry = useDeleteJournalEntry();
   const invalidateList = () =>
     queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey() });
+
+  const base = import.meta.env.BASE_URL;
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch(`${base}api/journal/bulk-delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || t("journal.toast.deleteError"));
+      return data as { deleted: number; skipped: number };
+    },
+    onSuccess: (data) => {
+      invalidateList();
+      toast({ title: t("journal.toast.bulkDeleted", { count: data.deleted }) });
+      setSelectedIds(new Set());
+      setBulkDeleteConfirm(false);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: t("common.error"), description: err.message });
+      setBulkDeleteConfirm(false);
+    },
+  });
+
+  const bulkReverseMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch(`${base}api/journal/bulk-reverse`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || t("journal.toast.reverseError"));
+      return data as { reversed: number; skipped: number };
+    },
+    onSuccess: (data) => {
+      invalidateList();
+      toast({ title: t("journal.toast.bulkReversed", { count: data.reversed }) });
+      setSelectedIds(new Set());
+      setBulkReverseConfirm(false);
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: t("common.error"), description: err.message });
+      setBulkReverseConfirm(false);
+    },
+  });
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const selectedList = Array.from(selectedIds);
+  const selectedDraftIds = selectedList.filter(
+    (id) => entries.find((e) => e.id === id)?.status === "draft",
+  );
+  const selectedPostedIds = selectedList.filter(
+    (id) => entries.find((e) => e.id === id)?.status === "posted",
+  );
+  const allSelected = entries.length > 0 && entries.every((e) => selectedIds.has(e.id));
 
   const handleDelete = () => {
     if (!entryToDelete) return;
@@ -262,10 +331,58 @@ export function Journal() {
             )}
           </div>
         ) : (
+          <>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5 mb-3">
+              <span className="text-sm font-bold text-rose-700">
+                {t("journal.bulkSelected", { count: selectedIds.size })}
+              </span>
+              {canDelete && selectedDraftIds.length > 0 && (
+                <button
+                  onClick={() => setBulkDeleteConfirm(true)}
+                  disabled={bulkDeleteMutation.isPending}
+                  className="flex items-center gap-1.5 text-sm font-bold text-rose-600 hover:text-rose-800 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {t("journal.bulkDelete", { count: selectedDraftIds.length })}
+                </button>
+              )}
+              {canCreate && selectedPostedIds.length > 0 && (
+                <button
+                  onClick={() => setBulkReverseConfirm(true)}
+                  disabled={bulkReverseMutation.isPending}
+                  className="flex items-center gap-1.5 text-sm font-bold text-primary hover:text-primary/80 disabled:opacity-50"
+                >
+                  <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                  {t("journal.bulkReverse", { count: selectedPostedIds.length })}
+                </button>
+              )}
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-muted-foreground hover:text-foreground ms-auto"
+              >
+                {t("common.deselectAll")}
+              </button>
+            </div>
+          )}
+
           <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 text-muted-foreground text-xs">
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      disabled={entries.length === 0}
+                      onChange={() =>
+                        allSelected
+                          ? setSelectedIds(new Set())
+                          : setSelectedIds(new Set(entries.map((e) => e.id)))
+                      }
+                      className="rounded cursor-pointer accent-primary"
+                    />
+                  </th>
                   <th className="text-start font-bold px-4 py-3">{t("journal.entryNo")}</th>
                   <th className="text-start font-bold px-4 py-3">{t("journal.date")}</th>
                   <th className="text-start font-bold px-4 py-3">{t("journal.reference")}</th>
@@ -277,7 +394,16 @@ export function Journal() {
               </thead>
               <tbody>
                 {entries.map((e) => (
-                  <tr key={e.id} className="border-t hover:bg-muted/30 transition-colors group">
+                  <tr key={e.id} className={`border-t hover:bg-muted/30 transition-colors group ${selectedIds.has(e.id) ? "bg-rose-50/40" : ""}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(e.id)}
+                        onChange={() => toggleSelect(e.id)}
+                        onClick={(ev) => ev.stopPropagation()}
+                        className="rounded cursor-pointer accent-primary"
+                      />
+                    </td>
                     <td className="px-4 py-3 font-bold text-foreground font-sans">
                       {e.entryNumber}
                       {e.entryType === "reversal" && (
@@ -318,6 +444,7 @@ export function Journal() {
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
@@ -333,6 +460,47 @@ export function Journal() {
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
               {deleteEntry.isPending ? t("journal.deleting") : t("journal.confirmDelete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteConfirm} onOpenChange={setBulkDeleteConfirm}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">{t("journal.bulkDeleteConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              {t("journal.bulkDeleteConfirmBody", { count: selectedDraftIds.length })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkDeleteMutation.mutate(selectedDraftIds)}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={bulkDeleteMutation.isPending}
+            >
+              {bulkDeleteMutation.isPending ? t("common.saving") : t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkReverseConfirm} onOpenChange={setBulkReverseConfirm}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">{t("journal.bulkReverseConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              {t("journal.bulkReverseConfirmBody", { count: selectedPostedIds.length })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkReverseMutation.mutate(selectedPostedIds)}
+              disabled={bulkReverseMutation.isPending}
+            >
+              {bulkReverseMutation.isPending ? t("common.saving") : t("journal.bulkReverse", { count: selectedPostedIds.length })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -268,6 +268,7 @@ export interface ImportWizardProps {
 export function ImportWizard({ moduleType, onClose, onSuccess, extraContext }: ImportWizardProps) {
   const { i18n } = useTranslation();
   const isAr = i18n.language.startsWith("ar");
+  const base = import.meta.env.BASE_URL;
   const { toast } = useToast();
   const config = MODULE_CONFIGS[moduleType];
 
@@ -318,7 +319,7 @@ export function ImportWizard({ moduleType, onClose, onSuccess, extraContext }: I
     try {
       const fd = new FormData();
       fd.append("file", f);
-      const res = await fetch("/api/import/parse-preview", {
+      const res = await fetch(`${base}api/import/parse-preview`, {
         method: "POST",
         body: fd,
         credentials: "include",
@@ -360,7 +361,7 @@ export function ImportWizard({ moduleType, onClose, onSuccess, extraContext }: I
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/import/execute", {
+      const res = await fetch(`${base}api/import/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -391,7 +392,7 @@ export function ImportWizard({ moduleType, onClose, onSuccess, extraContext }: I
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/import/execute", {
+      const res = await fetch(`${base}api/import/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

@@ -20,7 +20,8 @@
     "exportExcel": "Export Excel",
     "importExcel": "Import Excel",
     "importSuccess": "Imported {{count}} record(s)",
-    "importError": "Failed to import file"
+    "importError": "Failed to import file",
+    "deselectAll": "Deselect all"
   },
   "lang": {
     "switch": "Language",
@@ -1229,7 +1230,9 @@
       "submitError": "Failed to submit entry",
       "approveError": "Failed to approve entry",
       "rejectError": "Failed to reject entry",
-      "reverseError": "Failed to reverse entry"
+      "reverseError": "Failed to reverse entry",
+      "bulkDeleted": "{{count}} entr(ies) deleted",
+      "bulkReversed": "{{count}} entr(ies) reversed"
     },
     "deleteTitle": "Delete entry",
     "deleteBody": "Are you sure you want to delete entry #{{no}}? This action cannot be undone.",
@@ -1268,7 +1271,14 @@
     "reversalBadge": "Reversal",
     "adjustmentBadge": "Adjustment",
     "submitLockHint": "This entry is awaiting approval and cannot be edited",
-    "approvedLockHint": "This entry is approved and ready to post"
+    "approvedLockHint": "This entry is approved and ready to post",
+    "bulkSelected": "{{count}} selected",
+    "bulkDelete": "Delete {{count}} draft(s)",
+    "bulkReverse": "Reverse {{count}} entr(ies)",
+    "bulkDeleteConfirmTitle": "Delete selected entries",
+    "bulkDeleteConfirmBody": "{{count}} draft journal entr(ies) will be permanently deleted. This cannot be undone.",
+    "bulkReverseConfirmTitle": "Reverse selected entries",
+    "bulkReverseConfirmBody": "Reversal entries will be created for {{count}} posted entr(ies)."
   },
   "payroll": {
     "title": "Payroll & Employees",
@@ -1916,12 +1926,21 @@
       "paymentCreated": "Voucher recorded",
       "paymentDeleted": "Voucher deleted",
       "error": "An error occurred",
-      "unbalanced": "Lines are incomplete"
+      "unbalanced": "Lines are incomplete",
+      "bulkInvoiceDeleted": "{{count}} invoice(s) deleted",
+      "bulkPaymentDeleted": "{{count}} payment(s) deleted"
     },
     "confirmDelete": "Confirm delete",
     "confirmDeleteInvoice": "Are you sure you want to delete this invoice?",
     "confirmDeletePayment": "Are you sure you want to delete this voucher?",
-    "confirmApprove": "A posted journal entry will be created and the invoice can no longer be edited. Continue?"
+    "confirmApprove": "A posted journal entry will be created and the invoice can no longer be edited. Continue?",
+    "bulkSelected": "{{count}} selected",
+    "bulkDeleteInvoices": "Delete selected invoices",
+    "bulkDeletePayments": "Delete selected payments",
+    "bulkInvDelConfirmTitle": "Delete selected invoices",
+    "bulkInvDelConfirmBody": "{{count}} draft invoice(s) will be permanently deleted. This cannot be undone.",
+    "bulkPayDelConfirmTitle": "Delete selected payments",
+    "bulkPayDelConfirmBody": "{{count}} payment(s) and their journal entries will be permanently deleted. This cannot be undone."
   },
   "print": {
     "print": "Print",
