@@ -150,39 +150,7 @@ export function Journal() {
   const [mode, setMode] = useState<"list" | "editor">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
-  const [importing, setImporting] = useState(false);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
-
-  const onImportChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    setImporting(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/journal/import", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body?.error || t("journal.excel.importError"));
-      queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey() });
-      toast({
-        title: t("journal.excel.imported", { count: body?.imported ?? 0 }),
-      });
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: t("common.error"),
-        description: err?.message || t("journal.excel.importError"),
-      });
-    } finally {
-      setImporting(false);
-    }
-  };
 
   const openCreate = () => {
     setEditingId(null);
@@ -259,31 +227,12 @@ export function Journal() {
           </button>
           {canCreate && (
             <>
-              <input
-                ref={importInputRef}
-                type="file"
-                className="hidden"
-                accept=".xlsx,.xls"
-                onChange={onImportChange}
-              />
               <button
                 onClick={() => setImportWizardOpen(true)}
                 className="flex items-center gap-2 bg-card border px-4 py-2 rounded-full text-sm font-bold text-foreground hover:bg-muted/50 transition-colors"
               >
                 <Upload className="w-4 h-4" />
                 {t("importWizard.openButton")}
-              </button>
-              <button
-                onClick={() => importInputRef.current?.click()}
-                disabled={importing}
-                className="flex items-center gap-2 bg-card border px-4 py-2 rounded-full text-sm font-bold text-foreground hover:bg-muted/50 transition-colors disabled:opacity-60"
-              >
-                {importing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4" />
-                )}
-                {t("journal.excel.import")}
               </button>
               <button
                 onClick={openCreate}
