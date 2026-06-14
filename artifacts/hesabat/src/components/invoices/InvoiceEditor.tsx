@@ -154,6 +154,30 @@ export function InvoiceEditor({
   const [exchangeRate, setExchangeRate] = useState("1");
   const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
 
+  // The initial useState above uses the "EGP" fallback because company data
+  // hasn't loaded yet. Once company loads and baseCurrency is known (e.g. AED),
+  // reset the default currency for NEW invoices so the rate defaults to 1 and
+  // the user consciously picks a foreign currency (which auto-fills the correct
+  // rate). Without this, an EGP invoice created on an AED-base company would
+  // store exchangeRate = 1 instead of 0.07, inflating every amount by ~14×.
+  useEffect(() => {
+    if (isEdit || !company) return;
+    setCurrency((prev) => {
+      if (prev === "EGP" && baseCurrency !== "EGP") {
+        // Was initialized at the "EGP" fallback; reset to the true base.
+        setExchangeRate("1");
+        return baseCurrency;
+      }
+      // If the user already picked a non-EGP currency before company loaded,
+      // look up and apply the correct market rate now.
+      if (prev !== baseCurrency && prev !== "EGP") {
+        const opt = currencyOptions.find((o) => o.code === prev);
+        if (opt) setExchangeRate(opt.rate);
+      }
+      return prev;
+    });
+  }, [baseCurrency, isEdit, company, currencyOptions]);
+
   // Preselect the source invoice when creating a note from an approved invoice.
   useEffect(() => {
     if (!isEdit && isReturn && relatedSourceId) {

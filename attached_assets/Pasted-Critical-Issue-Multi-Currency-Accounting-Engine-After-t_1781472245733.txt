@@ -1,0 +1,110 @@
+Critical Issue – Multi Currency Accounting Engine
+
+After testing purchase invoices and reviewing the generated journal entries and Trial Balance, we discovered a fundamental issue in the multi-currency accounting engine.
+
+Current Situation:
+
+Company Base Currency = AED
+
+Purchase Invoice Currency = EGP
+
+Invoice Amount = 7,000 EGP
+
+The system generated the journal entry and financial reports using:
+
+Debit = 7,000 AED
+Credit = 7,000 AED
+
+instead of converting the transaction amount using the exchange rate.
+
+This means the system is currently treating:
+
+7,000 EGP = 7,000 AED
+
+which is a critical accounting error.
+
+Root Cause:
+
+The transaction currency is stored correctly in documents and screens, but the accounting posting engine is not converting transactions into the company's base currency before posting to the General Ledger.
+
+Required Design:
+
+Every financial transaction must store three values:
+
+1. Transaction Currency
+   Example: EGP
+
+2. Exchange Rate
+   Example: 0.07 AED per EGP
+
+3. Base Currency Amount
+   Example:
+   7,000 EGP × 0.07 = 490 AED
+
+Journal Entry Rules:
+
+General Ledger must always be posted in Base Currency.
+
+Transaction currency should be stored only for reference and reporting purposes.
+
+Example:
+
+Purchase Invoice:
+7,000 EGP
+Exchange Rate = 0.07
+
+Generated Journal Entry:
+
+Debit Expense = 490 AED
+Credit Supplier = 490 AED
+
+Additional Requirements:
+
+This logic must be applied consistently across ALL modules:
+
+* Customer Invoices
+* Supplier Invoices
+* Customer Payments
+* Supplier Payments
+* Journal Entries
+* Bank Transactions
+* Treasury Transactions
+* Employee Advances
+* Employee Loans
+* Fixed Assets
+* Payroll
+* Inventory Transactions
+* Opening Balances
+
+Database Requirements:
+
+Every accounting line should store:
+
+* transactionCurrency
+* exchangeRate
+* transactionAmount
+* baseCurrencyAmount
+
+Reporting Requirements:
+
+Trial Balance:
+Display only Base Currency balances.
+
+General Ledger:
+Ability to display:
+
+* Base Currency
+* Transaction Currency
+* Both
+
+Supplier and Customer Statements:
+Must display:
+
+* Original Currency Amount
+* Base Currency Equivalent
+
+Currency Revaluation:
+
+Revaluation should work using the stored transaction currency and exchange rate history, not based on already converted balances.
+
+Please review the entire multi-currency engine architecture because this issue is not limited to Purchase Invoices; it affects all accounting modules and financial reports.
