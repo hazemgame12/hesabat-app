@@ -13,6 +13,9 @@ import {
   fixedAssetsTable,
   companiesTable,
   costCentersTable,
+  paymentsTable,
+  paymentAllocationsTable,
+  journalEntriesTable,
   type Invoice,
   type InvoiceLine,
 } from "@workspace/db";
@@ -1148,7 +1151,7 @@ router.delete(
   },
 );
 
-// ---- Bulk delete (draft only) ----
+// ---- Bulk delete (any status — auto-reverses payments + JEs first) ----
 router.post(
   "/invoices/bulk-delete",
   requireAuth,
@@ -1165,16 +1168,71 @@ router.post(
       return;
     }
     try {
-      const deleted = await db
-        .delete(invoicesTable)
-        .where(
-          and(
-            inArray(invoicesTable.id, ids),
-            eq(invoicesTable.companyId, companyId),
-            eq(invoicesTable.status, "draft"),
-          ),
-        )
-        .returning({ id: invoicesTable.id });
+      // Load all target invoices owned by this company
+      const invoices = await db
+        .select()
+        .from(invoicesTable)
+        .where(and(inArray(invoicesTable.id, ids), eq(invoicesTable.companyId, companyId)));
+
+      if (invoices.length === 0) {
+        res.json({ deleted: 0, skipped: ids.length });
+        return;
+      }
+
+      const invoiceIds = invoices.map((i) => i.id);
+
+      // Collect all payment IDs linked to these invoices via allocations
+      const allocs = await db
+        .select({ paymentId: paymentAllocationsTable.paymentId })
+        .from(paymentAllocationsTable)
+        .where(inArray(paymentAllocationsTable.invoiceId, invoiceIds));
+
+      const paymentIds = [...new Set(allocs.map((a) => a.paymentId))];
+
+      // Get payment JE IDs
+      let payJeIds: string[] = [];
+      if (paymentIds.length > 0) {
+        const pmts = await db
+          .select({ journalEntryId: paymentsTable.journalEntryId })
+          .from(paymentsTable)
+          .where(
+            and(inArray(paymentsTable.id, paymentIds), eq(paymentsTable.companyId, companyId)),
+          );
+        payJeIds = pmts.filter((p) => p.journalEntryId).map((p) => p.journalEntryId!);
+      }
+
+      // Get invoice JE IDs (from approval posting)
+      const invJeIds = invoices.filter((i) => i.journalEntryId).map((i) => i.journalEntryId!);
+
+      await db.transaction(async (tx) => {
+        // 1. Delete payment journal entries (JE lines cascade)
+        if (payJeIds.length > 0) {
+          await tx
+            .delete(journalEntriesTable)
+            .where(inArray(journalEntriesTable.id, payJeIds));
+        }
+        // 2. Delete payments (payment_allocations cascade via FK)
+        if (paymentIds.length > 0) {
+          await tx
+            .delete(paymentsTable)
+            .where(
+              and(inArray(paymentsTable.id, paymentIds), eq(paymentsTable.companyId, companyId)),
+            );
+        }
+        // 3. Delete invoice approval journal entries (JE lines cascade)
+        if (invJeIds.length > 0) {
+          await tx
+            .delete(journalEntriesTable)
+            .where(inArray(journalEntriesTable.id, invJeIds));
+        }
+        // 4. Delete invoices (invoice_lines cascade via FK onDelete: cascade)
+        await tx
+          .delete(invoicesTable)
+          .where(
+            and(inArray(invoicesTable.id, invoiceIds), eq(invoicesTable.companyId, companyId)),
+          );
+      });
+
       await safeAudit(
         db,
         {
@@ -1183,12 +1241,13 @@ router.post(
           action: "bulk_delete",
           entity: "invoice",
           entityId: companyId,
-          entityLabel: `حذف جماعي ${deleted.length} فاتورة`,
-          oldValue: { count: deleted.length },
+          entityLabel: `حذف جماعي ${invoices.length} فاتورة (${paymentIds.length} دفعة)`,
+          oldValue: { count: invoices.length, payments: paymentIds.length },
         },
         req.log,
       );
-      res.json({ deleted: deleted.length, skipped: ids.length - deleted.length });
+
+      res.json({ deleted: invoices.length, skipped: ids.length - invoices.length });
     } catch (err) {
       req.log.error({ err }, "Failed to bulk delete invoices");
       res.status(500).json({ error: "حدث خطأ في الخادم" });

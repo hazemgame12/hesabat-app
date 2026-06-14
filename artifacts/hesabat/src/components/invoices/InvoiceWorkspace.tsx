@@ -303,9 +303,13 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         body: JSON.stringify({ ids }),
         credentials: "include",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("invoices.toast.error"));
-      return data as { deleted: number };
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let msg = t("invoices.toast.error");
+        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
+        throw new Error(msg);
+      }
+      return (await res.json()) as { deleted: number };
     },
     onSuccess: (data) => {
       invalidatePayments();
@@ -329,9 +333,13 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         body: JSON.stringify({ ids }),
         credentials: "include",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("invoices.toast.error"));
-      return data as { deleted: number; skipped: number };
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let msg = t("invoices.toast.error");
+        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
+        throw new Error(msg);
+      }
+      return (await res.json()) as { deleted: number; skipped: number };
     },
     onSuccess: (data) => {
       invalidateInvoices();

@@ -182,9 +182,13 @@ export function Journal() {
         body: JSON.stringify({ ids }),
         credentials: "include",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("journal.toast.deleteError"));
-      return data as { deleted: number; skipped: number };
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let msg = t("journal.toast.deleteError");
+        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
+        throw new Error(msg);
+      }
+      return (await res.json()) as { deleted: number; skipped: number };
     },
     onSuccess: (data) => {
       invalidateList();
@@ -206,9 +210,13 @@ export function Journal() {
         body: JSON.stringify({ ids }),
         credentials: "include",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("journal.toast.reverseError"));
-      return data as { reversed: number; skipped: number };
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let msg = t("journal.toast.reverseError");
+        try { msg = (JSON.parse(text) as { error?: string }).error || msg; } catch { /* non-json */ }
+        throw new Error(msg);
+      }
+      return (await res.json()) as { reversed: number; skipped: number };
     },
     onSuccess: (data) => {
       invalidateList();
