@@ -64,7 +64,7 @@ import { ImportWizard } from "@/components/import-wizard/ImportWizard";
 type Kind = "sales" | "purchase";
 type Tab = "invoices" | "returns" | "payments" | "reports";
 
-function displayName(
+export function displayName(
   e: { nameAr: string; nameEn?: string | null },
   lang: string,
 ): string {
@@ -1400,4 +1400,3 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   );
 }
 
-export { displayName };
