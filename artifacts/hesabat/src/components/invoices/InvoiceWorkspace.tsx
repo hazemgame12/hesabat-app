@@ -281,6 +281,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
       { id: toRevert.id },
       {
         onSuccess: () => {
+          invalidatePayments();
           invalidateInvoices();
           invalidateJournal();
           toast({ title: t("invoices.toast.reverted", "تم تحويل الفاتورة إلى مسودة") });
@@ -351,6 +352,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     setIsBulkReverting(false);
     setBulkRevertOpen(false);
     setSelectedIds(new Set());
+    invalidatePayments();
     invalidateInvoices();
     invalidateJournal();
     if (successCount > 0) {
