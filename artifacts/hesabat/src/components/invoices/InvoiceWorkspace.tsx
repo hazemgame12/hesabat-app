@@ -837,17 +837,15 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                     <Undo2 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-                              {inv.status === "approved" &&
-                                canUpdate &&
-                                Number(inv.amountPaid ?? 0) < 0.005 && (
-                                  <button
-                                    onClick={() => setToRevert(inv)}
-                                    className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
-                                    title={t("invoices.revertToDraft", "تحويل لمسودة")}
-                                  >
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
+                              {inv.status === "approved" && canUpdate && (
+                                <button
+                                  onClick={() => setToRevert(inv)}
+                                  className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
+                                  title={t("invoices.revertToDraft", "تحويل لمسودة")}
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                               {inv.status === "draft" && canDelete && (
                                 <button
                                   onClick={() => setToDelete(inv)}
@@ -1054,17 +1052,15 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                 <Check className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {inv.status === "approved" &&
-                              canUpdate &&
-                              Number(inv.amountPaid ?? 0) < 0.005 && (
-                                <button
-                                  onClick={() => setToRevert(inv)}
-                                  className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
-                                  title={t("invoices.revertToDraft", "تحويل لمسودة")}
-                                >
-                                  <RotateCcw className="w-3.5 h-3.5" />
-                                </button>
-                              )}
+                            {inv.status === "approved" && canUpdate && (
+                              <button
+                                onClick={() => setToRevert(inv)}
+                                className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
+                                title={t("invoices.revertToDraft", "تحويل لمسودة")}
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             {inv.status === "draft" && canDelete && (
                               <button
                                 onClick={() => setToDelete(inv)}
@@ -1315,7 +1311,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
             <AlertDialogDescription>
               {t(
                 "invoices.confirmRevert",
-                "سيتم حذف القيد المحاسبي المرتبط بهذه الفاتورة وتحويلها إلى مسودة. يمكنك بعدها تعديلها وإعادة اعتمادها.",
+                "سيتم حذف القيد المحاسبي وجميع المدفوعات المرتبطة بهذه الفاتورة وتحويلها إلى مسودة. يمكنك بعدها تعديلها وإعادة اعتمادها.",
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>

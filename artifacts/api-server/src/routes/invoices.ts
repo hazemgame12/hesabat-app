@@ -15,6 +15,7 @@ import {
   costCentersTable,
   journalEntriesTable,
   paymentAllocationsTable,
+  paymentsTable,
   type Invoice,
   type InvoiceLine,
 } from "@workspace/db";
@@ -1781,33 +1782,45 @@ router.post(
         if (!locked || locked.status !== "approved") {
           throw new ApproveError(400, "الفاتورة غير مؤهلة للتراجع");
         }
-        // Reject if any payment allocations exist.
+        // Delete payments allocated to this invoice (+ their JEs), then the allocations.
         const allocations = await tx
-          .select({ id: paymentAllocationsTable.paymentId })
+          .select({ paymentId: paymentAllocationsTable.paymentId })
           .from(paymentAllocationsTable)
           .where(
             and(
               eq(paymentAllocationsTable.invoiceId, id),
               eq(paymentAllocationsTable.companyId, companyId),
             ),
-          )
-          .limit(1);
-        if (allocations.length > 0) {
-          throw new ApproveError(
-            400,
-            "لا يمكن التراجع عن فاتورة مدفوعة — احذف المدفوعات أولاً",
           );
+        if (allocations.length > 0) {
+          const paymentIds = allocations.map((a) => a.paymentId);
+          // Fetch payment JE ids before deleting.
+          const pmts = await tx
+            .select({ id: paymentsTable.id, journalEntryId: paymentsTable.journalEntryId })
+            .from(paymentsTable)
+            .where(inArray(paymentsTable.id, paymentIds));
+          // Delete payment JEs (onDelete:set null clears payments.journalEntryId).
+          const pmtJeIds = pmts.map((p) => p.journalEntryId).filter(Boolean) as string[];
+          if (pmtJeIds.length > 0) {
+            await tx
+              .delete(journalEntriesTable)
+              .where(inArray(journalEntriesTable.id, pmtJeIds));
+          }
+          // Delete the payments (payment_allocations cascade via FK).
+          await tx
+            .delete(paymentsTable)
+            .where(inArray(paymentsTable.id, paymentIds));
         }
-        // Delete the journal entry (FK onDelete:set null clears invoices.journalEntryId).
+        // Delete the invoice journal entry (FK onDelete:set null clears invoices.journalEntryId).
         if (locked.journalEntryId) {
           await tx
             .delete(journalEntriesTable)
             .where(eq(journalEntriesTable.id, locked.journalEntryId));
         }
-        // Reset invoice to draft.
+        // Reset invoice to draft with zero amountPaid.
         await tx
           .update(invoicesTable)
-          .set({ status: "draft", approvedAt: null, journalEntryId: null })
+          .set({ status: "draft", approvedAt: null, journalEntryId: null, amountPaid: "0" })
           .where(
             and(
               eq(invoicesTable.id, id),
