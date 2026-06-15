@@ -13,6 +13,8 @@ import {
   fixedAssetsTable,
   companiesTable,
   costCentersTable,
+  journalEntriesTable,
+  paymentAllocationsTable,
   type Invoice,
   type InvoiceLine,
 } from "@workspace/db";
@@ -1715,6 +1717,127 @@ router.post(
         return;
       }
       req.log.error({ err }, "Failed to approve invoice");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Revert approved invoice back to draft ----
+// Only allowed for service-only invoices with no payment allocations.
+// Deletes the posted JE (JE lines cascade) and resets status to 'draft'.
+router.post(
+  "/invoices/:id/revert",
+  requireAuth,
+  requireCapability("invoices:update"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    try {
+      const inv = await loadInvoice(id, companyId);
+      if (!inv) {
+        res.status(404).json({ error: "الفاتورة غير موجودة" });
+        return;
+      }
+      if (inv.status !== "approved") {
+        res.status(400).json({ error: "يمكن التراجع عن الفواتير المعتمدة فقط" });
+        return;
+      }
+      // Block inventory/fixed-asset lines — stock reversal requires separate logic.
+      const invLines = await db
+        .select({ lineType: invoiceLinesTable.lineType })
+        .from(invoiceLinesTable)
+        .where(
+          and(
+            eq(invoiceLinesTable.invoiceId, id),
+            eq(invoiceLinesTable.companyId, companyId),
+          ),
+        );
+      const hasComplexLines = invLines.some(
+        (l) => l.lineType === "inventory" || l.lineType === "fixed_asset",
+      );
+      if (hasComplexLines) {
+        res
+          .status(400)
+          .json({
+            error:
+              "لا يمكن التراجع عن فواتير تحتوي على أصناف مخزنية أو أصول ثابتة — استخدم إشعار الخصم/الدائن بدلاً من ذلك",
+          });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        // Lock the invoice row and re-validate inside the tx.
+        const locked = await tx
+          .select()
+          .from(invoicesTable)
+          .where(
+            and(
+              eq(invoicesTable.id, id),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          )
+          .for("update")
+          .then((r) => r[0]);
+        if (!locked || locked.status !== "approved") {
+          throw new ApproveError(400, "الفاتورة غير مؤهلة للتراجع");
+        }
+        // Reject if any payment allocations exist.
+        const allocations = await tx
+          .select({ id: paymentAllocationsTable.paymentId })
+          .from(paymentAllocationsTable)
+          .where(
+            and(
+              eq(paymentAllocationsTable.invoiceId, id),
+              eq(paymentAllocationsTable.companyId, companyId),
+            ),
+          )
+          .limit(1);
+        if (allocations.length > 0) {
+          throw new ApproveError(
+            400,
+            "لا يمكن التراجع عن فاتورة مدفوعة — احذف المدفوعات أولاً",
+          );
+        }
+        // Delete the journal entry (FK onDelete:set null clears invoices.journalEntryId).
+        if (locked.journalEntryId) {
+          await tx
+            .delete(journalEntriesTable)
+            .where(eq(journalEntriesTable.id, locked.journalEntryId));
+        }
+        // Reset invoice to draft.
+        await tx
+          .update(invoicesTable)
+          .set({ status: "draft", approvedAt: null, journalEntryId: null })
+          .where(
+            and(
+              eq(invoicesTable.id, id),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          );
+      });
+
+      const updated = await loadInvoice(id, companyId);
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "update",
+          entity: codeEntityFor(inv.kind),
+          entityId: inv.id,
+          entityLabel: `${docLabelAr(inv.kind)} #${inv.invoiceNo}`,
+          oldValue: { status: "approved" },
+          newValue: { status: "draft" },
+        },
+        req.log,
+      );
+      res.json(updated);
+    } catch (err) {
+      if (err instanceof ApproveError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      req.log.error({ err }, "Failed to revert invoice");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

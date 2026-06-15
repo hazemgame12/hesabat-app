@@ -33,7 +33,7 @@ export const SignupBody = zod.object({
   "password": zod.string().min(signupBodyPasswordMin),
   "country": zod.enum(['EG', 'SA', 'AE', 'KW', 'QA', 'BH', 'OM']).optional(),
   "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'USD']).optional(),
-  "planId": zod.string().uuid().optional()
+  "planId": zod.string().nullish()
 })
 
 
@@ -2504,6 +2504,75 @@ export const ApproveInvoiceResponse = zod.object({
   "balance": zod.number(),
   "journalEntryId": zod.string().nullish(),
   "eInvoiceRequired": zod.boolean().default(approveInvoiceResponseOneEInvoiceRequiredDefault),
+  "eInvoiceStatus": zod.enum(['pending', 'submitted', 'accepted', 'rejected']).nullish(),
+  "eInvoiceUuid": zod.string().nullish(),
+  "eInvoiceSubmissionDate": zod.string().nullish(),
+  "eInvoiceError": zod.string().nullish(),
+  "createdAt": zod.string()
+}).and(zod.object({
+  "notes": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "lineNo": zod.number(),
+  "lineType": zod.enum(['service', 'inventory', 'fixed_asset']),
+  "description": zod.string().nullish(),
+  "accountId": zod.string(),
+  "itemId": zod.string().nullish(),
+  "warehouse": zod.string().nullish(),
+  "cogsAccountId": zod.string().nullish(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "discount": zod.number(),
+  "taxId": zod.string().nullish(),
+  "taxAmount": zod.number(),
+  "lineTotal": zod.number(),
+  "costCenterId": zod.string().nullish(),
+  "assetNameAr": zod.string().nullish(),
+  "assetNameEn": zod.string().nullish(),
+  "assetUsefulLifeMonths": zod.number().nullish(),
+  "assetSalvageValue": zod.number().nullish(),
+  "assetAccumulatedAccountId": zod.string().nullish(),
+  "assetExpenseAccountId": zod.string().nullish(),
+  "fixedAssetId": zod.string().nullish()
+}))
+}))
+
+
+/**
+ * Deletes the posted journal entry and resets the invoice status to "draft". Only allowed when the invoice has no payments and contains no inventory or fixed-asset lines.
+
+ * @summary Revert an approved service-only invoice back to draft
+ */
+export const RevertInvoiceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const revertInvoiceResponseOneEInvoiceRequiredDefault = false;
+
+export const RevertInvoiceResponse = zod.object({
+  "id": zod.string(),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "invoiceNo": zod.number(),
+  "code": zod.string().nullish(),
+  "relatedInvoiceId": zod.string().nullish(),
+  "relatedCode": zod.string().nullish(),
+  "date": zod.string(),
+  "dueDate": zod.string().nullish(),
+  "partyId": zod.string().nullish(),
+  "partyName": zod.string().nullish(),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "overdue": zod.boolean().optional(),
+  "currency": zod.string().nullish(),
+  "exchangeRate": zod.number().optional(),
+  "subtotal": zod.number().optional(),
+  "discountTotal": zod.number().optional(),
+  "taxTotal": zod.number().optional(),
+  "total": zod.number(),
+  "amountPaid": zod.number(),
+  "balance": zod.number(),
+  "journalEntryId": zod.string().nullish(),
+  "eInvoiceRequired": zod.boolean().default(revertInvoiceResponseOneEInvoiceRequiredDefault),
   "eInvoiceStatus": zod.enum(['pending', 'submitted', 'accepted', 'rejected']).nullish(),
   "eInvoiceUuid": zod.string().nullish(),
   "eInvoiceSubmissionDate": zod.string().nullish(),

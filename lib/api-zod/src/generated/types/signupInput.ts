@@ -18,4 +18,5 @@ export interface SignupInput {
   password: string;
   country?: SignupInputCountry;
   baseCurrency?: SignupInputBaseCurrency;
+  planId?: string | null;
 }

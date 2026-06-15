@@ -7328,6 +7328,78 @@ export const useApproveInvoice = <TError = ErrorType<ErrorResponse>,
       return useMutation(getApproveInvoiceMutationOptions(options));
     }
 
+export const getRevertInvoiceUrl = (id: string,) => {
+
+
+
+
+  return `/api/invoices/${id}/revert`
+}
+
+/**
+ * Deletes the posted journal entry and resets the invoice status to "draft". Only allowed when the invoice has no payments and contains no inventory or fixed-asset lines.
+
+ * @summary Revert an approved service-only invoice back to draft
+ */
+export const revertInvoice = async (id: string, options?: RequestInit): Promise<InvoiceDetail> => {
+
+  return customFetch<InvoiceDetail>(getRevertInvoiceUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getRevertInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertInvoice>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revertInvoice>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['revertInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revertInvoice>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  revertInvoice(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevertInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof revertInvoice>>>
+
+    export type RevertInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Revert an approved service-only invoice back to draft
+ */
+export const useRevertInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revertInvoice>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revertInvoice>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getRevertInvoiceMutationOptions(options));
+    }
+
 export const getListPaymentsUrl = (params: ListPaymentsParams,) => {
   const normalizedParams = new URLSearchParams();
 

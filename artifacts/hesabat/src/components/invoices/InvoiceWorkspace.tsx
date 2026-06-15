@@ -5,6 +5,7 @@ import {
   useListInvoices,
   useDeleteInvoice,
   useApproveInvoice,
+  useRevertInvoice,
   useListPayments,
   useDeletePayment,
   useListAccounts,
@@ -89,6 +90,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [partyView, setPartyView] = useState<PartyViewParty | null>(null);
   const [toDelete, setToDelete] = useState<InvoiceSummary | null>(null);
   const [toApprove, setToApprove] = useState<InvoiceSummary | null>(null);
+  const [toRevert, setToRevert] = useState<InvoiceSummary | null>(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | undefined>(undefined);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
@@ -164,6 +166,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
 
   const deleteInvoice = useDeleteInvoice();
   const approveInvoice = useApproveInvoice();
+  const revertInvoice = useRevertInvoice();
   const deletePayment = useDeletePayment();
 
   const { data: user } = useGetCurrentUser();
@@ -262,6 +265,29 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
             description: err?.data?.error || t("invoices.toast.error"),
           });
           setToApprove(null);
+        },
+      },
+    );
+  };
+
+  const handleRevert = () => {
+    if (!toRevert) return;
+    revertInvoice.mutate(
+      { id: toRevert.id },
+      {
+        onSuccess: () => {
+          invalidateInvoices();
+          invalidateJournal();
+          toast({ title: t("invoices.toast.reverted", "تم تحويل الفاتورة إلى مسودة") });
+          setToRevert(null);
+        },
+        onError: (err: any) => {
+          toast({
+            variant: "destructive",
+            title: t("common.error"),
+            description: err?.data?.error || t("invoices.toast.error"),
+          });
+          setToRevert(null);
         },
       },
     );
@@ -711,6 +737,17 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                     <Undo2 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
+                              {inv.status === "approved" &&
+                                canUpdate &&
+                                Number(inv.amountPaid ?? 0) < 0.005 && (
+                                  <button
+                                    onClick={() => setToRevert(inv)}
+                                    className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
+                                    title={t("invoices.revertToDraft", "تحويل لمسودة")}
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               {inv.status === "draft" && canDelete && (
                                 <button
                                   onClick={() => setToDelete(inv)}
@@ -917,6 +954,17 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                 <Check className="w-3.5 h-3.5" />
                               </button>
                             )}
+                            {inv.status === "approved" &&
+                              canUpdate &&
+                              Number(inv.amountPaid ?? 0) < 0.005 && (
+                                <button
+                                  onClick={() => setToRevert(inv)}
+                                  className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
+                                  title={t("invoices.revertToDraft", "تحويل لمسودة")}
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             {inv.status === "draft" && canDelete && (
                               <button
                                 onClick={() => setToDelete(inv)}
@@ -1153,6 +1201,31 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
             <AlertDialogCancel>{t("invoices.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleApprove}>
               {t("invoices.approve")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!toRevert} onOpenChange={(o) => !o && setToRevert(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("invoices.revertToDraft", "تحويل لمسودة")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "invoices.confirmRevert",
+                "سيتم حذف القيد المحاسبي المرتبط بهذه الفاتورة وتحويلها إلى مسودة. يمكنك بعدها تعديلها وإعادة اعتمادها.",
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("invoices.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRevert}
+              className="bg-orange-600 text-white hover:bg-orange-700"
+            >
+              {t("invoices.revertToDraft", "تحويل لمسودة")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

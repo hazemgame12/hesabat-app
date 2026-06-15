@@ -2707,6 +2707,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /invoices/{id}/revert:
+    post:
+      operationId: revertInvoice
+      tags: [invoices]
+      summary: Revert an approved service-only invoice back to draft
+      description: >
+        Deletes the posted journal entry and resets the invoice status to
+        "draft". Only allowed when the invoice has no payments and contains
+        no inventory or fixed-asset lines.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Reverted to draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceDetail"
+        "400":
+          description: Cannot revert (has payments, or has inventory lines)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /payments:
     get:
       operationId: listPayments
@@ -4246,6 +4281,9 @@ components:
         baseCurrency:
           type: string
           enum: [EGP, SAR, AED, KWD, QAR, BHD, OMR, USD]
+        planId:
+          type: string
+          nullable: true
 
     Company:
       type: object
