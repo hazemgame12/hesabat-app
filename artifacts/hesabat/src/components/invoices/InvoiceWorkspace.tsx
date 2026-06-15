@@ -98,6 +98,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkRevertOpen, setBulkRevertOpen] = useState(false);
+  const [isBulkReverting, setIsBulkReverting] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -300,7 +302,11 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     setIsBulkDeleting(true);
     let successCount = 0;
     let failCount = 0;
-    for (const id of Array.from(selectedIds)) {
+    const draftSelected = Array.from(selectedIds).filter((id) => {
+      const inv = invoices.find((i) => i.id === id);
+      return inv?.status === "draft";
+    });
+    for (const id of draftSelected) {
       try {
         await deleteInvoice.mutateAsync({ id });
         successCount++;
@@ -321,10 +327,42 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
       toast({
         variant: "destructive",
         title: t("common.error"),
-        description: t(
-          "invoices.toast.bulkDeletePartial",
-          `فشل حذف ${failCount} فاتورة`,
-        ),
+        description: t("invoices.toast.bulkDeletePartial", `فشل حذف ${failCount} فاتورة`),
+      });
+    }
+  };
+
+  const handleBulkRevert = async () => {
+    setIsBulkReverting(true);
+    let successCount = 0;
+    let failCount = 0;
+    const nonDraftSelected = Array.from(selectedIds).filter((id) => {
+      const inv = invoices.find((i) => i.id === id);
+      return inv && ["approved", "partially_paid", "paid"].includes(inv.status);
+    });
+    for (const id of nonDraftSelected) {
+      try {
+        await revertInvoice.mutateAsync({ id });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setIsBulkReverting(false);
+    setBulkRevertOpen(false);
+    setSelectedIds(new Set());
+    invalidateInvoices();
+    invalidateJournal();
+    if (successCount > 0) {
+      toast({
+        title: t("invoices.toast.bulkReverted", `تم تحويل ${successCount} فاتورة إلى مسودة`),
+      });
+    }
+    if (failCount > 0) {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("invoices.toast.bulkRevertPartial", `فشل تحويل ${failCount} فاتورة`),
       });
     }
   };
@@ -660,21 +698,40 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
             </div>
 
             {/* Bulk Action Bar */}
-            {selectedIds.size > 0 && canDelete && (
-              <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5">
-                <span className="text-sm font-bold text-rose-700">
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 flex-wrap">
+                <span className="text-sm font-bold text-slate-700">
                   {t("invoices.selectedCount", `تم تحديد ${selectedIds.size} فاتورة`)}
                 </span>
-                <button
-                  onClick={() => setBulkDeleteOpen(true)}
-                  className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  {t("invoices.bulkDelete", "حذف المحدد")}
-                </button>
+                {/* Revert: shown when any non-draft selected */}
+                {canUpdate && Array.from(selectedIds).some((id) => {
+                  const inv = invoices.find((i) => i.id === id);
+                  return inv && ["approved", "partially_paid", "paid"].includes(inv.status);
+                }) && (
+                  <button
+                    onClick={() => setBulkRevertOpen(true)}
+                    className="flex items-center gap-2 bg-orange-500 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-orange-600 transition-colors"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    {t("invoices.bulkRevert", "تحويل للمسودة")}
+                  </button>
+                )}
+                {/* Delete: shown when any draft selected */}
+                {canDelete && Array.from(selectedIds).some((id) => {
+                  const inv = invoices.find((i) => i.id === id);
+                  return inv?.status === "draft";
+                }) && (
+                  <button
+                    onClick={() => setBulkDeleteOpen(true)}
+                    className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {t("invoices.bulkDelete", "حذف المسودات")}
+                  </button>
+                )}
                 <button
                   onClick={() => setSelectedIds(new Set())}
-                  className="text-sm text-rose-600 hover:underline"
+                  className="text-sm text-slate-500 hover:underline ms-auto"
                 >
                   {t("invoices.clearSelection", "إلغاء التحديد")}
                 </button>
@@ -707,12 +764,12 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                   <table className="w-full text-sm min-w-[1000px] border-collapse">
                     <thead>
                       <tr className="text-[11px] font-bold text-muted-foreground bg-slate-50 border-b border-slate-200">
-                        {canDelete && (
+                        {(canDelete || canUpdate) && (
                           <th className="px-3 py-2 w-8 border-b border-slate-200">
                             {(() => {
-                              const draftInvs = invoices.filter((i) => i.status === "draft");
-                              const allSel = draftInvs.length > 0 && draftInvs.every((i) => selectedIds.has(i.id));
-                              const someSel = draftInvs.some((i) => selectedIds.has(i.id)) && !allSel;
+                              const selectableInvs = invoices.filter((i) => i.status !== "cancelled");
+                              const allSel = selectableInvs.length > 0 && selectableInvs.every((i) => selectedIds.has(i.id));
+                              const someSel = selectableInvs.some((i) => selectedIds.has(i.id)) && !allSel;
                               return (
                                 <input
                                   type="checkbox"
@@ -722,7 +779,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                     if (allSel) {
                                       setSelectedIds(new Set());
                                     } else {
-                                      setSelectedIds(new Set(draftInvs.map((i) => i.id)));
+                                      setSelectedIds(new Set(selectableInvs.map((i) => i.id)));
                                     }
                                   }}
                                   className="w-4 h-4 accent-primary cursor-pointer"
@@ -770,9 +827,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           key={inv.id}
                           className={`border-b border-slate-100 hover:bg-slate-50/50 transition-colors ${selectedIds.has(inv.id) ? "bg-rose-50/40" : ""}`}
                         >
-                          {canDelete && (
+                          {(canDelete || canUpdate) && (
                             <td className="px-3 py-2">
-                              {inv.status === "draft" && (
+                              {inv.status !== "cancelled" && (
                                 <input
                                   type="checkbox"
                                   checked={selectedIds.has(inv.id)}
@@ -1353,12 +1410,12 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
       <AlertDialog open={bulkDeleteOpen} onOpenChange={(o) => !o && setBulkDeleteOpen(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("invoices.bulkDelete", "حذف المحدد")}</AlertDialogTitle>
+            <AlertDialogTitle>{t("invoices.bulkDelete", "حذف المسودات المحددة")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t(
-                "invoices.confirmBulkDelete",
-                `سيتم حذف ${selectedIds.size} فاتورة بشكل نهائي. هذه العملية لا يمكن التراجع عنها.`,
-              )}
+              {(() => {
+                const draftCount = Array.from(selectedIds).filter((id) => invoices.find((i) => i.id === id)?.status === "draft").length;
+                return t("invoices.confirmBulkDelete", `سيتم حذف ${draftCount} فاتورة مسودة بشكل نهائي. هذه العملية لا يمكن التراجع عنها.`);
+              })()}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1370,11 +1427,39 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
               disabled={isBulkDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isBulkDeleting ? (
-                <Spinner className="w-4 h-4" />
-              ) : (
-                <>{t("invoices.delete")} ({selectedIds.size})</>
-              )}
+              {isBulkDeleting ? <Spinner className="w-4 h-4" /> : <>{t("invoices.delete")}</>}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkRevertOpen} onOpenChange={(o) => !o && setBulkRevertOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("invoices.bulkRevert", "تحويل للمسودة")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const nonDraftCount = Array.from(selectedIds).filter((id) => {
+                  const inv = invoices.find((i) => i.id === id);
+                  return inv && ["approved", "partially_paid", "paid"].includes(inv.status);
+                }).length;
+                return t(
+                  "invoices.confirmBulkRevert",
+                  `سيتم تحويل ${nonDraftCount} فاتورة إلى مسودة مع حذف جميع المدفوعات والقيود المحاسبية المرتبطة بها تلقائياً.`,
+                );
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkReverting}>
+              {t("invoices.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkRevert(); }}
+              disabled={isBulkReverting}
+              className="bg-orange-500 text-white hover:bg-orange-600"
+            >
+              {isBulkReverting ? <Spinner className="w-4 h-4" /> : <>{t("invoices.revertToDraft", "تحويل للمسودة")}</>}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

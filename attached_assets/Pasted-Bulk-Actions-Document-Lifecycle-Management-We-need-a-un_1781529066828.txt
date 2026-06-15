@@ -1,0 +1,139 @@
+Bulk Actions & Document Lifecycle Management
+
+We need a unified Bulk Actions framework across all modules in the system.
+
+Current Issue:
+
+Users cannot efficiently manage records from list screens.
+
+There is no consistent bulk selection mechanism and no unified workflow for document status changes, deletion, approval, or reverting documents.
+
+Required Solution:
+
+1. Multi-Select Checkbox
+
+Every list screen must contain:
+
+* Checkbox on each row.
+* Select All checkbox in the header.
+* Bulk Actions menu displayed when one or more records are selected.
+
+This should be implemented consistently across all modules.
+
+Modules Included:
+
+* Journal Entries
+* Customers
+* Suppliers
+* Customer Invoices
+* Supplier Invoices
+* Inventory Items
+* Warehouses
+* Bank Accounts
+* Treasury Accounts
+* Bank Transactions
+* Employee Records
+* Advances
+* Loans
+* Fixed Assets
+* Payroll Records
+* Cost Centers
+* Projects
+* Any future master data or transaction screens
+
+2. Bulk Actions Menu
+
+When records are selected, display:
+
+* Delete Selected
+* Convert to Draft
+* Approve Selected
+* Export Selected
+* Archive Selected (future)
+
+Actions displayed should depend on document type and status.
+
+3. Customer & Supplier Invoice Lifecycle
+
+Draft Invoice:
+
+Available Actions:
+
+* Approve
+* Delete
+
+Approved Invoice:
+
+Available Actions:
+
+* Return to Draft
+* Print
+* Delete (if no payments exist)
+
+Paid Invoice:
+
+Before any status change:
+
+Step 1:
+Delete or reverse all related payments.
+
+Step 2:
+Change status from Paid to Approved.
+
+Step 3:
+Change status from Approved to Draft.
+
+Step 4:
+Delete invoice if required.
+
+System must block direct deletion of paid invoices.
+
+4. Purchase Invoice Lifecycle
+
+Draft:
+
+* Approve
+* Delete
+
+Approved:
+
+* Return to Draft
+* Delete (if not paid)
+
+Paid:
+
+* Cancel/Delete Payment First
+* Return to Approved
+* Return to Draft
+* Delete
+
+5. Journal Entries
+
+Draft:
+
+* Post
+* Delete
+
+Posted:
+
+* Unpost (Return to Draft)
+* Reverse Entry
+* Delete only if allowed by permissions and no dependent transactions exist
+
+6. User Experience Requirements
+
+All list screens should behave consistently.
+
+Users should never need to open each record individually to perform repetitive actions.
+
+Selected records count should appear in the toolbar:
+
+Example:
+
+"5 records selected"
+
+with available actions displayed immediately.
+
+Goal:
+
+Create a professional ERP-style document management workflow similar to Odoo, SAP Business One, Dynamics 365, and Zoho Books, with consistent behavior across all modules.
