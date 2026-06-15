@@ -129,6 +129,9 @@ export function Payroll() {
   const [empToEdit, setEmpToEdit] = useState<Employee | null>(null);
   const [empToDelete, setEmpToDelete] = useState<Employee | null>(null);
   const [form, setForm] = useState<EmployeeForm>(emptyForm());
+  const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [runPeriod, setRunPeriod] = useState(currentMonth());
@@ -275,6 +278,21 @@ export function Payroll() {
         },
       );
     }
+  };
+
+  const handleBulkDeleteEmps = async () => {
+    setIsBulkDeleting(true);
+    let ok = 0; let fail = 0;
+    for (const id of Array.from(selectedEmpIds)) {
+      try { await deleteEmployee.mutateAsync({ id }); ok++; }
+      catch { fail++; }
+    }
+    setIsBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setSelectedEmpIds(new Set());
+    invalidateEmployees();
+    if (ok > 0) toast({ title: `تم حذف ${ok} موظف بنجاح` });
+    if (fail > 0) toast({ variant: "destructive", title: t("common.error"), description: `فشل حذف ${fail} موظف` });
   };
 
   const handleDeleteEmp = () => {
@@ -460,37 +478,51 @@ export function Payroll() {
                 )}
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                    <th className="text-start px-6 py-3">{t("payroll.code")}</th>
-                    <th className="text-start px-3 py-3">{t("payroll.name")}</th>
-                    <th className="text-end px-3 py-3">
-                      {t("payroll.baseSalary")}
-                    </th>
-                    <th className="text-end px-3 py-3">
-                      {t("payroll.allowances")}
-                    </th>
-                    <th className="text-end px-3 py-3">
-                      {t("payroll.deductions")}
-                    </th>
-                    <th className="text-end px-3 py-3">{t("payroll.net")}</th>
-                    <th className="text-center px-3 py-3">
-                      {t("payroll.status")}
-                    </th>
-                    {(canUpdate || canDelete) && (
-                      <th className="w-20 px-6 py-3" />
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
+              <>
+                {selectedEmpIds.size > 0 && canDelete && (
+                  <div className="flex items-center gap-3 bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex-wrap">
+                    <span className="text-sm font-bold text-slate-700">تم تحديد {selectedEmpIds.size} موظف</span>
+                    <button onClick={() => setBulkDeleteOpen(true)} className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90">
+                      <Trash2 className="w-4 h-4" />حذف المحدد
+                    </button>
+                    <button onClick={() => setSelectedEmpIds(new Set())} className="text-sm text-slate-500 hover:underline ms-auto">إلغاء التحديد</button>
+                  </div>
+                )}
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
+                      {canDelete && (
+                        <th className="px-3 py-3 w-8">
+                          {(() => {
+                            const all = employees.length > 0 && employees.every((e) => selectedEmpIds.has(e.id));
+                            const some = employees.some((e) => selectedEmpIds.has(e.id)) && !all;
+                            return <input type="checkbox" checked={all} ref={(el) => { if (el) el.indeterminate = some; }} onChange={() => all ? setSelectedEmpIds(new Set()) : setSelectedEmpIds(new Set(employees.map((e) => e.id)))} className="w-4 h-4 accent-primary cursor-pointer" />;
+                          })()}
+                        </th>
+                      )}
+                      <th className="text-start px-6 py-3">{t("payroll.code")}</th>
+                      <th className="text-start px-3 py-3">{t("payroll.name")}</th>
+                      <th className="text-end px-3 py-3">{t("payroll.baseSalary")}</th>
+                      <th className="text-end px-3 py-3">{t("payroll.allowances")}</th>
+                      <th className="text-end px-3 py-3">{t("payroll.deductions")}</th>
+                      <th className="text-end px-3 py-3">{t("payroll.net")}</th>
+                      <th className="text-center px-3 py-3">{t("payroll.status")}</th>
+                      {(canUpdate || canDelete) && (<th className="w-20 px-6 py-3" />)}
+                    </tr>
+                  </thead>
+                  <tbody>
                   {employees.map((e) => {
                     const calc = empBaseAndComponents(e);
                     return (
                       <tr
                         key={e.id}
-                        className="group border-t hover:bg-muted/40 transition-colors"
+                        className={`group border-t hover:bg-muted/40 transition-colors ${selectedEmpIds.has(e.id) ? "bg-rose-50/40" : ""}`}
                       >
+                        {canDelete && (
+                          <td className="px-3 py-3.5">
+                            <input type="checkbox" checked={selectedEmpIds.has(e.id)} onChange={() => { const n = new Set(selectedEmpIds); n.has(e.id) ? n.delete(e.id) : n.add(e.id); setSelectedEmpIds(n); }} className="w-4 h-4 accent-primary cursor-pointer" />
+                          </td>
+                        )}
                         <td
                           className="px-6 py-3.5 font-sans tabular-nums text-foreground/80"
                           dir="ltr"
@@ -571,6 +603,7 @@ export function Payroll() {
                   })}
                 </tbody>
               </table>
+              </>
             )}
           </div>
         ) : (
@@ -1059,6 +1092,23 @@ export function Payroll() {
       {runToView && (
         <RunDetailModal id={runToView} onClose={() => setRunToView(null)} />
       )}
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">حذف {selectedEmpIds.size} موظف</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              سيتم حذف {selectedEmpIds.size} موظف نهائياً ولا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel disabled={isBulkDeleting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDeleteEmps} disabled={isBulkDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              {isBulkDeleting ? t("payroll.deleting") : "حذف المحدد"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!empToDelete}

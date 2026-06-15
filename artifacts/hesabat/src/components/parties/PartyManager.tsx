@@ -70,6 +70,7 @@ type DeleteMutation = {
     vars: { id: string },
     handlers: { onSuccess: () => void; onError: (err: unknown) => void },
   ) => void;
+  mutateAsync: (vars: { id: string }) => Promise<unknown>;
   isPending: boolean;
 };
 
@@ -164,6 +165,9 @@ export function PartyManager({
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [toEdit, setToEdit] = useState<Party | null>(null);
   const [toDelete, setToDelete] = useState<Party | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const {
     register,
@@ -230,6 +234,21 @@ export function PartyManager({
   const closeModal = () => {
     setModalMode(null);
     setToEdit(null);
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    let ok = 0; let fail = 0;
+    for (const id of Array.from(selectedIds)) {
+      try { await deleteMut.mutateAsync({ id }); ok++; }
+      catch { fail++; }
+    }
+    setIsBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setSelectedIds(new Set());
+    invalidate();
+    if (ok > 0) toast({ title: `تم حذف ${ok} عنصر بنجاح` });
+    if (fail > 0) toast({ variant: "destructive", title: t("common.error"), description: `فشل حذف ${fail} عنصر` });
   };
 
   const onSubmit = (form: PartyForm) => {
@@ -413,24 +432,48 @@ export function PartyManager({
               )}
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                  <th className="text-start px-6 py-3">{t(`${ns}.code`)}</th>
-                  <th className="text-start px-3 py-3">{t(`${ns}.name`)}</th>
-                  <th className="text-start px-3 py-3">{t(`${ns}.account`)}</th>
-                  <th className="text-start px-3 py-3">{t(`${ns}.phone`)}</th>
-                  <th className="text-end px-3 py-3">{t(`${ns}.balance`)}</th>
-                  <th className="text-center px-3 py-3">{t(`${ns}.status`)}</th>
-                  {(canUpdate || canDelete) && <th className="w-20 px-6 py-3" />}
-                </tr>
-              </thead>
-              <tbody>
-                {parties.map((p) => (
+            <>
+              {selectedIds.size > 0 && canDelete && (
+                <div className="flex items-center gap-3 bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex-wrap">
+                  <span className="text-sm font-bold text-slate-700">تم تحديد {selectedIds.size} عنصر</span>
+                  <button onClick={() => setBulkDeleteOpen(true)} className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90">
+                    <Trash2 className="w-4 h-4" />حذف المحدد
+                  </button>
+                  <button onClick={() => setSelectedIds(new Set())} className="text-sm text-slate-500 hover:underline ms-auto">إلغاء التحديد</button>
+                </div>
+              )}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
+                    {canDelete && (
+                      <th className="px-3 py-3 w-8">
+                        {(() => {
+                          const all = parties.length > 0 && parties.every((p) => selectedIds.has(p.id));
+                          const some = parties.some((p) => selectedIds.has(p.id)) && !all;
+                          return <input type="checkbox" checked={all} ref={(el) => { if (el) el.indeterminate = some; }} onChange={() => all ? setSelectedIds(new Set()) : setSelectedIds(new Set(parties.map((p) => p.id)))} className="w-4 h-4 accent-primary cursor-pointer" />;
+                        })()}
+                      </th>
+                    )}
+                    <th className="text-start px-6 py-3">{t(`${ns}.code`)}</th>
+                    <th className="text-start px-3 py-3">{t(`${ns}.name`)}</th>
+                    <th className="text-start px-3 py-3">{t(`${ns}.account`)}</th>
+                    <th className="text-start px-3 py-3">{t(`${ns}.phone`)}</th>
+                    <th className="text-end px-3 py-3">{t(`${ns}.balance`)}</th>
+                    <th className="text-center px-3 py-3">{t(`${ns}.status`)}</th>
+                    {(canUpdate || canDelete) && <th className="w-20 px-6 py-3" />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {parties.map((p) => (
                   <tr
                     key={p.id}
-                    className="group border-t hover:bg-muted/40 transition-colors"
+                    className={`group border-t hover:bg-muted/40 transition-colors ${selectedIds.has(p.id) ? "bg-rose-50/40" : ""}`}
                   >
+                    {canDelete && (
+                      <td className="px-3 py-3.5">
+                        <input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => { const n = new Set(selectedIds); n.has(p.id) ? n.delete(p.id) : n.add(p.id); setSelectedIds(n); }} className="w-4 h-4 accent-primary cursor-pointer" />
+                      </td>
+                    )}
                     <td
                       className="px-6 py-3.5 font-sans tabular-nums text-foreground/80"
                       dir="ltr"
@@ -501,9 +544,27 @@ export function PartyManager({
                 ))}
               </tbody>
             </table>
+            </>
           )}
         </div>
       </div>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">حذف {selectedIds.size} عنصر</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              سيتم حذف {selectedIds.size} عنصر نهائياً ولا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel disabled={isBulkDeleting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              {isBulkDeleting ? "جارٍ الحذف..." : "حذف المحدد"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {modalMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

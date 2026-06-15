@@ -88,6 +88,9 @@ export function FixedAssets() {
   const [assetToDelete, setAssetToDelete] = useState<FixedAsset | null>(null);
   const [depModalOpen, setDepModalOpen] = useState(false);
   const [depPeriod, setDepPeriod] = useState(currentMonth());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const {
     register,
@@ -206,6 +209,21 @@ export function FixedAssets() {
         },
       );
     }
+  };
+
+  const handleBulkDeleteAssets = async () => {
+    setIsBulkDeleting(true);
+    let ok = 0; let fail = 0;
+    for (const id of Array.from(selectedIds)) {
+      try { await deleteAsset.mutateAsync({ id }); ok++; }
+      catch { fail++; }
+    }
+    setIsBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setSelectedIds(new Set());
+    invalidate();
+    if (ok > 0) toast({ title: `تم حذف ${ok} أصل بنجاح` });
+    if (fail > 0) toast({ variant: "destructive", title: t("common.error"), description: `فشل حذف ${fail} أصل` });
   };
 
   const handleDelete = () => {
@@ -333,58 +351,83 @@ export function FixedAssets() {
               )}
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                  <th className="text-start px-6 py-3">{t("assets.name")}</th>
-                  <th className="text-start px-3 py-3">{t("assets.acquisitionDate")}</th>
-                  <th className="text-end px-3 py-3">{t("assets.cost")}</th>
-                  <th className="text-end px-3 py-3">{t("assets.accumulated")}</th>
-                  <th className="text-end px-3 py-3">{t("assets.netBookValue")}</th>
-                  <th className="text-center px-3 py-3">{t("assets.status")}</th>
-                  {(canUpdate || canDelete) && <th className="w-20 px-6 py-3" />}
-                </tr>
-              </thead>
-              <tbody>
-                {assets.map((a) => (
-                  <tr key={a.id} className="group border-t hover:bg-muted/40 transition-colors">
-                    <td className="px-6 py-3.5">
-                      <div className="font-medium text-foreground">{displayName(a, lang)}</div>
-                      {a.category && (
-                        <div className="text-xs text-muted-foreground">{a.category}</div>
-                      )}
-                    </td>
-                    <td className="px-3 py-3.5 text-foreground/80 font-sans tabular-nums" dir="ltr">{a.acquisitionDate}</td>
-                    <td className="px-3 py-3.5 text-end text-foreground/80 font-sans tabular-nums" dir="ltr">{fmt(a.cost)}</td>
-                    <td className="px-3 py-3.5 text-end text-foreground/80 font-sans tabular-nums" dir="ltr">{fmt(a.accumulatedDepreciation)}</td>
-                    <td className="px-3 py-3.5 text-end font-bold text-foreground font-sans tabular-nums" dir="ltr">{fmt(a.netBookValue)}</td>
-                    <td className="px-3 py-3.5 text-center">
-                      {a.status === "active" ? (
-                        <span className="text-[11px] font-bold text-success bg-success/10 px-2.5 py-1 rounded-full">{t("assets.statusActive")}</span>
-                      ) : (
-                        <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">{t("assets.statusDisposed")}</span>
-                      )}
-                    </td>
-                    {(canUpdate || canDelete) && (
-                      <td className="px-6 py-3.5">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
-                          {canUpdate && (
-                            <button onClick={() => openEditModal(a)} className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors" title={t("common.edit")}>
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button onClick={() => setAssetToDelete(a)} className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors" title={t("common.delete")}>
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+            <>
+              {selectedIds.size > 0 && canDelete && (
+                <div className="flex items-center gap-3 bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex-wrap">
+                  <span className="text-sm font-bold text-slate-700">تم تحديد {selectedIds.size} أصل</span>
+                  <button onClick={() => setBulkDeleteOpen(true)} className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90">
+                    <Trash2 className="w-4 h-4" />حذف المحدد
+                  </button>
+                  <button onClick={() => setSelectedIds(new Set())} className="text-sm text-slate-500 hover:underline ms-auto">إلغاء التحديد</button>
+                </div>
+              )}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
+                    {canDelete && (
+                      <th className="px-3 py-3 w-8">
+                        {(() => {
+                          const all = assets.length > 0 && assets.every((a) => selectedIds.has(a.id));
+                          const some = assets.some((a) => selectedIds.has(a.id)) && !all;
+                          return <input type="checkbox" checked={all} ref={(el) => { if (el) el.indeterminate = some; }} onChange={() => all ? setSelectedIds(new Set()) : setSelectedIds(new Set(assets.map((a) => a.id)))} className="w-4 h-4 accent-primary cursor-pointer" />;
+                        })()}
+                      </th>
                     )}
+                    <th className="text-start px-6 py-3">{t("assets.name")}</th>
+                    <th className="text-start px-3 py-3">{t("assets.acquisitionDate")}</th>
+                    <th className="text-end px-3 py-3">{t("assets.cost")}</th>
+                    <th className="text-end px-3 py-3">{t("assets.accumulated")}</th>
+                    <th className="text-end px-3 py-3">{t("assets.netBookValue")}</th>
+                    <th className="text-center px-3 py-3">{t("assets.status")}</th>
+                    {(canUpdate || canDelete) && <th className="w-20 px-6 py-3" />}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {assets.map((a) => (
+                    <tr key={a.id} className={`group border-t hover:bg-muted/40 transition-colors ${selectedIds.has(a.id) ? "bg-rose-50/40" : ""}`}>
+                      {canDelete && (
+                        <td className="px-3 py-3.5">
+                          <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => { const n = new Set(selectedIds); n.has(a.id) ? n.delete(a.id) : n.add(a.id); setSelectedIds(n); }} className="w-4 h-4 accent-primary cursor-pointer" />
+                        </td>
+                      )}
+                      <td className="px-6 py-3.5">
+                        <div className="font-medium text-foreground">{displayName(a, lang)}</div>
+                        {a.category && (
+                          <div className="text-xs text-muted-foreground">{a.category}</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3.5 text-foreground/80 font-sans tabular-nums" dir="ltr">{a.acquisitionDate}</td>
+                      <td className="px-3 py-3.5 text-end text-foreground/80 font-sans tabular-nums" dir="ltr">{fmt(a.cost)}</td>
+                      <td className="px-3 py-3.5 text-end text-foreground/80 font-sans tabular-nums" dir="ltr">{fmt(a.accumulatedDepreciation)}</td>
+                      <td className="px-3 py-3.5 text-end font-bold text-foreground font-sans tabular-nums" dir="ltr">{fmt(a.netBookValue)}</td>
+                      <td className="px-3 py-3.5 text-center">
+                        {a.status === "active" ? (
+                          <span className="text-[11px] font-bold text-success bg-success/10 px-2.5 py-1 rounded-full">{t("assets.statusActive")}</span>
+                        ) : (
+                          <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">{t("assets.statusDisposed")}</span>
+                        )}
+                      </td>
+                      {(canUpdate || canDelete) && (
+                        <td className="px-6 py-3.5">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
+                            {canUpdate && (
+                              <button onClick={() => openEditModal(a)} className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors" title={t("common.edit")}>
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button onClick={() => setAssetToDelete(a)} className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors" title={t("common.delete")}>
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
         </div>
       </div>
@@ -533,6 +576,23 @@ export function FixedAssets() {
           </div>
         </div>
       )}
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">حذف {selectedIds.size} أصل</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              سيتم حذف {selectedIds.size} أصل نهائياً ولا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel disabled={isBulkDeleting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDeleteAssets} disabled={isBulkDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              {isBulkDeleting ? "جارٍ الحذف..." : "حذف المحدد"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!assetToDelete} onOpenChange={(open) => !open && setAssetToDelete(null)}>
         <AlertDialogContent className="font-sans">

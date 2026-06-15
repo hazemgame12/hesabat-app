@@ -113,6 +113,9 @@ export function Inventory() {
   const [itemToEdit, setItemToEdit] = useState<InventoryItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
   const [movementModalOpen, setMovementModalOpen] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const {
     register: registerItem,
@@ -233,6 +236,21 @@ export function Inventory() {
         },
       );
     }
+  };
+
+  const handleBulkDeleteItems = async () => {
+    setIsBulkDeleting(true);
+    let ok = 0; let fail = 0;
+    for (const id of Array.from(selectedItemIds)) {
+      try { await deleteItem.mutateAsync({ id }); ok++; }
+      catch { fail++; }
+    }
+    setIsBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setSelectedItemIds(new Set());
+    invalidateItems();
+    if (ok > 0) toast({ title: `تم حذف ${ok} صنف بنجاح` });
+    if (fail > 0) toast({ variant: "destructive", title: t("common.error"), description: `فشل حذف ${fail} صنف` });
   };
 
   const handleDeleteItem = () => {
@@ -457,41 +475,49 @@ export function Inventory() {
                 )}
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                    <th className="text-start px-6 py-3">
-                      {t("inventory.code")}
-                    </th>
-                    <th className="text-start px-3 py-3">
-                      {t("inventory.name")}
-                    </th>
-                    <th className="text-start px-3 py-3">
-                      {t("inventory.unit")}
-                    </th>
-                    <th className="text-end px-3 py-3">
-                      {t("inventory.quantityOnHand")}
-                    </th>
-                    <th className="text-end px-3 py-3">
-                      {t("inventory.averageCost")}
-                    </th>
-                    <th className="text-end px-3 py-3">
-                      {t("inventory.stockValue")}
-                    </th>
-                    <th className="text-center px-3 py-3">
-                      {t("inventory.status")}
-                    </th>
-                    {(canUpdate || canDelete) && (
-                      <th className="w-20 px-6 py-3" />
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((it) => (
+              <>
+                {selectedItemIds.size > 0 && canDelete && (
+                  <div className="flex items-center gap-3 bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex-wrap">
+                    <span className="text-sm font-bold text-slate-700">تم تحديد {selectedItemIds.size} صنف</span>
+                    <button onClick={() => setBulkDeleteOpen(true)} className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90">
+                      <Trash2 className="w-4 h-4" />حذف المحدد
+                    </button>
+                    <button onClick={() => setSelectedItemIds(new Set())} className="text-sm text-slate-500 hover:underline ms-auto">إلغاء التحديد</button>
+                  </div>
+                )}
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
+                      {canDelete && (
+                        <th className="px-3 py-3 w-8">
+                          {(() => {
+                            const all = items.length > 0 && items.every((i) => selectedItemIds.has(i.id));
+                            const some = items.some((i) => selectedItemIds.has(i.id)) && !all;
+                            return <input type="checkbox" checked={all} ref={(el) => { if (el) el.indeterminate = some; }} onChange={() => all ? setSelectedItemIds(new Set()) : setSelectedItemIds(new Set(items.map((i) => i.id)))} className="w-4 h-4 accent-primary cursor-pointer" />;
+                          })()}
+                        </th>
+                      )}
+                      <th className="text-start px-6 py-3">{t("inventory.code")}</th>
+                      <th className="text-start px-3 py-3">{t("inventory.name")}</th>
+                      <th className="text-start px-3 py-3">{t("inventory.unit")}</th>
+                      <th className="text-end px-3 py-3">{t("inventory.quantityOnHand")}</th>
+                      <th className="text-end px-3 py-3">{t("inventory.averageCost")}</th>
+                      <th className="text-end px-3 py-3">{t("inventory.stockValue")}</th>
+                      <th className="text-center px-3 py-3">{t("inventory.status")}</th>
+                      {(canUpdate || canDelete) && (<th className="w-20 px-6 py-3" />)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it) => (
                     <tr
                       key={it.id}
-                      className="group border-t hover:bg-muted/40 transition-colors"
+                      className={`group border-t hover:bg-muted/40 transition-colors ${selectedItemIds.has(it.id) ? "bg-rose-50/40" : ""}`}
                     >
+                      {canDelete && (
+                        <td className="px-3 py-3.5">
+                          <input type="checkbox" checked={selectedItemIds.has(it.id)} onChange={() => { const n = new Set(selectedItemIds); n.has(it.id) ? n.delete(it.id) : n.add(it.id); setSelectedItemIds(n); }} className="w-4 h-4 accent-primary cursor-pointer" />
+                        </td>
+                      )}
                       <td
                         className="px-6 py-3.5 font-sans tabular-nums text-foreground/80"
                         dir="ltr"
@@ -568,6 +594,7 @@ export function Inventory() {
                   ))}
                 </tbody>
               </table>
+              </>
             )}
           </div>
         ) : (
@@ -1075,6 +1102,23 @@ export function Inventory() {
           </form>
         </div>
       )}
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">حذف {selectedItemIds.size} صنف</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              سيتم حذف {selectedItemIds.size} صنف نهائياً ولا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel disabled={isBulkDeleting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDeleteItems} disabled={isBulkDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              {isBulkDeleting ? t("inventory.deleting") : "حذف المحدد"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!itemToDelete}

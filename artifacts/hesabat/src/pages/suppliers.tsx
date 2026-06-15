@@ -60,6 +60,7 @@ export function Suppliers() {
       }}
       deleteMut={{
         mutate: (vars, handlers) => deleteMut.mutate(vars, handlers),
+        mutateAsync: (vars) => deleteMut.mutateAsync(vars).then(() => {}),
         isPending: deleteMut.isPending,
       }}
       invalidate={invalidate}

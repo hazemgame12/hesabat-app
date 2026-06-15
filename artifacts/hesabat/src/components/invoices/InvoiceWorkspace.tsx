@@ -100,6 +100,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [bulkRevertOpen, setBulkRevertOpen] = useState(false);
   const [isBulkReverting, setIsBulkReverting] = useState(false);
+  const [bulkApproveOpen, setBulkApproveOpen] = useState(false);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -367,6 +369,26 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         description: t("invoices.toast.bulkRevertPartial", `فشل تحويل ${failCount} فاتورة`),
       });
     }
+  };
+
+  const handleBulkApprove = async () => {
+    setIsBulkApproving(true);
+    let ok = 0; let fail = 0;
+    const draftSelected = Array.from(selectedIds).filter((id) => {
+      const inv = invoices.find((i) => i.id === id);
+      return inv?.status === "draft";
+    });
+    for (const id of draftSelected) {
+      try { await approveInvoice.mutateAsync({ id }); ok++; }
+      catch { fail++; }
+    }
+    setIsBulkApproving(false);
+    setBulkApproveOpen(false);
+    setSelectedIds(new Set());
+    invalidateInvoices();
+    invalidateJournal();
+    if (ok > 0) toast({ title: t("invoices.toast.bulkApproved", `تم اعتماد ${ok} فاتورة بنجاح`) });
+    if (fail > 0) toast({ variant: "destructive", title: t("common.error"), description: `فشل اعتماد ${fail} فاتورة` });
   };
 
   const handleDeletePayment = () => {
@@ -705,6 +727,19 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 <span className="text-sm font-bold text-slate-700">
                   {t("invoices.selectedCount", `تم تحديد ${selectedIds.size} فاتورة`)}
                 </span>
+                {/* Approve: shown when any draft selected */}
+                {canUpdate && Array.from(selectedIds).some((id) => {
+                  const inv = invoices.find((i) => i.id === id);
+                  return inv?.status === "draft";
+                }) && (
+                  <button
+                    onClick={() => setBulkApproveOpen(true)}
+                    className="flex items-center gap-2 bg-success text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity"
+                  >
+                    <Check className="w-4 h-4" />
+                    {t("invoices.bulkApprove", "اعتماد المحدد")}
+                  </button>
+                )}
                 {/* Revert: shown when any non-draft selected */}
                 {canUpdate && Array.from(selectedIds).some((id) => {
                   const inv = invoices.find((i) => i.id === id);
@@ -1404,6 +1439,30 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t("invoices.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkApproveOpen} onOpenChange={(o) => !o && setBulkApproveOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("invoices.bulkApprove", "اعتماد الفواتير المحددة")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(() => {
+                const draftCount = Array.from(selectedIds).filter((id) => invoices.find((i) => i.id === id)?.status === "draft").length;
+                return t("invoices.confirmBulkApprove", `سيتم اعتماد ${draftCount} فاتورة مسودة وإنشاء قيودها المحاسبية.`);
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkApproving}>{t("invoices.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkApprove(); }}
+              disabled={isBulkApproving}
+              className="bg-success text-white hover:bg-success/90"
+            >
+              {isBulkApproving ? <Spinner className="w-4 h-4" /> : <>{t("invoices.approve", "اعتماد")}</>}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

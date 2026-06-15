@@ -151,6 +151,11 @@ export function Journal() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkPostOpen, setBulkPostOpen] = useState(false);
+  const [isBulkPosting, setIsBulkPosting] = useState(false);
 
   const openCreate = () => {
     setEditingId(null);
@@ -166,8 +171,41 @@ export function Journal() {
   };
 
   const deleteEntry = useDeleteJournalEntry();
+  const postBulkEntry = usePostJournalEntry();
   const invalidateList = () =>
     queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey() });
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    let ok = 0; let fail = 0;
+    for (const id of Array.from(selectedIds)) {
+      const en = entries.find((e) => e.id === id);
+      if (!en || en.status === "posted") continue;
+      try { await deleteEntry.mutateAsync({ id }); ok++; }
+      catch { fail++; }
+    }
+    setIsBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setSelectedIds(new Set());
+    invalidateList();
+    if (ok > 0) toast({ title: `تم حذف ${ok} قيد بنجاح` });
+    if (fail > 0) toast({ variant: "destructive", title: t("common.error"), description: `فشل حذف ${fail} قيد` });
+  };
+
+  const handleBulkPost = async () => {
+    setIsBulkPosting(true);
+    let ok = 0; let fail = 0;
+    for (const id of Array.from(selectedIds)) {
+      try { await postBulkEntry.mutateAsync({ id }); ok++; }
+      catch { fail++; }
+    }
+    setIsBulkPosting(false);
+    setBulkPostOpen(false);
+    setSelectedIds(new Set());
+    invalidateList();
+    if (ok > 0) toast({ title: `تم ترحيل ${ok} قيد بنجاح` });
+    if (fail > 0) toast({ variant: "destructive", title: t("common.error"), description: `فشل ترحيل ${fail} قيد` });
+  };
 
   const handleDelete = () => {
     if (!entryToDelete) return;
@@ -263,9 +301,33 @@ export function Journal() {
           </div>
         ) : (
           <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3 bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex-wrap">
+                <span className="text-sm font-bold text-slate-700">تم تحديد {selectedIds.size} قيد</span>
+                {canPost && Array.from(selectedIds).some((id) => entries.find((e) => e.id === id)?.status !== "posted") && (
+                  <button onClick={() => setBulkPostOpen(true)} className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90">
+                    <CheckCircle2 className="w-4 h-4" />ترحيل المحدد
+                  </button>
+                )}
+                {canDelete && Array.from(selectedIds).some((id) => entries.find((e) => e.id === id)?.status !== "posted") && (
+                  <button onClick={() => setBulkDeleteOpen(true)} className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90">
+                    <Trash2 className="w-4 h-4" />حذف المحدد
+                  </button>
+                )}
+                <button onClick={() => setSelectedIds(new Set())} className="text-sm text-slate-500 hover:underline ms-auto">إلغاء التحديد</button>
+              </div>
+            )}
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 text-muted-foreground text-xs">
+                  <th className="px-3 py-3 w-8">
+                    {(() => {
+                      const selectable = entries.filter((e) => e.status !== "posted");
+                      const all = selectable.length > 0 && selectable.every((e) => selectedIds.has(e.id));
+                      const some = selectable.some((e) => selectedIds.has(e.id)) && !all;
+                      return <input type="checkbox" checked={all} ref={(el) => { if (el) el.indeterminate = some; }} onChange={() => all ? setSelectedIds(new Set()) : setSelectedIds(new Set(selectable.map((e) => e.id)))} className="w-4 h-4 accent-primary cursor-pointer" />;
+                    })()}
+                  </th>
                   <th className="text-start font-bold px-4 py-3">{t("journal.entryNo")}</th>
                   <th className="text-start font-bold px-4 py-3">{t("journal.date")}</th>
                   <th className="text-start font-bold px-4 py-3">{t("journal.reference")}</th>
@@ -277,7 +339,12 @@ export function Journal() {
               </thead>
               <tbody>
                 {entries.map((e) => (
-                  <tr key={e.id} className="border-t hover:bg-muted/30 transition-colors group">
+                  <tr key={e.id} className={`border-t hover:bg-muted/30 transition-colors group ${selectedIds.has(e.id) ? "bg-rose-50/40" : ""}`}>
+                    <td className="px-3 py-3">
+                      {e.status !== "posted" && (
+                        <input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => { const n = new Set(selectedIds); n.has(e.id) ? n.delete(e.id) : n.add(e.id); setSelectedIds(n); }} className="w-4 h-4 accent-primary cursor-pointer" />
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-bold text-foreground font-sans">
                       {e.entryNumber}
                       {e.entryType === "reversal" && (
@@ -320,6 +387,40 @@ export function Journal() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={bulkPostOpen} onOpenChange={(open) => !open && setBulkPostOpen(false)}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">ترحيل {selectedIds.size} قيد</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              سيتم ترحيل القيود المحددة ولن يمكن تعديلها بعد الترحيل.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel disabled={isBulkPosting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkPost} disabled={isBulkPosting} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              {isBulkPosting ? "جارٍ الترحيل..." : "ترحيل المحدد"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-start">حذف {selectedIds.size} قيد</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">
+              سيتم حذف القيود المحددة نهائياً ولا يمكن التراجع عن هذا الإجراء.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-start">
+            <AlertDialogCancel disabled={isBulkDeleting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={isBulkDeleting} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+              {isBulkDeleting ? t("journal.deleting") : "حذف المحدد"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!entryToDelete} onOpenChange={(open) => !open && setEntryToDelete(null)}>
         <AlertDialogContent className="font-sans">
