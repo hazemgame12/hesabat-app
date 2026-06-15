@@ -837,7 +837,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                     <Undo2 className="w-3.5 h-3.5" />
                                   </button>
                                 )}
-                              {inv.status === "approved" && canUpdate && (
+                              {["approved", "partially_paid", "paid"].includes(inv.status) && canUpdate && (
                                 <button
                                   onClick={() => setToRevert(inv)}
                                   className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
@@ -1052,7 +1052,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                 <Check className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            {inv.status === "approved" && canUpdate && (
+                            {["approved", "partially_paid", "paid"].includes(inv.status) && canUpdate && (
                               <button
                                 onClick={() => setToRevert(inv)}
                                 className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"

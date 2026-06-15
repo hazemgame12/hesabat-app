@@ -1739,8 +1739,8 @@ router.post(
         res.status(404).json({ error: "الفاتورة غير موجودة" });
         return;
       }
-      if (inv.status !== "approved") {
-        res.status(400).json({ error: "يمكن التراجع عن الفواتير المعتمدة فقط" });
+      if (!["approved", "partially_paid", "paid"].includes(inv.status)) {
+        res.status(400).json({ error: "يمكن التراجع عن الفواتير المعتمدة أو المدفوعة فقط" });
         return;
       }
       // Block inventory/fixed-asset lines — stock reversal requires separate logic.
@@ -1779,7 +1779,7 @@ router.post(
           )
           .for("update")
           .then((r) => r[0]);
-        if (!locked || locked.status !== "approved") {
+        if (!locked || !["approved", "partially_paid", "paid"].includes(locked.status)) {
           throw new ApproveError(400, "الفاتورة غير مؤهلة للتراجع");
         }
         // Delete payments allocated to this invoice (+ their JEs), then the allocations.
