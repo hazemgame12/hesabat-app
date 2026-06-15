@@ -95,6 +95,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [paymentInvoiceId, setPaymentInvoiceId] = useState<string | undefined>(undefined);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const [importWizardOpen, setImportWizardOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -291,6 +294,39 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         },
       },
     );
+  };
+
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+    for (const id of Array.from(selectedIds)) {
+      try {
+        await deleteInvoice.mutateAsync({ id });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+    setIsBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setSelectedIds(new Set());
+    invalidateInvoices();
+    if (successCount > 0) {
+      toast({
+        title: t("invoices.toast.bulkDeleted", `تم حذف ${successCount} فاتورة بنجاح`),
+      });
+    }
+    if (failCount > 0) {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t(
+          "invoices.toast.bulkDeletePartial",
+          `فشل حذف ${failCount} فاتورة`,
+        ),
+      });
+    }
   };
 
   const handleDeletePayment = () => {
@@ -623,6 +659,28 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
               )}
             </div>
 
+            {/* Bulk Action Bar */}
+            {selectedIds.size > 0 && canDelete && (
+              <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5">
+                <span className="text-sm font-bold text-rose-700">
+                  {t("invoices.selectedCount", `تم تحديد ${selectedIds.size} فاتورة`)}
+                </span>
+                <button
+                  onClick={() => setBulkDeleteOpen(true)}
+                  className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90 transition-opacity"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {t("invoices.bulkDelete", "حذف المحدد")}
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-sm text-rose-600 hover:underline"
+                >
+                  {t("invoices.clearSelection", "إلغاء التحديد")}
+                </button>
+              </div>
+            )}
+
             {/* Invoice Table */}
             <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
               {invLoading ? (
@@ -649,6 +707,31 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                   <table className="w-full text-sm min-w-[1000px] border-collapse">
                     <thead>
                       <tr className="text-[11px] font-bold text-muted-foreground bg-slate-50 border-b border-slate-200">
+                        {canDelete && (
+                          <th className="px-3 py-2 w-8 border-b border-slate-200">
+                            {(() => {
+                              const draftInvs = invoices.filter((i) => i.status === "draft");
+                              const allSel = draftInvs.length > 0 && draftInvs.every((i) => selectedIds.has(i.id));
+                              const someSel = draftInvs.some((i) => selectedIds.has(i.id)) && !allSel;
+                              return (
+                                <input
+                                  type="checkbox"
+                                  checked={allSel}
+                                  ref={(el) => { if (el) el.indeterminate = someSel; }}
+                                  onChange={() => {
+                                    if (allSel) {
+                                      setSelectedIds(new Set());
+                                    } else {
+                                      setSelectedIds(new Set(draftInvs.map((i) => i.id)));
+                                    }
+                                  }}
+                                  className="w-4 h-4 accent-primary cursor-pointer"
+                                  title={t("invoices.selectAll", "تحديد الكل")}
+                                />
+                              );
+                            })()}
+                          </th>
+                        )}
                         <th className="text-center px-2 py-2 w-[180px] border-b border-slate-200">
                           {t("invoices.actions")}
                         </th>
@@ -685,8 +768,25 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                       {invoices.map((inv) => (
                         <tr
                           key={inv.id}
-                          className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
+                          className={`border-b border-slate-100 hover:bg-slate-50/50 transition-colors ${selectedIds.has(inv.id) ? "bg-rose-50/40" : ""}`}
                         >
+                          {canDelete && (
+                            <td className="px-3 py-2">
+                              {inv.status === "draft" && (
+                                <input
+                                  type="checkbox"
+                                  checked={selectedIds.has(inv.id)}
+                                  onChange={() => {
+                                    const next = new Set(selectedIds);
+                                    if (next.has(inv.id)) next.delete(inv.id);
+                                    else next.add(inv.id);
+                                    setSelectedIds(next);
+                                  }}
+                                  className="w-4 h-4 accent-primary cursor-pointer"
+                                />
+                              )}
+                            </td>
+                          )}
                           {/* Actions */}
                           <td className="px-2 py-2">
                             <div className="flex items-center justify-center gap-1">
@@ -1249,6 +1349,36 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t("invoices.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(o) => !o && setBulkDeleteOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("invoices.bulkDelete", "حذف المحدد")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(
+                "invoices.confirmBulkDelete",
+                `سيتم حذف ${selectedIds.size} فاتورة بشكل نهائي. هذه العملية لا يمكن التراجع عنها.`,
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isBulkDeleting}>
+              {t("invoices.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={isBulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isBulkDeleting ? (
+                <Spinner className="w-4 h-4" />
+              ) : (
+                <>{t("invoices.delete")} ({selectedIds.size})</>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
