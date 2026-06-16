@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useCallback } from "react";
+import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { useTranslation } from "react-i18next";
 import {
   useListJournalEntries,
@@ -41,6 +42,7 @@ import {
   Download,
   Upload,
   Loader2,
+  Copy,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -156,6 +158,7 @@ export function Journal() {
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [bulkPostOpen, setBulkPostOpen] = useState(false);
   const [isBulkPosting, setIsBulkPosting] = useState(false);
+  const [isGridView, toggleGridView] = useGridView("journal");
 
   const openCreate = () => {
     setEditingId(null);
@@ -174,6 +177,91 @@ export function Journal() {
   const postBulkEntry = usePostJournalEntry();
   const invalidateList = () =>
     queryClient.invalidateQueries({ queryKey: getListJournalEntriesQueryKey() });
+
+  const journalGridColumns = useMemo<GridColumn<JournalEntry>[]>(() => [
+    {
+      key: "entryNo",
+      header: t("journal.entryNo"),
+      type: "readonly",
+      render: (v, row) => (
+        <button
+          onClick={() => openEntry(row.id)}
+          className="font-sans font-bold text-primary hover:underline text-start"
+        >
+          {row.entryNumber ?? `#${v}`}
+          {row.entryType === "reversal" && (
+            <span className="ms-1 text-[10px] font-bold text-rose-600">({t("journal.reversalBadge")})</span>
+          )}
+        </button>
+      ),
+    },
+    { key: "date", header: t("journal.date"), type: "readonly" },
+    {
+      key: "reference",
+      header: t("journal.reference"),
+      type: "readonly",
+      render: (v) => <span>{(v as string) || "—"}</span>,
+    },
+    {
+      key: "notes",
+      header: t("journal.notes"),
+      type: "readonly",
+      render: (v) => <span className="truncate max-w-[180px] block">{(v as string) || "—"}</span>,
+    },
+    {
+      key: "totalDebitBase",
+      header: t("journal.totalDebit"),
+      type: "readonly",
+      align: "end",
+      render: (v) => (
+        <span className="font-sans tabular-nums font-bold" dir="ltr">
+          {num(Number(v ?? 0))}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: t("journal.status"),
+      type: "readonly",
+      align: "center",
+      render: (v) => <StatusBadge status={v as string} />,
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t]);
+
+  const handleCopySelected = useCallback(() => {
+    const headers = [
+      t("journal.entryNo"),
+      t("journal.date"),
+      t("journal.reference"),
+      t("journal.notes"),
+      t("journal.totalDebit"),
+      t("journal.status"),
+    ];
+    const rows = Array.from(selectedIds)
+      .map((id) => entries.find((e) => e.id === id))
+      .filter(Boolean)
+      .map((e) =>
+        [
+          e!.entryNumber ?? String(e!.entryNo),
+          e!.date,
+          e!.reference ?? "",
+          e!.notes ?? "",
+          num(e!.totalDebitBase),
+          e!.status,
+        ].join("\t"),
+      );
+    const text = [headers.join("\t"), ...rows].join("\n");
+    navigator.clipboard?.writeText(text).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    });
+    toast({ title: `تم نسخ ${rows.length} قيد` });
+  }, [selectedIds, entries, t, toast]);
 
   const handleBulkDelete = async () => {
     setIsBulkDeleting(true);
@@ -256,6 +344,7 @@ export function Journal() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
           <button
             onClick={() => window.open("/api/journal/export", "_blank")}
             className="flex items-center gap-2 bg-card border px-4 py-2 rounded-full text-sm font-bold text-foreground hover:bg-muted/50 transition-colors"
@@ -314,9 +403,25 @@ export function Journal() {
                     <Trash2 className="w-4 h-4" />حذف المحدد
                   </button>
                 )}
+                <button onClick={handleCopySelected} className="flex items-center gap-2 bg-card border px-3 py-1.5 rounded-lg text-sm font-bold text-foreground hover:bg-muted/50">
+                  <Copy className="w-4 h-4" />نسخ
+                </button>
                 <button onClick={() => setSelectedIds(new Set())} className="text-sm text-slate-500 hover:underline ms-auto">إلغاء التحديد</button>
               </div>
             )}
+            {isGridView ? (
+              <GridTable
+                rows={entries}
+                columns={journalGridColumns}
+                canEdit={false}
+                canDelete={false}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
+                hideSelectionBar
+                emptyMessage={t("journal.noEntries")}
+                rowClassName={(row) => row.status === "posted" ? "opacity-75" : ""}
+              />
+            ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 text-muted-foreground text-xs">
@@ -384,6 +489,7 @@ export function Journal() {
                 ))}
               </tbody>
             </table>
+            )}
           </div>
         )}
       </div>
