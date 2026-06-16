@@ -9,6 +9,7 @@ import {
   getListCostCentersQueryKey,
   type CostCenter,
 } from "@workspace/api-client-react";
+import { GridTable, GridToggle, type GridColumn } from "@/components/GridTable";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -73,6 +74,8 @@ export function CostCenters() {
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [centerToEdit, setCenterToEdit] = useState<CostCenter | null>(null);
   const [centerToDelete, setCenterToDelete] = useState<CostCenter | null>(null);
+  const [isGridView, setIsGridView] = useState(false);
+  const [selectedCenterIds, setSelectedCenterIds] = useState<Set<string>>(new Set());
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<CenterForm>({
     resolver: zodResolver(centerSchema),
@@ -103,6 +106,46 @@ export function CostCenters() {
   };
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListCostCentersQueryKey() });
+
+  const centerGridColumns: GridColumn<CostCenter>[] = [
+    { key: "nameAr", header: t("costCenters.nameAr") ?? "الاسم (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
+    { key: "nameEn", header: t("costCenters.nameEn") ?? "Name (EN)", type: "text", editable: canUpdate },
+    { key: "type", header: t("costCenters.typeLabel"), type: "select", editable: canUpdate, width: "120px",
+      options: CENTER_TYPES.map((tp) => ({ value: tp, label: t(`costCenters.types.${tp}`) })),
+      render: (v) => <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${TYPE_STYLE[v as CenterType]}`}>{t(`costCenters.types.${v as string}`)}</span>
+    },
+    { key: "budget", header: t("costCenters.budget"), type: "number", editable: canUpdate, align: "end",
+      render: (v) => <span className="font-sans tabular-nums">{v === null || v === undefined ? t("costCenters.noBudget") : fmt(Number(v))}</span>
+    },
+    { key: "isActive", header: t("costCenters.status"), type: "boolean", editable: canUpdate, width: "80px",
+      render: (v) => v
+        ? <span className="text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">{t("costCenters.active")}</span>
+        : <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t("costCenters.inactive")}</span>
+    },
+  ];
+
+  const handleCenterGridSave = async (changes: { id: string; field: string; oldValue: unknown; newValue: unknown }[]) => {
+    const byRow = new Map<string, Record<string, unknown>>();
+    for (const c of changes) { if (!byRow.has(c.id)) byRow.set(c.id, {}); byRow.get(c.id)![c.field] = c.newValue; }
+    for (const [id, patch] of byRow.entries()) {
+      const ctr = centers.find((c) => c.id === id); if (!ctr) continue;
+      const budgetRaw = patch.budget !== undefined ? patch.budget : ctr.budget;
+      const data = {
+        nameAr: String(patch.nameAr ?? ctr.nameAr),
+        nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : ctr.nameEn ?? null,
+        type: String(patch.type ?? ctr.type) as CenterType,
+        budget: budgetRaw === null || budgetRaw === undefined || String(budgetRaw) === "" ? null : Number(budgetRaw),
+        isActive: patch.isActive !== undefined ? Boolean(patch.isActive) : ctr.isActive,
+      };
+      await new Promise<void>((res, rej) => updateCenter.mutate({ id, data }, { onSuccess: () => res(), onError: rej }));
+    }
+    invalidate();
+  };
+
+  const handleCenterGridDelete = async (ids: string[]) => {
+    for (const id of ids) await deleteCenter.mutateAsync({ id });
+    invalidate();
+  };
 
   const onSubmit = (form: CenterForm) => {
     const trimmed = (form.budget ?? "").trim();
@@ -147,6 +190,7 @@ export function CostCenters() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <GridToggle isGrid={isGridView} onToggle={() => setIsGridView((v) => !v)} />
           <ExcelToolbar
             exportPath="/api/cost-centers/export"
             importPath="/api/cost-centers/import"
@@ -175,6 +219,20 @@ export function CostCenters() {
             {canCreate && (
               <button onClick={openCreateModal} className="text-primary font-bold hover:underline">{t("costCenters.addFirst")}</button>
             )}
+          </div>
+        ) : isGridView ? (
+          <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">
+            <GridTable
+              rows={centers}
+              columns={centerGridColumns}
+              canEdit={canUpdate}
+              canDelete={canDelete}
+              onSave={handleCenterGridSave}
+              onDeleteRows={handleCenterGridDelete}
+              selectedIds={selectedCenterIds}
+              onSelectionChange={setSelectedCenterIds}
+              emptyMessage={t("costCenters.noCenters")}
+            />
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

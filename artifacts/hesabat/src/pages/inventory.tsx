@@ -15,6 +15,7 @@ import {
   type InventoryItem,
   type Account,
 } from "@workspace/api-client-react";
+import { GridTable, GridToggle, type GridColumn } from "@/components/GridTable";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -116,6 +117,7 @@ export function Inventory() {
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isGridView, setIsGridView] = useState(false);
 
   const {
     register: registerItem,
@@ -153,6 +155,45 @@ export function Inventory() {
     new Intl.NumberFormat(lang, { maximumFractionDigits: 4 }).format(n);
 
   const accountLabel = (a: Account) => `${a.code} · ${displayName(a, lang)}`;
+
+  const itemGridColumns: GridColumn<InventoryItem>[] = [
+    { key: "code", header: t("inventory.code"), type: "readonly", width: "90px" },
+    { key: "nameAr", header: t("inventory.name") + " (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
+    { key: "nameEn", header: t("inventory.name") + " (EN)", type: "text", editable: canUpdate },
+    { key: "unit", header: t("inventory.unit"), type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
+    { key: "category", header: t("inventory.category") ?? "الفئة", type: "text", editable: canUpdate },
+    { key: "quantityOnHand", header: t("inventory.quantityOnHand"), type: "readonly", align: "end", render: (v) => <span className="font-sans tabular-nums">{fmtQty(Number(v ?? 0))}</span> },
+    { key: "averageCost", header: t("inventory.averageCost"), type: "readonly", align: "end", render: (v) => <span className="font-sans tabular-nums">{fmt(Number(v ?? 0))}</span> },
+    { key: "stockValue", header: t("inventory.stockValue"), type: "readonly", align: "end", render: (v) => <span className="font-sans tabular-nums">{fmt(Number(v ?? 0))}</span> },
+    { key: "isActive", header: t("inventory.status"), type: "boolean", editable: canUpdate, width: "80px",
+      render: (v) => v
+        ? <span className="text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">{t("inventory.active")}</span>
+        : <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t("inventory.inactive")}</span>
+    },
+  ];
+
+  const handleItemGridSave = async (changes: { id: string; field: string; oldValue: unknown; newValue: unknown }[]) => {
+    const byRow = new Map<string, Record<string, unknown>>();
+    for (const c of changes) { if (!byRow.has(c.id)) byRow.set(c.id, {}); byRow.get(c.id)![c.field] = c.newValue; }
+    for (const [id, patch] of byRow.entries()) {
+      const it = items.find((i) => i.id === id); if (!it) continue;
+      const data = {
+        nameAr: String(patch.nameAr ?? it.nameAr),
+        nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : it.nameEn ?? null,
+        unit: String(patch.unit ?? it.unit),
+        category: patch.category !== undefined ? (String(patch.category) || null) : it.category ?? null,
+        inventoryAccountId: it.inventoryAccountId,
+        isActive: patch.isActive !== undefined ? Boolean(patch.isActive) : it.isActive,
+      };
+      await new Promise<void>((res, rej) => updateItem.mutate({ id, data }, { onSuccess: () => res(), onError: rej }));
+    }
+    invalidateItems();
+  };
+
+  const handleItemGridDelete = async (ids: string[]) => {
+    for (const id of ids) await deleteItem.mutateAsync({ id });
+    invalidateItems();
+  };
 
   const invalidateItems = () =>
     queryClient.invalidateQueries({ queryKey: getListInventoryItemsQueryKey() });
@@ -407,6 +448,7 @@ export function Inventory() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {tab === "items" && <GridToggle isGrid={isGridView} onToggle={() => setIsGridView((v) => !v)} />}
           <ExcelToolbar
             exportPath="/api/inventory/items/export"
             importPath="/api/inventory/items/import"
@@ -474,6 +516,18 @@ export function Inventory() {
                   </button>
                 )}
               </div>
+            ) : isGridView ? (
+              <GridTable
+                rows={items}
+                columns={itemGridColumns}
+                canEdit={canUpdate}
+                canDelete={canDelete}
+                onSave={handleItemGridSave}
+                onDeleteRows={handleItemGridDelete}
+                selectedIds={selectedItemIds}
+                onSelectionChange={setSelectedItemIds}
+                emptyMessage={t("inventory.noItems")}
+              />
             ) : (
               <>
                 {selectedItemIds.size > 0 && canDelete && (

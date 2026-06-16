@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type Account, useListCurrencies, useGetCompany } from "@workspace/api-client-react";
+import { type Account, useListCurrencies, useGetCompany, useUpdateCustomer, useUpdateSupplier } from "@workspace/api-client-react";
 import { Plus, X, Check, Trash2, Edit2 } from "lucide-react";
+import { GridTable, GridToggle, type GridColumn } from "@/components/GridTable";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -168,6 +169,7 @@ export function PartyManager({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isGridView, setIsGridView] = useState(false);
 
   const {
     register,
@@ -185,6 +187,54 @@ export function PartyManager({
   const fmt = (n: number) =>
     new Intl.NumberFormat(lang, { maximumFractionDigits: 2 }).format(n);
   const accountLabel = (a: Account) => `${a.code} · ${displayName(a, lang)}`;
+
+  const gridColumns: GridColumn<Party>[] = [
+    { key: "code", header: t(`${ns}.code`), type: "readonly", width: "90px" },
+    { key: "nameAr", header: t(`${ns}.name`) + " (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
+    { key: "nameEn", header: t(`${ns}.name`) + " (EN)", type: "text", editable: canUpdate },
+    { key: "phone", header: t(`${ns}.phone`), type: "text", editable: canUpdate },
+    { key: "accountCode", header: t(`${ns}.account`), type: "readonly", align: "start" },
+    { key: "balance", header: t(`${ns}.balance`), type: "number", align: "end", render: (v) => <span className="font-sans tabular-nums">{fmt(Number(v ?? 0))}</span> },
+    { key: "isActive", header: t(`${ns}.status`), type: "boolean", editable: canUpdate, width: "80px",
+      render: (v) => v
+        ? <span className="text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">{t(`${ns}.active`)}</span>
+        : <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t(`${ns}.inactive`)}</span>
+    },
+  ];
+
+  const handleGridSave = async (changes: { id: string; field: string; oldValue: unknown; newValue: unknown }[]) => {
+    const byRow = new Map<string, Record<string, unknown>>();
+    for (const c of changes) {
+      if (!byRow.has(c.id)) byRow.set(c.id, {});
+      byRow.get(c.id)![c.field] = c.newValue;
+    }
+    for (const [id, patch] of byRow.entries()) {
+      const party = parties.find((p) => p.id === id);
+      if (!party) continue;
+      const payload: Parameters<typeof updateMut.mutate>[0] = { id, data: {
+        nameAr: String(patch.nameAr ?? party.nameAr),
+        nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : party.nameEn ?? null,
+        type: party.type,
+        taxNumber: party.taxNumber ?? null,
+        commercialRegistration: party.commercialRegistration ?? null,
+        phone: patch.phone !== undefined ? (String(patch.phone) || null) : party.phone ?? null,
+        email: party.email ?? null,
+        address: party.address ?? null,
+        currency: party.currency ?? null,
+        creditLimit: party.creditLimit ?? null,
+        creditPeriodDays: party.creditPeriodDays ?? null,
+        controlAccountId: party.controlAccountId,
+        isActive: patch.isActive !== undefined ? Boolean(patch.isActive) : party.isActive,
+      }};
+      await new Promise<void>((res, rej) => updateMut.mutate(payload, { onSuccess: () => res(), onError: rej }));
+    }
+    invalidate();
+  };
+
+  const handleGridDelete = async (ids: string[]) => {
+    for (const id of ids) await deleteMut.mutateAsync({ id });
+    invalidate();
+  };
 
   const openCreate = () => {
     reset({
@@ -394,6 +444,7 @@ export function PartyManager({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <GridToggle isGrid={isGridView} onToggle={() => setIsGridView((v) => !v)} />
           <ExcelToolbar
             exportPath={`/api/${ns}/export`}
             importPath={`/api/${ns}/import`}
@@ -431,6 +482,18 @@ export function PartyManager({
                 </button>
               )}
             </div>
+          ) : isGridView ? (
+            <GridTable
+              rows={parties}
+              columns={gridColumns}
+              canEdit={canUpdate}
+              canDelete={canDelete}
+              onSave={handleGridSave}
+              onDeleteRows={handleGridDelete}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              emptyMessage={t(`${ns}.empty`)}
+            />
           ) : (
             <>
               {selectedIds.size > 0 && canDelete && (
