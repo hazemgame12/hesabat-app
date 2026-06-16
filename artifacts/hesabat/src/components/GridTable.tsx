@@ -490,7 +490,7 @@ export function GridTable<T extends { id: string }>({
             )}
           </button>
           {showColPanel && (
-            <div className="absolute top-full start-0 mt-1 bg-card border rounded-xl shadow-lg p-3 z-50 min-w-[180px]">
+            <div className="absolute top-full end-0 mt-1 bg-card border rounded-xl shadow-lg p-3 z-50 min-w-[180px]">
               <p className="text-xs font-bold text-muted-foreground mb-2 px-1">إظهار / إخفاء الأعمدة</p>
               {columns.map((col) => (
                 <label key={col.key} className="flex items-center gap-2 py-1.5 px-1 cursor-pointer hover:bg-muted/30 rounded select-none">

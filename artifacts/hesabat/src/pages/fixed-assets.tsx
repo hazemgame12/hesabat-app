@@ -150,14 +150,31 @@ export function FixedAssets() {
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getListAssetsQueryKey() });
 
+  const defaultAssetAccts = useMemo(() => {
+    const pick = (key: keyof FixedAsset) => {
+      const counts = new Map<string, number>();
+      for (const a of assets) { const v = a[key] as string; if (v) counts.set(v, (counts.get(v) ?? 0) + 1); }
+      let best = postableAccounts[0]?.id ?? "";
+      let bestN = 0;
+      counts.forEach((n, id) => { if (n > bestN) { bestN = n; best = id; } });
+      return best;
+    };
+    return { assetAccountId: pick("assetAccountId"), accumulatedAccountId: pick("accumulatedAccountId"), expenseAccountId: pick("expenseAccountId") };
+  }, [assets, postableAccounts]);
+
   const assetGridColumns: GridColumn<FixedAsset>[] = [
     { key: "nameAr", header: t("assets.nameAr") ?? "الاسم (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
     { key: "nameEn", header: (t("assets.nameEn") ?? "Name") + " (EN)", type: "text", editable: canUpdate },
     { key: "category", header: t("assets.category") ?? "الفئة", type: "text", editable: canUpdate },
-    { key: "acquisitionDate", header: t("assets.acquisitionDate") ?? "تاريخ الاقتناء", type: "readonly" },
-    { key: "cost", header: t("assets.cost") ?? "التكلفة", type: "readonly", align: "end",
+    { key: "acquisitionDate", header: t("assets.acquisitionDate") ?? "تاريخ الاقتناء", type: "text", editable: canUpdate,
+      validate: (v) => !v ? "مطلوب (YYYY-MM-DD)" : null },
+    { key: "cost", header: t("assets.cost") ?? "التكلفة", type: "number", editable: canUpdate, align: "end",
+      render: (v) => <span className="font-sans tabular-nums">{fmt(Number(v ?? 0))}</span>,
+      validate: (v) => Number(v) <= 0 ? "يجب أن تكون > 0" : null },
+    { key: "salvageValue", header: t("assets.salvageValue") ?? "قيمة الخردة", type: "number", editable: canUpdate, align: "end",
       render: (v) => <span className="font-sans tabular-nums">{fmt(Number(v ?? 0))}</span> },
-    { key: "usefulLifeMonths", header: t("assets.usefulLifeMonths") ?? "العمر (شهر)", type: "readonly", align: "end" },
+    { key: "usefulLifeMonths", header: t("assets.usefulLifeMonths") ?? "العمر (شهر)", type: "number", editable: canUpdate, align: "end",
+      validate: (v) => Number(v) <= 0 ? "يجب أن يكون > 0" : null },
     { key: "status", header: t("assets.status") ?? "الحالة", type: "select", editable: canUpdate, width: "100px",
       options: [
         { value: "active", label: t("assets.active") ?? "نشط" },
@@ -178,10 +195,10 @@ export function FixedAssets() {
         nameAr: String(patch.nameAr ?? a.nameAr),
         nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : a.nameEn ?? null,
         category: patch.category !== undefined ? (String(patch.category) || null) : a.category ?? null,
-        acquisitionDate: a.acquisitionDate,
-        cost: a.cost,
-        salvageValue: a.salvageValue,
-        usefulLifeMonths: a.usefulLifeMonths,
+        acquisitionDate: String(patch.acquisitionDate ?? a.acquisitionDate),
+        cost: patch.cost !== undefined ? Number(patch.cost) : a.cost,
+        salvageValue: patch.salvageValue !== undefined ? Number(patch.salvageValue) : a.salvageValue,
+        usefulLifeMonths: patch.usefulLifeMonths !== undefined ? Number(patch.usefulLifeMonths) : a.usefulLifeMonths,
         assetAccountId: a.assetAccountId,
         accumulatedAccountId: a.accumulatedAccountId,
         expenseAccountId: a.expenseAccountId,
@@ -194,6 +211,30 @@ export function FixedAssets() {
 
   const handleAssetGridDelete = async (ids: string[]) => {
     for (const id of ids) await deleteAsset.mutateAsync({ id });
+    invalidate();
+  };
+
+  const handleAssetGridCreate = async (newAssets: Partial<FixedAsset>[]) => {
+    for (const p of newAssets) {
+      if (!String(p.nameAr ?? "").trim() || !String(p.acquisitionDate ?? "").trim()) continue;
+      const cost = Number(p.cost ?? 0);
+      const salvage = Number(p.salvageValue ?? 0);
+      if (cost <= 0 || salvage >= cost) continue;
+      const data = {
+        nameAr: String(p.nameAr).trim(),
+        nameEn: p.nameEn ? String(p.nameEn) : null,
+        category: p.category ? String(p.category) : null,
+        acquisitionDate: String(p.acquisitionDate).trim(),
+        cost,
+        salvageValue: salvage,
+        usefulLifeMonths: Number(p.usefulLifeMonths ?? 60),
+        assetAccountId: defaultAssetAccts.assetAccountId,
+        accumulatedAccountId: defaultAssetAccts.accumulatedAccountId,
+        expenseAccountId: defaultAssetAccts.expenseAccountId,
+        status: "active" as const,
+      };
+      await new Promise<void>((res, rej) => createAsset.mutate({ data }, { onSuccess: () => res(), onError: rej }));
+    }
     invalidate();
   };
 
@@ -408,6 +449,8 @@ export function FixedAssets() {
               canDelete={canDelete}
               onSave={handleAssetGridSave}
               onDeleteRows={handleAssetGridDelete}
+              onCreateRows={canCreate ? handleAssetGridCreate : undefined}
+              newRowTemplate={() => ({ status: "active" as const, salvageValue: 0, usefulLifeMonths: 60 })}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               emptyMessage={t("assets.noAssets")}
