@@ -28,6 +28,12 @@ echo "🔨 Building API server..."
 pnpm --filter @workspace/api-server run build
 
 echo ""
+echo "📋 Copying frontend into API dist/public..."
+mkdir -p "$APP_DIR/artifacts/api-server/dist/public"
+cp -r "$APP_DIR/artifacts/hesabat/dist/public/." "$APP_DIR/artifacts/api-server/dist/public/"
+echo "✅ Frontend files copied"
+
+echo ""
 echo "♻️  Restarting API..."
 if pm2 describe hesabat-api &>/dev/null; then
   pm2 restart hesabat-api
