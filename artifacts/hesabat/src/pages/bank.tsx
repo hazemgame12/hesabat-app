@@ -64,6 +64,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 
 type AccountType = "bank" | "cash" | "credit_card" | "loan";
 type MovementType =
@@ -893,8 +894,49 @@ function MovementsTab({
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bankImportOpen, setBankImportOpen] = useState(false);
+  const [isGridView, toggleGridView] = useGridView("bank-movements");
 
   const { data: costCenters = [] } = useListCostCenters();
+
+  const movementGridColumns = useMemo<GridColumn<BankMovement>[]>(() => [
+    { key: "date", header: t("bank.movementsTable.date"), type: "readonly" },
+    {
+      key: "type", header: t("bank.movementsTable.type"), type: "readonly",
+      render: (v, row) => (
+        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+          row.direction === "in" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+        }`}>
+          {row.direction === "in" ? <ArrowDownToLine className="w-3 h-3" /> : <ArrowUpFromLine className="w-3 h-3" />}
+          {t(`bank.movementTypes.${v}`)}
+        </span>
+      ),
+    },
+    { key: "notes", header: t("bank.movementsTable.statementDescription"), type: "readonly" },
+    {
+      key: "amount", header: t("bank.movementsTable.amount"), type: "readonly", align: "end",
+      render: (v, row) => (
+        <span className={`font-bold font-sans tabular-nums ${row.direction === "in" ? "text-success" : "text-destructive"}`} dir="ltr">
+          {row.direction === "in" ? "+" : "−"}{fmt(Number(v ?? 0))} {row.currency}
+        </span>
+      ),
+    },
+    { key: "counterpartAccountName", header: t("bank.movementsTable.counterpart"), type: "readonly" },
+    { key: "costCenterName", header: t("bank.movementsTable.costCenter"), type: "readonly" },
+    { key: "description", header: t("bank.movementsTable.journalDescription"), type: "readonly" },
+    {
+      key: "status", header: t("bank.movementsTable.status"), type: "readonly", align: "center",
+      render: (v) => v === "pending" ? (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400">
+          <Clock className="w-3 h-3" />{t("bank.movementsTable.pending")}
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-success/10 text-success">
+          <CheckCircle2 className="w-3 h-3" />{t("bank.movementsTable.posted")}
+        </span>
+      ),
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, fmt]);
 
   const invalidate = () => {
     queryClient.invalidateQueries({
@@ -1024,6 +1066,7 @@ function MovementsTab({
               {t("bank.recordMovement")}
             </button>
           )}
+          <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
         </div>
       </div>
 
@@ -1064,6 +1107,17 @@ function MovementsTab({
             <p className="font-bold text-foreground">{t("bank.noMovements")}</p>
             <p className="text-sm">{t("bank.noMovementsHint")}</p>
           </div>
+        ) : isGridView ? (
+          <GridTable
+            rows={movements}
+            columns={movementGridColumns}
+            canEdit={false}
+            canDelete={false}
+            emptyMessage={t("bank.noMovements")}
+            rowClassName={(row) =>
+              row.status === "pending" ? "bg-amber-50/30 dark:bg-amber-500/5" : ""
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[1100px]">

@@ -60,6 +60,7 @@ import { InvoiceReports } from "./InvoiceReports";
 import { PartyView, type PartyViewParty } from "./PartyView";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
 import { ImportWizard } from "@/components/import-wizard/ImportWizard";
+import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 
 type Kind = "sales" | "purchase";
 type Tab = "invoices" | "returns" | "payments" | "reports";
@@ -111,6 +112,9 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterCurrency, setFilterCurrency] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [invGridView, toggleInvGrid] = useGridView("invoices-" + kind);
+  const [retGridView, toggleRetGrid] = useGridView("returns-" + kind);
+  const [payGridView, togglePayGrid] = useGridView("payments-" + kind);
 
   const { data: invoicesRaw = [], isLoading: invLoading } = useListInvoices({
     kind,
@@ -189,6 +193,67 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(n);
+
+  const statusCls: Record<string, string> = {
+    draft: "text-muted-foreground bg-muted",
+    approved: "text-primary bg-primary/10",
+    partially_paid: "text-amber-600 bg-amber-500/10",
+    paid: "text-success bg-success/10",
+    cancelled: "text-muted-foreground bg-muted line-through",
+  };
+
+  const invGridColumns = useMemo<GridColumn<InvoiceSummary>[]>(() => [
+    { key: "invoiceNo", header: t("invoices.invoiceNo"), type: "readonly",
+      render: (v, row) => <span className="font-sans tabular-nums font-bold" dir="ltr">{row.code ?? `#${v}`}</span> },
+    { key: "date", header: t("invoices.date"), type: "readonly" },
+    { key: "dueDate", header: t("invoices.dueDate"), type: "readonly" },
+    { key: "partyName", header: t(kind === "sales" ? "invoices.customer" : "invoices.supplier"), type: "readonly" },
+    { key: "currency", header: t("invoices.currency"), type: "readonly", align: "center" },
+    { key: "total", header: t("invoices.total"), type: "readonly", align: "end",
+      render: (v) => <span className="font-sans tabular-nums" dir="ltr">{fmt(Number(v ?? 0))}</span> },
+    { key: "amountPaid", header: t("invoices.paid"), type: "readonly", align: "end",
+      render: (v) => <span className={`font-sans tabular-nums ${Number(v) > 0.005 ? "text-success" : "text-foreground/50"}`} dir="ltr">{fmt(Number(v ?? 0))}</span> },
+    { key: "balance", header: t("invoices.balance"), type: "readonly", align: "end",
+      render: (v) => <span className={`font-bold font-sans tabular-nums ${Number(v) > 0 ? "" : "text-success"}`} dir="ltr">{fmt(Number(v ?? 0))}</span> },
+    { key: "status", header: t("invoices.status"), type: "readonly", align: "center",
+      render: (_, row) => (
+        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${statusCls[row.status] ?? statusCls.draft}`}>
+          {t(`invoices.statuses.${row.status}`)}
+          {row.overdue && row.status !== "paid" ? ` · ${t("invoices.overdue")}` : ""}
+        </span>
+      ) },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, kind, fmt]);
+
+  const retGridColumns = useMemo<GridColumn<InvoiceSummary>[]>(() => [
+    { key: "invoiceNo", header: t("invoices.invoiceNo"), type: "readonly",
+      render: (v, row) => <span className="font-sans tabular-nums font-bold" dir="ltr">{row.code ?? `#${v}`}</span> },
+    { key: "date", header: t("invoices.date"), type: "readonly" },
+    { key: "partyName", header: t(kind === "sales" ? "invoices.customer" : "invoices.supplier"), type: "readonly" },
+    { key: "relatedCode", header: t("invoices.returns.relatedInvoice"), type: "readonly" },
+    { key: "total", header: t("invoices.total"), type: "readonly", align: "end",
+      render: (v) => <span className="font-bold font-sans tabular-nums" dir="ltr">{fmt(Number(v ?? 0))}</span> },
+    { key: "status", header: t("invoices.status"), type: "readonly", align: "center",
+      render: (_, row) => (
+        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${statusCls[row.status] ?? statusCls.draft}`}>
+          {t(`invoices.statuses.${row.status}`)}
+        </span>
+      ) },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, kind, fmt]);
+
+  const payGridColumns = useMemo<GridColumn<Payment>[]>(() => [
+    { key: "paymentNo", header: t("invoices.paymentNo"), type: "readonly",
+      render: (v) => <span className="font-sans tabular-nums font-bold" dir="ltr">#{v as number}</span> },
+    { key: "date", header: t("invoices.date"), type: "readonly" },
+    { key: "partyName", header: t("invoices.party"), type: "readonly" },
+    { key: "method", header: t("invoices.method"), type: "readonly",
+      render: (v) => <span>{t(`invoices.methods.${v as string}`)}</span> },
+    { key: "cashAccountName", header: t("invoices.cashAccount", "الحساب"), type: "readonly" },
+    { key: "amount", header: t("invoices.amount"), type: "readonly", align: "end",
+      render: (v) => <span className="font-bold font-sans tabular-nums" dir="ltr">{fmt(Number(v ?? 0))}</span> },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, fmt]);
 
   const invalidateInvoices = () => {
     queryClient.invalidateQueries({
@@ -518,6 +583,18 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
               )}
             </button>
           )}
+          {(tab === "invoices" || tab === "returns" || tab === "payments") && (
+            <GridToggle
+              isGrid={
+                tab === "invoices" ? invGridView :
+                tab === "returns" ? retGridView : payGridView
+              }
+              onToggle={
+                tab === "invoices" ? toggleInvGrid :
+                tab === "returns" ? toggleRetGrid : togglePayGrid
+              }
+            />
+          )}
         </div>
       </header>
 
@@ -796,7 +873,19 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                     </button>
                   )}
                 </div>
-              ) : (
+              ) : invGridView ? (
+              <GridTable
+                rows={invoices}
+                columns={invGridColumns}
+                canEdit={false}
+                canDelete={false}
+                emptyMessage={t("invoices.noInvoices")}
+                rowClassName={(row) =>
+                  row.status === "cancelled" ? "opacity-50 line-through" :
+                  row.overdue && row.status !== "paid" ? "bg-rose-50/30 dark:bg-rose-500/5" : ""
+                }
+              />
+            ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[1000px] border-collapse">
                     <thead>
@@ -1077,6 +1166,17 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                   </button>
                 )}
               </div>
+            ) : retGridView ? (
+              <GridTable
+                rows={returns}
+                columns={retGridColumns}
+                canEdit={false}
+                canDelete={false}
+                emptyMessage={t("invoices.returns.noReturns")}
+                rowClassName={(row) =>
+                  row.status === "cancelled" ? "opacity-50 line-through" : ""
+                }
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[900px] border-collapse">
@@ -1222,6 +1322,14 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                   </button>
                 )}
               </div>
+            ) : payGridView ? (
+              <GridTable
+                rows={payments}
+                columns={payGridColumns}
+                canEdit={false}
+                canDelete={false}
+                emptyMessage={t("invoices.noPayments")}
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[700px] border-collapse">
