@@ -226,7 +226,45 @@ export function GridTable<T extends { id: string }>({
     } finally { setIsDeleting(false); }
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.cssText = "position:fixed;opacity:0;top:0;left:0;width:1px;height:1px";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      } catch {
+        toast({ variant: "destructive", title: "فشل النسخ", description: "تأكد أن المتصفح يسمح بالوصول للحافظة" });
+        throw new Error("copy failed");
+      }
+    }
+  };
+
   const handleCopy = useCallback(async () => {
+    // Priority 1: row-level copy when rows are checked via checkboxes
+    if (selectedIds.size > 0) {
+      const headers = visibleColumns.map((c) => c.header).join("\t");
+      const selected = displayData.filter((r) => selectedIds.has(r.id));
+      const body = selected.map((row) =>
+        visibleColumns.map((col) => {
+          const v = getCellValue(row, col.key);
+          if (col.options) return col.options.find((o) => o.value === String(v))?.label ?? String(v ?? "");
+          return String(v ?? "");
+        }).join("\t")
+      ).join("\n");
+      try {
+        await copyToClipboard(headers + "\n" + body);
+        toast({ title: `تم نسخ ${selected.length} صف` });
+      } catch { /* error already toasted */ }
+      return;
+    }
+    // Priority 2: cell-range copy
     if (rangeStart && rangeEnd) {
       const r0 = displayData.findIndex((r) => r.id === rangeStart.rowId);
       const r1 = displayData.findIndex((r) => r.id === rangeEnd.rowId);
@@ -237,22 +275,33 @@ export function GridTable<T extends { id: string }>({
       const tsv = displayData.slice(rMin, rMax + 1).map((row) =>
         visibleColumns.slice(cMin, cMax + 1).map((col) => String(getCellValue(row, col.key) ?? "")).join("\t")
       ).join("\n");
-      await navigator.clipboard.writeText(tsv);
-      toast({ title: `نسخ ${rMax - rMin + 1} × ${cMax - cMin + 1} خلايا` });
+      try {
+        await copyToClipboard(tsv);
+        toast({ title: `نسخ ${rMax - rMin + 1} × ${cMax - cMin + 1} خلايا` });
+      } catch { /* error already toasted */ }
       return;
     }
+    // Priority 3: single active cell
     if (!activeCell) return;
     const row = displayData.find((r) => r.id === activeCell.rowId);
     if (!row) return;
-    await navigator.clipboard.writeText(String(getCellValue(row, activeCell.field) ?? ""));
-    toast({ title: "تم النسخ" });
-  }, [rangeStart, rangeEnd, activeCell, displayData, visibleColumns, edits]); // eslint-disable-line react-hooks/exhaustive-deps
+    try {
+      await copyToClipboard(String(getCellValue(row, activeCell.field) ?? ""));
+      toast({ title: "تم النسخ" });
+    } catch { /* error already toasted */ }
+  }, [selectedIds, rangeStart, rangeEnd, activeCell, displayData, visibleColumns, edits]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePaste = useCallback(async () => {
     if (!activeCell || !canEdit) return;
     const col = columns.find((c) => c.key === activeCell.field);
     if (!col?.editable) return;
-    const text = await navigator.clipboard.readText();
+    let text = "";
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      toast({ variant: "destructive", title: "لا يمكن الوصول للحافظة", description: "اسمح للمتصفح بالوصول للحافظة ثم أعد المحاولة" });
+      return;
+    }
     const lines = text.split("\n").filter(Boolean);
     if (lines.length > 1 || lines[0]?.includes("\t")) {
       const startR = displayData.findIndex((r) => r.id === activeCell.rowId);

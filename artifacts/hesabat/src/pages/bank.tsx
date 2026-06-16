@@ -49,6 +49,8 @@ import {
   Download,
   Wand2,
   Clock,
+  RotateCcw,
+  Copy,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -1076,21 +1078,62 @@ function MovementsTab({
         </p>
       )}
 
-      {canDelete && selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-destructive/10 border border-destructive/30 rounded-xl text-sm">
-          <span className="font-medium text-destructive">
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm flex-wrap">
+          <span className="font-bold text-slate-700">
             {t("bank.bulkDelete.selected", { count: selectedIds.size })}
           </span>
+          {/* Copy selected rows */}
           <button
-            onClick={() => setBulkDeleteOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
+            onClick={() => {
+              const selected = movements.filter((m) => selectedIds.has(m.id));
+              const headers = ["التاريخ", "النوع", "الوصف", "المبلغ", "العملة", "الحالة"].join("\t");
+              const rows = selected.map((m) =>
+                [m.date, m.type, m.notes ?? "", m.amount, m.currency, m.status].join("\t")
+              ).join("\n");
+              const text = headers + "\n" + rows;
+              const copy = async () => {
+                try { await navigator.clipboard.writeText(text); }
+                catch {
+                  const ta = document.createElement("textarea");
+                  ta.value = text; ta.style.cssText = "position:fixed;opacity:0;top:0;left:0;width:1px;height:1px";
+                  document.body.appendChild(ta); ta.focus(); ta.select();
+                  document.execCommand("copy"); document.body.removeChild(ta);
+                }
+              };
+              void copy().then(() => toast({ title: `تم نسخ ${selected.length} حركة` }));
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 text-xs font-medium hover:bg-slate-100 transition-colors"
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            {t("bank.bulkDelete.deleteSelected")}
+            <Copy className="w-3.5 h-3.5" />
+            {t("bank.bulkCopy", "نسخ")}
           </button>
+          {/* Void: for posted movements */}
+          {Array.from(selectedIds).some((id) => movements.find((m) => m.id === id)?.status === "posted") && (
+            <button
+              onClick={() => setBulkDeleteOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              {t("bank.bulkVoid", "فك الترحيل")}
+            </button>
+          )}
+          {/* Delete: for pending/deletable movements */}
+          {canDelete && Array.from(selectedIds).some((id) => {
+            const m = movements.find((mv) => mv.id === id);
+            return m && !m.isCleared && !m.reconciliationId && m.type !== "transfer";
+          }) && (
+            <button
+              onClick={() => setBulkDeleteOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {t("bank.bulkDelete.deleteSelected")}
+            </button>
+          )}
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors ms-auto"
           >
             {t("bank.bulkDelete.cancel")}
           </button>
@@ -1113,6 +1156,8 @@ function MovementsTab({
             columns={movementGridColumns}
             canEdit={false}
             canDelete={false}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
             emptyMessage={t("bank.noMovements")}
             rowClassName={(row) =>
               row.status === "pending" ? "bg-amber-50/30 dark:bg-amber-500/5" : ""

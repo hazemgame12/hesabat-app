@@ -879,6 +879,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 columns={invGridColumns}
                 canEdit={false}
                 canDelete={false}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
                 emptyMessage={t("invoices.noInvoices")}
                 rowClassName={(row) =>
                   row.status === "cancelled" ? "opacity-50 line-through" :
@@ -1172,6 +1174,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 columns={retGridColumns}
                 canEdit={false}
                 canDelete={false}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
                 emptyMessage={t("invoices.returns.noReturns")}
                 rowClassName={(row) =>
                   row.status === "cancelled" ? "opacity-50 line-through" : ""
@@ -1328,6 +1332,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 columns={payGridColumns}
                 canEdit={false}
                 canDelete={false}
+                selectedIds={selectedIds}
+                onSelectionChange={setSelectedIds}
                 emptyMessage={t("invoices.noPayments")}
               />
             ) : (
