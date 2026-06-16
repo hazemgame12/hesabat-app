@@ -1804,6 +1804,11 @@
     "exchangeRate": "Exchange rate",
     "lines": "Lines",
     "addLine": "Add line",
+    "pasteExcel": "Paste from Excel",
+    "pasteExcelHint": "Paste rows from Excel (description, qty, price, discount)",
+    "pastedRows": "Added {{count}} rows",
+    "clipboardError": "Could not read clipboard",
+    "autoFromItem": "Auto from item",
     "lineType": "Type",
     "lineTypes": {
       "service": "Service / account",

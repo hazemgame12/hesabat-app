@@ -17,7 +17,7 @@ import {
   type Tax,
   type InventoryItem,
 } from "@workspace/api-client-react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, ChevronDown, ChevronRight, ClipboardPaste } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { displayName } from "./InvoiceWorkspace";
@@ -153,6 +153,16 @@ export function InvoiceEditor({
   const [currency, setCurrency] = useState(baseCurrency);
   const [exchangeRate, setExchangeRate] = useState("1");
   const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
+  const [expandedLines, setExpandedLines] = useState<Set<number>>(new Set());
+
+  const toggleExpand = (idx: number) => {
+    setExpandedLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
 
   // The initial useState above uses the "EGP" fallback because company data
   // hasn't loaded yet. Once company loads and baseCurrency is known (e.g. AED),
@@ -284,6 +294,9 @@ export function InvoiceEditor({
 
   const updateLine = (idx: number, patch: Partial<LineDraft>) => {
     setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+    if (patch.lineType && patch.lineType !== "service") {
+      setExpandedLines((prev) => new Set([...prev, idx]));
+    }
   };
 
   const onItemPicked = (idx: number, itemId: string) => {
@@ -303,8 +316,48 @@ export function InvoiceEditor({
   };
 
   const addLine = () => setLines((ls) => [...ls, emptyLine()]);
-  const removeLine = (idx: number) =>
+  const removeLine = (idx: number) => {
     setLines((ls) => (ls.length > 1 ? ls.filter((_, i) => i !== idx) : ls));
+    setExpandedLines((prev) => {
+      const next = new Set<number>();
+      prev.forEach((n) => { if (n < idx) next.add(n); else if (n > idx) next.add(n - 1); });
+      return next;
+    });
+  };
+
+  const parsePastedLines = (text: string): LineDraft[] =>
+    text
+      .trim()
+      .split(/\r?\n/)
+      .map((row) => {
+        const cols = row.split("\t");
+        const description = cols[0]?.trim() ?? "";
+        const quantity = cols[1]?.replace(/,/g, "").trim() || "1";
+        const unitPrice = cols[2]?.replace(/,/g, "").trim() || "";
+        const discount = cols[3]?.replace(/,/g, "").trim() || "0";
+        return { ...emptyLine(), description, quantity, unitPrice, discount };
+      })
+      .filter((l) => l.description || l.unitPrice);
+
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const newLines = parsePastedLines(text);
+      if (newLines.length === 0) return;
+      setLines((prev) => {
+        const hasOnlyEmpty =
+          prev.length === 1 && !prev[0]!.description && !prev[0]!.unitPrice;
+        return hasOnlyEmpty ? newLines : [...prev, ...newLines];
+      });
+      toast({ title: t("invoices.pastedRows", { count: newLines.length }) });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("invoices.clipboardError"),
+      });
+    }
+  };
 
   const validate = (): string | null => {
     if (returnMode && !relatedInvoiceId)
@@ -583,291 +636,297 @@ export function InvoiceEditor({
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-foreground">{t("invoices.lines")}</h3>
                 {!disabled && (
-                  <button
-                    onClick={addLine}
-                    className="flex items-center gap-1.5 text-sm font-bold text-primary hover:underline"
-                  >
-                    <Plus className="w-4 h-4" />
-                    {t("invoices.addLine")}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={pasteFromClipboard}
+                      title={t("invoices.pasteExcelHint")}
+                      className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <ClipboardPaste className="w-4 h-4" />
+                      {t("invoices.pasteExcel")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={addLine}
+                      className="flex items-center gap-1.5 text-sm font-bold text-primary hover:underline"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {t("invoices.addLine")}
+                    </button>
+                  </div>
                 )}
               </div>
 
+              {/* ── Inline Excel-like table ── */}
+              <div className="border rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[860px] border-collapse">
+                    <thead>
+                      <tr className="bg-muted/50 text-[11px] font-bold text-muted-foreground border-b">
+                        <th className="px-2 py-2 w-8 text-center">#</th>
+                        <th className="px-2 py-2 w-28 text-start">{t("invoices.lineType")}</th>
+                        <th className="px-2 py-2 text-start">{t("invoices.description")}</th>
+                        <th className="px-2 py-2 w-44 text-start">{t("invoices.account")}</th>
+                        <th className="px-2 py-2 w-20 text-end">{t("invoices.quantity")}</th>
+                        <th className="px-2 py-2 w-24 text-end">{t("invoices.unitPrice")}</th>
+                        <th className="px-2 py-2 w-20 text-end">{t("invoices.discount")}</th>
+                        <th className="px-2 py-2 w-28 text-start">{t("invoices.tax")}</th>
+                        <th className="px-2 py-2 w-28 text-start">{t("invoices.costCenter")}</th>
+                        <th className="px-2 py-2 w-24 text-end">{t("invoices.lineTotal")}</th>
+                        {!disabled && <th className="w-8" />}
+                      </tr>
+                    </thead>
+                    <tbody>
               {lines.map((l, idx) => {
                 const calc = lineCalc(l);
+                const isExpanded = expandedLines.has(idx);
+                const needsExpand = l.lineType !== "service";
                 return (
-                  <div
-                    key={idx}
-                    className="border rounded-xl p-4 flex flex-col gap-3 bg-muted/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <select
-                        className={`${inputCls} max-w-[160px]`}
-                        value={l.lineType}
-                        disabled={disabled || returnMode}
-                        onChange={(e) =>
-                          updateLine(idx, { lineType: e.target.value as LineType })
-                        }
-                      >
-                        {(returnMode
-                          ? (["service"] as const)
-                          : (["service", "inventory", "fixed_asset"] as const)
-                        ).map((lt) => (
-                          <option key={lt} value={lt}>
-                            {t(`invoices.lineTypes.${lt}`)}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        className={inputCls}
-                        placeholder={t("invoices.description")}
-                        value={l.description}
-                        disabled={disabled}
-                        onChange={(e) =>
-                          updateLine(idx, { description: e.target.value })
-                        }
-                      />
-                      {!disabled && lines.length > 1 && (
-                        <button
-                          onClick={() => removeLine(idx)}
-                          className="p-2 rounded-lg hover:bg-destructive/10 text-destructive shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    {l.lineType === "inventory" && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className={labelCls}>{t("invoices.item")}</label>
-                          <select
-                            className={inputCls}
-                            value={l.itemId}
-                            disabled={disabled}
-                            onChange={(e) => onItemPicked(idx, e.target.value)}
+                  <React.Fragment key={idx}>
+                    {/* ── main row ── */}
+                    <tr className={`border-b last:border-b-0 hover:bg-muted/20 group${needsExpand && isExpanded ? " bg-primary/5" : ""}`}>
+                      {/* # / expand toggle */}
+                      <td className="px-2 py-1 text-center text-muted-foreground text-xs">
+                        {needsExpand ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(idx)}
+                            className="w-6 h-6 flex items-center justify-center rounded hover:bg-muted mx-auto"
                           >
-                            <option value="">{t("invoices.selectItem")}</option>
-                            {items.map((it) => (
-                              <option key={it.id} value={it.id}>
-                                {it.code} · {displayName(it, lang)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={labelCls}>{t("invoices.warehouse")}</label>
-                          <input
-                            className={inputCls}
-                            value={l.warehouse}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              updateLine(idx, { warehouse: e.target.value })
-                            }
-                          />
-                        </div>
-                        {kind === "sales" && (
-                          <div>
-                            <label className={labelCls}>{t("invoices.cogsAccount")}</label>
-                            <select
-                              className={inputCls}
-                              value={l.cogsAccountId}
-                              disabled={disabled}
-                              onChange={(e) =>
-                                updateLine(idx, { cogsAccountId: e.target.value })
-                              }
-                            >
-                              <option value="">{t("invoices.selectAccount")}</option>
-                              {postableAccounts.map((a) => (
-                                <option key={a.id} value={a.id}>
-                                  {accountLabel(a)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                            {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                          </button>
+                        ) : (
+                          <span className="select-none">{idx + 1}</span>
                         )}
-                      </div>
-                    )}
-
-                    {l.lineType === "fixed_asset" && (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className={labelCls}>{t("invoices.assetName")}</label>
-                          <input
-                            className={inputCls}
-                            value={l.assetNameAr}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              updateLine(idx, { assetNameAr: e.target.value })
+                      </td>
+                      {/* Line type */}
+                      <td className="px-1 py-1">
+                        <select
+                          className="bg-transparent w-full h-8 px-1 text-xs focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
+                          value={l.lineType}
+                          disabled={disabled || returnMode}
+                          onChange={(e) => updateLine(idx, { lineType: e.target.value as LineType })}
+                        >
+                          {(returnMode ? (["service"] as const) : (["service", "inventory", "fixed_asset"] as const)).map((lt) => (
+                            <option key={lt} value={lt}>{t(`invoices.lineTypes.${lt}`)}</option>
+                          ))}
+                        </select>
+                      </td>
+                      {/* Description */}
+                      <td className="px-1 py-1">
+                        <input
+                          className="bg-transparent w-full h-8 px-2 text-sm focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
+                          placeholder={t("invoices.description")}
+                          value={l.description}
+                          disabled={disabled}
+                          onChange={(e) => updateLine(idx, { description: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && idx === lines.length - 1) {
+                              e.preventDefault();
+                              addLine();
                             }
-                          />
-                        </div>
-                        <div>
-                          <label className={labelCls}>{t("invoices.usefulLife")}</label>
-                          <input
-                            type="number"
-                            className={inputCls}
-                            value={l.assetUsefulLifeMonths}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              updateLine(idx, {
-                                assetUsefulLifeMonths: e.target.value,
-                              })
-                            }
-                            dir="ltr"
-                          />
-                        </div>
-                        <div>
-                          <label className={labelCls}>{t("invoices.salvageValue")}</label>
-                          <input
-                            type="number"
-                            className={inputCls}
-                            value={l.assetSalvageValue}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              updateLine(idx, { assetSalvageValue: e.target.value })
-                            }
-                            dir="ltr"
-                          />
-                        </div>
-                        <div>
-                          <label className={labelCls}>
-                            {t("invoices.accumulatedAccount")}
-                          </label>
+                          }}
+                        />
+                      </td>
+                      {/* Account */}
+                      <td className="px-1 py-1">
+                        {l.lineType === "inventory" && kind === "purchase" ? (
+                          <span className="text-xs text-muted-foreground px-2 italic">{t("invoices.autoFromItem")}</span>
+                        ) : (
                           <select
-                            className={inputCls}
-                            value={l.assetAccumulatedAccountId}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              updateLine(idx, {
-                                assetAccumulatedAccountId: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="">{t("invoices.selectAccount")}</option>
-                            {postableAccounts.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {accountLabel(a)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={labelCls}>{t("invoices.expenseAccount")}</label>
-                          <select
-                            className={inputCls}
-                            value={l.assetExpenseAccountId}
-                            disabled={disabled}
-                            onChange={(e) =>
-                              updateLine(idx, {
-                                assetExpenseAccountId: e.target.value,
-                              })
-                            }
-                          >
-                            <option value="">{t("invoices.selectAccount")}</option>
-                            {postableAccounts.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {accountLabel(a)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
-                      {!(l.lineType === "inventory" && kind === "purchase") && (
-                        <div className="col-span-2">
-                          <label className={labelCls}>
-                            {l.lineType === "inventory" && kind === "sales"
-                              ? t("invoices.revenueAccount")
-                              : t("invoices.account")}
-                          </label>
-                          <select
-                            className={inputCls}
+                            className="bg-transparent w-full h-8 px-1 text-xs focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
                             value={l.accountId}
                             disabled={disabled}
-                            onChange={(e) =>
-                              updateLine(idx, { accountId: e.target.value })
-                            }
+                            onChange={(e) => updateLine(idx, { accountId: e.target.value })}
                           >
                             <option value="">{t("invoices.selectAccount")}</option>
                             {postableAccounts.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {accountLabel(a)}
-                              </option>
+                              <option key={a.id} value={a.id}>{accountLabel(a)}</option>
                             ))}
                           </select>
-                        </div>
-                      )}
-                      <div>
-                        <label className={labelCls}>{t("invoices.quantity")}</label>
+                        )}
+                      </td>
+                      {/* Quantity */}
+                      <td className="px-1 py-1">
                         <input
                           type="number"
-                          className={inputCls}
+                          className="bg-transparent w-full h-8 px-2 text-sm text-end font-sans tabular-nums focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
                           value={l.quantity}
                           disabled={disabled}
-                          onChange={(e) =>
-                            updateLine(idx, { quantity: e.target.value })
-                          }
+                          onChange={(e) => updateLine(idx, { quantity: e.target.value })}
                           dir="ltr"
                         />
-                      </div>
-                      <div>
-                        <label className={labelCls}>{t("invoices.unitPrice")}</label>
+                      </td>
+                      {/* Unit price */}
+                      <td className="px-1 py-1">
                         <input
                           type="number"
-                          className={inputCls}
+                          className="bg-transparent w-full h-8 px-2 text-sm text-end font-sans tabular-nums focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
                           value={l.unitPrice}
                           disabled={disabled}
-                          onChange={(e) =>
-                            updateLine(idx, { unitPrice: e.target.value })
-                          }
+                          onChange={(e) => updateLine(idx, { unitPrice: e.target.value })}
                           dir="ltr"
                         />
-                      </div>
-                      <div>
-                        <label className={labelCls}>{t("invoices.discount")}</label>
+                      </td>
+                      {/* Discount */}
+                      <td className="px-1 py-1">
                         <input
                           type="number"
-                          className={inputCls}
+                          className="bg-transparent w-full h-8 px-2 text-sm text-end font-sans tabular-nums focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
                           value={l.discount}
                           disabled={disabled}
-                          onChange={(e) =>
-                            updateLine(idx, { discount: e.target.value })
-                          }
+                          onChange={(e) => updateLine(idx, { discount: e.target.value })}
                           dir="ltr"
                         />
-                      </div>
-                      <div>
-                        <label className={labelCls}>{t("invoices.tax")}</label>
+                      </td>
+                      {/* Tax */}
+                      <td className="px-1 py-1">
                         <select
-                          className={inputCls}
+                          className="bg-transparent w-full h-8 px-1 text-xs focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
                           value={l.taxId}
                           disabled={disabled}
                           onChange={(e) => updateLine(idx, { taxId: e.target.value })}
                         >
                           <option value="">{t("invoices.noTax")}</option>
-                          {taxes
-                            .filter((tx) => tx.isActive && tx.linkedAccountId)
-                            .map((tx) => (
-                              <option key={tx.id} value={tx.id}>
-                                {displayName(tx, lang)} ({tx.rate}%)
-                              </option>
-                            ))}
+                          {taxes.filter((tx) => tx.isActive && tx.linkedAccountId).map((tx) => (
+                            <option key={tx.id} value={tx.id}>{displayName(tx, lang)} ({tx.rate}%)</option>
+                          ))}
                         </select>
-                      </div>
-                    </div>
+                      </td>
+                      {/* Cost Center */}
+                      <td className="px-1 py-1">
+                        <select
+                          className="bg-transparent w-full h-8 px-1 text-xs focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
+                          value={l.costCenterId}
+                          disabled={disabled}
+                          onChange={(e) => updateLine(idx, { costCenterId: e.target.value })}
+                        >
+                          <option value="">{t("invoices.none")}</option>
+                          {costCenters.map((cc) => (
+                            <option key={cc.id} value={cc.id}>{displayName(cc, lang)}</option>
+                          ))}
+                        </select>
+                      </td>
+                      {/* Total */}
+                      <td className="px-2 py-1 text-end font-bold font-sans tabular-nums text-foreground whitespace-nowrap" dir="ltr">
+                        {fmt(calc.total)}
+                      </td>
+                      {/* Delete */}
+                      {!disabled && (
+                        <td className="px-1 py-1">
+                          {lines.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeLine(idx)}
+                              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
 
-                    <div
-                      className="text-end text-sm font-bold text-foreground font-sans tabular-nums"
-                      dir="ltr"
-                    >
-                      {t("invoices.lineTotal")}: {fmt(calc.total)}
-                    </div>
-                  </div>
+                    {/* ── Expanded: inventory extra fields ── */}
+                    {needsExpand && isExpanded && l.lineType === "inventory" && (
+                      <tr className="border-b bg-muted/10">
+                        <td colSpan={disabled ? 10 : 11} className="px-4 py-3">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className={labelCls}>{t("invoices.item")}</label>
+                              <select className={inputCls} value={l.itemId} disabled={disabled} onChange={(e) => onItemPicked(idx, e.target.value)}>
+                                <option value="">{t("invoices.selectItem")}</option>
+                                {items.map((it) => (
+                                  <option key={it.id} value={it.id}>{it.code} · {displayName(it, lang)}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelCls}>{t("invoices.warehouse")}</label>
+                              <input className={inputCls} value={l.warehouse} disabled={disabled} onChange={(e) => updateLine(idx, { warehouse: e.target.value })} />
+                            </div>
+                            {kind === "purchase" && (
+                              <div>
+                                <label className={labelCls}>{t("invoices.account")}</label>
+                                <select className={inputCls} value={l.accountId} disabled={disabled} onChange={(e) => updateLine(idx, { accountId: e.target.value })}>
+                                  <option value="">{t("invoices.selectAccount")}</option>
+                                  {postableAccounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+                                </select>
+                              </div>
+                            )}
+                            {kind === "sales" && (
+                              <div>
+                                <label className={labelCls}>{t("invoices.cogsAccount")}</label>
+                                <select className={inputCls} value={l.cogsAccountId} disabled={disabled} onChange={(e) => updateLine(idx, { cogsAccountId: e.target.value })}>
+                                  <option value="">{t("invoices.selectAccount")}</option>
+                                  {postableAccounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* ── Expanded: fixed_asset extra fields ── */}
+                    {needsExpand && isExpanded && l.lineType === "fixed_asset" && (
+                      <tr className="border-b bg-muted/10">
+                        <td colSpan={disabled ? 10 : 11} className="px-4 py-3">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className={labelCls}>{t("invoices.assetName")}</label>
+                              <input className={inputCls} value={l.assetNameAr} disabled={disabled} onChange={(e) => updateLine(idx, { assetNameAr: e.target.value })} />
+                            </div>
+                            <div>
+                              <label className={labelCls}>{t("invoices.usefulLife")}</label>
+                              <input type="number" className={inputCls} value={l.assetUsefulLifeMonths} disabled={disabled} onChange={(e) => updateLine(idx, { assetUsefulLifeMonths: e.target.value })} dir="ltr" />
+                            </div>
+                            <div>
+                              <label className={labelCls}>{t("invoices.salvageValue")}</label>
+                              <input type="number" className={inputCls} value={l.assetSalvageValue} disabled={disabled} onChange={(e) => updateLine(idx, { assetSalvageValue: e.target.value })} dir="ltr" />
+                            </div>
+                            <div>
+                              <label className={labelCls}>{t("invoices.accumulatedAccount")}</label>
+                              <select className={inputCls} value={l.assetAccumulatedAccountId} disabled={disabled} onChange={(e) => updateLine(idx, { assetAccumulatedAccountId: e.target.value })}>
+                                <option value="">{t("invoices.selectAccount")}</option>
+                                {postableAccounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelCls}>{t("invoices.expenseAccount")}</label>
+                              <select className={inputCls} value={l.assetExpenseAccountId} disabled={disabled} onChange={(e) => updateLine(idx, { assetExpenseAccountId: e.target.value })}>
+                                <option value="">{t("invoices.selectAccount")}</option>
+                                {postableAccounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+                              </select>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
+                      {/* ── Add row ── */}
+                      {!disabled && (
+                        <tr
+                          className="cursor-pointer hover:bg-primary/5 transition-colors"
+                          onClick={addLine}
+                        >
+                          <td colSpan={11} className="px-3 py-2 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1.5">
+                              <Plus className="w-3.5 h-3.5" />
+                              {t("invoices.addLine")}
+                            </span>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {/* ── end inline table ── */}
+
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

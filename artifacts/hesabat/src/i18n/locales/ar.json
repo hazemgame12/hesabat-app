@@ -1804,6 +1804,11 @@
     "exchangeRate": "سعر الصرف",
     "lines": "البنود",
     "addLine": "إضافة بند",
+    "pasteExcel": "الصق من Excel",
+    "pasteExcelHint": "الصق صفوف من Excel (بيان، كمية، سعر، خصم)",
+    "pastedRows": "تم إضافة {{count}} صف",
+    "clipboardError": "تعذّر قراءة الحافظة",
+    "autoFromItem": "تلقائي من الصنف",
     "lineType": "النوع",
     "lineTypes": {
       "service": "خدمة / حساب",
