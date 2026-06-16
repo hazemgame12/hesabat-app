@@ -22,6 +22,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
+import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,6 +92,7 @@ export function FixedAssets() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isGridView, toggleGridView] = useGridView("fixed-assets");
 
   const {
     register,
@@ -147,6 +149,53 @@ export function FixedAssets() {
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getListAssetsQueryKey() });
+
+  const assetGridColumns: GridColumn<FixedAsset>[] = [
+    { key: "nameAr", header: t("assets.nameAr") ?? "الاسم (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
+    { key: "nameEn", header: (t("assets.nameEn") ?? "Name") + " (EN)", type: "text", editable: canUpdate },
+    { key: "category", header: t("assets.category") ?? "الفئة", type: "text", editable: canUpdate },
+    { key: "acquisitionDate", header: t("assets.acquisitionDate") ?? "تاريخ الاقتناء", type: "readonly" },
+    { key: "cost", header: t("assets.cost") ?? "التكلفة", type: "readonly", align: "end",
+      render: (v) => <span className="font-sans tabular-nums">{fmt(Number(v ?? 0))}</span> },
+    { key: "usefulLifeMonths", header: t("assets.usefulLifeMonths") ?? "العمر (شهر)", type: "readonly", align: "end" },
+    { key: "status", header: t("assets.status") ?? "الحالة", type: "select", editable: canUpdate, width: "100px",
+      options: [
+        { value: "active", label: t("assets.active") ?? "نشط" },
+        { value: "disposed", label: t("assets.disposed") ?? "مُخرج" },
+      ],
+      render: (v) => v === "active"
+        ? <span className="text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">{t("assets.active") ?? "نشط"}</span>
+        : <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t("assets.disposed") ?? "مُخرج"}</span>
+    },
+  ];
+
+  const handleAssetGridSave = async (changes: { id: string; field: string; oldValue: unknown; newValue: unknown }[]) => {
+    const byRow = new Map<string, Record<string, unknown>>();
+    for (const c of changes) { if (!byRow.has(c.id)) byRow.set(c.id, {}); byRow.get(c.id)![c.field] = c.newValue; }
+    for (const [id, patch] of byRow.entries()) {
+      const a = assets.find((x) => x.id === id); if (!a) continue;
+      const data = {
+        nameAr: String(patch.nameAr ?? a.nameAr),
+        nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : a.nameEn ?? null,
+        category: patch.category !== undefined ? (String(patch.category) || null) : a.category ?? null,
+        acquisitionDate: a.acquisitionDate,
+        cost: a.cost,
+        salvageValue: a.salvageValue,
+        usefulLifeMonths: a.usefulLifeMonths,
+        assetAccountId: a.assetAccountId,
+        accumulatedAccountId: a.accumulatedAccountId,
+        expenseAccountId: a.expenseAccountId,
+        status: String(patch.status ?? a.status) as "active" | "disposed",
+      };
+      await new Promise<void>((res, rej) => updateAsset.mutate({ id, data }, { onSuccess: () => res(), onError: rej }));
+    }
+    invalidate();
+  };
+
+  const handleAssetGridDelete = async (ids: string[]) => {
+    for (const id of ids) await deleteAsset.mutateAsync({ id });
+    invalidate();
+  };
 
   const fmt = (n: number) =>
     new Intl.NumberFormat(lang, { maximumFractionDigits: 2 }).format(n);
@@ -314,6 +363,7 @@ export function FixedAssets() {
             canImport={canCreate}
             invalidateKeys={[getListAssetsQueryKey()]}
           />
+          {assets.length > 0 && <GridToggle isGrid={isGridView} onToggle={toggleGridView} />}
           {canCreate && assets.length > 0 && (
             <button
               onClick={() => {
@@ -350,6 +400,19 @@ export function FixedAssets() {
                 <button onClick={openCreateModal} className="mt-2 text-primary font-bold hover:underline">{t("assets.addAsset")}</button>
               )}
             </div>
+          ) : isGridView ? (
+            <GridTable
+              rows={assets}
+              columns={assetGridColumns}
+              canEdit={canUpdate}
+              canDelete={canDelete}
+              onSave={handleAssetGridSave}
+              onDeleteRows={handleAssetGridDelete}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              emptyMessage={t("assets.noAssets")}
+              rowClassName={(row) => row.status === "disposed" ? "opacity-60" : ""}
+            />
           ) : (
             <>
               {selectedIds.size > 0 && canDelete && (

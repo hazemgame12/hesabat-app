@@ -236,6 +236,25 @@ export function PartyManager({
     invalidate();
   };
 
+  const handleGridCreate = async (newParties: Partial<Party>[]) => {
+    for (const p of newParties) {
+      if (!String(p.nameAr ?? "").trim()) continue;
+      const data = {
+        nameAr: String(p.nameAr).trim(),
+        nameEn: p.nameEn ? String(p.nameEn) : null,
+        type: "company" as const,
+        taxNumber: null, commercialRegistration: null,
+        phone: p.phone ? String(p.phone) : null,
+        email: null, address: null, currency: null,
+        creditLimit: null, creditPeriodDays: null,
+        controlAccountId: defaultControlId,
+        isActive: true,
+      };
+      await new Promise<void>((res, rej) => createMut.mutate({ data }, { onSuccess: () => res(), onError: rej }));
+    }
+    invalidate();
+  };
+
   const openCreate = () => {
     reset({
       nameAr: "",
@@ -490,6 +509,7 @@ export function PartyManager({
               canDelete={canDelete}
               onSave={handleGridSave}
               onDeleteRows={handleGridDelete}
+              onCreateRows={canCreate ? handleGridCreate : undefined}
               selectedIds={selectedIds}
               onSelectionChange={setSelectedIds}
               emptyMessage={t(`${ns}.empty`)}

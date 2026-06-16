@@ -195,6 +195,31 @@ export function Inventory() {
     invalidateItems();
   };
 
+  const defaultInventoryAcctId = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const i of items) { const id = i.inventoryAccountId; if (id) counts.set(id, (counts.get(id) ?? 0) + 1); }
+    let best = postableAccounts[0]?.id ?? "";
+    let bestN = 0;
+    counts.forEach((n, id) => { if (n > bestN) { bestN = n; best = id; } });
+    return best;
+  }, [items, postableAccounts]);
+
+  const handleItemGridCreate = async (newItems: Partial<InventoryItem>[]) => {
+    for (const p of newItems) {
+      if (!String(p.nameAr ?? "").trim()) continue;
+      const data = {
+        nameAr: String(p.nameAr).trim(),
+        nameEn: p.nameEn ? String(p.nameEn) : null,
+        unit: String(p.unit ?? "قطعة").trim() || "قطعة",
+        category: p.category ? String(p.category) : null,
+        inventoryAccountId: defaultInventoryAcctId,
+        isActive: true,
+      };
+      await new Promise<void>((res, rej) => createItem.mutate({ data }, { onSuccess: () => res(), onError: rej }));
+    }
+    invalidateItems();
+  };
+
   const invalidateItems = () =>
     queryClient.invalidateQueries({ queryKey: getListInventoryItemsQueryKey() });
   const invalidateMovements = () =>
@@ -524,6 +549,8 @@ export function Inventory() {
                 canDelete={canDelete}
                 onSave={handleItemGridSave}
                 onDeleteRows={handleItemGridDelete}
+                onCreateRows={canCreate ? handleItemGridCreate : undefined}
+                newRowTemplate={() => ({ unit: "قطعة", isActive: true })}
                 selectedIds={selectedItemIds}
                 onSelectionChange={setSelectedItemIds}
                 emptyMessage={t("inventory.noItems")}

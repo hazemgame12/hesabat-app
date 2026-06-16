@@ -147,6 +147,22 @@ export function CostCenters() {
     invalidate();
   };
 
+  const handleCenterGridCreate = async (newCenters: Partial<CostCenter>[]) => {
+    for (const p of newCenters) {
+      if (!String(p.nameAr ?? "").trim()) continue;
+      const trimmed = String(p.budget ?? "").trim();
+      const data = {
+        nameAr: String(p.nameAr).trim(),
+        nameEn: p.nameEn ? String(p.nameEn) : null,
+        type: (p.type ?? "cost") as CenterType,
+        budget: trimmed === "" ? null : Number(trimmed),
+        isActive: true,
+      };
+      await new Promise<void>((res, rej) => createCenter.mutate({ data }, { onSuccess: () => res(), onError: rej }));
+    }
+    invalidate();
+  };
+
   const onSubmit = (form: CenterForm) => {
     const trimmed = (form.budget ?? "").trim();
     const data = {
@@ -229,6 +245,8 @@ export function CostCenters() {
               canDelete={canDelete}
               onSave={handleCenterGridSave}
               onDeleteRows={handleCenterGridDelete}
+              onCreateRows={canCreate ? handleCenterGridCreate : undefined}
+              newRowTemplate={() => ({ type: "cost" as CenterType, isActive: true })}
               selectedIds={selectedCenterIds}
               onSelectionChange={setSelectedCenterIds}
               emptyMessage={t("costCenters.noCenters")}

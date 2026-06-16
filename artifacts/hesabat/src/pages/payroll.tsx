@@ -19,6 +19,7 @@ import {
   type Account,
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
+import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Users,
@@ -132,6 +133,7 @@ export function Payroll() {
   const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isGridView, toggleGridView] = useGridView("payroll:employees");
 
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [runPeriod, setRunPeriod] = useState(currentMonth());
@@ -154,6 +156,51 @@ export function Payroll() {
     queryClient.invalidateQueries({ queryKey: getListEmployeesQueryKey() });
   const invalidateRuns = () =>
     queryClient.invalidateQueries({ queryKey: getListPayrollRunsQueryKey() });
+
+  const empGridColumns: GridColumn<Employee>[] = [
+    { key: "code", header: t("payroll.code"), type: "readonly", width: "90px" },
+    { key: "nameAr", header: t("payroll.name") + " (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
+    { key: "nameEn", header: t("payroll.name") + " (EN)", type: "text", editable: canUpdate },
+    { key: "jobTitle", header: t("payroll.jobTitle") ?? "المسمى الوظيفي", type: "text", editable: canUpdate },
+    { key: "baseSalary", header: t("payroll.baseSalary"), type: "number", editable: canUpdate, align: "end",
+      render: (v) => <span className="font-sans tabular-nums">{fmt(Number(v ?? 0))}</span>,
+      validate: (v) => Number(v) < 0 ? "يجب أن يكون موجباً" : null },
+    { key: "hireDate", header: t("payroll.hireDate") ?? "تاريخ التعيين", type: "readonly" },
+    { key: "status", header: t("payroll.status"), type: "select", editable: canUpdate, width: "110px",
+      options: [
+        { value: "active", label: t("payroll.active") ?? "نشط" },
+        { value: "terminated", label: t("payroll.terminated") ?? "منتهي" },
+      ],
+      render: (v) => v === "active"
+        ? <span className="text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">{t("payroll.active") ?? "نشط"}</span>
+        : <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t("payroll.terminated") ?? "منتهي"}</span>
+    },
+  ];
+
+  const handleEmpGridSave = async (changes: { id: string; field: string; oldValue: unknown; newValue: unknown }[]) => {
+    const byRow = new Map<string, Record<string, unknown>>();
+    for (const c of changes) { if (!byRow.has(c.id)) byRow.set(c.id, {}); byRow.get(c.id)![c.field] = c.newValue; }
+    for (const [id, patch] of byRow.entries()) {
+      const e = employees.find((x) => x.id === id); if (!e) continue;
+      const data = {
+        nameAr: String(patch.nameAr ?? e.nameAr),
+        nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : e.nameEn ?? null,
+        jobTitle: patch.jobTitle !== undefined ? (String(patch.jobTitle) || null) : e.jobTitle ?? null,
+        hireDate: e.hireDate,
+        baseSalary: patch.baseSalary !== undefined ? Number(patch.baseSalary) : Number(e.baseSalary),
+        status: String(patch.status ?? e.status) as "active" | "terminated",
+        notes: e.notes ?? null,
+        components: (e.components ?? []).map((c) => ({ kind: c.kind, nameAr: c.nameAr, amount: Number(c.amount), isActive: c.isActive })),
+      };
+      await new Promise<void>((res, rej) => updateEmployee.mutate({ id, data }, { onSuccess: () => res(), onError: rej }));
+    }
+    invalidateEmployees();
+  };
+
+  const handleEmpGridDelete = async (ids: string[]) => {
+    for (const id of ids) await deleteEmployee.mutateAsync({ id });
+    invalidateEmployees();
+  };
 
   // ---- employee modal ----
   const openCreateEmp = () => {
@@ -414,6 +461,9 @@ export function Payroll() {
               invalidateKeys={[getListPayrollRunsQueryKey()]}
             />
           )}
+          {tab === "employees" && employees.length > 0 && (
+            <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
+          )}
           {canCreate && employees.length > 0 && (
             <button
               onClick={openRunModal}
@@ -477,6 +527,19 @@ export function Payroll() {
                   </button>
                 )}
               </div>
+            ) : isGridView ? (
+              <GridTable
+                rows={employees}
+                columns={empGridColumns}
+                canEdit={canUpdate}
+                canDelete={canDelete}
+                onSave={handleEmpGridSave}
+                onDeleteRows={handleEmpGridDelete}
+                selectedIds={selectedEmpIds}
+                onSelectionChange={setSelectedEmpIds}
+                emptyMessage={t("payroll.noEmployees")}
+                rowClassName={(row) => row.status === "terminated" ? "opacity-60" : ""}
+              />
             ) : (
               <>
                 {selectedEmpIds.size > 0 && canDelete && (
