@@ -1158,6 +1158,7 @@ function MovementsTab({
             canDelete={false}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
+            hideSelectionBar
             emptyMessage={t("bank.noMovements")}
             rowClassName={(row) =>
               row.status === "pending" ? "bg-amber-50/30 dark:bg-amber-500/5" : ""

@@ -41,6 +41,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   FileSpreadsheet,
+  Copy,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -844,6 +845,26 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                   </button>
                 )}
                 <button
+                  onClick={() => {
+                    const headers = ["رقم الفاتورة", "التاريخ", "العميل/المورد", "الإجمالي", "الحالة"];
+                    const rows = Array.from(selectedIds).map((id) => {
+                      const inv = invoices.find((i) => i.id === id);
+                      if (!inv) return "";
+                      return [inv.code ?? `#${inv.invoiceNo}`, inv.date, inv.partyName ?? "", inv.total, inv.status].join("\t");
+                    }).filter(Boolean);
+                    const text = [headers.join("\t"), ...rows].join("\n");
+                    navigator.clipboard?.writeText(text).catch(() => {
+                      const ta = document.createElement("textarea");
+                      ta.value = text; document.body.appendChild(ta); ta.select();
+                      document.execCommand("copy"); document.body.removeChild(ta);
+                    });
+                  }}
+                  className="flex items-center gap-2 text-sm text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200"
+                >
+                  <Copy className="w-4 h-4" />
+                  {t("invoices.copy", "نسخ")}
+                </button>
+                <button
                   onClick={() => setSelectedIds(new Set())}
                   className="text-sm text-slate-500 hover:underline ms-auto"
                 >
@@ -881,6 +902,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 canDelete={false}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
+                hideSelectionBar
                 emptyMessage={t("invoices.noInvoices")}
                 rowClassName={(row) =>
                   row.status === "cancelled" ? "opacity-50 line-through" :
@@ -1176,6 +1198,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 canDelete={false}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
+                hideSelectionBar
                 emptyMessage={t("invoices.returns.noReturns")}
                 rowClassName={(row) =>
                   row.status === "cancelled" ? "opacity-50 line-through" : ""
@@ -1334,6 +1357,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                 canDelete={false}
                 selectedIds={selectedIds}
                 onSelectionChange={setSelectedIds}
+                hideSelectionBar
                 emptyMessage={t("invoices.noPayments")}
               />
             ) : (

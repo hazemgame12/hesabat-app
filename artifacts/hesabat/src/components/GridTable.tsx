@@ -32,6 +32,7 @@ export interface GridTableProps<T extends { id: string }> {
   newRowTemplate?: () => Partial<T>;
   selectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
+  hideSelectionBar?: boolean;
   emptyMessage?: string;
   stickyHeader?: boolean;
   stickyFirstCol?: boolean;
@@ -61,6 +62,7 @@ export function GridTable<T extends { id: string }>({
   newRowTemplate,
   selectedIds: externalSelected,
   onSelectionChange,
+  hideSelectionBar = false,
   emptyMessage = "لا توجد بيانات",
   stickyHeader = true,
   stickyFirstCol = false,
@@ -409,13 +411,14 @@ export function GridTable<T extends { id: string }>({
     isEditing: boolean,
     onChange: (v: unknown) => void,
     isNew = false,
+    row: T = {} as T,
   ) => {
     if (!isEditing || !col.editable || col.type === "readonly") {
       const edited = isEdited(rowId, col.key);
       return (
         <div className={`truncate max-w-[240px] ${edited ? "font-semibold text-amber-800" : ""} ${isNew && !value ? "text-muted-foreground italic text-xs" : ""}`}>
           {col.render
-            ? col.render(value, {} as T)
+            ? col.render(value, row)
             : col.type === "boolean"
               ? (value ? <span className="text-xs font-bold text-green-600">✓</span> : <span className="text-xs text-muted-foreground">—</span>)
               : col.type === "select" && col.options
@@ -468,7 +471,7 @@ export function GridTable<T extends { id: string }>({
   return (
     <div className="flex flex-col">
       {/* Edit / selection toolbar */}
-      {(hasEdits || hasNew || selectedIds.size > 0) && (
+      {(hasEdits || hasNew || (selectedIds.size > 0 && !hideSelectionBar)) && (
         <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50/60 border-b border-amber-200 flex-wrap">
           {(hasEdits || hasNew) && (
             <>
@@ -486,7 +489,7 @@ export function GridTable<T extends { id: string }>({
               {selectedIds.size === 0 && <div className="w-px h-5 bg-amber-300 mx-1" />}
             </>
           )}
-          {selectedIds.size > 0 && (
+          {selectedIds.size > 0 && !hideSelectionBar && (
             <>
               <span className="text-sm font-bold text-slate-700">تم تحديد {selectedIds.size}</span>
               <button onClick={handleCopy}
@@ -658,7 +661,7 @@ export function GridTable<T extends { id: string }>({
                               validErr ? "ring-2 ring-inset ring-destructive/60" : "",
                             ].filter(Boolean).join(" ")}
                           >
-                            {renderCellInput(row.id, col, value, isEditing, (v) => setCellValue(row.id, col.key, v))}
+                            {renderCellInput(row.id, col, value, isEditing, (v) => setCellValue(row.id, col.key, v), false, row)}
                             {validErr && <div className="absolute bottom-0 start-0 end-0 text-[10px] text-destructive bg-destructive/10 px-2 py-0.5 truncate">{validErr}</div>}
                             {cellEdited && !isEditing && <div className="absolute top-1 end-1 w-1.5 h-1.5 rounded-full bg-amber-500" />}
                           </td>
