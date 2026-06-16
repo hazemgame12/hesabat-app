@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type Account, useListCurrencies, useGetCompany, useUpdateCustomer, useUpdateSupplier } from "@workspace/api-client-react";
 import { Plus, X, Check, Trash2, Edit2 } from "lucide-react";
-import { GridTable, GridToggle, type GridColumn } from "@/components/GridTable";
+import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -169,7 +169,7 @@ export function PartyManager({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [isGridView, setIsGridView] = useState(false);
+  const [isGridView, toggleGridView] = useGridView(`parties:${ns}`);
 
   const {
     register,
@@ -444,7 +444,7 @@ export function PartyManager({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <GridToggle isGrid={isGridView} onToggle={() => setIsGridView((v) => !v)} />
+          <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
           <ExcelToolbar
             exportPath={`/api/${ns}/export`}
             importPath={`/api/${ns}/import`}

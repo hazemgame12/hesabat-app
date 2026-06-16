@@ -9,7 +9,7 @@ import {
   getListCostCentersQueryKey,
   type CostCenter,
 } from "@workspace/api-client-react";
-import { GridTable, GridToggle, type GridColumn } from "@/components/GridTable";
+import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -74,7 +74,7 @@ export function CostCenters() {
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [centerToEdit, setCenterToEdit] = useState<CostCenter | null>(null);
   const [centerToDelete, setCenterToDelete] = useState<CostCenter | null>(null);
-  const [isGridView, setIsGridView] = useState(false);
+  const [isGridView, toggleGridView] = useGridView("cost-centers");
   const [selectedCenterIds, setSelectedCenterIds] = useState<Set<string>>(new Set());
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<CenterForm>({
@@ -190,7 +190,7 @@ export function CostCenters() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <GridToggle isGrid={isGridView} onToggle={() => setIsGridView((v) => !v)} />
+          <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
           <ExcelToolbar
             exportPath="/api/cost-centers/export"
             importPath="/api/cost-centers/import"

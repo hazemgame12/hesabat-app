@@ -15,7 +15,7 @@ import {
   type InventoryItem,
   type Account,
 } from "@workspace/api-client-react";
-import { GridTable, GridToggle, type GridColumn } from "@/components/GridTable";
+import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -117,7 +117,7 @@ export function Inventory() {
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [isGridView, setIsGridView] = useState(false);
+  const [isGridView, toggleGridView] = useGridView("inventory:items");
 
   const {
     register: registerItem,
@@ -448,7 +448,7 @@ export function Inventory() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {tab === "items" && <GridToggle isGrid={isGridView} onToggle={() => setIsGridView((v) => !v)} />}
+          {tab === "items" && <GridToggle isGrid={isGridView} onToggle={toggleGridView} />}
           <ExcelToolbar
             exportPath="/api/inventory/items/export"
             importPath="/api/inventory/items/import"

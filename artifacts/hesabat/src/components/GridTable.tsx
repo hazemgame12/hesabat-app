@@ -386,6 +386,21 @@ export function GridTable<T extends { id: string }>({
   );
 }
 
+/** Persists grid-view preference across navigation via localStorage */
+export function useGridView(storageKey: string): [boolean, () => void] {
+  const [isGrid, setIsGrid] = useState<boolean>(() => {
+    try { return localStorage.getItem(`gridView:${storageKey}`) === "true"; } catch { return false; }
+  });
+  const toggle = useCallback(() => {
+    setIsGrid((v) => {
+      const next = !v;
+      try { localStorage.setItem(`gridView:${storageKey}`, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, [storageKey]);
+  return [isGrid, toggle];
+}
+
 export function GridToggle({ isGrid, onToggle }: { isGrid: boolean; onToggle: () => void }) {
   return (
     <button
