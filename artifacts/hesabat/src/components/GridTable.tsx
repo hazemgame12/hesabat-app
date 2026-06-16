@@ -738,7 +738,10 @@ export function GridTable<T extends { id: string }>({
 /** Persists grid-view preference across navigation via localStorage */
 export function useGridView(storageKey: string): [boolean, () => void] {
   const [isGrid, setIsGrid] = useState<boolean>(() => {
-    try { return localStorage.getItem(`gridView:${storageKey}`) === "true"; } catch { return false; }
+    try {
+      const stored = localStorage.getItem(`gridView:${storageKey}`);
+      return stored === null ? true : stored === "true";
+    } catch { return true; }
   });
   const toggle = useCallback(() => {
     setIsGrid((v) => {
@@ -752,13 +755,22 @@ export function useGridView(storageKey: string): [boolean, () => void] {
 
 export function GridToggle({ isGrid, onToggle }: { isGrid: boolean; onToggle: () => void }) {
   return (
-    <button
-      onClick={onToggle}
-      title={isGrid ? "عرض قائمة" : "عرض شبكة"}
-      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground px-2.5 py-1.5 rounded-lg border border-input hover:bg-accent transition-colors"
-    >
-      {isGrid ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
-      <span className="hidden sm:inline">{isGrid ? "قائمة" : "شبكة"}</span>
-    </button>
+    <div className="flex items-center border border-input rounded-lg overflow-hidden text-sm shrink-0">
+      <button
+        onClick={() => isGrid && onToggle()}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 transition-colors ${!isGrid ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground hover:bg-accent"}`}
+      >
+        <List className="w-4 h-4" />
+        <span className="hidden sm:inline">قائمة</span>
+      </button>
+      <div className="w-px h-5 bg-border" />
+      <button
+        onClick={() => !isGrid && onToggle()}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 transition-colors ${isGrid ? "bg-primary text-primary-foreground font-bold" : "text-muted-foreground hover:bg-accent"}`}
+      >
+        <LayoutGrid className="w-4 h-4" />
+        <span className="hidden sm:inline">شبكة</span>
+      </button>
+    </div>
   );
 }
