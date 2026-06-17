@@ -1938,6 +1938,8 @@ export const InvoiceInputKind = {
   purchase: 'purchase',
   sales_return: 'sales_return',
   purchase_return: 'purchase_return',
+  quotation: 'quotation',
+  purchase_order: 'purchase_order',
 } as const;
 
 export interface InvoiceInput {
@@ -1970,6 +1972,8 @@ export const InvoiceSummaryKind = {
   purchase: 'purchase',
   sales_return: 'sales_return',
   purchase_return: 'purchase_return',
+  quotation: 'quotation',
+  purchase_order: 'purchase_order',
 } as const;
 
 export type InvoiceSummaryStatus = typeof InvoiceSummaryStatus[keyof typeof InvoiceSummaryStatus];
@@ -1981,6 +1985,8 @@ export const InvoiceSummaryStatus = {
   partially_paid: 'partially_paid',
   paid: 'paid',
   cancelled: 'cancelled',
+  confirmed: 'confirmed',
+  converted: 'converted',
 } as const;
 
 /**
@@ -2006,6 +2012,8 @@ export interface InvoiceSummary {
   relatedInvoiceId?: string | null;
   /** @nullable */
   relatedCode?: string | null;
+  /** @nullable */
+  sourceDocumentId?: string | null;
   date: string;
   /** @nullable */
   dueDate?: string | null;
@@ -2902,6 +2910,8 @@ export const ListInvoicesKind = {
   purchase: 'purchase',
   sales_return: 'sales_return',
   purchase_return: 'purchase_return',
+  quotation: 'quotation',
+  purchase_order: 'purchase_order',
 } as const;
 
 export type ListPaymentsParams = {

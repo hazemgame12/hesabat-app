@@ -22,5 +22,6 @@
 - [Hesabat returns & print](hesabat-returns-and-print.md) — credit/debit notes = invoice rows by kind (service-only v1, ref posted same-party source); chrome-less /print routes need their own client auth guard + error UI.
 - [drizzle `= ANY(jsArray)` bug](drizzle-any-array-bug.md) — never filter a column by a JS array via `sql\`= ANY(${arr})\`` (Postgres "requires array" error); use `inArray(col, arr)`.
 - [Bank movement pending/classify](bank-movement-pending-classify.md) — pending = journalEntryId IS NULL (derived, no status col); balance sums exclude pending; classify PATCH must keep movement↔JE in sync (clear counterpart → delete JE).
+- [Hesabat pre-documents](hesabat-pre-documents.md) — quotation/purchase_order reuse invoicesTable + InvoiceEditor; approve=confirm (no JE), convert=copy lines to new invoice; InvoiceEditor Kind type must include all 4 kinds + isSalesSide helper.
 - [Hesabat Period Lock](period-lock.md) — `isWriteBlocked` returns "period_locked"|"fiscal_closed"|false; 423 for locked, 400 for closed; `WRITE_BLOCK_MSG[reason]`; PATCH /company/period-lock; PeriodLockCard in fiscal-years.tsx.
 - [VPS GitHub Actions Secrets](vps-deploy-secrets.md) — CI build passes but SSH deploy fails: production env on GitHub has no VPS_HOST/VPS_USER/VPS_SSH_KEY secrets. Manual fallback: git pull + vite build + pm2 restart on VPS.

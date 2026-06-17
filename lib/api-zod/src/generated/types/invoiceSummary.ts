@@ -19,6 +19,8 @@ export interface InvoiceSummary {
   relatedInvoiceId?: string | null;
   /** @nullable */
   relatedCode?: string | null;
+  /** @nullable */
+  sourceDocumentId?: string | null;
   date: string;
   /** @nullable */
   dueDate?: string | null;

@@ -2578,7 +2578,7 @@ paths:
           required: true
           schema:
             type: string
-            enum: [sales, purchase, sales_return, purchase_return]
+            enum: [sales, purchase, sales_return, purchase_return, quotation, purchase_order]
       responses:
         "200":
           description: Invoices
@@ -2727,6 +2727,41 @@ paths:
                 $ref: "#/components/schemas/InvoiceDetail"
         "400":
           description: Cannot approve
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /invoices/{id}/convert:
+    post:
+      operationId: convertInvoice
+      tags: [invoices]
+      summary: Convert a quotation to a sales invoice or a purchase order to a purchase invoice
+      description: >
+        Creates a new draft invoice (sales or purchase) from the source pre-document,
+        copies all service lines, sets sourceDocumentId on the new invoice, and marks
+        the source document status as "converted".
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Converted — new invoice created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceDetail"
+        "400":
+          description: Cannot convert (already converted, wrong kind)
           content:
             application/json:
               schema:
@@ -6310,7 +6345,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [sales, purchase, sales_return, purchase_return]
+          enum: [sales, purchase, sales_return, purchase_return, quotation, purchase_order]
         relatedInvoiceId:
           type: ["string", "null"]
         date:
@@ -6344,7 +6379,7 @@ components:
           type: string
         kind:
           type: string
-          enum: [sales, purchase, sales_return, purchase_return]
+          enum: [sales, purchase, sales_return, purchase_return, quotation, purchase_order]
         invoiceNo:
           type: integer
         code:
@@ -6352,6 +6387,8 @@ components:
         relatedInvoiceId:
           type: ["string", "null"]
         relatedCode:
+          type: ["string", "null"]
+        sourceDocumentId:
           type: ["string", "null"]
         date:
           type: string
@@ -6363,7 +6400,7 @@ components:
           type: ["string", "null"]
         status:
           type: string
-          enum: [draft, approved, partially_paid, paid, cancelled]
+          enum: [draft, approved, partially_paid, paid, cancelled, confirmed, converted]
         overdue:
           type: boolean
         currency:

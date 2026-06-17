@@ -24,7 +24,7 @@ import { CreateInvoiceBody, UpdateInvoiceBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { safeAudit } from "../lib/audit";
-import { generateEntityCode } from "../lib/codes";
+import { generateEntityCode, type CodeEntity } from "../lib/codes";
 import {
   createDraftJournalEntry,
   lockCompanyEntryNo,
@@ -63,7 +63,13 @@ async function loadBaseCurrency(companyId: string): Promise<string> {
 const MONEY_EPS = 0.005;
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-type InvoiceKind = "sales" | "purchase" | "sales_return" | "purchase_return";
+type InvoiceKind =
+  | "sales"
+  | "purchase"
+  | "sales_return"
+  | "purchase_return"
+  | "quotation"
+  | "purchase_order";
 
 // The two "return" documents are credit/debit notes. They reuse the invoice
 // machinery but post a REVERSED journal entry against the same control account.
@@ -71,18 +77,25 @@ function isReturnKind(kind: string): boolean {
   return kind === "sales_return" || kind === "purchase_return";
 }
 
-// Maps any invoice/return kind to its underlying side: a sales_return is a
-// customer document (sales side), a purchase_return is a supplier document.
-function baseSide(kind: string): "sales" | "purchase" {
-  return kind === "sales" || kind === "sales_return" ? "sales" : "purchase";
+// Non-posting pre-documents that are confirmed (not approved) and converted.
+function isPreDocument(kind: string): boolean {
+  return kind === "quotation" || kind === "purchase_order";
 }
 
-// The CodeEntity used to allocate the human-facing code (SI/PI/CN/DN).
-function codeEntityFor(
-  kind: string,
-): "sales_invoice" | "purchase_invoice" | "sales_return" | "purchase_return" {
+// Maps any invoice/return kind to its underlying side.
+// quotation → sales side (customer), purchase_order → purchase side (supplier).
+function baseSide(kind: string): "sales" | "purchase" {
+  return kind === "sales" || kind === "sales_return" || kind === "quotation"
+    ? "sales"
+    : "purchase";
+}
+
+// The CodeEntity used to allocate the human-facing code.
+function codeEntityFor(kind: string): CodeEntity {
   if (kind === "sales") return "sales_invoice";
   if (kind === "purchase") return "purchase_invoice";
+  if (kind === "quotation") return "quotation";
+  if (kind === "purchase_order") return "purchase_order";
   return kind as "sales_return" | "purchase_return";
 }
 
@@ -96,6 +109,10 @@ function docLabelAr(kind: string): string {
       return "إشعار خصم";
     case "purchase_return":
       return "إشعار إضافة";
+    case "quotation":
+      return "عرض سعر";
+    case "purchase_order":
+      return "أمر شراء";
     default:
       return "مستند";
   }
@@ -242,6 +259,7 @@ function toListItem(
     code: inv.code,
     relatedInvoiceId: inv.relatedInvoiceId,
     relatedCode,
+    sourceDocumentId: inv.sourceDocumentId ?? null,
     date: inv.date,
     dueDate: inv.dueDate,
     partyId: inv.customerId ?? inv.supplierId,
@@ -387,9 +405,11 @@ router.get(
       kind !== "sales" &&
       kind !== "purchase" &&
       kind !== "sales_return" &&
-      kind !== "purchase_return"
+      kind !== "purchase_return" &&
+      kind !== "quotation" &&
+      kind !== "purchase_order"
     ) {
-      res.status(400).json({ error: "نوع الفاتورة غير صحيح" });
+      res.status(400).json({ error: "نوع المستند غير صحيح" });
       return;
     }
     try {
@@ -812,9 +832,16 @@ router.post(
       }
       const side = baseSide(d.kind);
       const isReturn = isReturnKind(d.kind);
+      const isPreDoc = isPreDocument(d.kind);
       if (isReturn && d.lines.some((l) => l.lineType !== "service")) {
         res.status(400).json({
           error: "إشعارات الخصم/الإضافة تدعم بنود الخدمات فقط حاليًا",
+        });
+        return;
+      }
+      if (isPreDoc && d.lines.some((l) => l.lineType !== "service")) {
+        res.status(400).json({
+          error: "عروض الأسعار وأوامر الشراء تدعم بنود الخدمات فقط في هذا الإصدار",
         });
         return;
       }
@@ -991,9 +1018,16 @@ router.patch(
       }
       const side = baseSide(d.kind);
       const isReturn = isReturnKind(d.kind);
+      const isPreDoc = isPreDocument(d.kind);
       if (isReturn && d.lines.some((l) => l.lineType !== "service")) {
         res.status(400).json({
           error: "إشعارات الخصم/الإضافة تدعم بنود الخدمات فقط حاليًا",
+        });
+        return;
+      }
+      if (isPreDoc && d.lines.some((l) => l.lineType !== "service")) {
+        res.status(400).json({
+          error: "عروض الأسعار وأوامر الشراء تدعم بنود الخدمات فقط في هذا الإصدار",
         });
         return;
       }
@@ -1224,9 +1258,9 @@ router.post(
           )
           .for("update")
           .limit(1);
-        if (!inv) throw new ApproveError(404, "الفاتورة غير موجودة");
+        if (!inv) throw new ApproveError(404, "المستند غير موجود");
         if (inv.status !== "draft")
-          throw new ApproveError(400, "الفاتورة معتمدة بالفعل");
+          throw new ApproveError(400, "المستند مؤكد أو معتمد بالفعل");
 
         const wbApprove = await isWriteBlocked(tx, companyId, inv.date);
         if (wbApprove)
@@ -1234,6 +1268,33 @@ router.post(
             wbApprove === "period_locked" ? 423 : 400,
             WRITE_BLOCK_MSG[wbApprove],
           );
+
+        // Pre-documents (quotation / purchase_order) are confirmed without
+        // posting a journal entry — just flip the status to "confirmed".
+        if (isPreDocument(inv.kind)) {
+          const preSide = baseSide(inv.kind);
+          const preParty = await resolveParty(
+            preSide,
+            inv.customerId,
+            inv.supplierId,
+            companyId,
+            tx,
+          );
+          const [confirmed] = await tx
+            .update(invoicesTable)
+            .set({ status: "confirmed", approvedAt: new Date() })
+            .where(
+              and(
+                eq(invoicesTable.id, id),
+                eq(invoicesTable.companyId, companyId),
+              ),
+            )
+            .returning();
+          return {
+            result: confirmed!,
+            partyName: "error" in preParty ? "" : preParty.name,
+          };
+        }
 
         // Credit/Debit notes (returns) post a self-contained REVERSED entry and
         // never touch inventory/fixed assets (service lines only in v1), so they
@@ -1793,8 +1854,8 @@ router.post(
         res.status(404).json({ error: "الفاتورة غير موجودة" });
         return;
       }
-      if (!["approved", "partially_paid", "paid"].includes(inv.status)) {
-        res.status(400).json({ error: "يمكن التراجع عن الفواتير المعتمدة أو المدفوعة فقط" });
+      if (!["approved", "partially_paid", "paid", "confirmed"].includes(inv.status)) {
+        res.status(400).json({ error: "يمكن التراجع عن المستندات المؤكدة أو المعتمدة أو المدفوعة فقط" });
         return;
       }
       // Block inventory/fixed-asset lines — stock reversal requires separate logic.
@@ -1833,8 +1894,22 @@ router.post(
           )
           .for("update")
           .then((r) => r[0]);
-        if (!locked || !["approved", "partially_paid", "paid"].includes(locked.status)) {
-          throw new ApproveError(400, "الفاتورة غير مؤهلة للتراجع");
+        if (!locked || !["approved", "partially_paid", "paid", "confirmed"].includes(locked.status)) {
+          throw new ApproveError(400, "المستند غير مؤهل للتراجع");
+        }
+        // For pre-documents (quotation/purchase_order): just reset to draft —
+        // there is no JE and no payments to reverse.
+        if (isPreDocument(locked.kind)) {
+          await tx
+            .update(invoicesTable)
+            .set({ status: "draft", approvedAt: null })
+            .where(
+              and(
+                eq(invoicesTable.id, id),
+                eq(invoicesTable.companyId, companyId),
+              ),
+            );
+          return;
         }
         // Delete payments allocated to this invoice (+ their JEs), then the allocations.
         const allocations = await tx
@@ -1905,6 +1980,189 @@ router.post(
         return;
       }
       req.log.error({ err }, "Failed to revert invoice");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Convert pre-document → posted invoice ----
+// Converts a quotation → sales invoice or a purchase_order → purchase invoice.
+// Copies all lines, creates the new invoice in draft status (ready for approval),
+// and marks the source document status as "converted".
+// Registered BEFORE the GET /invoices/:id param route so Express matches it.
+router.post(
+  "/invoices/:id/convert",
+  requireAuth,
+  requireCapability("invoices:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const sourceId = req.params["id"] as string;
+    try {
+      const [source] = await db
+        .select()
+        .from(invoicesTable)
+        .where(
+          and(
+            eq(invoicesTable.id, sourceId),
+            eq(invoicesTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!source) {
+        res.status(404).json({ error: "المستند غير موجود" });
+        return;
+      }
+      if (!isPreDocument(source.kind)) {
+        res.status(400).json({ error: "يمكن التحويل من عروض الأسعار وأوامر الشراء فقط" });
+        return;
+      }
+      if (source.status === "converted") {
+        res.status(400).json({ error: "هذا المستند محوَّل بالفعل إلى فاتورة" });
+        return;
+      }
+
+      const sourceLines = await db
+        .select()
+        .from(invoiceLinesTable)
+        .where(eq(invoiceLinesTable.invoiceId, sourceId))
+        .orderBy(asc(invoiceLinesTable.lineNo));
+
+      const targetKind = source.kind === "quotation" ? "sales" : "purchase";
+      const targetEntity = codeEntityFor(targetKind);
+
+      const created = await db.transaction(async (tx) => {
+        // Lock source document to prevent concurrent conversions.
+        const [locked] = await tx
+          .select()
+          .from(invoicesTable)
+          .where(
+            and(
+              eq(invoicesTable.id, sourceId),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!locked || locked.status === "converted") {
+          throw new ApproveError(400, "هذا المستند محوَّل بالفعل");
+        }
+
+        const invoiceNo = await nextInvoiceNo(tx, companyId, targetKind);
+        const code = await generateEntityCode(
+          tx,
+          companyId,
+          targetEntity,
+          source.date,
+        );
+        const [newInv] = await tx
+          .insert(invoicesTable)
+          .values({
+            companyId,
+            kind: targetKind,
+            invoiceNo,
+            code,
+            sourceDocumentId: sourceId,
+            date: source.date,
+            dueDate: source.dueDate ?? null,
+            customerId: targetKind === "sales" ? source.customerId : null,
+            supplierId: targetKind === "purchase" ? source.supplierId : null,
+            costCenterId: source.costCenterId ?? null,
+            currency: source.currency ?? null,
+            exchangeRate: source.exchangeRate,
+            status: "draft",
+            notes: source.notes ?? null,
+            subtotal: source.subtotal,
+            discountTotal: source.discountTotal,
+            taxTotal: source.taxTotal,
+            total: source.total,
+            amountPaid: "0",
+            createdBy: req.auth!.userId,
+          })
+          .returning();
+
+        if (sourceLines.length > 0) {
+          await tx.insert(invoiceLinesTable).values(
+            sourceLines.map((l) => ({
+              invoiceId: newInv!.id,
+              companyId,
+              lineNo: l.lineNo,
+              lineType: l.lineType,
+              description: l.description,
+              accountId: l.accountId,
+              itemId: l.itemId,
+              warehouse: l.warehouse,
+              cogsAccountId: l.cogsAccountId,
+              quantity: l.quantity,
+              unitPrice: l.unitPrice,
+              discount: l.discount,
+              taxId: l.taxId,
+              taxAmount: l.taxAmount,
+              lineTotal: l.lineTotal,
+              costCenterId: l.costCenterId,
+              assetNameAr: l.assetNameAr,
+              assetNameEn: l.assetNameEn,
+              assetUsefulLifeMonths: l.assetUsefulLifeMonths,
+              assetSalvageValue: l.assetSalvageValue,
+              assetAccumulatedAccountId: l.assetAccumulatedAccountId,
+              assetExpenseAccountId: l.assetExpenseAccountId,
+            })),
+          );
+        }
+
+        // Mark the source document as converted.
+        await tx
+          .update(invoicesTable)
+          .set({ status: "converted" })
+          .where(
+            and(
+              eq(invoicesTable.id, sourceId),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          );
+
+        return newInv!;
+      });
+
+      const freshLines = await db
+        .select()
+        .from(invoiceLinesTable)
+        .where(eq(invoiceLinesTable.invoiceId, created.id))
+        .orderBy(asc(invoiceLinesTable.lineNo));
+
+      const targetSide = baseSide(targetKind);
+      const partyResult = await resolveParty(
+        targetSide,
+        created.customerId,
+        created.supplierId,
+        companyId,
+      );
+      const partyName = "error" in partyResult ? null : partyResult.name;
+
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "create",
+          entity: targetEntity,
+          entityId: created.id,
+          entityLabel: `${docLabelAr(targetKind)} #${created.invoiceNo} (تحويل من ${docLabelAr(source.kind)} #${source.invoiceNo})`,
+          newValue: {
+            invoiceNo: created.invoiceNo,
+            sourceDocumentId: sourceId,
+            status: "draft",
+          },
+        },
+        req.log,
+      );
+
+      res.status(201).json(toDetail(created, partyName, freshLines));
+    } catch (err) {
+      if (err instanceof ApproveError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      req.log.error({ err }, "Failed to convert pre-document to invoice");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

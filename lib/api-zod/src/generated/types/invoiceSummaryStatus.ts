@@ -15,4 +15,6 @@ export const InvoiceSummaryStatus = {
   partially_paid: 'partially_paid',
   paid: 'paid',
   cancelled: 'cancelled',
+  confirmed: 'confirmed',
+  converted: 'converted',
 } as const;

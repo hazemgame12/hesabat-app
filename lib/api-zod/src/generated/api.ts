@@ -2225,23 +2225,24 @@ export const DeleteSupplierResponse = zod.object({
  * @summary List invoices for the current company
  */
 export const ListInvoicesQueryParams = zod.object({
-  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return'])
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return', 'quotation', 'purchase_order'])
 })
 
 export const listInvoicesResponseEInvoiceRequiredDefault = false;
 
 export const ListInvoicesResponseItem = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return', 'quotation', 'purchase_order']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
   "relatedInvoiceId": zod.string().nullish(),
   "relatedCode": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
   "partyName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled', 'confirmed', 'converted']),
   "overdue": zod.boolean().optional(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
@@ -2279,7 +2280,7 @@ export const createInvoiceBodyLinesItemAssetSalvageValueMin = 0;
 
 
 export const CreateInvoiceBody = zod.object({
-  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return', 'quotation', 'purchase_order']),
   "relatedInvoiceId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
@@ -2322,16 +2323,17 @@ export const getInvoiceResponseOneEInvoiceRequiredDefault = false;
 
 export const GetInvoiceResponse = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return', 'quotation', 'purchase_order']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
   "relatedInvoiceId": zod.string().nullish(),
   "relatedCode": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
   "partyName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled', 'confirmed', 'converted']),
   "overdue": zod.boolean().optional(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
@@ -2399,7 +2401,7 @@ export const updateInvoiceBodyLinesItemAssetSalvageValueMin = 0;
 
 
 export const UpdateInvoiceBody = zod.object({
-  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return', 'quotation', 'purchase_order']),
   "relatedInvoiceId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
@@ -2434,16 +2436,17 @@ export const updateInvoiceResponseOneEInvoiceRequiredDefault = false;
 
 export const UpdateInvoiceResponse = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return', 'quotation', 'purchase_order']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
   "relatedInvoiceId": zod.string().nullish(),
   "relatedCode": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
   "partyName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled', 'confirmed', 'converted']),
   "overdue": zod.boolean().optional(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
@@ -2513,16 +2516,17 @@ export const approveInvoiceResponseOneEInvoiceRequiredDefault = false;
 
 export const ApproveInvoiceResponse = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return', 'quotation', 'purchase_order']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
   "relatedInvoiceId": zod.string().nullish(),
   "relatedCode": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
   "partyName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled', 'confirmed', 'converted']),
   "overdue": zod.boolean().optional(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
@@ -2570,6 +2574,16 @@ export const ApproveInvoiceResponse = zod.object({
 
 
 /**
+ * Creates a new draft invoice (sales or purchase) from the source pre-document, copies all service lines, sets sourceDocumentId on the new invoice, and marks the source document status as "converted".
+
+ * @summary Convert a quotation to a sales invoice or a purchase order to a purchase invoice
+ */
+export const ConvertInvoiceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+/**
  * Deletes the posted journal entry and resets the invoice status to "draft". Only allowed when the invoice has no payments and contains no inventory or fixed-asset lines.
 
  * @summary Revert an approved service-only invoice back to draft
@@ -2582,16 +2596,17 @@ export const revertInvoiceResponseOneEInvoiceRequiredDefault = false;
 
 export const RevertInvoiceResponse = zod.object({
   "id": zod.string(),
-  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return']),
+  "kind": zod.enum(['sales', 'purchase', 'sales_return', 'purchase_return', 'quotation', 'purchase_order']),
   "invoiceNo": zod.number(),
   "code": zod.string().nullish(),
   "relatedInvoiceId": zod.string().nullish(),
   "relatedCode": zod.string().nullish(),
+  "sourceDocumentId": zod.string().nullish(),
   "date": zod.string(),
   "dueDate": zod.string().nullish(),
   "partyId": zod.string().nullish(),
   "partyName": zod.string().nullish(),
-  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled']),
+  "status": zod.enum(['draft', 'approved', 'partially_paid', 'paid', 'cancelled', 'confirmed', 'converted']),
   "overdue": zod.boolean().optional(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),

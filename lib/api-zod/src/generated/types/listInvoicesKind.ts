@@ -14,4 +14,6 @@ export const ListInvoicesKind = {
   purchase: 'purchase',
   sales_return: 'sales_return',
   purchase_return: 'purchase_return',
+  quotation: 'quotation',
+  purchase_order: 'purchase_order',
 } as const;

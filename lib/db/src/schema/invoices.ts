@@ -47,6 +47,12 @@ export const invoicesTable = pgTable(
       (): AnyPgColumn => invoicesTable.id,
       { onDelete: "set null" },
     ),
+    // For invoices converted FROM a quotation or purchase_order: the source
+    // document id. Null for invoices created directly.
+    sourceDocumentId: uuid("source_document_id").references(
+      (): AnyPgColumn => invoicesTable.id,
+      { onDelete: "set null" },
+    ),
     date: date("date").notNull(),
     dueDate: date("due_date"),
     // Exactly one of these is set, per `kind`.

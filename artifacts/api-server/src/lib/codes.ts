@@ -11,6 +11,8 @@ export type CodeEntity =
   | "purchase_invoice"
   | "sales_return"
   | "purchase_return"
+  | "quotation"
+  | "purchase_order"
   | "fixed_asset"
   | "employee"
   | "customer"
@@ -23,6 +25,9 @@ const PREFIX: Record<CodeEntity, string> = {
   // Credit note (customer return) / debit note (supplier return).
   sales_return: "CN",
   purchase_return: "DN",
+  // Pre-sales and pre-purchase documents (non-posting).
+  quotation: "QT",
+  purchase_order: "PO",
   fixed_asset: "FA",
   employee: "EMP",
   customer: "CUS",

@@ -20,6 +20,8 @@ import { Bank } from "@/pages/bank";
 import { Advances } from "@/pages/advances";
 import SalesInvoicesPage from "@/pages/sales-invoices";
 import PurchaseInvoicesPage from "@/pages/purchase-invoices";
+import QuotationsPage from "@/pages/quotations";
+import PurchaseOrdersPage from "@/pages/purchase-orders";
 import PrintInvoicePage from "@/pages/print-invoice";
 import PrintPaymentPage from "@/pages/print-payment";
 import { PrintGuard } from "@/components/print/PrintGuard";
@@ -91,6 +93,8 @@ function ProtectedRoutes() {
         <Route path="/purchases" component={Suppliers} />
         <Route path="/invoices/sales" component={SalesInvoicesPage} />
         <Route path="/invoices/purchases" component={PurchaseInvoicesPage} />
+        <Route path="/quotations" component={QuotationsPage} />
+        <Route path="/purchase-orders" component={PurchaseOrdersPage} />
         <Route path="/revaluation" component={Revaluation} />
         <Route path="/reports" component={Reports} />
         <Route path="/audit" component={Audit} />

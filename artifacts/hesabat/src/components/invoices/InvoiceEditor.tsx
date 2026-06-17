@@ -22,7 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { displayName } from "./InvoiceWorkspace";
 
-type Kind = "sales" | "purchase";
+type Kind = "sales" | "purchase" | "quotation" | "purchase_order";
 type LineType = "service" | "inventory" | "fixed_asset";
 
 type LineDraft = {
@@ -120,7 +120,8 @@ export function InvoiceEditor({
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice();
 
-  const parties = kind === "sales" ? customers : suppliers;
+  const isSalesSide = kind === "sales" || kind === "quotation";
+  const parties = isSalesSide ? customers : suppliers;
 
   // Return mode = credit note (sales_return) / debit note (purchase_return).
   // When editing, infer from the loaded document; when creating, from the prop.
@@ -128,7 +129,7 @@ export function InvoiceEditor({
     detail?.kind === "sales_return" || detail?.kind === "purchase_return";
   const returnMode = isEdit ? detailIsReturn : isReturn;
   const returnKind: "sales_return" | "purchase_return" =
-    kind === "sales" ? "sales_return" : "purchase_return";
+    isSalesSide ? "sales_return" : "purchase_return";
 
   // Source invoices available to attach a note to: approved (non-draft,
   // non-cancelled) invoices of the same base kind. Only fetched in return mode.
@@ -306,9 +307,9 @@ export function InvoiceEditor({
       // Purchase inventory lines post to the item's inventory account (Dr stock),
       // so auto-fill it. Sales inventory lines credit a REVENUE account chosen by
       // the user (stock/COGS are handled server-side via the item), so leave it.
-      if (kind === "purchase") patch.accountId = it.inventoryAccountId;
+      if (!isSalesSide) patch.accountId = it.inventoryAccountId;
       if (!lines[idx]!.description) patch.description = displayName(it, lang);
-      if (kind === "purchase" && !lines[idx]!.unitPrice) {
+      if (!isSalesSide && !lines[idx]!.unitPrice) {
         patch.unitPrice = String(it.averageCost || "");
       }
     }
@@ -362,7 +363,7 @@ export function InvoiceEditor({
   const validate = (): string | null => {
     if (returnMode && !relatedInvoiceId)
       return t("invoices.returns.selectRelated");
-    if (!partyId) return t(kind === "sales" ? "invoices.selectCustomer" : "invoices.selectSupplier");
+    if (!partyId) return t(isSalesSide ? "invoices.selectCustomer" : "invoices.selectSupplier");
     if (!date) return t("invoices.date");
     if (lines.length === 0) return t("invoices.toast.unbalanced");
     for (const l of lines) {
@@ -384,7 +385,7 @@ export function InvoiceEditor({
       itemId: l.lineType === "inventory" ? l.itemId || null : null,
       warehouse: l.lineType === "inventory" ? l.warehouse.trim() || null : null,
       cogsAccountId:
-        l.lineType === "inventory" && kind === "sales"
+        l.lineType === "inventory" && isSalesSide
           ? l.cogsAccountId || null
           : null,
       quantity: Number(l.quantity) || 0,
@@ -412,8 +413,8 @@ export function InvoiceEditor({
       relatedInvoiceId: returnMode ? relatedInvoiceId || null : null,
       date,
       dueDate: dueDate || null,
-      customerId: kind === "sales" ? partyId : null,
-      supplierId: kind === "purchase" ? partyId : null,
+      customerId: isSalesSide ? partyId : null,
+      supplierId: !isSalesSide ? partyId : null,
       costCenterId: costCenterId || null,
       currency: currency || baseCurrency,
       exchangeRate: currency === baseCurrency ? 1 : Number(exchangeRate) || 1,
@@ -540,7 +541,7 @@ export function InvoiceEditor({
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className={labelCls}>
-                  {t(kind === "sales" ? "invoices.customer" : "invoices.supplier")}
+                  {t(isSalesSide ? "invoices.customer" : "invoices.supplier")}
                 </label>
                 <select
                   className={inputCls}
@@ -549,7 +550,7 @@ export function InvoiceEditor({
                   onChange={(e) => setPartyId(e.target.value)}
                 >
                   <option value="">
-                    {t(kind === "sales" ? "invoices.selectCustomer" : "invoices.selectSupplier")}
+                    {t(isSalesSide ? "invoices.selectCustomer" : "invoices.selectSupplier")}
                   </option>
                   {parties.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -731,7 +732,7 @@ export function InvoiceEditor({
                       </td>
                       {/* Account */}
                       <td className="px-1 py-1">
-                        {l.lineType === "inventory" && kind === "purchase" ? (
+                        {l.lineType === "inventory" && !isSalesSide ? (
                           <span className="text-xs text-muted-foreground px-2 italic">{t("invoices.autoFromItem")}</span>
                         ) : (
                           <select
@@ -846,7 +847,7 @@ export function InvoiceEditor({
                               <label className={labelCls}>{t("invoices.warehouse")}</label>
                               <input className={inputCls} value={l.warehouse} disabled={disabled} onChange={(e) => updateLine(idx, { warehouse: e.target.value })} />
                             </div>
-                            {kind === "purchase" && (
+                            {!isSalesSide && (
                               <div>
                                 <label className={labelCls}>{t("invoices.account")}</label>
                                 <select className={inputCls} value={l.accountId} disabled={disabled} onChange={(e) => updateLine(idx, { accountId: e.target.value })}>
@@ -855,7 +856,7 @@ export function InvoiceEditor({
                                 </select>
                               </div>
                             )}
-                            {kind === "sales" && (
+                            {isSalesSide && (
                               <div>
                                 <label className={labelCls}>{t("invoices.cogsAccount")}</label>
                                 <select className={inputCls} value={l.cogsAccountId} disabled={disabled} onChange={(e) => updateLine(idx, { cogsAccountId: e.target.value })}>

@@ -7400,6 +7400,78 @@ export const useApproveInvoice = <TError = ErrorType<ErrorResponse>,
       return useMutation(getApproveInvoiceMutationOptions(options));
     }
 
+export const getConvertInvoiceUrl = (id: string,) => {
+
+
+
+
+  return `/api/invoices/${id}/convert`
+}
+
+/**
+ * Creates a new draft invoice (sales or purchase) from the source pre-document, copies all service lines, sets sourceDocumentId on the new invoice, and marks the source document status as "converted".
+
+ * @summary Convert a quotation to a sales invoice or a purchase order to a purchase invoice
+ */
+export const convertInvoice = async (id: string, options?: RequestInit): Promise<InvoiceDetail> => {
+
+  return customFetch<InvoiceDetail>(getConvertInvoiceUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getConvertInvoiceMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof convertInvoice>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof convertInvoice>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['convertInvoice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof convertInvoice>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  convertInvoice(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConvertInvoiceMutationResult = NonNullable<Awaited<ReturnType<typeof convertInvoice>>>
+
+    export type ConvertInvoiceMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Convert a quotation to a sales invoice or a purchase order to a purchase invoice
+ */
+export const useConvertInvoice = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof convertInvoice>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof convertInvoice>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getConvertInvoiceMutationOptions(options));
+    }
+
 export const getRevertInvoiceUrl = (id: string,) => {
 
 
