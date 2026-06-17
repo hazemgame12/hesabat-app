@@ -24,7 +24,7 @@ import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { uploadsDir } from "./uploads";
 import { lockCompanyEntryNo, allocateEntryNo } from "../lib/journal-posting";
-import { isPeriodClosed } from "../lib/fiscal-year";
+import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 import {
   assertAccountAcceptsCurrency,
   CurrencyMismatchError,
@@ -546,8 +546,9 @@ router.post(
         res.status(400).json({ error: refErr });
         return;
       }
-      if (await isPeriodClosed(db, companyId, parsed.data.date)) {
-        res.status(400).json({ error: PERIOD_CLOSED_MSG });
+      const wb0 = await isWriteBlocked(db, companyId, parsed.data.date);
+      if (wb0) {
+        res.status(wb0 === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wb0] });
         return;
       }
       const detail = await db.transaction(async (tx) => {
@@ -653,11 +654,11 @@ router.patch(
       }
       // Block both the entry's current date and the requested new date from
       // falling inside a closed period.
-      if (
-        (await isPeriodClosed(db, companyId, existing.date)) ||
-        (await isPeriodClosed(db, companyId, parsed.data.date))
-      ) {
-        res.status(400).json({ error: PERIOD_CLOSED_MSG });
+      const wb1 =
+        (await isWriteBlocked(db, companyId, existing.date)) ||
+        (await isWriteBlocked(db, companyId, parsed.data.date));
+      if (wb1) {
+        res.status(wb1 === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wb1] });
         return;
       }
       const refErr = await validateLineRefs(lines, companyId);
@@ -771,8 +772,9 @@ router.post(
           .json({ error: "لا يمكن ترحيل القيد قبل اعتماده" });
         return;
       }
-      if (await isPeriodClosed(db, companyId, existing.date)) {
-        res.status(400).json({ error: PERIOD_CLOSED_MSG });
+      const wb2 = await isWriteBlocked(db, companyId, existing.date);
+      if (wb2) {
+        res.status(wb2 === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wb2] });
         return;
       }
       const lines = await db
@@ -870,8 +872,9 @@ router.delete(
           .json({ error: "لا يمكن حذف القيد إلا وهو مسودة" });
         return;
       }
-      if (await isPeriodClosed(db, companyId, existing.date)) {
-        res.status(400).json({ error: PERIOD_CLOSED_MSG });
+      const wb3 = await isWriteBlocked(db, companyId, existing.date);
+      if (wb3) {
+        res.status(wb3 === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wb3] });
         return;
       }
       // Capture the on-disk keys before the cascade removes the rows, so the
@@ -1214,8 +1217,9 @@ router.post(
         )
         .orderBy(asc(journalEntryLinesTable.lineNo));
       const today = new Date().toISOString().slice(0, 10);
-      if (await isPeriodClosed(db, companyId, today)) {
-        res.status(400).json({ error: PERIOD_CLOSED_MSG });
+      const wb4 = await isWriteBlocked(db, companyId, today);
+      if (wb4) {
+        res.status(wb4 === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wb4] });
         return;
       }
       const detail = await db.transaction(async (tx) => {
@@ -1683,9 +1687,10 @@ router.post(
 
       // Reject the whole import if any entry falls in a CLOSED period.
       for (const r of resolved) {
-        if (await isPeriodClosed(db, companyId, r.group.date)) {
-          res.status(400).json({
-            error: `القيد ${r.group.entryNo}: التاريخ يقع داخل سنة مالية مقفلة`,
+        const wb5 = await isWriteBlocked(db, companyId, r.group.date);
+        if (wb5) {
+          res.status(wb5 === "period_locked" ? 423 : 400).json({
+            error: `القيد ${r.group.entryNo}: ${WRITE_BLOCK_MSG[wb5]}`,
           });
           return;
         }

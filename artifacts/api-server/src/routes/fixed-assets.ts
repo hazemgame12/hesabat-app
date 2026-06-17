@@ -17,6 +17,7 @@ import {
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { createDraftJournalEntry } from "../lib/journal-posting";
+import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 import { generateEntityCode } from "../lib/codes";
 import {
   exportWorkbook,
@@ -379,6 +380,11 @@ router.post(
       return;
     }
     try {
+      const wbDepr = await isWriteBlocked(db, companyId, period + "-01");
+      if (wbDepr) {
+        res.status(wbDepr === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbDepr] });
+        return;
+      }
       const [company] = await db
         .select({ baseCurrency: companiesTable.baseCurrency })
         .from(companiesTable)

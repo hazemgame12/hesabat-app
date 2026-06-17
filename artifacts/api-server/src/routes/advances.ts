@@ -31,6 +31,7 @@ import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { uploadsDir } from "./uploads";
 import { createDraftJournalEntry } from "../lib/journal-posting";
+import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 
 const router = Router();
 
@@ -1007,6 +1008,12 @@ router.post(
       const baseCurrency = (company?.baseCurrency || "EGP").toUpperCase();
       const entryDate =
         firstDate || new Date().toISOString().slice(0, 10);
+
+      const wbSettle = await isWriteBlocked(db, companyId, entryDate);
+      if (wbSettle) {
+        res.status(wbSettle === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbSettle] });
+        return;
+      }
 
       const result = await db.transaction(async (tx) => {
         // Re-check under no concurrent settle: guard the update on null link.

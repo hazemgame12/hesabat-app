@@ -324,6 +324,24 @@
       "reopened": "Fiscal year reopened",
       "deleted": "Fiscal year deleted",
       "error": "Could not complete the operation"
+    },
+    "periodLock": {
+      "title": "Period Lock",
+      "subtitle": "Prevents creating or modifying any entry dated on or before the lock date. Soft lock — can be cleared at any time.",
+      "locked": "Locked through",
+      "notLocked": "No active lock",
+      "setLabel": "Lock through date",
+      "clearButton": "Clear lock",
+      "saveButton": "Save lock",
+      "toast": {
+        "set": "Period lock activated",
+        "cleared": "Period lock cleared",
+        "error": "Could not update the period lock"
+      },
+      "confirm": {
+        "clearTitle": "Clear period lock?",
+        "clearDescription": "Editing entries in all prior periods will be allowed again."
+      }
     }
   },
   "settings": {

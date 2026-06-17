@@ -28,4 +28,9 @@ export interface Company {
   /** @nullable */
   branchCode?: string | null;
   eInvoiceEnabled?: boolean;
+  /**
+     * Soft period lock date (YYYY-MM-DD). Entries dated on or before this date cannot be created or modified. Null = no lock.
+     * @nullable
+     */
+  lockedThrough?: Date | null;
 }

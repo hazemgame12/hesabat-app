@@ -41,6 +41,7 @@ import { isCountry, isCurrency } from "@workspace/locale";
 import { UpdateCompanyBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
+import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 import { uploadsDir } from "./uploads";
 import { subscriptionPlansTable } from "@workspace/db";
 
@@ -61,6 +62,7 @@ function toCompany(row: Company) {
     commercialRegistrationNumber: row.commercialRegistrationNumber,
     branchCode: row.branchCode,
     eInvoiceEnabled: row.eInvoiceEnabled,
+    lockedThrough: row.lockedThrough ?? null,
   };
 }
 
@@ -354,5 +356,40 @@ router.post("/company/select-plan", requireAuth, async (req, res) => {
 
   res.json({ ok: true, trialEndsAt: endsAt.toISOString() });
 });
+
+// PATCH /company/period-lock — set or clear the soft period lock (owner only)
+router.patch(
+  "/company/period-lock",
+  requireAuth,
+  requireCapability("fiscalyear:manage"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const { lockedThrough } = req.body as { lockedThrough?: string | null };
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    if (lockedThrough !== null && lockedThrough !== undefined) {
+      if (typeof lockedThrough !== "string" || !DATE_RE.test(lockedThrough)) {
+        res
+          .status(400)
+          .json({ error: "تاريخ القفل يجب أن يكون بصيغة YYYY-MM-DD أو null" });
+        return;
+      }
+    }
+    try {
+      const [updated] = await db
+        .update(companiesTable)
+        .set({ lockedThrough: lockedThrough ?? null })
+        .where(eq(companiesTable.id, companyId))
+        .returning();
+      if (!updated) {
+        res.status(404).json({ error: "الشركة غير موجودة" });
+        return;
+      }
+      res.json(toCompany(updated));
+    } catch (err) {
+      req.log.error({ err }, "Failed to update period lock");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
 
 export default router;

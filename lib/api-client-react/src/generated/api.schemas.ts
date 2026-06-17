@@ -183,6 +183,19 @@ export interface Company {
   /** @nullable */
   branchCode?: string | null;
   eInvoiceEnabled?: boolean;
+  /**
+     * Soft period lock date (YYYY-MM-DD). Entries dated on or before this date cannot be created or modified. Null = no lock.
+     * @nullable
+     */
+  lockedThrough?: string | null;
+}
+
+export interface PeriodLockUpdate {
+  /**
+     * Lock date (YYYY-MM-DD) or null to clear the lock.
+     * @nullable
+     */
+  lockedThrough?: string | null;
 }
 
 export type CompanyUpdateCountry = typeof CompanyUpdateCountry[keyof typeof CompanyUpdateCountry];

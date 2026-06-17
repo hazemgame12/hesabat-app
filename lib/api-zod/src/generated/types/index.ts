@@ -221,6 +221,7 @@ export * from './payrollRunLine';
 export * from './payrollTaxReport';
 export * from './payrollTaxReportRow';
 export * from './payrollTaxReportTotals';
+export * from './periodLockUpdate';
 export * from './pnlLine';
 export * from './previewRevaluationParams';
 export * from './rateForDate';

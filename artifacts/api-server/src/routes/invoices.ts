@@ -33,6 +33,7 @@ import { computeMovement, round2, round4 } from "../lib/inventory-posting";
 import { exportWorkbook } from "../lib/excel";
 import { handleXlsxUpload, parseSheet, cellStr, cellNum } from "../lib/excel";
 import ExcelJS from "exceljs";
+import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 
 const router = Router();
 
@@ -804,6 +805,11 @@ router.post(
       return;
     }
     try {
+      const wbInv = await isWriteBlocked(db, companyId, d.date);
+      if (wbInv) {
+        res.status(wbInv === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbInv] });
+        return;
+      }
       const side = baseSide(d.kind);
       const isReturn = isReturnKind(d.kind);
       if (isReturn && d.lines.some((l) => l.lineType !== "service")) {
@@ -974,6 +980,13 @@ router.patch(
       }
       if (inv.status !== "draft") {
         res.status(400).json({ error: "لا يمكن تعديل فاتورة معتمدة" });
+        return;
+      }
+      const wbInvUpdate =
+        (await isWriteBlocked(db, companyId, inv.date)) ||
+        (await isWriteBlocked(db, companyId, d.date));
+      if (wbInvUpdate) {
+        res.status(wbInvUpdate === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbInvUpdate] });
         return;
       }
       const side = baseSide(d.kind);
@@ -1214,6 +1227,13 @@ router.post(
         if (!inv) throw new ApproveError(404, "الفاتورة غير موجودة");
         if (inv.status !== "draft")
           throw new ApproveError(400, "الفاتورة معتمدة بالفعل");
+
+        const wbApprove = await isWriteBlocked(tx, companyId, inv.date);
+        if (wbApprove)
+          throw new ApproveError(
+            wbApprove === "period_locked" ? 423 : 400,
+            WRITE_BLOCK_MSG[wbApprove],
+          );
 
         // Credit/Debit notes (returns) post a self-contained REVERSED entry and
         // never touch inventory/fixed assets (service lines only in v1), so they

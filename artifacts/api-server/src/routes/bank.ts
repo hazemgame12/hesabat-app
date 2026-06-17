@@ -45,6 +45,7 @@ import {
 import { exportWorkbook, parseSheet } from "../lib/excel";
 import { z } from "zod/v4";
 import { safeAudit } from "../lib/audit";
+import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 
 const router = Router();
 
@@ -1466,6 +1467,11 @@ router.post(
     }
     const baseCurrency = await loadBaseCurrency(companyId);
     try {
+      const wbBankCreate = await isWriteBlocked(db, companyId, d.date);
+      if (wbBankCreate) {
+        res.status(wbBankCreate === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbBankCreate] });
+        return;
+      }
       const [bank] = await db
         .select()
         .from(bankAccountsTable)
@@ -1705,6 +1711,13 @@ router.patch(
       const date = d.date ?? movement.date;
       if (!DATE_RE.test(date)) {
         res.status(400).json({ error: "التاريخ مطلوب بصيغة YYYY-MM-DD" });
+        return;
+      }
+      const wbBankUpdate =
+        (await isWriteBlocked(db, companyId, movement.date)) ||
+        (await isWriteBlocked(db, companyId, date));
+      if (wbBankUpdate) {
+        res.status(wbBankUpdate === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbBankUpdate] });
         return;
       }
       const amount = round2(d.amount ?? Number(movement.amount));

@@ -1158,6 +1158,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /company/period-lock:
+    patch:
+      operationId: updatePeriodLock
+      tags: [company]
+      summary: Set or clear the soft period lock date (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PeriodLockUpdate"
+      responses:
+        "200":
+          description: Updated company profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          description: Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /company/logo:
     post:
       operationId: uploadCompanyLogo
@@ -4316,6 +4347,18 @@ components:
         eInvoiceEnabled:
           type: boolean
           default: false
+        lockedThrough:
+          type: ["string", "null"]
+          format: date
+          description: "Soft period lock date (YYYY-MM-DD). Entries dated on or before this date cannot be created or modified. Null = no lock."
+
+    PeriodLockUpdate:
+      type: object
+      properties:
+        lockedThrough:
+          type: ["string", "null"]
+          format: date
+          description: "Lock date (YYYY-MM-DD) or null to clear the lock."
 
     CompanyUpdate:
       type: object

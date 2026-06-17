@@ -7,7 +7,10 @@ import {
   useReopenFiscalYear,
   useDeleteFiscalYear,
   useGetCurrentUser,
+  useGetCompany,
+  useUpdatePeriodLock,
   getListFiscalYearsQueryKey,
+  getGetCompanyQueryKey,
   type FiscalYear,
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
@@ -59,6 +62,176 @@ function errorMessage(err: unknown): string | undefined {
     return (err as { error: string }).error;
   }
   return undefined;
+}
+
+function PeriodLockCard({ canManage }: { canManage: boolean }) {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: company, isLoading } = useGetCompany();
+  const updateLock = useUpdatePeriodLock();
+
+  const currentLock = company?.lockedThrough ?? null;
+  const [dateValue, setDateValue] = React.useState(currentLock ?? "");
+  const [confirmClear, setConfirmClear] = React.useState(false);
+
+  React.useEffect(() => {
+    setDateValue(company?.lockedThrough ?? "");
+  }, [company?.lockedThrough]);
+
+  const invalidateCompany = () =>
+    queryClient.invalidateQueries({ queryKey: getGetCompanyQueryKey() });
+
+  const handleSave = () => {
+    if (!dateValue) return;
+    updateLock.mutate(
+      { data: { lockedThrough: dateValue } },
+      {
+        onSuccess: () => {
+          invalidateCompany();
+          toast({ title: t("fiscalYearsPage.periodLock.toast.set") });
+        },
+        onError: (err) =>
+          toast({
+            variant: "destructive",
+            title: errorMessage(err) ?? t("fiscalYearsPage.periodLock.toast.error"),
+          }),
+      },
+    );
+  };
+
+  const handleClear = () => {
+    updateLock.mutate(
+      { data: { lockedThrough: null } },
+      {
+        onSuccess: () => {
+          invalidateCompany();
+          setDateValue("");
+          setConfirmClear(false);
+          toast({ title: t("fiscalYearsPage.periodLock.toast.cleared") });
+        },
+        onError: (err) => {
+          setConfirmClear(false);
+          toast({
+            variant: "destructive",
+            title: errorMessage(err) ?? t("fiscalYearsPage.periodLock.toast.error"),
+          });
+        },
+      },
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Spinner />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="rounded-xl border border-border p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
+            <Lock className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-base">
+              {t("fiscalYearsPage.periodLock.title")}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {t("fiscalYearsPage.periodLock.subtitle")}
+            </p>
+          </div>
+        </div>
+
+        <div
+          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border ${
+            currentLock
+              ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+              : "bg-muted/50 text-muted-foreground border-border"
+          }`}
+        >
+          {currentLock ? (
+            <Lock className="w-4 h-4 flex-shrink-0" />
+          ) : (
+            <Unlock className="w-4 h-4 flex-shrink-0" />
+          )}
+          <span>
+            {currentLock
+              ? `${t("fiscalYearsPage.periodLock.locked")}: ${currentLock}`
+              : t("fiscalYearsPage.periodLock.notLocked")}
+          </span>
+        </div>
+
+        {canManage && (
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-1.5">
+                {t("fiscalYearsPage.periodLock.setLabel")}
+              </label>
+              <input
+                type="date"
+                value={dateValue}
+                onChange={(e) => setDateValue(e.target.value)}
+                disabled={updateLock.isPending}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              />
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={!dateValue || updateLock.isPending}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {updateLock.isPending ? (
+                <Spinner className="w-4 h-4" />
+              ) : (
+                <Lock className="w-4 h-4" />
+              )}
+              {t("fiscalYearsPage.periodLock.saveButton")}
+            </button>
+            {currentLock && (
+              <button
+                onClick={() => setConfirmClear(true)}
+                disabled={updateLock.isPending}
+                className="inline-flex items-center gap-2 rounded-lg border border-input px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Unlock className="w-4 h-4" />
+                {t("fiscalYearsPage.periodLock.clearButton")}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      <AlertDialog
+        open={confirmClear}
+        onOpenChange={(o) => !o && setConfirmClear(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("fiscalYearsPage.periodLock.confirm.clearTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("fiscalYearsPage.periodLock.confirm.clearDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClear}
+              disabled={updateLock.isPending}
+            >
+              {t("fiscalYearsPage.periodLock.clearButton")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 }
 
 export function FiscalYears() {
@@ -378,6 +551,10 @@ export function FiscalYears() {
           </div>
         </div>
       )}
+
+      <div className="mt-6">
+        <PeriodLockCard canManage={canManage} />
+      </div>
 
       <AlertDialog
         open={!!yearToClose}

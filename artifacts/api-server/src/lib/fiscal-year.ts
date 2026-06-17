@@ -1,5 +1,5 @@
 import { and, eq, lte, gte } from "drizzle-orm";
-import { db, fiscalYearsTable } from "@workspace/db";
+import { db, fiscalYearsTable, companiesTable } from "@workspace/db";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Executor = typeof db | Tx;
@@ -15,6 +15,52 @@ export class FiscalPeriodClosedError extends Error {
     super("FISCAL_PERIOD_CLOSED");
     this.name = "FiscalPeriodClosedError";
   }
+}
+
+// ── Period Lock ──────────────────────────────────────────────────────────────
+
+export type WriteBlockReason = "fiscal_closed" | "period_locked";
+
+/**
+ * Human-readable Arabic error messages for write-blocked dates.
+ */
+export const WRITE_BLOCK_MSG: Record<WriteBlockReason, string> = {
+  fiscal_closed:
+    "لا يمكن إجراء العملية: التاريخ يقع داخل سنة مالية مقفلة",
+  period_locked:
+    "لا يمكن إجراء العملية: الفترة مقفلة — يمكن فتحها من إعدادات الشركة",
+};
+
+/**
+ * Returns true if `date` falls on or before the company's `lockedThrough`
+ * soft period lock. Returns false when no lock is set.
+ */
+export async function isPeriodLocked(
+  executor: Executor,
+  companyId: string,
+  date: string,
+): Promise<boolean> {
+  const [row] = await executor
+    .select({ lockedThrough: companiesTable.lockedThrough })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  if (!row?.lockedThrough) return false;
+  return date <= row.lockedThrough;
+}
+
+/**
+ * Combined check: period_locked takes priority over fiscal_closed.
+ * Returns the reason string or false if the date is writable.
+ */
+export async function isWriteBlocked(
+  executor: Executor,
+  companyId: string,
+  date: string,
+): Promise<WriteBlockReason | false> {
+  if (await isPeriodLocked(executor, companyId, date)) return "period_locked";
+  if (await isPeriodClosed(executor, companyId, date)) return "fiscal_closed";
+  return false;
 }
 
 /**

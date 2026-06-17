@@ -25,6 +25,7 @@ import {
 } from "../lib/journal-posting";
 import { round2 } from "../lib/inventory-posting";
 import { ensureFxAccounts } from "../lib/seed-accounts";
+import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 
 const router = Router();
 
@@ -267,6 +268,11 @@ router.post(
       return;
     }
     const baseCurrency = await loadBaseCurrency(companyId);
+    const wbPayment = await isWriteBlocked(db, companyId, d.date);
+    if (wbPayment) {
+      res.status(wbPayment === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbPayment] });
+      return;
+    }
     try {
       // Resolve party and its subsidiary account.
       const invoiceKind = d.kind === "collection" ? "sales" : "purchase";

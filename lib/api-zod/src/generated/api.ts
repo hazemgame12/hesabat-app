@@ -933,7 +933,8 @@ export const GetCompanyResponse = zod.object({
   "phone": zod.string().nullish(),
   "commercialRegistrationNumber": zod.string().nullish(),
   "branchCode": zod.string().nullish(),
-  "eInvoiceEnabled": zod.boolean().default(getCompanyResponseEInvoiceEnabledDefault)
+  "eInvoiceEnabled": zod.boolean().default(getCompanyResponseEInvoiceEnabledDefault),
+  "lockedThrough": zod.coerce.date().nullish().describe('Soft period lock date (YYYY-MM-DD). Entries dated on or before this date cannot be created or modified. Null = no lock.')
 })
 
 
@@ -972,7 +973,35 @@ export const UpdateCompanyResponse = zod.object({
   "phone": zod.string().nullish(),
   "commercialRegistrationNumber": zod.string().nullish(),
   "branchCode": zod.string().nullish(),
-  "eInvoiceEnabled": zod.boolean().default(updateCompanyResponseEInvoiceEnabledDefault)
+  "eInvoiceEnabled": zod.boolean().default(updateCompanyResponseEInvoiceEnabledDefault),
+  "lockedThrough": zod.coerce.date().nullish().describe('Soft period lock date (YYYY-MM-DD). Entries dated on or before this date cannot be created or modified. Null = no lock.')
+})
+
+
+/**
+ * @summary Set or clear the soft period lock date (owner only)
+ */
+export const UpdatePeriodLockBody = zod.object({
+  "lockedThrough": zod.coerce.date().nullish().describe('Lock date (YYYY-MM-DD) or null to clear the lock.')
+})
+
+export const updatePeriodLockResponseEInvoiceEnabledDefault = false;
+
+export const UpdatePeriodLockResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "tradeName": zod.string().nullish(),
+  "taxRegistrationNumber": zod.string().nullish(),
+  "activityDescription": zod.string().nullish(),
+  "logoUrl": zod.string().nullish(),
+  "country": zod.string(),
+  "baseCurrency": zod.string(),
+  "address": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "commercialRegistrationNumber": zod.string().nullish(),
+  "branchCode": zod.string().nullish(),
+  "eInvoiceEnabled": zod.boolean().default(updatePeriodLockResponseEInvoiceEnabledDefault),
+  "lockedThrough": zod.coerce.date().nullish().describe('Soft period lock date (YYYY-MM-DD). Entries dated on or before this date cannot be created or modified. Null = no lock.')
 })
 
 
@@ -994,7 +1023,8 @@ export const UploadCompanyLogoResponse = zod.object({
   "phone": zod.string().nullish(),
   "commercialRegistrationNumber": zod.string().nullish(),
   "branchCode": zod.string().nullish(),
-  "eInvoiceEnabled": zod.boolean().default(uploadCompanyLogoResponseEInvoiceEnabledDefault)
+  "eInvoiceEnabled": zod.boolean().default(uploadCompanyLogoResponseEInvoiceEnabledDefault),
+  "lockedThrough": zod.coerce.date().nullish().describe('Soft period lock date (YYYY-MM-DD). Entries dated on or before this date cannot be created or modified. Null = no lock.')
 })
 
 

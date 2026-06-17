@@ -129,6 +129,7 @@ import type {
   PayrollRun,
   PayrollRunInput,
   PayrollTaxReport,
+  PeriodLockUpdate,
   PreviewRevaluationParams,
   RateForDate,
   RefreshRatesResult,
@@ -3302,6 +3303,77 @@ export const useUpdateCompany = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getUpdateCompanyMutationOptions(options));
+    }
+
+export const getUpdatePeriodLockUrl = () => {
+
+
+
+
+  return `/api/company/period-lock`
+}
+
+/**
+ * @summary Set or clear the soft period lock date (owner only)
+ */
+export const updatePeriodLock = async (periodLockUpdate: PeriodLockUpdate, options?: RequestInit): Promise<Company> => {
+
+  return customFetch<Company>(getUpdatePeriodLockUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      periodLockUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdatePeriodLockMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePeriodLock>>, TError,{data: BodyType<PeriodLockUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePeriodLock>>, TError,{data: BodyType<PeriodLockUpdate>}, TContext> => {
+
+const mutationKey = ['updatePeriodLock'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePeriodLock>>, {data: BodyType<PeriodLockUpdate>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updatePeriodLock(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePeriodLockMutationResult = NonNullable<Awaited<ReturnType<typeof updatePeriodLock>>>
+    export type UpdatePeriodLockMutationBody = BodyType<PeriodLockUpdate>
+    export type UpdatePeriodLockMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set or clear the soft period lock date (owner only)
+ */
+export const useUpdatePeriodLock = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePeriodLock>>, TError,{data: BodyType<PeriodLockUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePeriodLock>>,
+        TError,
+        {data: BodyType<PeriodLockUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdatePeriodLockMutationOptions(options));
     }
 
 export const getUploadCompanyLogoUrl = () => {

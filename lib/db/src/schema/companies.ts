@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, boolean, timestamp, integer, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -25,6 +25,9 @@ export const companiesTable = pgTable("companies", {
   }).default("trial"),
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
   isActive: boolean("is_active").notNull().default(true),
+  // Soft period lock. Any journal entry dated on or before this date is
+  // rejected on write. Null = no lock. Owner-only to set/clear.
+  lockedThrough: date("locked_through"),
   maxUsers: integer("max_users").default(1),
   maxTransactions: integer("max_transactions").default(1000),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

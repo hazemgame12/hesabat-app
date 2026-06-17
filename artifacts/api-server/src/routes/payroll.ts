@@ -35,6 +35,7 @@ import {
   handleXlsxUpload,
   parseSheet,
 } from "../lib/excel";
+import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 
 const router = Router();
 
@@ -761,6 +762,11 @@ router.post(
         .limit(1);
       if (existingRun.length > 0) {
         res.status(409).json({ error: "تم تشغيل رواتب هذا الشهر بالفعل" });
+        return;
+      }
+      const wbPayroll = await isWriteBlocked(db, companyId, period + "-01");
+      if (wbPayroll) {
+        res.status(wbPayroll === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbPayroll] });
         return;
       }
 
