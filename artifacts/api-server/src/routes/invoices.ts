@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { and, eq, inArray, gte, lte, asc, desc, sql } from "drizzle-orm";
+import { and, eq, inArray, gte, lte, asc, desc, sql, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import {
   db,
   invoicesTable,
@@ -419,6 +420,39 @@ router.get(
       if (typeof supplierId === "string" && supplierId) {
         conditions.push(eq(invoicesTable.supplierId, supplierId));
       }
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(invoicesTable)
+          .where(and(...conditions));
+        const rows = await db
+          .select()
+          .from(invoicesTable)
+          .where(and(...conditions))
+          .orderBy(desc(invoicesTable.invoiceNo))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        const names = await partyNames(rows, companyId);
+        const relatedCodes = await relatedCodeMap(rows, companyId);
+        res.json(
+          paginatedResponse(
+            rows.map((r) =>
+              toListItem(
+                r,
+                names.get(r.customerId ?? r.supplierId ?? "") ?? null,
+                r.relatedInvoiceId ? (relatedCodes.get(r.relatedInvoiceId) ?? null) : null,
+              ),
+            ),
+            Number(total),
+            pg.page,
+            pg.limit,
+          ),
+        );
+        return;
+      }
+
       const rows = await db
         .select()
         .from(invoicesTable)

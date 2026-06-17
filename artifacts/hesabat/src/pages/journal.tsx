@@ -2,7 +2,6 @@ import React, { useMemo, useRef, useState, useCallback } from "react";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { useTranslation } from "react-i18next";
 import {
-  useListJournalEntries,
   useGetJournalEntry,
   useCreateJournalEntry,
   useUpdateJournalEntry,
@@ -27,6 +26,8 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import {
   FileText,
   Plus,
@@ -139,7 +140,9 @@ export function Journal() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: entries = [], isLoading } = useListJournalEntries();
+  const [page, setPage] = useState(1);
+  const { data: paginatedEntries, isLoading } = usePaginatedQuery<JournalEntry>("/api/journal", page);
+  const entries = paginatedEntries?.data ?? [];
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
   const canCreate = hasCapability(role, "journal:create");
@@ -490,6 +493,15 @@ export function Journal() {
               </tbody>
             </table>
             )}
+          {paginatedEntries && paginatedEntries.totalPages > 1 && (
+            <PaginationBar
+              page={page}
+              totalPages={paginatedEntries.totalPages}
+              total={paginatedEntries.total}
+              limit={paginatedEntries.limit}
+              onPageChange={setPage}
+            />
+          )}
           </div>
         )}
       </div>

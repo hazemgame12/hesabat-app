@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { and, eq, asc, desc, inArray, sql } from "drizzle-orm";
+import { and, eq, asc, desc, inArray, sql, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import {
   db,
   employeesTable,
@@ -166,6 +167,32 @@ router.get(
   async (req, res) => {
     try {
       const companyId = req.auth!.companyId;
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(employeesTable)
+          .where(eq(employeesTable.companyId, companyId));
+        const rows = await db
+          .select()
+          .from(employeesTable)
+          .where(eq(employeesTable.companyId, companyId))
+          .orderBy(asc(employeesTable.code))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        const compMap = await loadComponents(rows.map((r) => r.id), companyId);
+        res.json(
+          paginatedResponse(
+            rows.map((r) => toEmployee(r, compMap.get(r.id) ?? [])),
+            Number(total),
+            pg.page,
+            pg.limit,
+          ),
+        );
+        return;
+      }
+
       const rows = await db
         .select()
         .from(employeesTable)

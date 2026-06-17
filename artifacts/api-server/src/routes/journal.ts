@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { and, eq, asc, desc, sql, inArray } from "drizzle-orm";
+import { and, eq, asc, desc, sql, inArray, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -318,6 +319,53 @@ router.get(
   async (req, res) => {
     try {
       const companyId = req.auth!.companyId;
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      const fetchTotals = async (ids: string[]) => {
+        if (ids.length === 0) return new Map<string, { debit: number; credit: number }>();
+        const totalsRows = await db
+          .select({
+            entryId: journalEntryLinesTable.entryId,
+            debit: sql<string>`coalesce(sum(${journalEntryLinesTable.debitBase}), 0)`,
+            credit: sql<string>`coalesce(sum(${journalEntryLinesTable.creditBase}), 0)`,
+          })
+          .from(journalEntryLinesTable)
+          .where(
+            and(
+              eq(journalEntryLinesTable.companyId, companyId),
+              inArray(journalEntryLinesTable.entryId, ids),
+            ),
+          )
+          .groupBy(journalEntryLinesTable.entryId);
+        return new Map(
+          totalsRows.map((r) => [r.entryId, { debit: Number(r.debit), credit: Number(r.credit) }]),
+        );
+      };
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(journalEntriesTable)
+          .where(eq(journalEntriesTable.companyId, companyId));
+        const entries = await db
+          .select()
+          .from(journalEntriesTable)
+          .where(eq(journalEntriesTable.companyId, companyId))
+          .orderBy(desc(journalEntriesTable.entryNo))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        const totalsMap = await fetchTotals(entries.map((e) => e.id));
+        res.json(
+          paginatedResponse(
+            entries.map((e) => toEntrySummary(e, totalsMap.get(e.id) ?? { debit: 0, credit: 0 })),
+            Number(total),
+            pg.page,
+            pg.limit,
+          ),
+        );
+        return;
+      }
+
       const entries = await db
         .select()
         .from(journalEntriesTable)
@@ -327,27 +375,7 @@ router.get(
         res.json([]);
         return;
       }
-      const ids = entries.map((e) => e.id);
-      const totalsRows = await db
-        .select({
-          entryId: journalEntryLinesTable.entryId,
-          debit: sql<string>`coalesce(sum(${journalEntryLinesTable.debitBase}), 0)`,
-          credit: sql<string>`coalesce(sum(${journalEntryLinesTable.creditBase}), 0)`,
-        })
-        .from(journalEntryLinesTable)
-        .where(
-          and(
-            eq(journalEntryLinesTable.companyId, companyId),
-            inArray(journalEntryLinesTable.entryId, ids),
-          ),
-        )
-        .groupBy(journalEntryLinesTable.entryId);
-      const totalsMap = new Map(
-        totalsRows.map((r) => [
-          r.entryId,
-          { debit: Number(r.debit), credit: Number(r.credit) },
-        ]),
-      );
+      const totalsMap = await fetchTotals(entries.map((e) => e.id));
       res.json(
         entries.map((e) =>
           toEntrySummary(e, totalsMap.get(e.id) ?? { debit: 0, credit: 0 }),

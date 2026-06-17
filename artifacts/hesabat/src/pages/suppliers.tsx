@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Receipt } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useListSuppliers,
   useCreateSupplier,
   useUpdateSupplier,
   useDeleteSupplier,
@@ -16,10 +15,13 @@ import {
   type Party,
   type PartyPayload,
 } from "@/components/parties/PartyManager";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 
 export function Suppliers() {
   const queryClient = useQueryClient();
-  const { data: suppliers = [], isLoading } = useListSuppliers();
+  const [page, setPage] = useState(1);
+  const { data: paginatedSuppliers, isLoading } = usePaginatedQuery<Party>("/api/suppliers", page);
+  const suppliers = paginatedSuppliers?.data ?? [];
   const { data: accounts = [] } = useListAccounts();
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
@@ -39,8 +41,13 @@ export function Suppliers() {
         defaultControlCode: "211",
         showCreditLimit: false,
       }}
-      parties={suppliers as Party[]}
+      parties={suppliers}
       partiesLoading={isLoading}
+      pagination={
+        paginatedSuppliers && paginatedSuppliers.totalPages > 1
+          ? { page, totalPages: paginatedSuppliers.totalPages, total: paginatedSuppliers.total, limit: paginatedSuppliers.limit, onPageChange: setPage }
+          : undefined
+      }
       accounts={accounts}
       canCreate={hasCapability(role, "suppliers:create")}
       canUpdate={hasCapability(role, "suppliers:update")}

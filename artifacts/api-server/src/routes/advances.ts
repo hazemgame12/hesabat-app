@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { and, eq, asc, inArray, sql } from "drizzle-orm";
+import { and, eq, asc, inArray, sql, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -146,6 +147,32 @@ router.get(
   async (req, res) => {
     try {
       const companyId = req.auth!.companyId;
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(advancesTable)
+          .where(eq(advancesTable.companyId, companyId));
+        const rows = await db
+          .select({ advance: advancesTable, name: employeesTable.nameAr })
+          .from(advancesTable)
+          .innerJoin(employeesTable, eq(employeesTable.id, advancesTable.employeeId))
+          .where(eq(advancesTable.companyId, companyId))
+          .orderBy(asc(advancesTable.date))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        res.json(
+          paginatedResponse(
+            rows.map((r) => toAdvance(r.advance, r.name)),
+            Number(total),
+            pg.page,
+            pg.limit,
+          ),
+        );
+        return;
+      }
+
       const rows = await db
         .select({
           advance: advancesTable,
@@ -406,23 +433,48 @@ router.get(
   async (req, res) => {
     try {
       const companyId = req.auth!.companyId;
-      const rows = await db
-        .select({
-          custody: custodiesTable,
-          name: employeesTable.nameAr,
-          entryNo: journalEntriesTable.entryNo,
-        })
-        .from(custodiesTable)
-        .innerJoin(
-          employeesTable,
-          eq(employeesTable.id, custodiesTable.employeeId),
-        )
-        .leftJoin(
-          journalEntriesTable,
-          eq(journalEntriesTable.id, custodiesTable.settlementJournalEntryId),
-        )
-        .where(eq(custodiesTable.companyId, companyId))
-        .orderBy(asc(custodiesTable.receiptDate));
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      const fetchCustodies = async (whereClause: ReturnType<typeof eq>, lim?: number, off?: number) => {
+        const q = db
+          .select({
+            custody: custodiesTable,
+            name: employeesTable.nameAr,
+            entryNo: journalEntriesTable.entryNo,
+          })
+          .from(custodiesTable)
+          .innerJoin(employeesTable, eq(employeesTable.id, custodiesTable.employeeId))
+          .leftJoin(
+            journalEntriesTable,
+            eq(journalEntriesTable.id, custodiesTable.settlementJournalEntryId),
+          )
+          .where(whereClause)
+          .orderBy(asc(custodiesTable.receiptDate));
+        if (lim !== undefined && off !== undefined) return q.limit(lim).offset(off);
+        return q;
+      };
+
+      const cond = eq(custodiesTable.companyId, companyId);
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(custodiesTable)
+          .where(cond);
+        const rows = await fetchCustodies(cond, pg.limit, pg.offset);
+        const attachMap = await loadCustodyAttachments(rows.map((r) => r.custody.id), companyId);
+        res.json(
+          paginatedResponse(
+            rows.map((r) => toCustody(r.custody, r.name, attachMap.get(r.custody.id) ?? [], r.entryNo ?? null)),
+            Number(total),
+            pg.page,
+            pg.limit,
+          ),
+        );
+        return;
+      }
+
+      const rows = await fetchCustodies(cond);
       const attachMap = await loadCustodyAttachments(
         rows.map((r) => r.custody.id),
         companyId,

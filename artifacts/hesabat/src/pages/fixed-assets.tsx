@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  useListAssets,
   useCreateAsset,
   useUpdateAsset,
   useDeleteAsset,
@@ -15,6 +14,8 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { Boxes, Plus, X, Check, Trash2, Edit2, CalendarClock } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
@@ -68,7 +69,9 @@ export function FixedAssets() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: assets = [], isLoading } = useListAssets();
+  const [page, setPage] = useState(1);
+  const { data: paginatedAssets, isLoading } = usePaginatedQuery<FixedAsset>("/api/assets", page);
+  const assets = paginatedAssets?.data ?? [];
   const { data: accounts = [] } = useListAccounts();
   const postableAccounts = useMemo(
     () => accounts.filter((a: Account) => !a.isGroup),
@@ -534,6 +537,15 @@ export function FixedAssets() {
                 </tbody>
               </table>
             </>
+          )}
+          {paginatedAssets && paginatedAssets.totalPages > 1 && (
+            <PaginationBar
+              page={page}
+              totalPages={paginatedAssets.totalPages}
+              total={paginatedAssets.total}
+              limit={paginatedAssets.limit}
+              onPageChange={setPage}
+            />
           )}
         </div>
       </div>

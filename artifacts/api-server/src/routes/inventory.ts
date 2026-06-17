@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { and, eq, asc, desc, inArray, sql } from "drizzle-orm";
+import { and, eq, asc, desc, inArray, sql, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import {
   db,
   inventoryItemsTable,
@@ -84,10 +85,29 @@ router.get(
   requireCapability("inventory:read"),
   async (req, res) => {
     try {
+      const companyId = req.auth!.companyId;
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(inventoryItemsTable)
+          .where(eq(inventoryItemsTable.companyId, companyId));
+        const rows = await db
+          .select()
+          .from(inventoryItemsTable)
+          .where(eq(inventoryItemsTable.companyId, companyId))
+          .orderBy(asc(inventoryItemsTable.code))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        res.json(paginatedResponse(rows.map(toItem), Number(total), pg.page, pg.limit));
+        return;
+      }
+
       const rows = await db
         .select()
         .from(inventoryItemsTable)
-        .where(eq(inventoryItemsTable.companyId, req.auth!.companyId))
+        .where(eq(inventoryItemsTable.companyId, companyId))
         .orderBy(asc(inventoryItemsTable.code));
       res.json(rows.map(toItem));
     } catch (err) {

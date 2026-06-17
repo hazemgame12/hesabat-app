@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type Account, useListCurrencies, useGetCompany, useUpdateCustomer, useUpdateSupplier } from "@workspace/api-client-react";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { Plus, X, Check, Trash2, Edit2 } from "lucide-react";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { Spinner } from "@/components/ui/spinner";
@@ -84,6 +85,14 @@ export interface PartyManagerConfig {
   showCreditLimit: boolean;
 }
 
+interface PartyManagerPagination {
+  page: number;
+  totalPages: number;
+  total: number;
+  limit: number;
+  onPageChange: (page: number) => void;
+}
+
 interface PartyManagerProps {
   config: PartyManagerConfig;
   parties: Party[];
@@ -96,6 +105,7 @@ interface PartyManagerProps {
   updateMut: Mutation;
   deleteMut: DeleteMutation;
   invalidate: () => void;
+  pagination?: PartyManagerPagination;
 }
 
 const partySchema = z.object({
@@ -133,6 +143,7 @@ export function PartyManager({
   createMut,
   updateMut,
   deleteMut,
+  pagination,
   invalidate,
 }: PartyManagerProps) {
   const { t, i18n } = useTranslation();
@@ -628,6 +639,15 @@ export function PartyManager({
               </tbody>
             </table>
             </>
+          )}
+          {pagination && (
+            <PaginationBar
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              total={pagination.total}
+              limit={pagination.limit}
+              onPageChange={pagination.onPageChange}
+            />
           )}
         </div>
       </div>

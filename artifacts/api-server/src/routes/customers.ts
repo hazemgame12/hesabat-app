@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { and, eq, asc, sql } from "drizzle-orm";
+import { and, eq, asc, sql, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import {
   db,
   customersTable,
@@ -71,6 +72,43 @@ router.get(
   async (req, res) => {
     const companyId = req.auth!.companyId;
     try {
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(customersTable)
+          .where(eq(customersTable.companyId, companyId));
+        const rows = await db
+          .select({ customer: customersTable, accountCode: accountsTable.code })
+          .from(customersTable)
+          .innerJoin(
+            accountsTable,
+            and(
+              eq(accountsTable.id, customersTable.accountId),
+              eq(accountsTable.companyId, companyId),
+            ),
+          )
+          .where(eq(customersTable.companyId, companyId))
+          .orderBy(asc(customersTable.code))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        const balances = await postedBalancesByAccount(companyId);
+        res.json(
+          paginatedResponse(
+            rows.map(({ customer, accountCode }) => {
+              const b = balances.get(customer.accountId);
+              const balance = b ? b.debit - b.credit : 0;
+              return toCustomer(customer, accountCode, balance);
+            }),
+            Number(total),
+            pg.page,
+            pg.limit,
+          ),
+        );
+        return;
+      }
+
       const rows = await db
         .select({ customer: customersTable, accountCode: accountsTable.code })
         .from(customersTable)

@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { and, eq, asc, inArray, sql } from "drizzle-orm";
+import { and, eq, asc, inArray, sql, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import {
   db,
   fixedAssetsTable,
@@ -109,6 +110,32 @@ router.get(
   async (req, res) => {
     try {
       const companyId = req.auth!.companyId;
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(fixedAssetsTable)
+          .where(eq(fixedAssetsTable.companyId, companyId));
+        const rows = await db
+          .select()
+          .from(fixedAssetsTable)
+          .where(eq(fixedAssetsTable.companyId, companyId))
+          .orderBy(asc(fixedAssetsTable.createdAt))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        const accMap = await accumulatedByAsset(rows.map((r) => r.id), companyId);
+        res.json(
+          paginatedResponse(
+            rows.map((r) => toAsset(r, accMap.get(r.id) ?? 0)),
+            Number(total),
+            pg.page,
+            pg.limit,
+          ),
+        );
+        return;
+      }
+
       const rows = await db
         .select()
         .from(fixedAssetsTable)

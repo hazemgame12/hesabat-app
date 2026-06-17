@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Users } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useListCustomers,
   useCreateCustomer,
   useUpdateCustomer,
   useDeleteCustomer,
@@ -16,10 +15,13 @@ import {
   type Party,
   type PartyPayload,
 } from "@/components/parties/PartyManager";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 
 export function Customers() {
   const queryClient = useQueryClient();
-  const { data: customers = [], isLoading } = useListCustomers();
+  const [page, setPage] = useState(1);
+  const { data: paginatedCustomers, isLoading } = usePaginatedQuery<Party>("/api/customers", page);
+  const customers = paginatedCustomers?.data ?? [];
   const { data: accounts = [] } = useListAccounts();
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
@@ -39,8 +41,13 @@ export function Customers() {
         defaultControlCode: "112",
         showCreditLimit: true,
       }}
-      parties={customers as Party[]}
+      parties={customers}
       partiesLoading={isLoading}
+      pagination={
+        paginatedCustomers && paginatedCustomers.totalPages > 1
+          ? { page, totalPages: paginatedCustomers.totalPages, total: paginatedCustomers.total, limit: paginatedCustomers.limit, onPageChange: setPage }
+          : undefined
+      }
       accounts={accounts}
       canCreate={hasCapability(role, "customers:create")}
       canUpdate={hasCapability(role, "customers:update")}

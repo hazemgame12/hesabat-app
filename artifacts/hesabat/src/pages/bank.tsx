@@ -7,7 +7,6 @@ import {
   useDeleteBankAccount,
   useGetCompany,
   useListCurrencies,
-  useListBankMovements,
   useCreateBankMovement,
   useUpdateBankMovement,
   useDeleteBankMovement,
@@ -33,6 +32,8 @@ import {
   type Account,
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Landmark,
@@ -872,17 +873,16 @@ function MovementsTab({
   const { toast } = useToast();
   const [selectedId, setSelectedId] = useState<string>(accounts[0]?.id ?? "");
   const effectiveId = selectedId || accounts[0]?.id || "";
-  const { data: movements = [], isLoading } = useListBankMovements(
-    { bankAccountId: effectiveId },
-    {
-      query: {
-        enabled: !!effectiveId,
-        queryKey: getListBankMovementsQueryKey({
-          bankAccountId: effectiveId,
-        }),
-      },
-    },
+  const [movementsPage, setMovementsPage] = useState(1);
+  React.useEffect(() => { setMovementsPage(1); }, [effectiveId]);
+  const { data: paginatedMovements, isLoading } = usePaginatedQuery<BankMovement>(
+    "/api/bank/movements",
+    movementsPage,
+    50,
+    effectiveId ? { bankAccountId: effectiveId } : undefined,
+    { enabled: !!effectiveId },
   );
+  const movements = paginatedMovements?.data ?? [];
   const createMovement = useCreateBankMovement();
   const updateMovement = useUpdateBankMovement();
   const deleteMovement = useDeleteBankMovement();
@@ -942,7 +942,7 @@ function MovementsTab({
 
   const invalidate = () => {
     queryClient.invalidateQueries({
-      queryKey: getListBankMovementsQueryKey({ bankAccountId: effectiveId }),
+      queryKey: ["/api/bank/movements"],
     });
     queryClient.invalidateQueries({ queryKey: getListBankAccountsQueryKey() });
     queryClient.invalidateQueries({
@@ -1525,6 +1525,15 @@ function MovementsTab({
               </tbody>
             </table>
           </div>
+        )}
+        {paginatedMovements && paginatedMovements.totalPages > 1 && (
+          <PaginationBar
+            page={movementsPage}
+            totalPages={paginatedMovements.totalPages}
+            total={paginatedMovements.total}
+            limit={paginatedMovements.limit}
+            onPageChange={setMovementsPage}
+          />
         )}
       </div>
 

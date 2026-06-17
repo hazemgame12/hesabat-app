@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  useListEmployees,
   useCreateEmployee,
   useUpdateEmployee,
   useDeleteEmployee,
@@ -21,6 +20,8 @@ import {
 import { hasCapability } from "@workspace/permissions";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import {
   Users,
   Plus,
@@ -99,8 +100,10 @@ export function Payroll() {
 
   const [tab, setTab] = useState<"employees" | "runs">("employees");
 
-  const { data: employees = [], isLoading: employeesLoading } =
-    useListEmployees();
+  const [employeesPage, setEmployeesPage] = useState(1);
+  const { data: paginatedEmployees, isLoading: employeesLoading } =
+    usePaginatedQuery<Employee>("/api/employees", employeesPage);
+  const employees = paginatedEmployees?.data ?? [];
   const { data: runs = [], isLoading: runsLoading } = useListPayrollRuns();
   const { data: custodies = [] } = useListCustodies();
   const openCustodies = useMemo(
@@ -667,6 +670,15 @@ export function Payroll() {
                 </tbody>
               </table>
               </>
+            )}
+            {paginatedEmployees && paginatedEmployees.totalPages > 1 && (
+              <PaginationBar
+                page={employeesPage}
+                totalPages={paginatedEmployees.totalPages}
+                total={paginatedEmployees.total}
+                limit={paginatedEmployees.limit}
+                onPageChange={setEmployeesPage}
+              />
             )}
           </div>
         ) : (

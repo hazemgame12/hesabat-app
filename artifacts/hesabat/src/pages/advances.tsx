@@ -1,11 +1,9 @@
 import React, { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  useListAdvances,
   useCreateAdvance,
   useUpdateAdvance,
   useDeleteAdvance,
-  useListCustodies,
   useCreateCustody,
   useUpdateCustody,
   useDeleteCustody,
@@ -21,6 +19,8 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import {
   HandCoins,
   Plus,
@@ -111,9 +111,14 @@ export function Advances() {
 
   const [tab, setTab] = useState<"advances" | "custodies">("advances");
 
-  const { data: advances = [], isLoading: advancesLoading } = useListAdvances();
-  const { data: custodies = [], isLoading: custodiesLoading } =
-    useListCustodies();
+  const [advancesPage, setAdvancesPage] = useState(1);
+  const [custodiesPage, setCustodiesPage] = useState(1);
+  const { data: paginatedAdvances, isLoading: advancesLoading } =
+    usePaginatedQuery<Advance>("/api/advances", advancesPage);
+  const advances = paginatedAdvances?.data ?? [];
+  const { data: paginatedCustodies, isLoading: custodiesLoading } =
+    usePaginatedQuery<Custody>("/api/custodies", custodiesPage);
+  const custodies = paginatedCustodies?.data ?? [];
   const { data: employees = [] } = useListEmployees();
   const { data: accounts = [] } = useListAccounts();
   const postableAccounts = useMemo(
@@ -668,6 +673,15 @@ export function Advances() {
                   ))}
                 </tbody>
               </table>
+              {paginatedAdvances && paginatedAdvances.totalPages > 1 && (
+                <PaginationBar
+                  page={advancesPage}
+                  totalPages={paginatedAdvances.totalPages}
+                  total={paginatedAdvances.total}
+                  limit={paginatedAdvances.limit}
+                  onPageChange={setAdvancesPage}
+                />
+              )}
             </div>
           )
         ) : custodiesLoading ? (
@@ -796,6 +810,15 @@ export function Advances() {
                 ))}
               </tbody>
             </table>
+            {paginatedCustodies && paginatedCustodies.totalPages > 1 && (
+              <PaginationBar
+                page={custodiesPage}
+                totalPages={paginatedCustodies.totalPages}
+                total={paginatedCustodies.total}
+                limit={paginatedCustodies.limit}
+                onPageChange={setCustodiesPage}
+              />
+            )}
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { and, eq, inArray, desc, sql } from "drizzle-orm";
+import { and, eq, inArray, desc, sql, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import {
   db,
   paymentsTable,
@@ -93,15 +94,26 @@ router.get(
       return;
     }
     try {
+      const cond = and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.kind, kind));
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      if (pg) {
+        const [{ total }] = await db.select({ total: count() }).from(paymentsTable).where(cond);
+        const rows = await db
+          .select()
+          .from(paymentsTable)
+          .where(cond)
+          .orderBy(desc(paymentsTable.paymentNo))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        res.json(paginatedResponse(await serializePayments(rows, companyId), Number(total), pg.page, pg.limit));
+        return;
+      }
+
       const rows = await db
         .select()
         .from(paymentsTable)
-        .where(
-          and(
-            eq(paymentsTable.companyId, companyId),
-            eq(paymentsTable.kind, kind),
-          ),
-        )
+        .where(cond)
         .orderBy(desc(paymentsTable.paymentNo));
       res.json(await serializePayments(rows, companyId));
     } catch (err) {

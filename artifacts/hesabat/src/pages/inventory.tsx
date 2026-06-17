@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  useListInventoryItems,
   useCreateInventoryItem,
   useUpdateInventoryItem,
   useDeleteInventoryItem,
@@ -18,6 +17,8 @@ import {
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePaginatedQuery } from "@/hooks/use-paginated-query";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
 import {
   Package,
@@ -88,7 +89,9 @@ export function Inventory() {
 
   const [tab, setTab] = useState<"items" | "movements">("items");
 
-  const { data: items = [], isLoading: itemsLoading } = useListInventoryItems();
+  const [itemsPage, setItemsPage] = useState(1);
+  const { data: paginatedItems, isLoading: itemsLoading } = usePaginatedQuery<InventoryItem>("/api/inventory/items", itemsPage);
+  const items = paginatedItems?.data ?? [];
   const { data: movements = [], isLoading: movementsLoading } =
     useListInventoryMovements();
   const { data: accounts = [] } = useListAccounts();
@@ -676,6 +679,15 @@ export function Inventory() {
                 </tbody>
               </table>
               </>
+            )}
+            {paginatedItems && paginatedItems.totalPages > 1 && (
+              <PaginationBar
+                page={itemsPage}
+                totalPages={paginatedItems.totalPages}
+                total={paginatedItems.total}
+                limit={paginatedItems.limit}
+                onPageChange={setItemsPage}
+              />
             )}
           </div>
         ) : (

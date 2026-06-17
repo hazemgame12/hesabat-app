@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
-import { and, eq, inArray, desc, sql, gte, lte, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, desc, sql, gte, lte, isNotNull, count } from "drizzle-orm";
+import { parsePagination, paginatedResponse } from "../lib/pagination";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { randomUUID } from "node:crypto";
@@ -1416,6 +1417,24 @@ router.get(
         conds.push(gte(bankMovementsTable.date, from));
       if (typeof to === "string" && to)
         conds.push(lte(bankMovementsTable.date, to));
+      const pg = parsePagination(req.query as Record<string, unknown>);
+
+      if (pg) {
+        const [{ total }] = await db
+          .select({ total: count() })
+          .from(bankMovementsTable)
+          .where(and(...conds));
+        const rows = await db
+          .select()
+          .from(bankMovementsTable)
+          .where(and(...conds))
+          .orderBy(desc(bankMovementsTable.date), desc(bankMovementsTable.createdAt))
+          .limit(pg.limit)
+          .offset(pg.offset);
+        res.json(paginatedResponse(await serializeMovements(rows, companyId), Number(total), pg.page, pg.limit));
+        return;
+      }
+
       const rows = await db
         .select()
         .from(bankMovementsTable)
