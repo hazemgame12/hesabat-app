@@ -19,6 +19,7 @@ import {
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { handleXlsxUpload } from "../lib/excel";
+import { uploadLimiter } from "../lib/rate-limit";
 import { generateEntityCode } from "../lib/codes";
 import { allocateEntryNo } from "../lib/journal-posting";
 import { safeAudit } from "../lib/audit";
@@ -113,6 +114,7 @@ async function loadBaseCurrency(companyId: string): Promise<string> {
 router.post(
   "/import/parse-preview",
   requireAuth,
+  uploadLimiter,
   handleXlsxUpload,
   async (req: Request, res: Response) => {
     if (!req.file) {
@@ -170,6 +172,7 @@ router.post(
 router.post(
   "/import/execute",
   requireAuth,
+  uploadLimiter,
   (req: Request, res: Response, next) => {
     const type = req.body?.type;
     const cap =

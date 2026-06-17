@@ -22,6 +22,7 @@ import {
 import { requireAuth } from "../middleware/require-auth";
 import { seedDefaultAccounts } from "../lib/seed-accounts";
 import { seedDefaultTaxes } from "../lib/seed-taxes";
+import { authLimiter } from "../lib/rate-limit";
 
 const router = Router();
 
@@ -40,7 +41,7 @@ function toAuthUser(user: User, companyName: string, companyExtra?: { subscripti
   };
 }
 
-router.post("/auth/signup", async (req, res) => {
+router.post("/auth/signup", authLimiter, async (req, res) => {
   const parsed = SignupBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
@@ -109,7 +110,7 @@ router.post("/auth/signup", async (req, res) => {
   }
 });
 
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", authLimiter, async (req, res) => {
   const parsed = LoginBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
@@ -189,7 +190,7 @@ router.get("/auth/me", requireAuth, async (req, res) => {
 
 // ---- Password reset --------------------------------------------------------
 
-router.post("/auth/forgot-password", async (req, res) => {
+router.post("/auth/forgot-password", authLimiter, async (req, res) => {
   const { email } = req.body as { email?: string };
   if (!email || typeof email !== "string") {
     res.status(400).json({ error: "البريد الإلكتروني مطلوب" });
@@ -245,7 +246,7 @@ router.post("/auth/forgot-password", async (req, res) => {
   }
 });
 
-router.post("/auth/reset-password", async (req, res) => {
+router.post("/auth/reset-password", authLimiter, async (req, res) => {
   const { token, newPassword } = req.body as {
     token?: string;
     newPassword?: string;

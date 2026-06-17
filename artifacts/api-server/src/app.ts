@@ -8,6 +8,7 @@ import router from "./routes";
 import seoRouter from "./routes/seo";
 import { uploadsDir } from "./routes/uploads";
 import { logger } from "./lib/logger";
+import { apiLimiter } from "./lib/rate-limit";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -40,7 +41,7 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", router);
+app.use("/api", apiLimiter, router);
 app.use(seoRouter);
 
 app.use("/uploads", express.static(uploadsDir, { maxAge: "30d" }));
