@@ -170,10 +170,12 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     };
     for (const inv of invoices) {
       counts[inv.status as keyof typeof counts]++;
-      const fx = (inv as any).exchangeRate ?? 1;
-      counts.totalAmount += inv.total * fx;
-      counts.totalPaid += (inv.amountPaid ?? 0) * fx;
-      counts.totalBalance += inv.balance * fx;
+      if (inv.status !== "draft" && inv.status !== "cancelled") {
+        const fx = (inv as any).exchangeRate ?? 1;
+        counts.totalAmount += inv.total * fx;
+        counts.totalPaid += (inv.amountPaid ?? 0) * fx;
+        counts.totalBalance += inv.balance * fx;
+      }
     }
     return counts;
   }, [invoices]);
@@ -196,6 +198,14 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     new Intl.NumberFormat(lang, {
       style: "currency",
       currency: company?.baseCurrency ?? "EGP",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+
+  const fmtInv = (n: number, currency?: string | null) =>
+    new Intl.NumberFormat(lang, {
+      style: "currency",
+      currency: currency || company?.baseCurrency || "EGP",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(n);
@@ -258,11 +268,11 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     { key: "partyName", header: t(kind === "sales" ? "invoices.customer" : "invoices.supplier"), type: "readonly" },
     { key: "currency", header: t("invoices.currency"), type: "readonly", align: "center" },
     { key: "total", header: t("invoices.total"), type: "readonly", align: "end",
-      render: (v) => <span className="font-sans tabular-nums" dir="ltr">{fmt(Number(v ?? 0))}</span> },
+      render: (v, row) => <span className="font-sans tabular-nums" dir="ltr">{fmtInv(Number(v ?? 0), row.currency)}</span> },
     { key: "amountPaid", header: t("invoices.paid"), type: "readonly", align: "end",
-      render: (v) => <span className={`font-sans tabular-nums ${Number(v) > 0.005 ? "text-success" : "text-foreground/50"}`} dir="ltr">{fmt(Number(v ?? 0))}</span> },
+      render: (v, row) => <span className={`font-sans tabular-nums ${Number(v) > 0.005 ? "text-success" : "text-foreground/50"}`} dir="ltr">{fmtInv(Number(v ?? 0), row.currency)}</span> },
     { key: "balance", header: t("invoices.balance"), type: "readonly", align: "end",
-      render: (v) => <span className={`font-bold font-sans tabular-nums ${Number(v) > 0 ? "" : "text-success"}`} dir="ltr">{fmt(Number(v ?? 0))}</span> },
+      render: (v, row) => <span className={`font-bold font-sans tabular-nums ${Number(v) > 0 ? "" : "text-success"}`} dir="ltr">{fmtInv(Number(v ?? 0), row.currency)}</span> },
     { key: "status", header: t("invoices.status"), type: "readonly", align: "center",
       render: (_, row) => (
         <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full ${statusCls[row.status] ?? statusCls.draft}`}>
@@ -271,7 +281,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         </span>
       ) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [t, kind, fmt, canDelete, canUpdate, canCreate, canPay]);
+  ], [t, kind, fmt, fmtInv, canDelete, canUpdate, canCreate, canPay]);
 
   const retGridColumns = useMemo<GridColumn<InvoiceSummary>[]>(() => [
     { key: "invoiceNo", header: t("invoices.invoiceNo"), type: "readonly",
@@ -304,12 +314,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   ], [t, fmt]);
 
   const invalidateInvoices = () => {
-    queryClient.invalidateQueries({
-      queryKey: getListInvoicesQueryKey({ kind }),
-    });
-    queryClient.invalidateQueries({
-      queryKey: getListInvoicesQueryKey({ kind: returnKind }),
-    });
+    queryClient.refetchQueries({ queryKey: getListInvoicesQueryKey({ kind }) });
+    queryClient.refetchQueries({ queryKey: getListInvoicesQueryKey({ kind: returnKind }) });
   };
   const invalidatePayments = () =>
     queryClient.invalidateQueries({
@@ -1166,7 +1172,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           </td>
                           {/* Total */}
                           <td className="px-3 py-2.5 text-end font-sans tabular-nums text-foreground/80" dir="ltr">
-                            {fmt(inv.total)}
+                            {fmtInv(inv.total, inv.currency)}
                           </td>
                           {/* Paid */}
                           <td className="px-3 py-2.5 text-end font-sans tabular-nums" dir="ltr">
@@ -1179,11 +1185,11 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                 className="text-success font-bold hover:underline cursor-pointer"
                                 title={t("invoices.pay")}
                               >
-                                {fmt(inv.amountPaid ?? 0)}
+                                {fmtInv(inv.amountPaid ?? 0, inv.currency)}
                               </button>
                             ) : (
                               <span className={inv.amountPaid && inv.amountPaid > 0.005 ? "text-success" : "text-foreground/50"}>
-                                {fmt(inv.amountPaid ?? 0)}
+                                {fmtInv(inv.amountPaid ?? 0, inv.currency)}
                               </span>
                             )}
                           </td>
@@ -1194,7 +1200,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                             }`}
                             dir="ltr"
                           >
-                            {fmt(inv.balance)}
+                            {fmtInv(inv.balance, inv.currency)}
                           </td>
                           {/* Status */}
                           <td className="px-3 py-2.5 text-center">
@@ -1361,7 +1367,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                         </td>
                         {/* Total */}
                         <td className="px-3 py-2.5 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">
-                          {fmt(inv.total)}
+                          {fmtInv(inv.total, inv.currency)}
                         </td>
                         {/* Status */}
                         <td className="px-3 py-2.5 text-center">
@@ -1499,14 +1505,10 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           relatedSourceId={returnSourceId}
           postableAccounts={postable}
           onClose={() => { setEditorOpen(false); setEditId(null); }}
-          onSaved={(savedId) => {
+          onSaved={() => {
             invalidateInvoices();
-            if (savedId && !editId) {
-              setEditorOpen(false);
-              setViewId(savedId);
-            } else {
-              setEditorOpen(false);
-            }
+            setEditorOpen(false);
+            setEditId(null);
           }}
         />
       )}
