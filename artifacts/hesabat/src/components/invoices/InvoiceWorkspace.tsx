@@ -170,9 +170,10 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     };
     for (const inv of invoices) {
       counts[inv.status as keyof typeof counts]++;
-      counts.totalAmount += inv.total;
-      counts.totalPaid += inv.amountPaid ?? 0;
-      counts.totalBalance += inv.balance;
+      const fx = (inv as any).exchangeRate ?? 1;
+      counts.totalAmount += inv.total * fx;
+      counts.totalPaid += (inv.amountPaid ?? 0) * fx;
+      counts.totalBalance += inv.balance * fx;
     }
     return counts;
   }, [invoices]);
@@ -208,6 +209,48 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   };
 
   const invGridColumns = useMemo<GridColumn<InvoiceSummary>[]>(() => [
+    { key: "id", header: t("invoices.actions"), type: "readonly", align: "center",
+      render: (_, row) => (
+        <div className="flex items-center justify-center gap-1">
+          <button onClick={() => setViewId(row.id)}
+            className="w-7 h-7 rounded-md bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20"
+            title={t("invoices.view")}><Eye className="w-3.5 h-3.5" /></button>
+          <button onClick={() => printInvoice(row.id)}
+            className="w-7 h-7 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200"
+            title={t("invoices.print")}><Printer className="w-3.5 h-3.5" /></button>
+          {row.status === "draft" && canUpdate && (
+            <button onClick={() => openEdit(row.id)}
+              className="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100"
+              title={t("invoices.edit")}><Edit2 className="w-3.5 h-3.5" /></button>
+          )}
+          {row.status === "draft" && canUpdate && (
+            <button onClick={() => setToApprove(row)}
+              className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100"
+              title={t("invoices.approve")}><Check className="w-3.5 h-3.5" /></button>
+          )}
+          {row.status !== "draft" && row.status !== "cancelled" && canCreate && (
+            <button onClick={() => openCreateReturn(row.id)}
+              className="w-7 h-7 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center hover:bg-amber-100"
+              title={t(kind === "sales" ? "invoices.returns.newCreditNote" : "invoices.returns.newDebitNote")}>
+              <Undo2 className="w-3.5 h-3.5" /></button>
+          )}
+          {["approved", "partially_paid", "paid"].includes(row.status) && canUpdate && (
+            <button onClick={() => setToRevert(row)}
+              className="w-7 h-7 rounded-md bg-orange-50 text-orange-600 flex items-center justify-center hover:bg-orange-100"
+              title={t("invoices.revertToDraft", "تحويل لمسودة")}><RotateCcw className="w-3.5 h-3.5" /></button>
+          )}
+          {row.status === "draft" && canDelete && (
+            <button onClick={() => setToDelete(row)}
+              className="w-7 h-7 rounded-md bg-rose-50 text-rose-600 flex items-center justify-center hover:bg-rose-100"
+              title={t("invoices.delete")}><Trash2 className="w-3.5 h-3.5" /></button>
+          )}
+          {row.balance > 0.005 && row.status !== "draft" && row.status !== "cancelled" && canPay && (
+            <button onClick={() => { setPaymentInvoiceId(row.id); setPaymentOpen(true); }}
+              className="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-100"
+              title={t("invoices.pay")}><HandCoins className="w-3.5 h-3.5" /></button>
+          )}
+        </div>
+      ) },
     { key: "invoiceNo", header: t("invoices.invoiceNo"), type: "readonly",
       render: (v, row) => <span className="font-sans tabular-nums font-bold" dir="ltr">{row.code ?? `#${v}`}</span> },
     { key: "date", header: t("invoices.date"), type: "readonly" },
@@ -228,7 +271,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
         </span>
       ) },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [t, kind, fmt]);
+  ], [t, kind, fmt, canDelete, canUpdate, canCreate, canPay]);
 
   const retGridColumns = useMemo<GridColumn<InvoiceSummary>[]>(() => [
     { key: "invoiceNo", header: t("invoices.invoiceNo"), type: "readonly",
