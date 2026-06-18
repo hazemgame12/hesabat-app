@@ -78,6 +78,7 @@ export function InvoiceEditor({
   postableAccounts,
   onClose,
   onSaved,
+  onEdit,
 }: {
   kind: Kind;
   invoiceId: string | null;
@@ -86,7 +87,8 @@ export function InvoiceEditor({
   relatedSourceId?: string | null;
   postableAccounts: Account[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (savedId?: string) => void;
+  onEdit?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -450,9 +452,9 @@ export function InvoiceEditor({
       createInvoice.mutate(
         { data },
         {
-          onSuccess: () => {
+          onSuccess: (created) => {
             toast({ title: t("invoices.toast.created") });
-            onSaved();
+            onSaved((created as any)?.id);
           },
           onError: (e: any) =>
             toast({
@@ -986,6 +988,24 @@ export function InvoiceEditor({
               {saving && <Spinner className="w-4 h-4" />}
               {t("invoices.save")}
             </button>
+          </div>
+        )}
+        {readOnly && (
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-full text-sm font-bold text-muted-foreground hover:bg-muted"
+            >
+              {t("invoices.cancel")}
+            </button>
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2 rounded-full text-sm font-bold hover:opacity-90"
+              >
+                {t("invoices.edit")}
+              </button>
+            )}
           </div>
         )}
       </div>

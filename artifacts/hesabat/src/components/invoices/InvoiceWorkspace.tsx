@@ -13,6 +13,7 @@ import {
   useListSuppliers,
   useListCurrencies,
   useGetCurrentUser,
+  useGetCompany,
   getListInvoicesQueryKey,
   getListPaymentsQueryKey,
   getListJournalEntriesQueryKey,
@@ -182,6 +183,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const deletePayment = useDeletePayment();
 
   const { data: user } = useGetCurrentUser();
+  const { data: company } = useGetCompany();
   const role = user?.role ?? "";
   const canCreate = hasCapability(role, "invoices:create");
   const canUpdate = hasCapability(role, "invoices:update");
@@ -191,6 +193,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
 
   const fmt = (n: number) =>
     new Intl.NumberFormat(lang, {
+      style: "currency",
+      currency: company?.baseCurrency ?? "EGP",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(n);
@@ -1451,10 +1455,15 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           isReturn={editorReturn}
           relatedSourceId={returnSourceId}
           postableAccounts={postable}
-          onClose={() => setEditorOpen(false)}
-          onSaved={() => {
+          onClose={() => { setEditorOpen(false); setEditId(null); }}
+          onSaved={(savedId) => {
             invalidateInvoices();
-            setEditorOpen(false);
+            if (savedId && !editId) {
+              setEditorOpen(false);
+              setViewId(savedId);
+            } else {
+              setEditorOpen(false);
+            }
           }}
         />
       )}
@@ -1467,6 +1476,12 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           postableAccounts={postable}
           onClose={() => setViewId(null)}
           onSaved={() => setViewId(null)}
+          onEdit={() => {
+            const id = viewId;
+            setViewId(null);
+            setEditId(id);
+            setEditorOpen(true);
+          }}
         />
       )}
 

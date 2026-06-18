@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListInvoices,
@@ -8,6 +9,7 @@ import {
   useApproveInvoice,
   useRevertInvoice,
   useConvertInvoice,
+  useGetCompany,
   useListCustomers,
   useListSuppliers,
   useGetCurrentUser,
@@ -57,12 +59,14 @@ export function QuotationWorkspace({ kind }: Props) {
   const lang = i18n.language;
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const ns = kind === "quotation" ? "quotations" : "purchaseOrders";
   const partyKey = kind === "quotation" ? "customer" : "supplier";
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterParty, setFilterParty] = useState("");
@@ -78,6 +82,7 @@ export function QuotationWorkspace({ kind }: Props) {
   const { data: suppliers = [] } = useListSuppliers();
   const { data: accounts = [] } = useListAccounts();
   const { data: user } = useGetCurrentUser();
+  const { data: company } = useGetCompany();
   const postable = useMemo(() => (accounts as Account[]).filter((a) => !a.isGroup), [accounts]);
   const role = user?.role ?? "";
   const canCreate = hasCapability(role, "invoices:create");
@@ -127,7 +132,12 @@ export function QuotationWorkspace({ kind }: Props) {
   }, [rawDocs]);
 
   const fmt = (n: number) =>
-    new Intl.NumberFormat(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+    new Intl.NumberFormat(lang, {
+      style: "currency",
+      currency: company?.baseCurrency ?? "EGP",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey({ kind } as any) });
@@ -171,12 +181,14 @@ export function QuotationWorkspace({ kind }: Props) {
     convertInvoice.mutate(
       { id: toConvert.id },
       {
-        onSuccess: (data) => {
+        onSuccess: () => {
           invalidate();
+          const targetKind = kind === "quotation" ? "sales" : "purchase";
+          queryClient.invalidateQueries({ queryKey: getListInvoicesQueryKey({ kind: targetKind } as any) });
           toast({ title: t(`${ns}.toast.converted`) });
           setToConvert(null);
-          const targetPath = kind === "quotation" ? "invoices/sales" : "invoices/purchases";
-          window.location.href = `${base}${targetPath}`;
+          const targetPath = kind === "quotation" ? "/invoices/sales" : "/invoices/purchases";
+          navigate(targetPath);
         },
         onError: (err: any) => {
           toast({ variant: "destructive", title: t("common.error"), description: err?.data?.error ?? t(`${ns}.toast.error`) });
@@ -507,8 +519,33 @@ export function QuotationWorkspace({ kind }: Props) {
           isReturn={false}
           relatedSourceId={null}
           postableAccounts={postable}
-          onClose={() => setEditorOpen(false)}
-          onSaved={() => { invalidate(); setEditorOpen(false); }}
+          onClose={() => { setEditorOpen(false); setEditId(null); }}
+          onSaved={(savedId) => {
+            invalidate();
+            if (savedId && !editId) {
+              setEditorOpen(false);
+              setViewId(savedId);
+            } else {
+              setEditorOpen(false);
+            }
+          }}
+        />
+      )}
+
+      {viewId && (
+        <InvoiceEditor
+          kind={kind}
+          invoiceId={viewId}
+          readOnly
+          postableAccounts={postable}
+          onClose={() => setViewId(null)}
+          onSaved={() => setViewId(null)}
+          onEdit={() => {
+            const id = viewId;
+            setViewId(null);
+            setEditId(id);
+            setEditorOpen(true);
+          }}
         />
       )}
 
