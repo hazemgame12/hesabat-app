@@ -17,6 +17,8 @@ import {
   journalEntriesTable,
   paymentAllocationsTable,
   paymentsTable,
+  bankMovementsTable,
+  bankReconciliationsTable,
   type Invoice,
   type InvoiceLine,
 } from "@workspace/db";
@@ -721,6 +723,7 @@ router.get(
         exchangeRate: number;
         totalAllocated: number;
         unallocatedAmount: number;
+        bankMovementId: string | null;
       }[] = [];
 
       if (allPayments.length) {
@@ -757,6 +760,7 @@ router.get(
               exchangeRate: Number(p.exchangeRate),
               totalAllocated: round2(totalAllocated),
               unallocatedAmount,
+              bankMovementId: p.bankMovementId ?? null,
             });
           }
         }
@@ -943,9 +947,10 @@ router.delete(
         return;
       }
 
-      // Block if the payment period is locked.
+      // Block if the payment period is locked OR the linked bank movement is
+      // cleared inside a completed reconciliation.
       const [pmtRow] = await db
-        .select({ date: paymentsTable.date })
+        .select({ date: paymentsTable.date, bankMovementId: paymentsTable.bankMovementId })
         .from(paymentsTable)
         .where(
           and(
@@ -961,6 +966,33 @@ router.delete(
             .status(wb === "period_locked" ? 423 : 400)
             .json({ error: WRITE_BLOCK_MSG[wb] });
           return;
+        }
+        // Block if the linked bank movement has been cleared in a completed
+        // reconciliation — removing the allocation would desync the reconciled
+        // statement without reversing the JE.
+        if (pmtRow.bankMovementId) {
+          const [movement] = await db
+            .select({
+              reconciliationId: bankMovementsTable.reconciliationId,
+              isCleared: bankMovementsTable.isCleared,
+            })
+            .from(bankMovementsTable)
+            .where(eq(bankMovementsTable.id, pmtRow.bankMovementId))
+            .limit(1);
+          if (movement?.isCleared && movement.reconciliationId) {
+            const [recon] = await db
+              .select({ status: bankReconciliationsTable.status })
+              .from(bankReconciliationsTable)
+              .where(eq(bankReconciliationsTable.id, movement.reconciliationId))
+              .limit(1);
+            if (recon?.status === "completed") {
+              res.status(423).json({
+                error:
+                  "لا يمكن إزالة التخصيص: السند مرتبط بتسوية بنكية مكتملة",
+              });
+              return;
+            }
+          }
         }
       }
 

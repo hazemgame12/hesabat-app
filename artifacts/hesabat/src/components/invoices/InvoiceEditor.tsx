@@ -973,7 +973,8 @@ export function InvoiceEditor({
               </div>
             </div>
             {readOnly && invoiceId && detail &&
-              (detail.kind === "sales" || detail.kind === "purchase") && (
+              (detail.kind === "sales" || detail.kind === "purchase") &&
+              (detail.status === "approved" || detail.status === "partially_paid") && (
                 <InvoicePaymentAllocations
                   invoiceId={invoiceId}
                   invoiceKind={detail.kind as "sales" | "purchase"}
