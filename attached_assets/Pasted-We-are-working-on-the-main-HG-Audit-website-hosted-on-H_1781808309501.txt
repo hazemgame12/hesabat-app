@@ -1,0 +1,174 @@
+We are working on the main HG Audit website hosted on Hostinger: https://hg-audit.com
+
+Important note:
+We do NOT want to create a new API, new subdomain, or move the website UI. The objective is only to change the website database source from Neon PostgreSQL to a PostgreSQL database hosted on our VPS, while keeping the main Hostinger website exactly as it is.
+
+Current production status:
+
+* We reverted DATABASE_URL back to Neon.
+* After reverting to Neon, everything works again:
+
+  * Website works
+  * Dashboard /admin works
+  * Articles appear
+  * Case studies appear
+
+Current working Neon DATABASE_URL:
+postgresql://neondb_owner:npg_IwNHMpf9c0bZ@ep-silent-darkness-ab7afnt6.eu-west-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+VPS details:
+
+* VPS IP: 76.13.150.226
+* PostgreSQL database: hg_db
+* PostgreSQL user: hg_user
+* PostgreSQL password: HG@Secure2026
+* URL-encoded password used in DATABASE_URL: HG%40Secure2026
+
+VPS PostgreSQL DATABASE_URL values tested in Hostinger:
+
+1. postgresql://hg_user:HG%40Secure2026@76.13.150.226:5432/hg_db?sslmode=require
+2. postgresql://hg_user:HG%40Secure2026@76.13.150.226:5432/hg_db?sslmode=no-verify
+3. postgresql://hg_user:HG%40Secure2026@76.13.150.226:5432/hg_db?sslmode=disable
+
+Admin secret/password used during testing:
+ADMIN_SECRET=HGDashboard2027
+
+Problem:
+When we change only DATABASE_URL in Hostinger from Neon to the VPS PostgreSQL database, the website partially breaks:
+
+* /admin dashboard does not log in/open properly
+* Articles disappear
+* Case studies disappear
+* /api/articles returns 500 Server error
+* /api/case-studies returns 500 Server error
+
+When we change DATABASE_URL back to Neon and redeploy, everything works again.
+
+What we already did on the VPS:
+
+1. Created PostgreSQL database and user:
+   CREATE DATABASE hg_db;
+   CREATE USER hg_user WITH ENCRYPTED PASSWORD 'HG@Secure2026';
+   GRANT ALL PRIVILEGES ON DATABASE hg_db TO hg_user;
+
+2. Migrated data from Neon to VPS PostgreSQL.
+   The migration completed and the data exists on VPS.
+
+3. Verified tables and data counts.
+   Tables found:
+
+   * articles
+   * case_studies
+   * leads
+   * packages
+   * services
+   * site_settings
+   * social_credentials
+   * social_posts
+
+   Counts matched Neon:
+
+   * articles: 30
+   * case_studies: 4
+   * leads: 2
+   * packages: 3
+   * services: 8
+   * site_settings: 20
+   * social_credentials: 2
+   * social_posts: 3
+
+4. Verified schema:
+   articles table has columns:
+
+   * id
+   * slug
+   * category_ar
+   * category_en
+   * date
+   * read_time_ar
+   * read_time_en
+   * title_ar
+   * title_en
+   * excerpt_ar
+   * excerpt_en
+   * content_ar
+   * content_en
+   * image
+   * published
+   * created_at
+   * updated_at
+   * status
+   * scheduled_at
+
+   case_studies table has columns:
+
+   * id
+   * slug
+   * title_ar
+   * title_en
+   * client_name
+   * industry_ar
+   * industry_en
+   * summary_ar
+   * summary_en
+   * challenge_ar
+   * challenge_en
+   * solution_ar
+   * solution_en
+   * results_ar
+   * results_en
+   * image
+   * order
+   * published
+   * created_at
+   * updated_at
+
+5. PostgreSQL remote access settings on VPS:
+   postgresql.conf:
+   listen_addresses = '*'
+
+   pg_hba.conf includes:
+   hostssl hg_db hg_user 0.0.0.0/0 scram-sha-256
+   host hg_db hg_user 0.0.0.0/0 scram-sha-256
+
+   PostgreSQL restarted successfully.
+   Port 5432 was allowed in firewall.
+
+6. Tested PostgreSQL connection on VPS using public IP with sslmode=disable:
+   Command:
+   PGPASSWORD='HG@Secure2026' psql "postgresql://hg_user:HG%40Secure2026@76.13.150.226:5432/hg_db?sslmode=disable" -c "SELECT current_database(), current_user, count(*) FROM articles;"
+
+   Result:
+   hg_db | hg_user | 30
+
+7. PostgreSQL logs showed repeated messages like:
+   could not accept SSL connection: EOF detected
+
+8. We also temporarily created/used a test PM2 process on VPS named hg-api, but this was only for testing. It has now been stopped. The real production website is still the Hostinger Node.js app for hg-audit.com.
+
+Current conclusion:
+
+* The VPS database is created.
+* Data migration from Neon to VPS succeeded.
+* The data exists and counts match.
+* Direct PostgreSQL test from the VPS works.
+* The Hostinger website works perfectly with Neon.
+* The issue only happens when the Hostinger Node.js app uses the VPS PostgreSQL DATABASE_URL.
+* Trying sslmode=require, sslmode=no-verify, and sslmode=disable did not solve the issue.
+
+We need help identifying why the Hostinger Node.js app fails when connecting to the VPS PostgreSQL database, even though the same data and schema exist.
+
+Please check:
+
+1. Whether the app requires a specific PostgreSQL connection string format.
+2. Whether the Node PostgreSQL/Drizzle setup requires SSL config in code instead of sslmode in DATABASE_URL.
+3. Whether Hostinger Node.js apps can connect externally to PostgreSQL on port 5432.
+4. Whether the app expects Neon-specific connection behavior or pooled connection settings.
+5. Whether the code uses Neon serverless driver or Neon-specific adapter that will not work with normal VPS PostgreSQL.
+6. Whether we need to update db connection code to support standard PostgreSQL on VPS.
+7. Why /api/articles and /api/case-studies return 500 only when DATABASE_URL points to VPS.
+8. Whether there are any schema/search_path/permissions/default schema issues.
+9. Whether Hostinger runtime logs can show the actual database error instead of only returning “Server error”.
+
+Important requirement:
+We do not want a new API or subdomain. We only want the current Hostinger website hg-audit.com to read/write from the VPS PostgreSQL database instead of Neon.
