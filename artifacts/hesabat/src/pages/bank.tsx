@@ -21,6 +21,8 @@ import {
   useListAccounts,
   useListCostCenters,
   useGetCurrentUser,
+  useListCustomers,
+  useListSuppliers,
   getListBankAccountsQueryKey,
   getListBankMovementsQueryKey,
   getListBankReconciliationsQueryKey,
@@ -52,6 +54,8 @@ import {
   Clock,
   RotateCcw,
   Copy,
+  Link2,
+  Receipt,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -888,6 +892,7 @@ function MovementsTab({
   const deleteMovement = useDeleteBankMovement();
   const [modalOpen, setModalOpen] = useState(false);
   const [toClassify, setToClassify] = useState<BankMovement | null>(null);
+  const [toLinkPayment, setToLinkPayment] = useState<BankMovement | null>(null);
   const [toDelete, setToDelete] = useState<BankMovement | null>(null);
   const [inlineClassify, setInlineClassify] = useState<
     Record<string, { counterpartAccountId: string; costCenterId: string; description: string }>
@@ -1505,6 +1510,24 @@ function MovementsTab({
                                   >
                                     <Edit2 className="w-4 h-4" />
                                   </button>
+                                  {(m.type === "customer_collection" || m.type === "supplier_payment") && (
+                                    (m as BankMovement & { paymentId?: string | null }).paymentId ? (
+                                      <span
+                                        className="p-1.5 rounded-md text-success opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title={m.type === "customer_collection" ? "مرتبط بسند قبض" : "مرتبط بسند صرف"}
+                                      >
+                                        <Receipt className="w-4 h-4" />
+                                      </span>
+                                    ) : (
+                                      <button
+                                        onClick={() => setToLinkPayment(m)}
+                                        className="p-1.5 rounded-md hover:bg-success/10 text-success opacity-0 group-hover:opacity-100 transition-opacity"
+                                        title={m.type === "customer_collection" ? "ربط بسند قبض" : "ربط بسند صرف"}
+                                      >
+                                        <Link2 className="w-4 h-4" />
+                                      </button>
+                                    )
+                                  )}
                                 </>
                               )}
                             {canDelete && !m.isCleared && !m.reconciliationId && (
@@ -1565,6 +1588,18 @@ function MovementsTab({
           onSaved={() => {
             invalidate();
             setToClassify(null);
+          }}
+        />
+      )}
+
+      {toLinkPayment && (
+        <LinkPaymentModal
+          movement={toLinkPayment}
+          t={t}
+          onClose={() => setToLinkPayment(null)}
+          onSaved={() => {
+            invalidate();
+            setToLinkPayment(null);
           }}
         />
       )}
@@ -3267,6 +3302,385 @@ function ReconciliationDetail({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// LinkPaymentModal — create a payment voucher from an existing bank movement
+// ---------------------------------------------------------------------------
+type OpenInvoice = {
+  id: string;
+  invoiceNo: number;
+  code: string | null;
+  date: string;
+  dueDate: string | null;
+  total: number;
+  amountPaid: number;
+  balance: number;
+  currency: string | null;
+  status: string;
+};
+
+function LinkPaymentModal({
+  movement,
+  t,
+  onClose,
+  onSaved,
+}: {
+  movement: BankMovement;
+  t: (k: string, o?: any) => string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const isCollection = movement.type === "customer_collection";
+
+  const [selectedPartyId, setSelectedPartyId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [allocations, setAllocations] = useState<
+    { invoiceId: string; allocatedAmount: string }[]
+  >([]);
+  const [openInvoices, setOpenInvoices] = useState<OpenInvoice[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const { data: customers = [] } = useListCustomers();
+  const { data: suppliers = [] } = useListSuppliers();
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const fmt = (n: number) =>
+    n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const loadInvoices = async (partyId: string) => {
+    setLoadingInvoices(true);
+    setOpenInvoices([]);
+    try {
+      const param = isCollection
+        ? `customerId=${partyId}`
+        : `supplierId=${partyId}`;
+      const res = await fetch(
+        `/api/bank/movements/${movement.id}/link-options?${param}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) throw new Error("fetch failed");
+      const data = await res.json();
+      setOpenInvoices(data.openInvoices ?? []);
+    } catch {
+      setOpenInvoices([]);
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
+  const handlePartyChange = (partyId: string) => {
+    setSelectedPartyId(partyId);
+    setAllocations([]);
+    if (partyId) loadInvoices(partyId);
+    else setOpenInvoices([]);
+  };
+
+  const toggleInvoice = (inv: OpenInvoice) => {
+    setAllocations((prev) => {
+      if (prev.find((a) => a.invoiceId === inv.id))
+        return prev.filter((a) => a.invoiceId !== inv.id);
+      return [...prev, { invoiceId: inv.id, allocatedAmount: String(r2(inv.balance)) }];
+    });
+  };
+
+  const setAllocAmount = (invoiceId: string, value: string) => {
+    setAllocations((prev) =>
+      prev.map((a) => (a.invoiceId === invoiceId ? { ...a, allocatedAmount: value } : a)),
+    );
+  };
+
+  const totalAllocated = r2(
+    allocations.reduce((s, a) => s + (Number(a.allocatedAmount) || 0), 0),
+  );
+  const overAllocated = totalAllocated > movement.amount + 0.005;
+
+  const submit = async () => {
+    if (!selectedPartyId) {
+      toast({
+        variant: "destructive",
+        title: t("bank.toast.error"),
+        description: isCollection ? "يجب تحديد العميل" : "يجب تحديد المورد",
+      });
+      return;
+    }
+    const body: Record<string, unknown> = {
+      notes: notes.trim() || undefined,
+      allocations: allocations.map((a) => ({
+        invoiceId: a.invoiceId,
+        allocatedAmount: Number(a.allocatedAmount),
+      })),
+    };
+    if (isCollection) body.customerId = selectedPartyId;
+    else body.supplierId = selectedPartyId;
+
+    setSaving(true);
+    try {
+      const res = await fetch(
+        `/api/bank/movements/${movement.id}/link-payment`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast({
+          variant: "destructive",
+          title: t("bank.toast.error"),
+          description: (err as any)?.error ?? "حدث خطأ",
+        });
+        return;
+      }
+      toast({
+        title: isCollection ? "تم إنشاء سند القبض" : "تم إنشاء سند الصرف",
+      });
+      onSaved();
+    } catch {
+      toast({
+        variant: "destructive",
+        title: t("bank.toast.error"),
+        description: "حدث خطأ في الاتصال",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputCls =
+    "w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30";
+  const labelCls = "text-xs font-bold text-muted-foreground mb-1 block";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-card z-10">
+          <div className="flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-success" />
+            <h2 className="font-bold text-foreground">
+              {isCollection ? "ربط بسند قبض" : "ربط بسند صرف"}
+            </h2>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Movement summary */}
+          <div className="rounded-xl bg-muted/40 border p-3 text-sm flex flex-wrap gap-x-6 gap-y-1">
+            <span className="text-muted-foreground">
+              {t("bank.movement.date")}:{" "}
+              <span className="text-foreground font-bold" dir="ltr">
+                {movement.date}
+              </span>
+            </span>
+            <span className="text-muted-foreground">
+              {t("bank.movement.amount")}:{" "}
+              <span className="text-foreground font-bold tabular-nums" dir="ltr">
+                {fmt(movement.amount)} {movement.currency}
+              </span>
+            </span>
+            {movement.description && (
+              <span className="text-muted-foreground">{movement.description}</span>
+            )}
+          </div>
+
+          {/* Party picker */}
+          <div>
+            <label className={labelCls}>
+              {isCollection ? t("invoices.customer") : t("invoices.supplier")}
+            </label>
+            <select
+              className={inputCls}
+              value={selectedPartyId}
+              onChange={(e) => handlePartyChange(e.target.value)}
+            >
+              <option value="">
+                {isCollection ? "— اختر العميل —" : "— اختر المورد —"}
+              </option>
+              {isCollection
+                ? (customers as any[]).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nameAr}
+                    </option>
+                  ))
+                : (suppliers as any[]).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nameAr}
+                    </option>
+                  ))}
+            </select>
+          </div>
+
+          {/* Open invoices list */}
+          {selectedPartyId && (
+            <div>
+              <label className={labelCls}>
+                {isCollection
+                  ? "الفواتير غير المسددة"
+                  : "فواتير المشتريات غير المسددة"}
+                {loadingInvoices && (
+                  <span className="ms-2 text-primary text-xs">جاري التحميل...</span>
+                )}
+              </label>
+              {!loadingInvoices && openInvoices.length === 0 && (
+                <p className="text-sm text-muted-foreground py-2 text-center border rounded-xl">
+                  لا توجد فواتير مفتوحة لهذا{" "}
+                  {isCollection ? "العميل" : "المورد"}
+                </p>
+              )}
+              {openInvoices.length > 0 && (
+                <div className="rounded-xl border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50 text-muted-foreground">
+                      <tr>
+                        <th className="p-2 text-start w-8"></th>
+                        <th className="p-2 text-start">{t("common.date")}</th>
+                        <th className="p-2 text-start">رقم الفاتورة</th>
+                        <th className="p-2 text-end">الإجمالي</th>
+                        <th className="p-2 text-end">الرصيد</th>
+                        <th className="p-2 text-end">المبلغ المخصص</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {openInvoices.map((inv) => {
+                        const alloc = allocations.find(
+                          (a) => a.invoiceId === inv.id,
+                        );
+                        return (
+                          <tr
+                            key={inv.id}
+                            className={`cursor-pointer ${alloc ? "bg-success/5" : "hover:bg-muted/30"}`}
+                            onClick={() => toggleInvoice(inv)}
+                          >
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={!!alloc}
+                                onChange={() => toggleInvoice(inv)}
+                                className="cursor-pointer"
+                              />
+                            </td>
+                            <td className="p-2 tabular-nums" dir="ltr">
+                              {inv.date}
+                            </td>
+                            <td className="p-2 font-mono text-xs">
+                              {inv.code ?? `#${inv.invoiceNo}`}
+                            </td>
+                            <td className="p-2 text-end tabular-nums" dir="ltr">
+                              {fmt(inv.total)}{" "}
+                              <span className="text-muted-foreground text-xs">
+                                {inv.currency}
+                              </span>
+                            </td>
+                            <td className="p-2 text-end tabular-nums font-bold" dir="ltr">
+                              {fmt(inv.balance)}{" "}
+                              <span className="text-muted-foreground font-normal text-xs">
+                                {inv.currency}
+                              </span>
+                            </td>
+                            <td
+                              className="p-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {alloc ? (
+                                <input
+                                  type="number"
+                                  min="0.01"
+                                  step="0.01"
+                                  max={inv.balance}
+                                  className="w-28 px-2 py-1 rounded-md border bg-background text-sm text-end tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                  value={alloc.allocatedAmount}
+                                  onChange={(e) =>
+                                    setAllocAmount(inv.id, e.target.value)
+                                  }
+                                  dir="ltr"
+                                />
+                              ) : (
+                                <span className="text-muted-foreground text-end block">
+                                  —
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Allocation summary bar */}
+          {allocations.length > 0 && (
+            <div
+              className={`rounded-xl p-3 text-sm flex justify-between items-center border ${
+                overAllocated
+                  ? "bg-destructive/10 border-destructive/30"
+                  : "bg-muted/40"
+              }`}
+            >
+              <span className="font-bold text-muted-foreground">
+                إجمالي المخصص
+              </span>
+              <span
+                className={`tabular-nums font-bold ${overAllocated ? "text-destructive" : "text-foreground"}`}
+                dir="ltr"
+              >
+                {fmt(totalAllocated)} / {fmt(movement.amount)} {movement.currency}
+                {overAllocated && (
+                  <span className="text-xs font-normal ms-2">
+                    (يتجاوز مبلغ الحركة)
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+
+          {/* Notes */}
+          <div>
+            <label className={labelCls}>{t("bank.movement.notes")}</label>
+            <input
+              type="text"
+              className={inputCls}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={t("common.optional")}
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-1">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg border text-sm font-bold hover:bg-muted transition-colors"
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              onClick={submit}
+              disabled={saving || !selectedPartyId || overAllocated}
+              className="flex items-center gap-2 px-5 py-2 rounded-lg bg-success text-success-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              <Receipt className="w-4 h-4" />
+              {saving
+                ? t("common.saving")
+                : isCollection
+                  ? "إنشاء سند القبض"
+                  : "إنشاء سند الصرف"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

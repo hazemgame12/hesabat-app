@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
-import { and, eq, inArray, desc, sql, gte, lte, isNotNull, count } from "drizzle-orm";
+import { and, eq, inArray, desc, sql, gte, lte, isNotNull, isNull, count, gt } from "drizzle-orm";
 import { parsePagination, paginatedResponse } from "../lib/pagination";
 import multer from "multer";
 import ExcelJS from "exceljs";
@@ -15,6 +15,11 @@ import {
   companiesTable,
   costCentersTable,
   journalEntriesTable,
+  customersTable,
+  suppliersTable,
+  paymentsTable,
+  paymentAllocationsTable,
+  invoicesTable,
   type BankAccount,
   type BankMovement,
   type BankReconciliation,
@@ -36,6 +41,7 @@ import {
   lockCompanyEntryNo,
 } from "../lib/journal-posting";
 import { round2 } from "../lib/inventory-posting";
+import { ensureFxAccounts } from "../lib/seed-accounts";
 import {
   MOVEMENT_DIRECTION,
   buildMovementLines,
@@ -50,6 +56,29 @@ import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 const router = Router();
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+const LINK_MONEY_EPS = 0.005;
+
+function linkInvoiceStatusFor(total: number, amountPaid: number): string {
+  if (amountPaid >= total - LINK_MONEY_EPS) return "paid";
+  if (amountPaid > LINK_MONEY_EPS) return "partially_paid";
+  return "approved";
+}
+
+async function nextPaymentNoInTx(
+  tx: Tx,
+  companyId: string,
+  kind: string,
+): Promise<number> {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${companyId + ":pay:" + kind}))`,
+  );
+  const [{ maxNo }] = await tx
+    .select({ maxNo: sql<number>`coalesce(max(${paymentsTable.paymentNo}), 0)` })
+    .from(paymentsTable)
+    .where(and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.kind, kind)));
+  return Number(maxNo) + 1;
+}
+
 const MONEY_EPS = 0.005;
 
 async function loadBaseCurrency(companyId: string): Promise<string> {
@@ -304,6 +333,26 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
       );
     for (const c of ccs) costCenterMap.set(c.id, c.name);
   }
+  // Look up linked payment IDs (movement → payment)
+  const paymentMap = new Map<string, string>();
+  {
+    const linked = await db
+      .select({ id: paymentsTable.id, bankMovementId: paymentsTable.bankMovementId })
+      .from(paymentsTable)
+      .where(
+        and(
+          eq(paymentsTable.companyId, companyId),
+          isNotNull(paymentsTable.bankMovementId),
+          sql`${paymentsTable.bankMovementId} = ANY(ARRAY[${sql.join(
+            rows.map((r) => sql`${r.id}::uuid`),
+            sql`, `,
+          )}])`,
+        ),
+      );
+    for (const p of linked) {
+      if (p.bankMovementId) paymentMap.set(p.bankMovementId, p.id);
+    }
+  }
   return rows.map((r) => ({
     id: r.id,
     bankAccountId: r.bankAccountId,
@@ -337,6 +386,7 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
     reconciliationId: r.reconciliationId,
     isCleared: r.isCleared,
     isAdjustment: r.isAdjustment,
+    paymentId: paymentMap.get(r.id) ?? null,
     createdAt: r.createdAt.toISOString(),
   }));
 }
@@ -2943,6 +2993,625 @@ router.post(
       res.json(detail);
     } catch (err) {
       req.log.error({ err }, "Failed to complete reconciliation");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// GET /bank/movements/:id/link-options
+// Returns movement details + partyType + open invoices (if partyId provided).
+// Used by the LinkPaymentModal to populate customer/supplier invoice lists.
+// ---------------------------------------------------------------------------
+router.get(
+  "/bank/movements/:id/link-options",
+  requireAuth,
+  requireCapability("payments:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const movementId = req.params.id as string;
+
+    const [movement] = await db
+      .select()
+      .from(bankMovementsTable)
+      .where(
+        and(
+          eq(bankMovementsTable.id, movementId),
+          eq(bankMovementsTable.companyId, companyId),
+        ),
+      )
+      .limit(1);
+
+    if (!movement) {
+      res.status(404).json({ error: "الحركة غير موجودة" });
+      return;
+    }
+    if (
+      movement.type !== "customer_collection" &&
+      movement.type !== "supplier_payment"
+    ) {
+      res.status(400).json({ error: "هذه الحركة لا يمكن ربطها بفاتورة" });
+      return;
+    }
+
+    const partyType =
+      movement.type === "customer_collection" ? "customer" : "supplier";
+
+    // Check if already linked
+    const [existingPayment] = await db
+      .select({ id: paymentsTable.id, paymentNo: paymentsTable.paymentNo })
+      .from(paymentsTable)
+      .where(
+        and(
+          eq(paymentsTable.companyId, companyId),
+          eq(paymentsTable.bankMovementId, movementId),
+        ),
+      )
+      .limit(1);
+
+    // Fetch open invoices when a party is selected
+    const customerId = req.query["customerId"] as string | undefined;
+    const supplierId = req.query["supplierId"] as string | undefined;
+    let openInvoices: {
+      id: string;
+      invoiceNo: number;
+      code: string | null;
+      date: string;
+      dueDate: string | null;
+      total: number;
+      amountPaid: number;
+      balance: number;
+      currency: string | null;
+      status: string;
+    }[] = [];
+
+    if (partyType === "customer" && customerId) {
+      const [cust] = await db
+        .select({ id: customersTable.id })
+        .from(customersTable)
+        .where(
+          and(
+            eq(customersTable.id, customerId),
+            eq(customersTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (cust) {
+        const rows = await db
+          .select({
+            id: invoicesTable.id,
+            invoiceNo: invoicesTable.invoiceNo,
+            code: invoicesTable.code,
+            date: invoicesTable.date,
+            dueDate: invoicesTable.dueDate,
+            total: invoicesTable.total,
+            amountPaid: invoicesTable.amountPaid,
+            currency: invoicesTable.currency,
+            status: invoicesTable.status,
+          })
+          .from(invoicesTable)
+          .where(
+            and(
+              eq(invoicesTable.companyId, companyId),
+              eq(invoicesTable.customerId, customerId),
+              eq(invoicesTable.kind, "sales"),
+              sql`${invoicesTable.status} IN ('approved', 'partially_paid')`,
+            ),
+          )
+          .orderBy(invoicesTable.date);
+        openInvoices = rows.map((r) => ({
+          id: r.id,
+          invoiceNo: r.invoiceNo,
+          code: r.code ?? null,
+          date: r.date,
+          dueDate: r.dueDate ?? null,
+          total: Number(r.total),
+          amountPaid: Number(r.amountPaid),
+          balance: round2(Number(r.total) - Number(r.amountPaid)),
+          currency: r.currency ?? null,
+          status: r.status,
+        }));
+      }
+    } else if (partyType === "supplier" && supplierId) {
+      const [supp] = await db
+        .select({ id: suppliersTable.id })
+        .from(suppliersTable)
+        .where(
+          and(
+            eq(suppliersTable.id, supplierId),
+            eq(suppliersTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (supp) {
+        const rows = await db
+          .select({
+            id: invoicesTable.id,
+            invoiceNo: invoicesTable.invoiceNo,
+            code: invoicesTable.code,
+            date: invoicesTable.date,
+            dueDate: invoicesTable.dueDate,
+            total: invoicesTable.total,
+            amountPaid: invoicesTable.amountPaid,
+            currency: invoicesTable.currency,
+            status: invoicesTable.status,
+          })
+          .from(invoicesTable)
+          .where(
+            and(
+              eq(invoicesTable.companyId, companyId),
+              eq(invoicesTable.supplierId, supplierId),
+              eq(invoicesTable.kind, "purchase"),
+              sql`${invoicesTable.status} IN ('approved', 'partially_paid')`,
+            ),
+          )
+          .orderBy(invoicesTable.date);
+        openInvoices = rows.map((r) => ({
+          id: r.id,
+          invoiceNo: r.invoiceNo,
+          code: r.code ?? null,
+          date: r.date,
+          dueDate: r.dueDate ?? null,
+          total: Number(r.total),
+          amountPaid: Number(r.amountPaid),
+          balance: round2(Number(r.total) - Number(r.amountPaid)),
+          currency: r.currency ?? null,
+          status: r.status,
+        }));
+      }
+    }
+
+    res.json({
+      movement: {
+        id: movement.id,
+        type: movement.type,
+        direction: movement.direction,
+        date: movement.date,
+        amount: Number(movement.amount),
+        currency: movement.currency,
+        exchangeRate: Number(movement.exchangeRate),
+        description: movement.description,
+        notes: movement.notes,
+        status: movement.journalEntryId ? "posted" : "pending",
+      },
+      partyType,
+      linkedPaymentId: existingPayment?.id ?? null,
+      linkedPaymentNo: existingPayment?.paymentNo ?? null,
+      openInvoices,
+    });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// POST /bank/movements/:id/link-payment
+// Creates a receipt/payment voucher linked to an existing bank movement.
+// The movement's JE is replaced by the new payment JE.
+// Lock order: invoice rows (sorted) → lockCompanyEntryNo.
+// ---------------------------------------------------------------------------
+const LinkPaymentBody = z.object({
+  customerId: z.string().uuid().optional(),
+  supplierId: z.string().uuid().optional(),
+  notes: z.string().max(2000).optional(),
+  allocations: z
+    .array(
+      z.object({
+        invoiceId: z.string().uuid(),
+        allocatedAmount: z.number().positive(),
+        allocatedCurrency: z.string().optional(),
+        baseCurrencyAmount: z.number().min(0).optional(),
+        exchangeRate: z.number().positive().optional(),
+      }),
+    )
+    .default([]),
+});
+
+router.post(
+  "/bank/movements/:id/link-payment",
+  requireAuth,
+  requireCapability("payments:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const movementId = req.params.id as string;
+
+    const parsed = LinkPaymentBody.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" });
+      return;
+    }
+    const d = parsed.data;
+
+    try {
+      // Pre-load movement (outside tx for early rejection)
+      const [movement] = await db
+        .select()
+        .from(bankMovementsTable)
+        .where(
+          and(
+            eq(bankMovementsTable.id, movementId),
+            eq(bankMovementsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+
+      if (!movement) {
+        res.status(404).json({ error: "الحركة غير موجودة" });
+        return;
+      }
+      if (
+        movement.type !== "customer_collection" &&
+        movement.type !== "supplier_payment"
+      ) {
+        res.status(400).json({ error: "نوع الحركة لا يدعم ربط سند قبض/صرف" });
+        return;
+      }
+      if (await isWriteBlocked(db, companyId, movement.date)) {
+        res.status(400).json({ error: WRITE_BLOCK_MSG });
+        return;
+      }
+      if (movement.reconciliationId) {
+        res
+          .status(400)
+          .json({ error: "الحركة ضمن تسوية مكتملة ولا يمكن تعديلها" });
+        return;
+      }
+
+      // Reject if already linked
+      const [existing] = await db
+        .select({ id: paymentsTable.id })
+        .from(paymentsTable)
+        .where(
+          and(
+            eq(paymentsTable.companyId, companyId),
+            eq(paymentsTable.bankMovementId, movementId),
+          ),
+        )
+        .limit(1);
+      if (existing) {
+        res
+          .status(409)
+          .json({ error: "هذه الحركة مرتبطة بسند قبض/صرف بالفعل" });
+        return;
+      }
+
+      const kind: "collection" | "payment" =
+        movement.type === "customer_collection" ? "collection" : "payment";
+
+      // Validate party
+      let partyId: string;
+      let partyName: string;
+      let partyAccountId: string;
+
+      if (kind === "collection") {
+        if (!d.customerId) {
+          res.status(400).json({ error: "يجب تحديد العميل" });
+          return;
+        }
+        const [cust] = await db
+          .select({
+            id: customersTable.id,
+            nameAr: customersTable.nameAr,
+            accountId: customersTable.accountId,
+          })
+          .from(customersTable)
+          .where(
+            and(
+              eq(customersTable.id, d.customerId),
+              eq(customersTable.companyId, companyId),
+            ),
+          )
+          .limit(1);
+        if (!cust) {
+          res.status(404).json({ error: "العميل غير موجود" });
+          return;
+        }
+        partyId = cust.id;
+        partyName = cust.nameAr;
+        partyAccountId = cust.accountId;
+      } else {
+        if (!d.supplierId) {
+          res.status(400).json({ error: "يجب تحديد المورد" });
+          return;
+        }
+        const [supp] = await db
+          .select({
+            id: suppliersTable.id,
+            nameAr: suppliersTable.nameAr,
+            accountId: suppliersTable.accountId,
+          })
+          .from(suppliersTable)
+          .where(
+            and(
+              eq(suppliersTable.id, d.supplierId),
+              eq(suppliersTable.companyId, companyId),
+            ),
+          )
+          .limit(1);
+        if (!supp) {
+          res.status(404).json({ error: "المورد غير موجود" });
+          return;
+        }
+        partyId = supp.id;
+        partyName = supp.nameAr;
+        partyAccountId = supp.accountId;
+      }
+
+      // Get the bank account's chart of accounts entry
+      const [bankAcct] = await db
+        .select({ accountId: bankAccountsTable.accountId })
+        .from(bankAccountsTable)
+        .where(
+          and(
+            eq(bankAccountsTable.id, movement.bankAccountId),
+            eq(bankAccountsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!bankAcct) {
+        res.status(404).json({ error: "لم يُعثر على الحساب البنكي" });
+        return;
+      }
+      const cashAccountId = bankAcct.accountId;
+
+      const [company] = await db
+        .select({ baseCurrency: companiesTable.baseCurrency })
+        .from(companiesTable)
+        .where(eq(companiesTable.id, companyId))
+        .limit(1);
+      const baseCurrency = (company?.baseCurrency ?? "EGP").toUpperCase();
+
+      const movementAmount = Number(movement.amount);
+      const rate = Number(movement.exchangeRate) || 1;
+      const amountBase = round2(movementAmount * rate);
+      const allocs = d.allocations;
+
+      const created = await db.transaction(async (tx) => {
+        // Lock movement row (prevents concurrent link attempts)
+        const [locked] = await tx
+          .select({
+            journalEntryId: bankMovementsTable.journalEntryId,
+            isCleared: bankMovementsTable.isCleared,
+          })
+          .from(bankMovementsTable)
+          .where(
+            and(
+              eq(bankMovementsTable.id, movementId),
+              eq(bankMovementsTable.companyId, companyId),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!locked) throw new Error("MOVEMENT_NOT_FOUND");
+        if (locked.isCleared) throw new Error("MOVEMENT_CLEARED");
+
+        // If movement was already classified (has a JE), delete it so the
+        // payment JE becomes the single authoritative entry for this transaction.
+        if (locked.journalEntryId) {
+          await tx
+            .update(bankMovementsTable)
+            .set({ journalEntryId: null })
+            .where(eq(bankMovementsTable.id, movementId));
+          await tx
+            .delete(journalEntriesTable)
+            .where(
+              and(
+                eq(journalEntriesTable.id, locked.journalEntryId),
+                eq(journalEntriesTable.companyId, companyId),
+              ),
+            );
+        }
+
+        // Lock invoice rows in sorted order before entryNo lock (lock-order contract)
+        let allocatedBaseAtInvoiceRate = 0;
+        let allocatedForeign = 0;
+        const sortedAllocs = [...allocs].sort((a, b) =>
+          a.invoiceId.localeCompare(b.invoiceId),
+        );
+
+        for (const alloc of sortedAllocs) {
+          const [inv] = await tx
+            .select({
+              total: invoicesTable.total,
+              amountPaid: invoicesTable.amountPaid,
+              status: invoicesTable.status,
+              exchangeRate: invoicesTable.exchangeRate,
+            })
+            .from(invoicesTable)
+            .where(
+              and(
+                eq(invoicesTable.id, alloc.invoiceId),
+                eq(invoicesTable.companyId, companyId),
+              ),
+            )
+            .for("update")
+            .limit(1);
+          if (!inv) throw new Error("INVOICE_NOT_FOUND");
+          if (inv.status === "draft" || inv.status === "cancelled")
+            throw new Error("INVOICE_NOT_APPROVED");
+          const total = Number(inv.total);
+          const balance = round2(total - Number(inv.amountPaid));
+          if (alloc.allocatedAmount > balance + LINK_MONEY_EPS)
+            throw new Error("OVER_ALLOCATION");
+          const newPaid = round2(Number(inv.amountPaid) + alloc.allocatedAmount);
+          await tx
+            .update(invoicesTable)
+            .set({
+              amountPaid: String(newPaid),
+              status: linkInvoiceStatusFor(total, newPaid),
+            })
+            .where(
+              and(
+                eq(invoicesTable.id, alloc.invoiceId),
+                eq(invoicesTable.companyId, companyId),
+              ),
+            );
+          allocatedBaseAtInvoiceRate = round2(
+            allocatedBaseAtInvoiceRate +
+              alloc.allocatedAmount * Number(inv.exchangeRate),
+          );
+          allocatedForeign = round2(allocatedForeign + alloc.allocatedAmount);
+        }
+
+        // Allocate entryNo AFTER invoice locks (lock-order contract)
+        await lockCompanyEntryNo(tx, companyId);
+        const paymentNo = await nextPaymentNoInTx(tx, companyId, kind);
+
+        // FX gain/loss
+        const unallocatedForeign = round2(movementAmount - allocatedForeign);
+        const partyBase = round2(
+          allocatedBaseAtInvoiceRate + unallocatedForeign * rate,
+        );
+        const fxGain =
+          kind === "collection"
+            ? round2(amountBase - partyBase)
+            : round2(partyBase - amountBase);
+
+        const cashLine = {
+          accountId: cashAccountId,
+          description:
+            kind === "collection"
+              ? `تحصيل من ${partyName}`
+              : `دفعة إلى ${partyName}`,
+          debit: kind === "collection" ? amountBase : 0,
+          credit: kind === "collection" ? 0 : amountBase,
+        };
+        const partyLine = {
+          accountId: partyAccountId,
+          description:
+            kind === "collection"
+              ? `تحصيل من ${partyName}`
+              : `دفعة إلى ${partyName}`,
+          debit: kind === "collection" ? 0 : partyBase,
+          credit: kind === "collection" ? partyBase : 0,
+        };
+        const lines = [cashLine, partyLine];
+
+        if (Math.abs(fxGain) > LINK_MONEY_EPS) {
+          const { gainAccountId, lossAccountId } = await ensureFxAccounts(
+            tx,
+            companyId,
+          );
+          if (fxGain > 0) {
+            lines.push({
+              accountId: gainAccountId,
+              description: "أرباح فروق العملة",
+              debit: 0,
+              credit: fxGain,
+            });
+          } else {
+            lines.push({
+              accountId: lossAccountId,
+              description: "خسائر فروق العملة",
+              debit: -fxGain,
+              credit: 0,
+            });
+          }
+        }
+
+        const entry = await createDraftJournalEntry(tx, {
+          companyId,
+          baseCurrency,
+          date: movement.date,
+          reference: `${kind === "collection" ? "سند قبض" : "سند صرف"} #${paymentNo}`,
+          notes: d.notes ?? null,
+          createdBy: req.auth!.userId,
+          status: "posted",
+          lines,
+        });
+
+        const [payment] = await tx
+          .insert(paymentsTable)
+          .values({
+            companyId,
+            kind,
+            paymentNo,
+            date: movement.date,
+            customerId: kind === "collection" ? partyId : null,
+            supplierId: kind === "payment" ? partyId : null,
+            method: "bank",
+            cashAccountId,
+            amount: String(movementAmount),
+            currency: movement.currency,
+            exchangeRate: String(rate),
+            notes: d.notes ?? null,
+            bankMovementId: movementId,
+            journalEntryId: entry.id,
+            createdBy: req.auth!.userId,
+          })
+          .returning();
+
+        if (sortedAllocs.length) {
+          await tx.insert(paymentAllocationsTable).values(
+            sortedAllocs.map((a) => ({
+              paymentId: payment!.id,
+              companyId,
+              invoiceId: a.invoiceId,
+              amount: String(round2(a.allocatedAmount)),
+              allocatedCurrency:
+                a.allocatedCurrency ?? movement.currency ?? null,
+              baseCurrencyAmount: String(
+                round2(a.baseCurrencyAmount ?? a.allocatedAmount * rate),
+              ),
+              exchangeRate: String(a.exchangeRate ?? rate),
+            })),
+          );
+        }
+
+        // Update bank movement: attach the payment JE + set party as counterpart
+        await tx
+          .update(bankMovementsTable)
+          .set({
+            journalEntryId: entry.id,
+            counterpartAccountId: partyAccountId,
+          })
+          .where(eq(bankMovementsTable.id, movementId));
+
+        return payment!;
+      });
+
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "create",
+          entity: kind === "collection" ? "receipt_voucher" : "payment_voucher",
+          entityId: created.id,
+          entityLabel: `${kind === "collection" ? "سند قبض" : "سند صرف"} #${created.paymentNo} (مرتبط بحركة بنكية)`,
+          newValue: {
+            paymentNo: created.paymentNo,
+            date: created.date,
+            amount: created.amount,
+            bankMovementId: movementId,
+          },
+        },
+        req.log,
+      );
+
+      res.status(201).json({
+        id: created.id,
+        paymentNo: created.paymentNo,
+        kind: created.kind,
+        amount: Number(created.amount),
+        currency: created.currency,
+        date: created.date,
+        bankMovementId: created.bankMovementId,
+      });
+    } catch (err: any) {
+      if (err?.message === "INVOICE_NOT_FOUND")
+        return void res.status(400).json({ error: "فاتورة غير موجودة" });
+      if (err?.message === "INVOICE_NOT_APPROVED")
+        return void res.status(400).json({ error: "الفاتورة غير معتمدة" });
+      if (err?.message === "OVER_ALLOCATION")
+        return void res
+          .status(400)
+          .json({ error: "المبلغ المخصص يتجاوز رصيد الفاتورة" });
+      if (err?.message === "MOVEMENT_CLEARED")
+        return void res
+          .status(400)
+          .json({ error: "الحركة تم تسويتها ولا يمكن تعديلها" });
+      req.log.error({ err }, "link-payment failed");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

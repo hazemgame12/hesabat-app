@@ -23,6 +23,7 @@ import { customersTable, suppliersTable } from "./customers-suppliers";
 import { inventoryItemsTable } from "./inventory";
 import { fixedAssetsTable } from "./fixed-assets";
 import { journalEntriesTable } from "./journal-entries";
+import { bankMovementsTable } from "./bank";
 
 // A sales (customer) or purchase (supplier) invoice. A single table with a
 // `kind` discriminator backs both flows because they share the same line model
@@ -232,6 +233,10 @@ export const paymentsTable = pgTable(
       .notNull()
       .default("1"),
     notes: text("notes"),
+    bankMovementId: uuid("bank_movement_id").references(
+      () => bankMovementsTable.id,
+      { onDelete: "set null" },
+    ),
     journalEntryId: uuid("journal_entry_id").references(
       () => journalEntriesTable.id,
       { onDelete: "set null" },
@@ -258,6 +263,13 @@ export const paymentAllocationsTable = pgTable("payment_allocations", {
     .notNull()
     .references(() => invoicesTable.id, { onDelete: "restrict" }),
   amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
+  allocatedCurrency: text("allocated_currency"),
+  baseCurrencyAmount: numeric("base_currency_amount", { precision: 18, scale: 2 })
+    .notNull()
+    .default("0"),
+  exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 })
+    .notNull()
+    .default("1"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
