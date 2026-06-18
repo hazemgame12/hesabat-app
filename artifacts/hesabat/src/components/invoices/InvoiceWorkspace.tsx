@@ -1527,6 +1527,10 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
             setEditId(id);
             setEditorOpen(true);
           }}
+          onAllocated={() => {
+            invalidateInvoices();
+            invalidatePayments();
+          }}
         />
       )}
 

@@ -63,6 +63,12 @@ async function loadBaseCurrency(companyId: string): Promise<string> {
 const MONEY_EPS = 0.005;
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+function invoiceStatusFor(total: number, amountPaid: number): string {
+  if (amountPaid >= total - MONEY_EPS) return "paid";
+  if (amountPaid > MONEY_EPS) return "partially_paid";
+  return "approved";
+}
+
 type InvoiceKind =
   | "sales"
   | "purchase"
@@ -628,6 +634,390 @@ router.get(
       });
     } catch (err) {
       req.log.error({ err }, "Failed to export invoices");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Available payments for an invoice (registered before /:id) ----
+// Returns existing allocations on this invoice + payments for the same party
+// that still carry unallocated balance.
+router.get(
+  "/invoices/:id/available-payments",
+  requireAuth,
+  requireCapability("payments:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    try {
+      const inv = await loadInvoice(id, companyId);
+      if (!inv) {
+        res.status(404).json({ error: "الفاتورة غير موجودة" });
+        return;
+      }
+      const paymentKind = inv.kind === "sales" ? "collection" : "payment";
+      const partyId = inv.customerId ?? inv.supplierId;
+      if (!partyId) {
+        res.json({ existingAllocations: [], availablePayments: [] });
+        return;
+      }
+
+      // Allocations already attached to this invoice.
+      const existing = await db
+        .select({
+          id: paymentAllocationsTable.id,
+          paymentId: paymentAllocationsTable.paymentId,
+          amount: paymentAllocationsTable.amount,
+        })
+        .from(paymentAllocationsTable)
+        .where(
+          and(
+            eq(paymentAllocationsTable.invoiceId, id),
+            eq(paymentAllocationsTable.companyId, companyId),
+          ),
+        );
+
+      const existingPaymentIds = [...new Set(existing.map((a) => a.paymentId))];
+      const existingPaymentsMap = new Map<
+        string,
+        { paymentNo: number; date: string; currency: string | null }
+      >();
+      if (existingPaymentIds.length) {
+        const pmts = await db
+          .select({
+            id: paymentsTable.id,
+            paymentNo: paymentsTable.paymentNo,
+            date: paymentsTable.date,
+            currency: paymentsTable.currency,
+          })
+          .from(paymentsTable)
+          .where(inArray(paymentsTable.id, existingPaymentIds));
+        for (const p of pmts) existingPaymentsMap.set(p.id, p);
+      }
+
+      // Payments for the same party/kind that may have unallocated balance.
+      const partyCondition =
+        inv.kind === "sales"
+          ? eq(paymentsTable.customerId, partyId)
+          : eq(paymentsTable.supplierId, partyId);
+      const allPayments = await db
+        .select()
+        .from(paymentsTable)
+        .where(
+          and(
+            eq(paymentsTable.companyId, companyId),
+            eq(paymentsTable.kind, paymentKind),
+            partyCondition,
+          ),
+        )
+        .orderBy(desc(paymentsTable.paymentNo));
+
+      const availablePayments: {
+        id: string;
+        paymentNo: number;
+        date: string;
+        amount: number;
+        currency: string | null;
+        exchangeRate: number;
+        totalAllocated: number;
+        unallocatedAmount: number;
+      }[] = [];
+
+      if (allPayments.length) {
+        const allocSums = await db
+          .select({
+            paymentId: paymentAllocationsTable.paymentId,
+            totalAllocated: sql<number>`coalesce(sum(${paymentAllocationsTable.amount}), 0)`,
+          })
+          .from(paymentAllocationsTable)
+          .where(
+            and(
+              eq(paymentAllocationsTable.companyId, companyId),
+              inArray(
+                paymentAllocationsTable.paymentId,
+                allPayments.map((p) => p.id),
+              ),
+            ),
+          )
+          .groupBy(paymentAllocationsTable.paymentId);
+        const allocSumMap = new Map<string, number>();
+        for (const a of allocSums)
+          allocSumMap.set(a.paymentId, Number(a.totalAllocated));
+
+        for (const p of allPayments) {
+          const totalAllocated = allocSumMap.get(p.id) ?? 0;
+          const unallocatedAmount = round2(Number(p.amount) - totalAllocated);
+          if (unallocatedAmount > MONEY_EPS) {
+            availablePayments.push({
+              id: p.id,
+              paymentNo: p.paymentNo,
+              date: p.date,
+              amount: Number(p.amount),
+              currency: p.currency,
+              exchangeRate: Number(p.exchangeRate),
+              totalAllocated: round2(totalAllocated),
+              unallocatedAmount,
+            });
+          }
+        }
+      }
+
+      res.json({
+        existingAllocations: existing.map((a) => {
+          const p = existingPaymentsMap.get(a.paymentId);
+          return {
+            id: a.id,
+            paymentId: a.paymentId,
+            paymentNo: p?.paymentNo ?? null,
+            date: p?.date ?? null,
+            currency: p?.currency ?? null,
+            amount: Number(a.amount),
+          };
+        }),
+        availablePayments,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to load available payments");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Allocate a payment to an invoice (registered before /:id) ----
+// Creates a payment_allocations row and bumps invoice.amountPaid/status.
+// No new JE is created — the payment's JE already posted.
+// Lock order: invoice row FOR UPDATE → payment row FOR UPDATE (no entry-no lock).
+router.post(
+  "/invoices/:id/allocate-payment",
+  requireAuth,
+  requireCapability("payments:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    const { paymentId, allocatedAmount } = req.body as {
+      paymentId?: string;
+      allocatedAmount?: unknown;
+    };
+    if (
+      !paymentId ||
+      typeof allocatedAmount !== "number" ||
+      allocatedAmount <= 0
+    ) {
+      res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
+      return;
+    }
+    try {
+      await db.transaction(async (tx) => {
+        // Lock invoice first.
+        const [inv] = await tx
+          .select()
+          .from(invoicesTable)
+          .where(
+            and(
+              eq(invoicesTable.id, id),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!inv) throw new ApproveError(404, "الفاتورة غير موجودة");
+        if (inv.status !== "approved" && inv.status !== "partially_paid") {
+          throw new ApproveError(400, "لا يمكن التخصيص على هذه الفاتورة");
+        }
+        const invTotal = Number(inv.total);
+        const invBalance = round2(invTotal - Number(inv.amountPaid));
+        if (allocatedAmount > invBalance + MONEY_EPS) {
+          throw new ApproveError(400, "المبلغ أكبر من المتبقي على الفاتورة");
+        }
+
+        // Lock payment.
+        const [payment] = await tx
+          .select()
+          .from(paymentsTable)
+          .where(
+            and(
+              eq(paymentsTable.id, paymentId),
+              eq(paymentsTable.companyId, companyId),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!payment) throw new ApproveError(404, "السند غير موجود");
+
+        // Verify the payment is for the same party as the invoice.
+        const invParty = inv.customerId ?? inv.supplierId;
+        const payParty = payment.customerId ?? payment.supplierId;
+        if (invParty !== payParty) {
+          throw new ApproveError(400, "السند لا يخص نفس الطرف");
+        }
+
+        // Re-read allocated total under lock, then check unallocated balance.
+        const [allocSum] = await tx
+          .select({
+            total: sql<number>`coalesce(sum(${paymentAllocationsTable.amount}), 0)`,
+          })
+          .from(paymentAllocationsTable)
+          .where(eq(paymentAllocationsTable.paymentId, paymentId));
+        const totalAllocated = Number(allocSum?.total ?? 0);
+        const unallocated = round2(Number(payment.amount) - totalAllocated);
+        if (allocatedAmount > unallocated + MONEY_EPS) {
+          throw new ApproveError(
+            400,
+            "مبلغ التخصيص أكبر من الرصيد المتاح في السند",
+          );
+        }
+
+        // Insert allocation row.
+        await tx.insert(paymentAllocationsTable).values({
+          paymentId,
+          companyId,
+          invoiceId: id,
+          amount: String(round2(allocatedAmount)),
+        });
+
+        // Update invoice amountPaid + status.
+        const newPaid = round2(Number(inv.amountPaid) + allocatedAmount);
+        await tx
+          .update(invoicesTable)
+          .set({
+            amountPaid: String(newPaid),
+            status: invoiceStatusFor(invTotal, newPaid),
+          })
+          .where(
+            and(
+              eq(invoicesTable.id, id),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          );
+      });
+
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "update",
+          entity: "invoice",
+          entityId: id,
+          entityLabel: "تخصيص دفعة على الفاتورة",
+          newValue: { paymentId, allocatedAmount },
+        },
+        req.log,
+      );
+      res.status(201).json({ status: "ok" });
+    } catch (err) {
+      if (err instanceof ApproveError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      req.log.error({ err }, "Failed to allocate payment to invoice");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Delete a payment allocation from an invoice ----
+// Reverses invoice.amountPaid/status; the payment itself is untouched.
+router.delete(
+  "/invoices/:id/allocations/:allocationId",
+  requireAuth,
+  requireCapability("payments:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    const allocationId = req.params["allocationId"] as string;
+    try {
+      const [alloc] = await db
+        .select()
+        .from(paymentAllocationsTable)
+        .where(
+          and(
+            eq(paymentAllocationsTable.id, allocationId),
+            eq(paymentAllocationsTable.invoiceId, id),
+            eq(paymentAllocationsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!alloc) {
+        res.status(404).json({ error: "التخصيص غير موجود" });
+        return;
+      }
+
+      // Block if the payment period is locked.
+      const [pmtRow] = await db
+        .select({ date: paymentsTable.date })
+        .from(paymentsTable)
+        .where(
+          and(
+            eq(paymentsTable.id, alloc.paymentId),
+            eq(paymentsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (pmtRow) {
+        const wb = await isWriteBlocked(db, companyId, pmtRow.date);
+        if (wb) {
+          res
+            .status(wb === "period_locked" ? 423 : 400)
+            .json({ error: WRITE_BLOCK_MSG[wb] });
+          return;
+        }
+      }
+
+      await db.transaction(async (tx) => {
+        // Lock invoice FOR UPDATE.
+        const [inv] = await tx
+          .select({
+            total: invoicesTable.total,
+            amountPaid: invoicesTable.amountPaid,
+          })
+          .from(invoicesTable)
+          .where(
+            and(
+              eq(invoicesTable.id, id),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!inv) throw new Error("INVOICE_NOT_FOUND");
+
+        const amount = Number(alloc.amount);
+        const newPaid = round2(Math.max(0, Number(inv.amountPaid) - amount));
+        await tx
+          .update(invoicesTable)
+          .set({
+            amountPaid: String(newPaid),
+            status: invoiceStatusFor(Number(inv.total), newPaid),
+          })
+          .where(
+            and(
+              eq(invoicesTable.id, id),
+              eq(invoicesTable.companyId, companyId),
+            ),
+          );
+
+        await tx
+          .delete(paymentAllocationsTable)
+          .where(eq(paymentAllocationsTable.id, allocationId));
+      });
+
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: req.auth!.userId,
+          action: "update",
+          entity: "invoice",
+          entityId: id,
+          entityLabel: "إلغاء تخصيص دفعة",
+          oldValue: { allocationId, amount: alloc.amount },
+        },
+        req.log,
+      );
+      res.json({ status: "ok" });
+    } catch (err) {
+      req.log.error({ err }, "Failed to delete payment allocation");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

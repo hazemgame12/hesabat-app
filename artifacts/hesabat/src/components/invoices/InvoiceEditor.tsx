@@ -21,6 +21,7 @@ import { X, Plus, Trash2, ChevronDown, ChevronRight, ClipboardPaste } from "luci
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { displayName } from "./InvoiceWorkspace";
+import { InvoicePaymentAllocations } from "./InvoicePaymentAllocations";
 
 type Kind = "sales" | "purchase" | "quotation" | "purchase_order";
 type LineType = "service" | "inventory" | "fixed_asset";
@@ -79,6 +80,7 @@ export function InvoiceEditor({
   onClose,
   onSaved,
   onEdit,
+  onAllocated,
 }: {
   kind: Kind;
   invoiceId: string | null;
@@ -89,6 +91,7 @@ export function InvoiceEditor({
   onClose: () => void;
   onSaved: (savedId?: string) => void;
   onEdit?: () => void;
+  onAllocated?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -969,6 +972,16 @@ export function InvoiceEditor({
                 </div>
               </div>
             </div>
+            {readOnly && invoiceId && detail &&
+              (detail.kind === "sales" || detail.kind === "purchase") && (
+                <InvoicePaymentAllocations
+                  invoiceId={invoiceId}
+                  invoiceKind={detail.kind as "sales" | "purchase"}
+                  status={detail.status}
+                  currency={detail.currency ?? null}
+                  onChanged={onAllocated ?? (() => {})}
+                />
+              )}
           </div>
         )}
 
