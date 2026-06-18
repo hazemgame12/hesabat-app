@@ -50,8 +50,24 @@ app.use("/uploads", express.static(uploadsDir, { maxAge: "30d" }));
 app.use("/api/uploads", express.static(uploadsDir, { maxAge: "30d" }));
 
 const publicPath = path.join(__dirname, "public");
-app.use(express.static(publicPath));
+// Hashed assets (JS/CSS) — safe to cache aggressively (filename changes on every build)
+app.use("/assets", express.static(path.join(publicPath, "assets"), { maxAge: "1y", immutable: true }));
+// Serve static files; index.html always gets no-cache so new deploys are picked up immediately
+app.use(express.static(publicPath, {
+  maxAge: 0,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith("index.html")) {
+      res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
+    }
+  },
+}));
+// SPA fallback for deep routes
 app.use(/.*/, (_req, res) => {
+  res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
   res.sendFile(path.join(publicPath, "index.html"));
 });
 
