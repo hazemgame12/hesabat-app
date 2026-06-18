@@ -75,8 +75,10 @@ router.use(fiscalYearsRouter);
 router.use(importRouter);
 router.use(supportRouter);
 router.use(adminSupportRouter);
-router.use(superAdminAuthRouter);
-router.use(superAdminRouter);
+// HG website public routes must be mounted BEFORE superAdminRouter.
+// superAdminRouter has a global router.use(requireSuperAdmin) that
+// intercepts ALL requests and returns 401 for unauthenticated users.
+// Mounting HG routes first ensures they are handled before hitting that gate.
 router.use(articlesRouter);
 router.use(settingsRouter);
 router.use(servicesRouter);
@@ -86,5 +88,7 @@ router.use(caseStudiesRouter);
 router.use(uploadsRouter);
 router.use(socialPostsRouter);
 router.use(aiRouter);
+router.use(superAdminAuthRouter);
+router.use(superAdminRouter);
 
 export default router;
