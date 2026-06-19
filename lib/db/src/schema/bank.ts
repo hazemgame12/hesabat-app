@@ -91,6 +91,15 @@ export const bankMovementsTable = pgTable("bank_movements", {
   ),
   // Links the two rows of a single transfer so they delete together.
   transferGroupId: uuid("transfer_group_id"),
+  // ── Multi-currency transfer fields (set on the 'out' row) ──────────────────
+  // For same-currency transfers these are null.
+  // destinationAmount: the actual amount received in the destination account.
+  // bankFees: bank wire-fee deducted from the source account (in source currency).
+  // realizedGainLoss: (destAmount * destRate) − (srcAmount * srcRate) in base
+  //   currency; positive = FX gain, negative = FX loss.
+  destinationAmount: numeric("destination_amount", { precision: 18, scale: 2 }),
+  bankFees: numeric("bank_fees", { precision: 18, scale: 2 }),
+  realizedGainLoss: numeric("realized_gain_loss", { precision: 18, scale: 2 }),
   description: text("description"),
   // Original bank-statement text captured on Excel import (the bank's own
   // wording). Distinct from `description` (the user's in-app البيان written

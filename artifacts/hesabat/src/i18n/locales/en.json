@@ -1568,7 +1568,26 @@
       "reference": "Reference",
       "counterpartHintIn": "Where the money comes from (e.g. a customer or revenue).",
       "counterpartHintOut": "Where the money goes (e.g. a supplier or expense).",
-      "transferHint": "A transfer between two of your own accounts posts as one entry."
+      "transferHint": "A transfer between two of your own accounts posts as one entry.",
+      "destinationAmount": "Amount received at destination",
+      "destinationAmountPlaceholder": "Actual amount received",
+      "bankFees": "Bank transfer fees",
+      "fxTransferHint": "Cross-currency transfer — enter the amount received in the destination currency and the FX gain/loss will be computed automatically."
+    },
+    "transferMatch": {
+      "title": "Match Pending Transfers",
+      "hint": "Shows candidate pairs of pending movements (out + in) that look like inter-account transfers.",
+      "outMovement": "Outgoing movement",
+      "inMovement": "Incoming movement",
+      "score": "Match score",
+      "amountMatch": "Amount match",
+      "dateDiff": "Days apart",
+      "confirm": "Confirm transfer",
+      "confirmTitle": "Confirm transfer match",
+      "confirmHint": "A journal entry will be created linking the two movements as an inter-account transfer.",
+      "noSuggestions": "No matching suggestions found.",
+      "days": "day(s)",
+      "confirmed": "Transfer linked successfully"
     },
     "movementTypes": {
       "deposit": "Deposit",

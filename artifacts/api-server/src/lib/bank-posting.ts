@@ -63,29 +63,94 @@ export function buildMovementLines(opts: {
   return [bankLine, counterLine];
 }
 
-// Builds the two balanced JE lines (base currency) for a transfer between two of
-// the company's own bank/cash accounts: Dr the destination chart account / Cr the
-// source chart account.
+// Builds the balanced JE lines (base currency) for a transfer between two of the
+// company's own bank/cash accounts.
+//
+// Same-currency transfer (simple):
+//   DR destBankAccount / CR srcBankAccount  (both at amountBase)
+//
+// Multi-currency transfer:
+//   DR destBankAccount  (destAmountBase)
+//   DR bankFees expense (feesBase, if any)
+//   CR srcBankAccount   (srcAmountBase + feesBase)
+//   DR/CR FX gain/loss  (= destAmountBase − srcAmountBase)
+//     positive diff → CR gainAccountId (FX gain)
+//     negative diff → DR lossAccountId (FX loss)
+//
+// The caller must supply gainAccountId / lossAccountId whenever
+// destAmountBase ≠ srcAmountBase (use ensureFxAccounts for auto-creation).
+// feesAccountId is required when feesBase > 0.
 export function buildTransferLines(opts: {
   srcBankChartAccountId: string;
   destBankChartAccountId: string;
-  amountBase: number;
+  srcAmountBase: number;
+  destAmountBase: number;
+  feesBase?: number;
+  feesAccountId?: string | null;
+  gainAccountId?: string | null;
+  lossAccountId?: string | null;
   description?: string | null;
 }): DraftPostingLine[] {
-  const { srcBankChartAccountId, destBankChartAccountId, amountBase } = opts;
+  const {
+    srcBankChartAccountId,
+    destBankChartAccountId,
+    srcAmountBase,
+    destAmountBase,
+    feesBase = 0,
+    feesAccountId,
+    gainAccountId,
+    lossAccountId,
+  } = opts;
   const desc = opts.description ?? null;
-  return [
+
+  const lines: DraftPostingLine[] = [
+    // DR destination bank account
     {
       accountId: destBankChartAccountId,
       description: desc,
-      debit: amountBase,
+      debit: destAmountBase,
       credit: 0,
     },
+    // CR source bank account (transfer amount + fees)
     {
       accountId: srcBankChartAccountId,
       description: desc,
       debit: 0,
-      credit: amountBase,
+      credit: srcAmountBase + feesBase,
     },
   ];
+
+  // Bank fees expense line
+  if (feesBase > 0.005 && feesAccountId) {
+    lines.push({
+      accountId: feesAccountId,
+      description: "رسوم تحويل",
+      debit: feesBase,
+      credit: 0,
+    });
+  }
+
+  // FX gain/loss line — only when amounts differ
+  const fxDiff = Math.round((destAmountBase - srcAmountBase) * 100) / 100;
+  if (Math.abs(fxDiff) > 0.005) {
+    if (fxDiff > 0 && gainAccountId) {
+      // Destination received more than source sent (in base) → FX gain
+      lines.push({
+        accountId: gainAccountId,
+        description: "أرباح فروق العملة",
+        debit: 0,
+        credit: fxDiff,
+      });
+    } else if (fxDiff < 0 && lossAccountId) {
+      // Destination received less than source sent (in base) → FX loss
+      lines.push({
+        accountId: lossAccountId,
+        description: "خسائر فروق العملة",
+        debit: -fxDiff,
+        credit: 0,
+      });
+    }
+  }
+
+  return lines;
 }

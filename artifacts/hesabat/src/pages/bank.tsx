@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   useListBankAccounts,
@@ -56,6 +57,9 @@ import {
   Copy,
   Link2,
   Receipt,
+  GitMerge,
+  CheckCheck,
+  AlertCircle,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -891,6 +895,7 @@ function MovementsTab({
   const updateMovement = useUpdateBankMovement();
   const deleteMovement = useDeleteBankMovement();
   const [modalOpen, setModalOpen] = useState(false);
+  const [showTransferMatch, setShowTransferMatch] = useState(false);
   const [toClassify, setToClassify] = useState<BankMovement | null>(null);
   const [toLinkPayment, setToLinkPayment] = useState<BankMovement | null>(null);
   const [toDelete, setToDelete] = useState<BankMovement | null>(null);
@@ -1065,13 +1070,23 @@ function MovementsTab({
             </>
           )}
           {canCreate && (
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90"
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-              {t("bank.recordMovement")}
-            </button>
+            <>
+              <button
+                onClick={() => setShowTransferMatch(true)}
+                className="flex items-center gap-2 border border-primary/30 text-primary px-4 py-2 rounded-full text-sm font-bold hover:bg-primary/5"
+                title={t("bank.transferMatch.title")}
+              >
+                <GitMerge className="w-4 h-4" />
+                {t("bank.transferMatch.title")}
+              </button>
+              <button
+                onClick={() => setModalOpen(true)}
+                className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                {t("bank.recordMovement")}
+              </button>
+            </>
           )}
           <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
         </div>
@@ -1562,6 +1577,16 @@ function MovementsTab({
         )}
       </div>
 
+      {showTransferMatch && (
+        <TransferMatchPanel
+          t={t}
+          onClose={() => setShowTransferMatch(false)}
+          onConfirmed={() => {
+            invalidate();
+          }}
+        />
+      )}
+
       {modalOpen && (
         <MovementModal
           bankAccountId={effectiveId}
@@ -1695,6 +1720,16 @@ function MovementModal({
   const isTransfer = type === "transfer";
   const isIn = IN_TYPES.has(type);
 
+  const [destinationAmount, setDestinationAmount] = useState("");
+  const [bankFees, setBankFees] = useState("");
+
+  const srcCurrency = (account?.currency ?? "EGP").toUpperCase();
+  const destAccount = transferAccountId
+    ? accounts.find((a) => a.id === transferAccountId)
+    : null;
+  const destCurrency = (destAccount?.currency ?? srcCurrency).toUpperCase();
+  const isFxTransfer = isTransfer && srcCurrency !== destCurrency;
+
   const submit = () => {
     const amt = Number(amount);
     if (!amt || amt <= 0) {
@@ -1728,10 +1763,12 @@ function MovementModal({
           date,
           type,
           amount: amt,
-          currency: account?.currency ?? "EGP",
+          currency: srcCurrency,
           exchangeRate: Number(exchangeRate) || 1,
           counterpartAccountId: isTransfer ? null : counterpartAccountId,
           transferAccountId: isTransfer ? transferAccountId : null,
+          destinationAmount: isFxTransfer && destinationAmount ? Number(destinationAmount) : null,
+          bankFees: isTransfer && bankFees ? Number(bankFees) : null,
           description: description.trim() || null,
           notes: notes.trim() || null,
           reference: reference.trim() || null,
@@ -1815,7 +1852,7 @@ function MovementModal({
               dir="ltr"
             />
           </div>
-          {isTransfer ? (
+          {isTransfer && (
             <div className="col-span-2">
               <label className={labelCls}>{t("bank.movement.transferTo")}</label>
               <select
@@ -1834,7 +1871,59 @@ function MovementModal({
                 {t("bank.movement.transferHint")}
               </p>
             </div>
-          ) : (
+          )}
+          {isFxTransfer && (
+            <>
+              <div className="col-span-2 sm:col-span-1">
+                <label className={labelCls}>
+                  {t("bank.movement.destinationAmount")} ({destCurrency})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className={inputCls}
+                  value={destinationAmount}
+                  onChange={(e) => setDestinationAmount(e.target.value)}
+                  placeholder={t("bank.movement.destinationAmountPlaceholder")}
+                  dir="ltr"
+                />
+              </div>
+              <div className="col-span-2 sm:col-span-1">
+                <label className={labelCls}>
+                  {t("bank.movement.bankFees")} ({srcCurrency})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className={inputCls}
+                  value={bankFees}
+                  onChange={(e) => setBankFees(e.target.value)}
+                  dir="ltr"
+                />
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg px-3 py-2">
+                  {t("bank.movement.fxTransferHint")}
+                </p>
+              </div>
+            </>
+          )}
+          {isTransfer && !isFxTransfer && (
+          <div className="col-span-2 sm:col-span-1">
+            <label className={labelCls}>
+              {t("bank.movement.bankFees")} ({srcCurrency})
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              className={inputCls}
+              value={bankFees}
+              onChange={(e) => setBankFees(e.target.value)}
+              dir="ltr"
+            />
+          </div>
+          )}
+          {!isTransfer && (
             <div className="col-span-2">
               <label className={labelCls}>{t("bank.movement.counterpart")}</label>
               <select
@@ -3714,6 +3803,162 @@ function ReportRow({
       <span className={`tabular-nums ${bold ? "font-bold" : ""} ${color}`} dir="ltr">
         {value}
       </span>
+    </div>
+  );
+}
+
+// ── Transfer Match Panel ─────────────────────────────────────────────────────
+type MatchSuggestion = {
+  outMovement: { id: string; bankAccountId: string; bankAccountName: string | null; date: string; amount: number; currency: string; reference: string | null; notes: string | null };
+  inMovement: { id: string; bankAccountId: string; bankAccountName: string | null; date: string; amount: number; currency: string; reference: string | null; notes: string | null };
+  score: number;
+  amountMatch: boolean;
+  dateDiffDays: number;
+  referenceMatch: boolean;
+};
+
+function TransferMatchPanel({
+  t,
+  onClose,
+  onConfirmed,
+}: {
+  t: (k: string, o?: any) => string;
+  onClose: () => void;
+  onConfirmed: () => void;
+}) {
+  const { toast } = useToast();
+  const [confirming, setConfirming] = useState<MatchSuggestion | null>(null);
+
+  const { data: suggestions = [], isLoading, refetch } = useQuery<MatchSuggestion[]>({
+    queryKey: ["bank-transfer-match-suggestions"],
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/bank/transfer-match-suggestions`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("fetch failed");
+      return res.json();
+    },
+  });
+
+  const confirmMut = useMutation({
+    mutationFn: async (s: MatchSuggestion) => {
+      const res = await fetch(`${import.meta.env.BASE_URL}api/bank/transfer-match-confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ outMovementId: s.outMovement.id, inMovementId: s.inMovement.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error ?? "خطأ");
+      }
+    },
+    onSuccess: () => {
+      toast({ title: t("bank.transferMatch.confirmed") });
+      setConfirming(null);
+      void refetch();
+      onConfirmed();
+    },
+    onError: (err: any) =>
+      toast({ variant: "destructive", title: t("bank.toast.error"), description: err.message }),
+  });
+
+  const fmt = (n: number, c: string) =>
+    new Intl.NumberFormat("ar-EG", { style: "decimal", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) +
+    " " + c;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b bg-card rounded-t-2xl">
+          <div>
+            <h2 className="font-bold text-foreground flex items-center gap-2">
+              <GitMerge className="w-5 h-5 text-primary" />
+              {t("bank.transferMatch.title")}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("bank.transferMatch.hint")}</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 p-4 space-y-3">
+          {isLoading ? (
+            <div className="flex justify-center py-10"><Spinner /></div>
+          ) : suggestions.length === 0 ? (
+            <div className="text-center py-10 text-muted-foreground">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              {t("bank.transferMatch.noSuggestions")}
+            </div>
+          ) : (
+            suggestions.map((s, i) => (
+              <div key={i} className="border rounded-xl p-4 bg-background hover:border-primary/40 transition-colors">
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <div className="text-sm space-y-1">
+                    <div className="text-xs font-bold text-muted-foreground mb-1">{t("bank.transferMatch.outMovement")}</div>
+                    <div className="font-bold text-destructive">{fmt(s.outMovement.amount, s.outMovement.currency)}</div>
+                    <div className="text-muted-foreground">{s.outMovement.bankAccountName ?? s.outMovement.bankAccountId}</div>
+                    <div className="text-xs text-muted-foreground" dir="ltr">{s.outMovement.date}</div>
+                    {s.outMovement.reference && <div className="text-xs text-muted-foreground" dir="ltr">{s.outMovement.reference}</div>}
+                  </div>
+                  <div className="text-sm space-y-1">
+                    <div className="text-xs font-bold text-muted-foreground mb-1">{t("bank.transferMatch.inMovement")}</div>
+                    <div className="font-bold text-success">{fmt(s.inMovement.amount, s.inMovement.currency)}</div>
+                    <div className="text-muted-foreground">{s.inMovement.bankAccountName ?? s.inMovement.bankAccountId}</div>
+                    <div className="text-xs text-muted-foreground" dir="ltr">{s.inMovement.date}</div>
+                    {s.inMovement.reference && <div className="text-xs text-muted-foreground" dir="ltr">{s.inMovement.reference}</div>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap mb-3">
+                  {s.amountMatch && (
+                    <span className="text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-bold">
+                      {t("bank.transferMatch.amountMatch")} ✓
+                    </span>
+                  )}
+                  <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                    {s.dateDiffDays} {t("bank.transferMatch.days")}
+                  </span>
+                  <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                    {t("bank.transferMatch.score")}: {s.score}
+                  </span>
+                </div>
+                {confirming?.outMovement.id === s.outMovement.id && confirming?.inMovement.id === s.inMovement.id ? (
+                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-sm text-amber-700 dark:text-amber-300">
+                    <p className="mb-2">{t("bank.transferMatch.confirmHint")}</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => confirmMut.mutate(s)}
+                        disabled={confirmMut.isPending}
+                        className="px-4 py-1.5 rounded-full text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                      >
+                        <CheckCheck className="w-3 h-3 inline me-1" />
+                        {t("bank.transferMatch.confirm")}
+                      </button>
+                      <button
+                        onClick={() => setConfirming(null)}
+                        className="px-4 py-1.5 rounded-full text-xs font-bold bg-muted text-muted-foreground hover:bg-muted/80"
+                      >
+                        {t("common.cancel")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirming(s)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                  >
+                    <GitMerge className="w-3.5 h-3.5" />
+                    {t("bank.transferMatch.confirm")}
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }

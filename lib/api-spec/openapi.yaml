@@ -7397,6 +7397,12 @@ components:
           type: ["string", "null"]
         transferGroupId:
           type: ["string", "null"]
+        destinationAmount:
+          type: ["number", "null"]
+        bankFees:
+          type: ["number", "null"]
+        realizedGainLoss:
+          type: ["number", "null"]
         description:
           type: ["string", "null"]
         notes:
@@ -7467,6 +7473,10 @@ components:
           type: ["string", "null"]
         transferAccountId:
           type: ["string", "null"]
+        destinationAmount:
+          type: ["number", "null"]
+        bankFees:
+          type: ["number", "null"]
         description:
           type: ["string", "null"]
         notes:

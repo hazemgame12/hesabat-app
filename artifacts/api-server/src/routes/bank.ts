@@ -376,6 +376,9 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
       ? (bankMap.get(r.transferAccountId) ?? null)
       : null,
     transferGroupId: r.transferGroupId,
+    destinationAmount: r.destinationAmount != null ? Number(r.destinationAmount) : null,
+    bankFees: r.bankFees != null ? Number(r.bankFees) : null,
+    realizedGainLoss: r.realizedGainLoss != null ? Number(r.realizedGainLoss) : null,
     description: r.description,
     notes: r.notes,
     // A movement with no journal entry is an imported statement line still
@@ -1576,8 +1579,40 @@ router.post(
             .json({ error: "الحساب المحاسبي المرتبط غير صحيح" });
           return;
         }
+        // ── Multi-currency transfer support ────────────────────────────────
+        const srcCurrency = currency.toUpperCase();
+        const destCurrency = (dest.currency ?? baseCurrency).toUpperCase();
+        const isFxTransfer = srcCurrency !== destCurrency;
+
+        // destinationAmount: what actually arrives in the dest account.
+        // Defaults to sourceAmount * rate when not provided (same-currency or
+        // when the user doesn't specify it).
+        const destRate = isFxTransfer ? 1 : rate; // dest is usually base (EGP)
+        const destAmount = round2(
+          d.destinationAmount != null
+            ? d.destinationAmount
+            : isFxTransfer
+              ? amount * rate        // best estimate from rate
+              : amount,             // same currency, same amount
+        );
+        const destAmountBase = round2(destAmount * destRate);
+        const srcAmountBase = amountBase; // amount * rate
+
+        const fees = round2(d.bankFees ?? 0);
+        const feesBase = round2(fees * rate);
+        const realizedGainLoss = round2(destAmountBase - srcAmountBase);
+
         const created = await db.transaction(async (tx) => {
           const transferGroupId = randomUUID();
+
+          let gainAccountId: string | null = null;
+          let lossAccountId: string | null = null;
+          if (Math.abs(realizedGainLoss) > 0.005 || feesBase > 0.005) {
+            const fxAccts = await ensureFxAccounts(tx, companyId);
+            gainAccountId = fxAccts.gainAccountId;
+            lossAccountId = fxAccts.lossAccountId;
+          }
+
           const entry = await createDraftJournalEntry(tx, {
             companyId,
             baseCurrency,
@@ -1589,10 +1624,16 @@ router.post(
             lines: buildTransferLines({
               srcBankChartAccountId: bank.accountId,
               destBankChartAccountId: dest.accountId,
-              amountBase,
+              srcAmountBase,
+              destAmountBase,
+              feesBase,
+              feesAccountId: feesBase > 0.005 ? lossAccountId : null, // re-use loss acct for fees
+              gainAccountId,
+              lossAccountId,
               description: d.description ?? null,
             }),
           });
+
           const rows = await tx
             .insert(bankMovementsTable)
             .values([
@@ -1603,8 +1644,13 @@ router.post(
                 type: "transfer",
                 direction: "out",
                 amount: String(amount),
-                currency,
+                currency: srcCurrency,
                 exchangeRate: String(rate),
+                destinationAmount: isFxTransfer || d.destinationAmount != null
+                  ? String(destAmount) : null,
+                bankFees: fees > 0 ? String(fees) : null,
+                realizedGainLoss: Math.abs(realizedGainLoss) > 0.005
+                  ? String(realizedGainLoss) : null,
                 transferAccountId: dest.id,
                 transferGroupId,
                 description: d.description ?? null,
@@ -1619,9 +1665,9 @@ router.post(
                 date: d.date,
                 type: "transfer",
                 direction: "in",
-                amount: String(amount),
-                currency,
-                exchangeRate: String(rate),
+                amount: String(destAmount),
+                currency: destCurrency,
+                exchangeRate: String(destRate),
                 transferAccountId: bank.id,
                 transferGroupId,
                 description: d.description ?? null,
@@ -3650,6 +3696,281 @@ router.post(
           .status(400)
           .json({ error: "الحركة تم تسويتها ولا يمكن تعديلها" });
       req.log.error({ err }, "link-payment failed");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ── Transfer Match Suggestions ───────────────────────────────────────────────
+// Suggests pairing a pending 'out' movement from one account with a pending
+// 'in' movement from another account as an internal transfer.
+// Scoring: exact-amount match + date proximity + reference/notes similarity.
+router.get(
+  "/bank/transfer-match-suggestions",
+  requireAuth,
+  requireCapability("bank:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      // Pending = no journalEntryId, no transferGroupId, not cleared
+      const pending = await db
+        .select({
+          id: bankMovementsTable.id,
+          bankAccountId: bankMovementsTable.bankAccountId,
+          date: bankMovementsTable.date,
+          direction: bankMovementsTable.direction,
+          amount: bankMovementsTable.amount,
+          currency: bankMovementsTable.currency,
+          exchangeRate: bankMovementsTable.exchangeRate,
+          reference: bankMovementsTable.reference,
+          notes: bankMovementsTable.notes,
+          description: bankMovementsTable.description,
+        })
+        .from(bankMovementsTable)
+        .where(
+          and(
+            eq(bankMovementsTable.companyId, companyId),
+            isNull(bankMovementsTable.journalEntryId),
+            isNull(bankMovementsTable.transferGroupId),
+            sql`${bankMovementsTable.isCleared} = false`,
+          ),
+        )
+        .orderBy(bankMovementsTable.date);
+
+      const outs = pending.filter((m) => m.direction === "out");
+      const ins = pending.filter((m) => m.direction === "in");
+
+      // Fetch bank account names
+      const allBankIds = [...new Set(pending.map((m) => m.bankAccountId))];
+      const bankNameMap = new Map<string, { name: string; currency: string }>();
+      if (allBankIds.length) {
+        const banks = await db
+          .select({ id: bankAccountsTable.id, name: bankAccountsTable.nameAr, currency: bankAccountsTable.currency })
+          .from(bankAccountsTable)
+          .where(and(eq(bankAccountsTable.companyId, companyId), inArray(bankAccountsTable.id, allBankIds)));
+        for (const b of banks) bankNameMap.set(b.id, { name: b.name, currency: b.currency });
+      }
+
+      type Suggestion = {
+        outMovement: { id: string; bankAccountId: string; bankAccountName: string | null; date: string; amount: number; currency: string; reference: string | null; notes: string | null };
+        inMovement: { id: string; bankAccountId: string; bankAccountName: string | null; date: string; amount: number; currency: string; reference: string | null; notes: string | null };
+        score: number;
+        amountMatch: boolean;
+        dateDiffDays: number;
+        referenceMatch: boolean;
+      };
+
+      const suggestions: Suggestion[] = [];
+      const seen = new Set<string>();
+
+      for (const out of outs) {
+        for (const inn of ins) {
+          if (out.bankAccountId === inn.bankAccountId) continue;
+          const key = [out.id, inn.id].sort().join(":");
+          if (seen.has(key)) continue;
+
+          const outAmt = Number(out.amount);
+          const inAmt = Number(inn.amount);
+          const outBase = round2(outAmt * Number(out.exchangeRate));
+          const inBase = round2(inAmt * Number(inn.exchangeRate));
+
+          // Amount match in base currency (within 1%)
+          const amountDiff = Math.abs(outBase - inBase);
+          const amountMatch = amountDiff <= Math.max(outBase, inBase) * 0.01 + 0.5;
+          if (!amountMatch && amountDiff > 500) continue; // skip very different amounts
+
+          // Date proximity
+          const outDate = new Date(out.date);
+          const inDate = new Date(inn.date);
+          const dateDiffDays = Math.abs((outDate.getTime() - inDate.getTime()) / 86400000);
+          if (dateDiffDays > 7) continue; // more than 7 days apart → skip
+
+          // Reference / notes similarity
+          const refMatch =
+            !!(out.reference && inn.reference && out.reference.trim() === inn.reference.trim()) ||
+            !!(out.notes && inn.notes && out.notes.trim().slice(0, 20) === inn.notes.trim().slice(0, 20));
+
+          // Score: higher = better match
+          let score = 0;
+          if (amountMatch) score += 50;
+          score += Math.max(0, 30 - dateDiffDays * 5);
+          if (refMatch) score += 20;
+          if (out.currency === inn.currency) score += 10;
+
+          seen.add(key);
+          suggestions.push({
+            outMovement: {
+              id: out.id,
+              bankAccountId: out.bankAccountId,
+              bankAccountName: bankNameMap.get(out.bankAccountId)?.name ?? null,
+              date: out.date,
+              amount: outAmt,
+              currency: out.currency,
+              reference: out.reference,
+              notes: out.notes,
+            },
+            inMovement: {
+              id: inn.id,
+              bankAccountId: inn.bankAccountId,
+              bankAccountName: bankNameMap.get(inn.bankAccountId)?.name ?? null,
+              date: inn.date,
+              amount: inAmt,
+              currency: inn.currency,
+              reference: inn.reference,
+              notes: inn.notes,
+            },
+            score,
+            amountMatch,
+            dateDiffDays: Math.round(dateDiffDays),
+            referenceMatch: refMatch,
+          });
+        }
+      }
+
+      // Sort by score desc, return top 50
+      suggestions.sort((a, b) => b.score - a.score);
+      res.json(suggestions.slice(0, 50));
+    } catch (err) {
+      req.log.error({ err }, "transfer-match-suggestions failed");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ── Confirm a transfer match (link two pending movements as an internal transfer)
+const ConfirmTransferMatchBody = z.object({
+  outMovementId: z.string(),
+  inMovementId: z.string(),
+});
+
+router.post(
+  "/bank/transfer-match-confirm",
+  requireAuth,
+  requireCapability("bank:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const parsed = ConfirmTransferMatchBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
+      return;
+    }
+    const { outMovementId, inMovementId } = parsed.data;
+    if (outMovementId === inMovementId) {
+      res.status(400).json({ error: "لا يمكن ربط حركة بنفسها" });
+      return;
+    }
+
+    try {
+      const [outMov, inMov] = await Promise.all([
+        db.select().from(bankMovementsTable)
+          .where(and(eq(bankMovementsTable.id, outMovementId), eq(bankMovementsTable.companyId, companyId)))
+          .limit(1).then((r) => r[0]),
+        db.select().from(bankMovementsTable)
+          .where(and(eq(bankMovementsTable.id, inMovementId), eq(bankMovementsTable.companyId, companyId)))
+          .limit(1).then((r) => r[0]),
+      ]);
+
+      if (!outMov || !inMov) {
+        res.status(404).json({ error: "الحركة غير موجودة" });
+        return;
+      }
+      if (outMov.direction !== "out" || inMov.direction !== "in") {
+        res.status(400).json({ error: "يجب أن تكون إحدى الحركتين خارجة والأخرى داخلة" });
+        return;
+      }
+      if (outMov.bankAccountId === inMov.bankAccountId) {
+        res.status(400).json({ error: "الحركتان في نفس الحساب" });
+        return;
+      }
+      if (outMov.journalEntryId || inMov.journalEntryId) {
+        res.status(400).json({ error: "يمكن ربط الحركات المعلقة (غير المُرحَّلة) فقط" });
+        return;
+      }
+      if (outMov.transferGroupId || inMov.transferGroupId) {
+        res.status(409).json({ error: "إحدى الحركتين مرتبطة بتحويل بالفعل" });
+        return;
+      }
+
+      const wb = await isWriteBlocked(db, companyId, outMov.date);
+      if (wb) {
+        res.status(wb === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wb] });
+        return;
+      }
+
+      const [outBank, inBank] = await Promise.all([
+        db.select().from(bankAccountsTable)
+          .where(and(eq(bankAccountsTable.id, outMov.bankAccountId), eq(bankAccountsTable.companyId, companyId)))
+          .limit(1).then((r) => r[0]),
+        db.select().from(bankAccountsTable)
+          .where(and(eq(bankAccountsTable.id, inMov.bankAccountId), eq(bankAccountsTable.companyId, companyId)))
+          .limit(1).then((r) => r[0]),
+      ]);
+      if (!outBank || !inBank) {
+        res.status(400).json({ error: "الحساب البنكي غير موجود" });
+        return;
+      }
+
+      const baseCurrency = await loadBaseCurrency(companyId);
+      const srcAmountBase = round2(Number(outMov.amount) * Number(outMov.exchangeRate));
+      const destAmountBase = round2(Number(inMov.amount) * Number(inMov.exchangeRate));
+      const realizedGainLoss = round2(destAmountBase - srcAmountBase);
+
+      await db.transaction(async (tx) => {
+        const transferGroupId = randomUUID();
+
+        let gainAccountId: string | null = null;
+        let lossAccountId: string | null = null;
+        if (Math.abs(realizedGainLoss) > 0.005) {
+          const fxAccts = await ensureFxAccounts(tx, companyId);
+          gainAccountId = fxAccts.gainAccountId;
+          lossAccountId = fxAccts.lossAccountId;
+        }
+
+        const entry = await createDraftJournalEntry(tx, {
+          companyId,
+          baseCurrency,
+          date: outMov.date,
+          reference: "تحويل بين الحسابات (مطابقة)",
+          notes: outMov.notes ?? inMov.notes ?? null,
+          createdBy: req.auth!.userId,
+          status: "posted",
+          lines: buildTransferLines({
+            srcBankChartAccountId: outBank.accountId,
+            destBankChartAccountId: inBank.accountId,
+            srcAmountBase,
+            destAmountBase,
+            gainAccountId,
+            lossAccountId,
+            description: outMov.description ?? null,
+          }),
+        });
+
+        await tx
+          .update(bankMovementsTable)
+          .set({
+            type: "transfer",
+            transferAccountId: inMov.bankAccountId,
+            transferGroupId,
+            journalEntryId: entry.id,
+            destinationAmount: outMov.currency !== inMov.currency ? String(Number(inMov.amount)) : null,
+            realizedGainLoss: Math.abs(realizedGainLoss) > 0.005 ? String(realizedGainLoss) : null,
+          })
+          .where(eq(bankMovementsTable.id, outMovementId));
+
+        await tx
+          .update(bankMovementsTable)
+          .set({
+            type: "transfer",
+            transferAccountId: outMov.bankAccountId,
+            transferGroupId,
+            journalEntryId: entry.id,
+          })
+          .where(eq(bankMovementsTable.id, inMovementId));
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      req.log.error({ err }, "transfer-match-confirm failed");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

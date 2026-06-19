@@ -22,6 +22,10 @@ export interface BankMovementInput {
   /** @nullable */
   transferAccountId?: string | null;
   /** @nullable */
+  destinationAmount?: number | null;
+  /** @nullable */
+  bankFees?: number | null;
+  /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;

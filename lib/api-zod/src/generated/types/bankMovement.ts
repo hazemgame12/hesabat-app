@@ -35,6 +35,12 @@ export interface BankMovement {
   /** @nullable */
   transferGroupId?: string | null;
   /** @nullable */
+  destinationAmount?: number | null;
+  /** @nullable */
+  bankFees?: number | null;
+  /** @nullable */
+  realizedGainLoss?: number | null;
+  /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;
