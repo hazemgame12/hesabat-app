@@ -19,6 +19,14 @@ echo "📦 Installing dependencies..."
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install --no-frozen-lockfile
 
 echo ""
+echo "🗄️  Applying DB schema migrations..."
+if [ -f "$APP_DIR/.env" ]; then
+  set -a && source "$APP_DIR/.env" && set +a
+fi
+pnpm --filter @workspace/db run push && echo "✅ DB schema up to date" \
+  || { echo "⚠️  DB push failed — check DATABASE_URL in .env"; exit 1; }
+
+echo ""
 echo "🔨 Building frontend..."
 NODE_ENV=production pnpm --filter @workspace/hesabat exec \
   vite build --config vite.production.config.ts
