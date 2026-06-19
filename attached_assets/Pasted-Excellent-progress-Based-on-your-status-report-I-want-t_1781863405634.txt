@@ -1,0 +1,226 @@
+Excellent progress.
+
+Based on your status report, I want to separate the remaining work into:
+
+1. Missing Functionality (Must Be Implemented)
+2. Testing Required (Must Be Verified Before Production)
+
+---
+
+## A. MISSING FUNCTIONALITY
+
+### 1. Customer Payments Workspace
+
+Status: Pending
+
+Required:
+
+* Dedicated Customer Payments page.
+* List all customer receipts.
+* Filters:
+
+  * Customer
+  * Date
+  * Status
+  * Currency
+* View allocations.
+* Unallocate allocations.
+* Link/unlink bank movements.
+* View related invoices.
+* Audit log.
+
+This should be separate from Invoice Workspace.
+
+### 2. Supplier Payments Workspace
+
+Status: Pending
+
+Required:
+
+* Dedicated Supplier Payments page.
+* Same functionality as customer payments.
+* View supplier invoices.
+* View allocations.
+* Link/unlink bank movements.
+* Audit log.
+
+### 3. Link Existing Payment From Invoice
+
+Status: Pending
+
+Current flow only supports linking through bank movements.
+
+Required:
+
+* Open invoice.
+* View available unallocated payments for same customer/supplier.
+* Allocate existing payment directly.
+* Support partial allocation.
+* Support multiple allocations.
+
+### 4. Multi-Currency Internal Transfers
+
+Status: Pending
+
+Required schema additions:
+
+* sourceCurrency
+* destinationCurrency
+* destinationAmount
+* bankFees
+* realizedGainLoss
+* internalTransferId
+
+Required behavior:
+
+* Source amount and destination amount must be independent.
+* User can manually edit destination amount.
+* Exchange rate stored.
+* Base currency amount stored.
+* Realized gain/loss calculated automatically.
+
+### 5. Imported Transfer Matching
+
+Status: Pending
+
+Required:
+
+* Matching suggestions between imported bank movements.
+* Match based on:
+
+  * Date
+  * Amount
+  * Reference
+  * Description
+* User approval workflow.
+* Create transferGroupId automatically.
+
+### 6. FX Gain/Loss Journal Entries
+
+Status: Pending
+
+Required:
+
+When transfering between accounts with different currencies:
+
+* Calculate FX differences.
+* Generate realized gain/loss journal entry.
+* Store gain/loss amount.
+* Reflect in reports.
+
+---
+
+## B. TESTING REQUIRED
+
+Please execute and document results for the following test cases.
+
+### Test 1
+
+Customer payment linked to one invoice.
+
+Expected:
+
+* Invoice becomes Paid.
+* Allocation created.
+* Customer balance updated.
+* Bank balance updated.
+* Journal entry created.
+
+### Test 2
+
+One customer payment allocated to multiple invoices.
+
+Expected:
+
+* Multiple allocations.
+* Correct balances.
+* Correct statuses.
+
+### Test 3
+
+One invoice settled by multiple payments.
+
+Expected:
+
+* Partial then full payment.
+* Correct invoice status transitions.
+
+### Test 4
+
+Supplier payment linked to supplier invoice.
+
+Expected:
+
+* Supplier balance updated.
+* Invoice status updated.
+* Journal entry correct.
+
+### Test 5
+
+Unallocate allocation.
+
+Expected:
+
+* Invoice balance restored.
+* Payment becomes available again.
+
+### Test 6
+
+Delete payment with allocations.
+
+Expected:
+
+* Allocation rollback.
+* Balance recalculation.
+* Audit log entry.
+
+### Test 7
+
+Bank movement linked to payment.
+
+Expected:
+
+* Prevent duplicate linking.
+* Prevent duplicate posting.
+
+### Test 8
+
+Transfer between two bank accounts same currency.
+
+Expected:
+
+* Both accounts updated.
+* One transfer group.
+* Balanced journal entry.
+
+### Test 9
+
+Transfer between two bank accounts different currencies.
+
+Expected:
+
+* Destination amount editable.
+* Exchange rate stored.
+* Base currency amount correct.
+
+### Test 10
+
+Imported bank movement matching.
+
+Expected:
+
+* Matching suggestion appears.
+* User confirms.
+* Transfer group created.
+
+---
+
+## FINAL REQUEST
+
+Please provide:
+
+1. Updated implementation plan.
+2. Estimated effort for remaining work.
+3. Test results for each test case.
+4. Any risks before production deployment.
+5. Any accounting edge cases that still need to be addressed.
