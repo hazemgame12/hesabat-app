@@ -1869,7 +1869,17 @@
       "remove": "Remove allocation",
       "removed": "Allocation removed",
       "invalidAmount": "Invalid amount",
-      "error": "An error occurred"
+      "error": "An error occurred",
+      "edit": "Edit",
+      "editTitle": "Edit Allocation Amount",
+      "save": "Save",
+      "cancel": "Cancel",
+      "updated": "Allocation amount updated",
+      "linkMovement": "Link Bank Movement",
+      "selectMovement": "Bank Movement",
+      "selectMovementPlaceholder": "Select a bank movement",
+      "noMovements": "No unlinked bank movements available",
+      "linked": "Bank movement linked and voucher created"
     },
     "assetName": "Asset name",
     "usefulLife": "Useful life (months)",

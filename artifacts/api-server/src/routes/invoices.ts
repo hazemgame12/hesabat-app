@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq, inArray, gte, lte, asc, desc, sql, count } from "drizzle-orm";
+import { and, eq, inArray, not, isNotNull, gte, lte, asc, desc, sql, count } from "drizzle-orm";
 import { parsePagination, paginatedResponse } from "../lib/pagination";
 import {
   db,
@@ -19,6 +19,7 @@ import {
   paymentsTable,
   bankMovementsTable,
   bankReconciliationsTable,
+  bankAccountsTable,
   type Invoice,
   type InvoiceLine,
 } from "@workspace/db";
@@ -1050,6 +1051,233 @@ router.delete(
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete payment allocation");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Edit (PATCH) an existing allocation amount (registered before /:id) ----
+router.patch(
+  "/invoices/:id/allocations/:allocationId",
+  requireAuth,
+  requireCapability("payments:update"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    const allocationId = req.params["allocationId"] as string;
+    const { allocatedAmount } = req.body as { allocatedAmount?: unknown };
+    if (
+      typeof allocatedAmount !== "number" ||
+      isNaN(allocatedAmount) ||
+      allocatedAmount <= MONEY_EPS
+    ) {
+      res.status(400).json({ error: "المبلغ غير صحيح" });
+      return;
+    }
+    try {
+      const [alloc] = await db
+        .select()
+        .from(paymentAllocationsTable)
+        .where(
+          and(
+            eq(paymentAllocationsTable.id, allocationId),
+            eq(paymentAllocationsTable.invoiceId, id),
+            eq(paymentAllocationsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!alloc) {
+        res.status(404).json({ error: "التخصيص غير موجود" });
+        return;
+      }
+
+      const [pmtRow] = await db
+        .select({ date: paymentsTable.date })
+        .from(paymentsTable)
+        .where(
+          and(
+            eq(paymentsTable.id, alloc.paymentId),
+            eq(paymentsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (pmtRow) {
+        const wb = await isWriteBlocked(db, companyId, pmtRow.date);
+        if (wb) {
+          res
+            .status(wb === "period_locked" ? 423 : 400)
+            .json({ error: WRITE_BLOCK_MSG[wb] });
+          return;
+        }
+      }
+
+      await db.transaction(async (tx) => {
+        const [inv] = await tx
+          .select({ total: invoicesTable.total, amountPaid: invoicesTable.amountPaid })
+          .from(invoicesTable)
+          .where(and(eq(invoicesTable.id, id), eq(invoicesTable.companyId, companyId)))
+          .for("update")
+          .limit(1);
+        if (!inv) throw new Error("NOT_FOUND");
+
+        await tx
+          .select({ amount: paymentsTable.amount })
+          .from(paymentsTable)
+          .where(and(eq(paymentsTable.id, alloc.paymentId), eq(paymentsTable.companyId, companyId)))
+          .for("update")
+          .limit(1);
+
+        const oldAmount = Number(alloc.amount);
+        const total = Number(inv.total);
+        const amountPaid = Number(inv.amountPaid);
+
+        // Invoice balance after reversing old allocation
+        const invBalance = round2(total - amountPaid + oldAmount);
+        if (allocatedAmount > invBalance + MONEY_EPS) {
+          throw new Error("EXCEEDS_INVOICE");
+        }
+
+        // Payment unallocated after reversing old allocation
+        const [pmtTotals] = await tx
+          .select({
+            pmtAmount: paymentsTable.amount,
+            allocTotal: sql<string>`coalesce(sum(${paymentAllocationsTable.amount}), 0)`,
+          })
+          .from(paymentsTable)
+          .leftJoin(paymentAllocationsTable, eq(paymentAllocationsTable.paymentId, paymentsTable.id))
+          .where(eq(paymentsTable.id, alloc.paymentId))
+          .groupBy(paymentsTable.id)
+          .limit(1);
+        const pmtUnallocated = round2(
+          Number(pmtTotals?.pmtAmount ?? 0) - Number(pmtTotals?.allocTotal ?? 0) + oldAmount,
+        );
+        if (allocatedAmount > pmtUnallocated + MONEY_EPS) {
+          throw new Error("EXCEEDS_PAYMENT");
+        }
+
+        await tx
+          .update(paymentAllocationsTable)
+          .set({ amount: String(allocatedAmount) })
+          .where(eq(paymentAllocationsTable.id, allocationId));
+
+        // Recompute invoice.amountPaid from sum of all its allocations
+        const [newSum] = await tx
+          .select({
+            total: sql<string>`coalesce(sum(${paymentAllocationsTable.amount}), 0)`,
+          })
+          .from(paymentAllocationsTable)
+          .where(eq(paymentAllocationsTable.invoiceId, id));
+        const newAmountPaid = round2(Number(newSum?.total ?? 0));
+        await tx
+          .update(invoicesTable)
+          .set({ amountPaid: String(newAmountPaid), status: invoiceStatusFor(total, newAmountPaid) })
+          .where(eq(invoicesTable.id, id));
+      });
+
+      res.json({ status: "ok" });
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.message === "EXCEEDS_INVOICE") {
+          res.status(422).json({ error: "المبلغ يتجاوز رصيد الفاتورة المتبقي" });
+          return;
+        }
+        if (err.message === "EXCEEDS_PAYMENT") {
+          res.status(422).json({ error: "المبلغ يتجاوز الرصيد غير الموزع في السند" });
+          return;
+        }
+        if (err.message === "NOT_FOUND") {
+          res.status(404).json({ error: "لم يتم العثور على السجل" });
+          return;
+        }
+      }
+      req.log.error({ err }, "Failed to update payment allocation");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Available bank movements to link from an invoice (registered before /:id) ----
+// Returns unlinked movements of matching direction that can be linked to create a payment.
+router.get(
+  "/invoices/:id/available-movements",
+  requireAuth,
+  requireCapability("payments:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const id = req.params["id"] as string;
+    try {
+      const inv = await loadInvoice(id, companyId);
+      if (!inv) {
+        res.status(404).json({ error: "الفاتورة غير موجودة" });
+        return;
+      }
+
+      const movType =
+        inv.kind === "sales" ? "customer_collection" : "supplier_payment";
+      const movDirection = inv.kind === "sales" ? "in" : "out";
+
+      // Collect all movement IDs already linked to a payment in this company.
+      const linked = await db
+        .select({ bankMovementId: paymentsTable.bankMovementId })
+        .from(paymentsTable)
+        .where(
+          and(
+            eq(paymentsTable.companyId, companyId),
+            isNotNull(paymentsTable.bankMovementId),
+          ),
+        );
+      const linkedIds = linked
+        .map((r) => r.bankMovementId)
+        .filter((x): x is string => !!x);
+
+      const conds = [
+        eq(bankMovementsTable.companyId, companyId),
+        eq(bankMovementsTable.type, movType),
+        eq(bankMovementsTable.direction, movDirection),
+        eq(bankMovementsTable.isCleared, false),
+      ];
+      if (linkedIds.length > 0) {
+        conds.push(not(inArray(bankMovementsTable.id, linkedIds)));
+      }
+
+      const movements = await db
+        .select({
+          id: bankMovementsTable.id,
+          date: bankMovementsTable.date,
+          amount: bankMovementsTable.amount,
+          currency: bankMovementsTable.currency,
+          reference: bankMovementsTable.reference,
+          notes: bankMovementsTable.notes,
+          bankAccountId: bankMovementsTable.bankAccountId,
+        })
+        .from(bankMovementsTable)
+        .where(and(...conds))
+        .orderBy(desc(bankMovementsTable.date))
+        .limit(100);
+
+      const bankIds = [...new Set(movements.map((m) => m.bankAccountId))];
+      const accountNames = new Map<string, string>();
+      if (bankIds.length > 0) {
+        const accts = await db
+          .select({ id: bankAccountsTable.id, name: bankAccountsTable.nameAr })
+          .from(bankAccountsTable)
+          .where(inArray(bankAccountsTable.id, bankIds));
+        accts.forEach((a) => accountNames.set(a.id, a.name));
+      }
+
+      res.json(
+        movements.map((m) => ({
+          id: m.id,
+          date: m.date,
+          amount: Number(m.amount),
+          currency: m.currency,
+          reference: m.reference ?? null,
+          notes: m.notes ?? null,
+          bankAccountName: accountNames.get(m.bankAccountId) ?? null,
+        })),
+      );
+    } catch (err) {
+      req.log.error({ err }, "Failed to load available movements");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

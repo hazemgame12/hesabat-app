@@ -978,6 +978,7 @@ export function InvoiceEditor({
                 <InvoicePaymentAllocations
                   invoiceId={invoiceId}
                   invoiceKind={detail.kind as "sales" | "purchase"}
+                  invoicePartyId={detail.partyId ?? null}
                   status={detail.status}
                   currency={detail.currency ?? null}
                   onChanged={onAllocated ?? (() => {})}

@@ -43,6 +43,8 @@ import {
   ArrowUpRight,
   FileSpreadsheet,
   Copy,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -117,6 +119,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [invGridView, toggleInvGrid] = useGridView("invoices-" + kind);
   const [retGridView, toggleRetGrid] = useGridView("returns-" + kind);
   const [payGridView, togglePayGrid] = useGridView("payments-" + kind);
+  const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
 
   const { data: invoicesRaw = [], isLoading: invLoading } = useListInvoices({
     kind,
@@ -1440,13 +1443,22 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                   </thead>
                   <tbody>
                     {payments.map((p) => (
+                      <React.Fragment key={p.id}>
                       <tr
-                        key={p.id}
                         className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors"
                       >
                         {/* Actions */}
                         <td className="px-2 py-2">
                           <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => setExpandedPaymentId(expandedPaymentId === p.id ? null : p.id)}
+                              className="w-7 h-7 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200"
+                              title={t("invoices.allocations.title")}
+                            >
+                              {expandedPaymentId === p.id
+                                ? <ChevronDown className="w-3.5 h-3.5" />
+                                : <ChevronRight className="w-3.5 h-3.5" />}
+                            </button>
                             <button
                               onClick={() => printPayment(p.id)}
                               className="w-7 h-7 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200"
@@ -1486,6 +1498,28 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           {fmt(p.amount)}
                         </td>
                       </tr>
+                      {expandedPaymentId === p.id && p.allocations.length > 0 && (
+                        <tr className="bg-primary/5 border-b border-primary/10">
+                          <td colSpan={6} className="px-4 py-2">
+                            <p className="text-[11px] font-bold text-primary mb-1.5">
+                              {t("invoices.allocations.title")}
+                            </p>
+                            <div className="flex flex-col gap-1">
+                              {p.allocations.map((a) => (
+                                <div key={a.id} className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>
+                                    {t("invoices.invoiceNo")} #{a.invoiceNo ?? "—"}
+                                  </span>
+                                  <span className="font-mono font-bold text-foreground" dir="ltr">
+                                    {a.amount.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
