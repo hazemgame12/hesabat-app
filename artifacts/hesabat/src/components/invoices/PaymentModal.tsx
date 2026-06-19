@@ -163,11 +163,27 @@ export function PaymentModal({
   const labelCls = "text-xs font-bold text-muted-foreground mb-1 block";
 
   const submit = () => {
-    if (!partyId || !cashAccountId || !(Number(amount) > 0)) {
+    if (!partyId) {
       toast({
         variant: "destructive",
         title: t("common.error"),
-        description: t("invoices.toast.error"),
+        description: t(kind === "sales" ? "invoices.validations.selectCustomer" : "invoices.validations.selectSupplier"),
+      });
+      return;
+    }
+    if (!cashAccountId) {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("invoices.validations.selectCashAccount"),
+      });
+      return;
+    }
+    if (!(Number(amount) > 0)) {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("invoices.validations.enterAmount"),
       });
       return;
     }
@@ -178,7 +194,7 @@ export function PaymentModal({
       toast({
         variant: "destructive",
         title: t("common.error"),
-        description: t("invoices.unallocated"),
+        description: t("invoices.validations.allocationsExceedAmount"),
       });
       return;
     }

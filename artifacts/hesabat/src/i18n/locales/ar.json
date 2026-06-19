@@ -1917,6 +1917,13 @@
     "amount": "المبلغ",
     "allocate": "تخصيص",
     "unallocated": "غير موزع",
+    "validations": {
+      "selectCustomer": "يجب اختيار العميل أولاً",
+      "selectSupplier": "يجب اختيار المورد أولاً",
+      "selectCashAccount": "يجب اختيار حساب النقدية أو البنك",
+      "enterAmount": "يجب إدخال مبلغ أكبر من صفر",
+      "allocationsExceedAmount": "إجمالي التخصيصات أكبر من مبلغ السند"
+    },
     "paymentDetails": "تفاصيل السند",
     "invoiceDetails": "تفاصيل الفاتورة",
     "tabsReturns": "الإشعارات",

@@ -1917,6 +1917,13 @@
     "amount": "Amount",
     "allocate": "Allocate",
     "unallocated": "Unallocated",
+    "validations": {
+      "selectCustomer": "Please select a customer first",
+      "selectSupplier": "Please select a supplier first",
+      "selectCashAccount": "Please select a cash or bank account",
+      "enterAmount": "Please enter an amount greater than zero",
+      "allocationsExceedAmount": "Total allocations exceed the voucher amount"
+    },
     "paymentDetails": "Voucher details",
     "invoiceDetails": "Invoice details",
     "tabsReturns": "Notes",
