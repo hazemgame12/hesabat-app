@@ -15,6 +15,7 @@ import {
   companiesTable,
   costCentersTable,
   journalEntriesTable,
+  journalEntryLinesTable,
   customersTable,
   suppliersTable,
   paymentsTable,
@@ -3712,6 +3713,21 @@ router.get(
   async (req, res) => {
     const companyId = req.auth!.companyId;
     try {
+      // Fetch all bank accounts for this company (needed for both modes)
+      const allBankAccounts = await db
+        .select({
+          id: bankAccountsTable.id,
+          name: bankAccountsTable.nameAr,
+          currency: bankAccountsTable.currency,
+          accountId: bankAccountsTable.accountId,
+        })
+        .from(bankAccountsTable)
+        .where(eq(bankAccountsTable.companyId, companyId));
+
+      const bankById = new Map(allBankAccounts.map((b) => [b.id, b]));
+      // chart-account ID → bank account (for hybrid detection)
+      const chartToBankMap = new Map(allBankAccounts.map((b) => [b.accountId, b]));
+
       // Pending = no journalEntryId, no transferGroupId, not cleared
       const pending = await db
         .select({
@@ -3740,29 +3756,31 @@ router.get(
       const outs = pending.filter((m) => m.direction === "out");
       const ins = pending.filter((m) => m.direction === "in");
 
-      // Fetch bank account names
-      const allBankIds = [...new Set(pending.map((m) => m.bankAccountId))];
-      const bankNameMap = new Map<string, { name: string; currency: string }>();
-      if (allBankIds.length) {
-        const banks = await db
-          .select({ id: bankAccountsTable.id, name: bankAccountsTable.nameAr, currency: bankAccountsTable.currency })
-          .from(bankAccountsTable)
-          .where(and(eq(bankAccountsTable.companyId, companyId), inArray(bankAccountsTable.id, allBankIds)));
-        for (const b of banks) bankNameMap.set(b.id, { name: b.name, currency: b.currency });
-      }
+      type MovementSide = {
+        id: string;
+        bankAccountId: string;
+        bankAccountName: string | null;
+        date: string;
+        amount: number;
+        currency: string;
+        reference: string | null;
+        notes: string | null;
+      };
 
       type Suggestion = {
-        outMovement: { id: string; bankAccountId: string; bankAccountName: string | null; date: string; amount: number; currency: string; reference: string | null; notes: string | null };
-        inMovement: { id: string; bankAccountId: string; bankAccountName: string | null; date: string; amount: number; currency: string; reference: string | null; notes: string | null };
+        outMovement: MovementSide;
+        inMovement: MovementSide;
         score: number;
         amountMatch: boolean;
         dateDiffDays: number;
         referenceMatch: boolean;
+        hybridMatch: boolean;
       };
 
       const suggestions: Suggestion[] = [];
       const seen = new Set<string>();
 
+      // ── Mode A: both pending ───────────────────────────────────────────────
       for (const out of outs) {
         for (const inn of ins) {
           if (out.bankAccountId === inn.bankAccountId) continue;
@@ -3774,23 +3792,19 @@ router.get(
           const outBase = round2(outAmt * Number(out.exchangeRate));
           const inBase = round2(inAmt * Number(inn.exchangeRate));
 
-          // Amount match in base currency (within 1%)
           const amountDiff = Math.abs(outBase - inBase);
           const amountMatch = amountDiff <= Math.max(outBase, inBase) * 0.01 + 0.5;
-          if (!amountMatch && amountDiff > 500) continue; // skip very different amounts
+          if (!amountMatch && amountDiff > 500) continue;
 
-          // Date proximity
           const outDate = new Date(out.date);
           const inDate = new Date(inn.date);
           const dateDiffDays = Math.abs((outDate.getTime() - inDate.getTime()) / 86400000);
-          if (dateDiffDays > 7) continue; // more than 7 days apart → skip
+          if (dateDiffDays > 7) continue;
 
-          // Reference / notes similarity
           const refMatch =
             !!(out.reference && inn.reference && out.reference.trim() === inn.reference.trim()) ||
             !!(out.notes && inn.notes && out.notes.trim().slice(0, 20) === inn.notes.trim().slice(0, 20));
 
-          // Score: higher = better match
           let score = 0;
           if (amountMatch) score += 50;
           score += Math.max(0, 30 - dateDiffDays * 5);
@@ -3802,7 +3816,7 @@ router.get(
             outMovement: {
               id: out.id,
               bankAccountId: out.bankAccountId,
-              bankAccountName: bankNameMap.get(out.bankAccountId)?.name ?? null,
+              bankAccountName: bankById.get(out.bankAccountId)?.name ?? null,
               date: out.date,
               amount: outAmt,
               currency: out.currency,
@@ -3812,7 +3826,7 @@ router.get(
             inMovement: {
               id: inn.id,
               bankAccountId: inn.bankAccountId,
-              bankAccountName: bankNameMap.get(inn.bankAccountId)?.name ?? null,
+              bankAccountName: bankById.get(inn.bankAccountId)?.name ?? null,
               date: inn.date,
               amount: inAmt,
               currency: inn.currency,
@@ -3823,11 +3837,112 @@ router.get(
             amountMatch,
             dateDiffDays: Math.round(dateDiffDays),
             referenceMatch: refMatch,
+            hybridMatch: false,
           });
         }
       }
 
-      // Sort by score desc, return top 50
+      // ── Mode B: hybrid — one classified (JE exists, counterpart = bank chart acct)
+      //            + one pending from that counterpart bank ────────────────────
+      const classifiedRows = await db
+        .select({
+          id: bankMovementsTable.id,
+          bankAccountId: bankMovementsTable.bankAccountId,
+          date: bankMovementsTable.date,
+          direction: bankMovementsTable.direction,
+          amount: bankMovementsTable.amount,
+          currency: bankMovementsTable.currency,
+          exchangeRate: bankMovementsTable.exchangeRate,
+          reference: bankMovementsTable.reference,
+          notes: bankMovementsTable.notes,
+          counterpartAccountId: bankMovementsTable.counterpartAccountId,
+          journalEntryId: bankMovementsTable.journalEntryId,
+        })
+        .from(bankMovementsTable)
+        .where(
+          and(
+            eq(bankMovementsTable.companyId, companyId),
+            isNotNull(bankMovementsTable.journalEntryId),
+            isNull(bankMovementsTable.transferGroupId),
+            sql`${bankMovementsTable.isCleared} = false`,
+            isNotNull(bankMovementsTable.counterpartAccountId),
+          ),
+        );
+
+      for (const classified of classifiedRows) {
+        if (!classified.counterpartAccountId) continue;
+        const counterpartBank = chartToBankMap.get(classified.counterpartAccountId);
+        if (!counterpartBank) continue; // counterpart is not a bank account
+
+        const neededDirection = classified.direction === "out" ? "in" : "out";
+        const counterpartPending = pending.filter(
+          (p) => p.bankAccountId === counterpartBank.id && p.direction === neededDirection,
+        );
+
+        for (const pend of counterpartPending) {
+          const key = [classified.id, pend.id].sort().join(":");
+          if (seen.has(key)) continue;
+
+          const classAmt = Number(classified.amount);
+          const pendAmt = Number(pend.amount);
+          const classBase = round2(classAmt * Number(classified.exchangeRate));
+          const pendBase = round2(pendAmt * Number(pend.exchangeRate));
+
+          const amountDiff = Math.abs(classBase - pendBase);
+          const amountMatch = amountDiff <= Math.max(classBase, pendBase) * 0.05 + 1; // 5% tolerance for FX
+          if (!amountMatch && amountDiff > 500) continue;
+
+          const classDate = new Date(classified.date);
+          const pendDate = new Date(pend.date);
+          const dateDiffDays = Math.abs((classDate.getTime() - pendDate.getTime()) / 86400000);
+          if (dateDiffDays > 14) continue; // allow 14 days for hybrid
+
+          const refMatch =
+            !!(classified.reference && pend.reference && classified.reference.trim() === pend.reference.trim()) ||
+            !!(classified.notes && pend.notes && classified.notes.trim().slice(0, 20) === pend.notes.trim().slice(0, 20));
+
+          let score = 0;
+          if (amountMatch) score += 50;
+          score += Math.max(0, 30 - dateDiffDays * 4);
+          if (refMatch) score += 20;
+          score += 8; // bonus: classified side has higher certainty
+
+          const outMov = classified.direction === "out" ? classified : pend;
+          const inMov = classified.direction === "out" ? pend : classified;
+          const outBankName = bankById.get(outMov.bankAccountId)?.name ?? null;
+          const inBankName = bankById.get(inMov.bankAccountId)?.name ?? null;
+
+          seen.add(key);
+          suggestions.push({
+            outMovement: {
+              id: outMov.id,
+              bankAccountId: outMov.bankAccountId,
+              bankAccountName: outBankName,
+              date: outMov.date,
+              amount: Number(outMov.amount),
+              currency: outMov.currency,
+              reference: outMov.reference,
+              notes: outMov.notes,
+            },
+            inMovement: {
+              id: inMov.id,
+              bankAccountId: inMov.bankAccountId,
+              bankAccountName: inBankName,
+              date: inMov.date,
+              amount: Number(inMov.amount),
+              currency: inMov.currency,
+              reference: inMov.reference,
+              notes: inMov.notes,
+            },
+            score,
+            amountMatch,
+            dateDiffDays: Math.round(dateDiffDays),
+            referenceMatch: refMatch,
+            hybridMatch: true,
+          });
+        }
+      }
+
       suggestions.sort((a, b) => b.score - a.score);
       res.json(suggestions.slice(0, 50));
     } catch (err) {
@@ -3837,7 +3952,12 @@ router.get(
   },
 );
 
-// ── Confirm a transfer match (link two pending movements as an internal transfer)
+// ── Confirm a transfer match
+// Supports two modes:
+//   A) Both pending (no JE) → new transfer JE with FX if needed
+//   B) Hybrid: one classified (has JE, counterpartAccountId = other bank) +
+//      one pending → delete old JE, create proper transfer JE at same base
+//      value (no FX differences per user requirement)
 const ConfirmTransferMatchBody = z.object({
   outMovementId: z.string(),
   inMovementId: z.string(),
@@ -3882,13 +4002,35 @@ router.post(
         res.status(400).json({ error: "الحركتان في نفس الحساب" });
         return;
       }
-      if (outMov.journalEntryId || inMov.journalEntryId) {
-        res.status(400).json({ error: "يمكن ربط الحركات المعلقة (غير المُرحَّلة) فقط" });
-        return;
-      }
       if (outMov.transferGroupId || inMov.transferGroupId) {
         res.status(409).json({ error: "إحدى الحركتين مرتبطة بتحويل بالفعل" });
         return;
+      }
+
+      // Detect hybrid mode: exactly one movement has a JE
+      if (outMov.journalEntryId && inMov.journalEntryId) {
+        res.status(400).json({ error: "لا يمكن ربط حركتين مُرحَّلتين — يجب أن تكون إحداهما معلقة" });
+        return;
+      }
+      const isHybrid = !!(outMov.journalEntryId || inMov.journalEntryId);
+      const classifiedMov = outMov.journalEntryId ? outMov : inMov;
+      const pendingMov   = outMov.journalEntryId ? inMov  : outMov;
+
+      if (isHybrid) {
+        // Verify the classified movement's counterpartAccountId points to the pending movement's bank
+        const [pendingBank] = await db
+          .select({ accountId: bankAccountsTable.accountId })
+          .from(bankAccountsTable)
+          .where(and(eq(bankAccountsTable.id, pendingMov.bankAccountId), eq(bankAccountsTable.companyId, companyId)))
+          .limit(1);
+        if (!pendingBank) {
+          res.status(400).json({ error: "الحساب البنكي للحركة المعلقة غير موجود" });
+          return;
+        }
+        if (classifiedMov.counterpartAccountId !== pendingBank.accountId) {
+          res.status(400).json({ error: "الحركة المُرحَّلة لا تشير إلى الحساب البنكي للحركة المعلقة — تحقق من الحساب المقابل" });
+          return;
+        }
       }
 
       const wb = await isWriteBlocked(db, companyId, outMov.date);
@@ -3911,16 +4053,50 @@ router.post(
       }
 
       const baseCurrency = await loadBaseCurrency(companyId);
-      const srcAmountBase = round2(Number(outMov.amount) * Number(outMov.exchangeRate));
-      const destAmountBase = round2(Number(inMov.amount) * Number(inMov.exchangeRate));
-      const realizedGainLoss = round2(destAmountBase - srcAmountBase);
+      // For hybrid: force same base amount on both sides → no FX gain/loss line
+      const srcAmountBase  = round2(Number(outMov.amount) * Number(outMov.exchangeRate));
+      const destAmountBase = isHybrid
+        ? srcAmountBase // "same value, no FX differences"
+        : round2(Number(inMov.amount) * Number(inMov.exchangeRate));
+      const realizedGainLoss = isHybrid ? 0 : round2(destAmountBase - srcAmountBase);
 
       await db.transaction(async (tx) => {
         const transferGroupId = randomUUID();
 
+        // Hybrid: delete the old single-sided JE before creating the transfer JE
+        if (isHybrid && classifiedMov.journalEntryId) {
+          // Safety check: only this one movement references the old JE
+          const jeSharers = await tx
+            .select({ id: bankMovementsTable.id })
+            .from(bankMovementsTable)
+            .where(
+              and(
+                eq(bankMovementsTable.companyId, companyId),
+                eq(bankMovementsTable.journalEntryId, classifiedMov.journalEntryId),
+              ),
+            );
+          if (jeSharers.length === 1) {
+            // Safe to delete
+            await tx.delete(journalEntryLinesTable).where(
+              eq(journalEntryLinesTable.entryId, classifiedMov.journalEntryId),
+            );
+            await tx.delete(journalEntriesTable).where(
+              and(
+                eq(journalEntriesTable.id, classifiedMov.journalEntryId),
+                eq(journalEntriesTable.companyId, companyId),
+              ),
+            );
+          }
+          // Clear the old JE reference from the classified movement so the update below works
+          await tx
+            .update(bankMovementsTable)
+            .set({ journalEntryId: null, counterpartAccountId: null })
+            .where(eq(bankMovementsTable.id, classifiedMov.id));
+        }
+
         let gainAccountId: string | null = null;
         let lossAccountId: string | null = null;
-        if (Math.abs(realizedGainLoss) > 0.005) {
+        if (!isHybrid && Math.abs(realizedGainLoss) > 0.005) {
           const fxAccts = await ensureFxAccounts(tx, companyId);
           gainAccountId = fxAccts.gainAccountId;
           lossAccountId = fxAccts.lossAccountId;
@@ -3930,7 +4106,7 @@ router.post(
           companyId,
           baseCurrency,
           date: outMov.date,
-          reference: "تحويل بين الحسابات (مطابقة)",
+          reference: isHybrid ? "تحويل بين الحسابات (ميرج)" : "تحويل بين الحسابات (مطابقة)",
           notes: outMov.notes ?? inMov.notes ?? null,
           createdBy: req.auth!.userId,
           status: "posted",
@@ -3941,7 +4117,7 @@ router.post(
             destAmountBase,
             gainAccountId,
             lossAccountId,
-            description: outMov.description ?? null,
+            description: outMov.description ?? inMov.description ?? null,
           }),
         });
 
@@ -3952,8 +4128,9 @@ router.post(
             transferAccountId: inMov.bankAccountId,
             transferGroupId,
             journalEntryId: entry.id,
+            counterpartAccountId: null,
             destinationAmount: outMov.currency !== inMov.currency ? String(Number(inMov.amount)) : null,
-            realizedGainLoss: Math.abs(realizedGainLoss) > 0.005 ? String(realizedGainLoss) : null,
+            realizedGainLoss: null,
           })
           .where(eq(bankMovementsTable.id, outMovementId));
 
@@ -3964,11 +4141,12 @@ router.post(
             transferAccountId: outMov.bankAccountId,
             transferGroupId,
             journalEntryId: entry.id,
+            counterpartAccountId: null,
           })
           .where(eq(bankMovementsTable.id, inMovementId));
       });
 
-      res.json({ success: true });
+      res.json({ success: true, hybrid: isHybrid });
     } catch (err) {
       req.log.error({ err }, "transfer-match-confirm failed");
       res.status(500).json({ error: "حدث خطأ في الخادم" });

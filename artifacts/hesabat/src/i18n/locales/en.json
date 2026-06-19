@@ -1587,7 +1587,8 @@
       "confirmHint": "A journal entry will be created linking the two movements as an inter-account transfer.",
       "noSuggestions": "No matching suggestions found.",
       "days": "day(s)",
-      "confirmed": "Transfer linked successfully"
+      "confirmed": "Transfer linked successfully",
+      "hybridMatch": "Merge — no FX differences"
     },
     "movementTypes": {
       "deposit": "Deposit",

@@ -3815,6 +3815,7 @@ type MatchSuggestion = {
   amountMatch: boolean;
   dateDiffDays: number;
   referenceMatch: boolean;
+  hybridMatch: boolean;
 };
 
 function TransferMatchPanel({
@@ -3913,6 +3914,11 @@ function TransferMatchPanel({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap mb-3">
+                  {s.hybridMatch && (
+                    <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-0.5 rounded-full font-bold">
+                      {t("bank.transferMatch.hybridMatch")}
+                    </span>
+                  )}
                   {s.amountMatch && (
                     <span className="text-xs bg-success/10 text-success px-2 py-0.5 rounded-full font-bold">
                       {t("bank.transferMatch.amountMatch")} ✓
