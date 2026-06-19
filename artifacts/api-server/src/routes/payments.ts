@@ -15,6 +15,7 @@ import {
   bankMovementsTable,
   type Payment,
 } from "@workspace/db";
+import { z } from "zod/v4";
 import { CreatePaymentBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
@@ -617,23 +618,32 @@ router.post(
           const movementType =
             d.kind === "collection" ? "customer_collection" : "supplier_payment";
           const direction = d.kind === "collection" ? "in" : "out";
-          await tx.insert(bankMovementsTable).values({
-            companyId,
-            bankAccountId: bankAccount.id,
-            date: d.date,
-            type: movementType,
-            direction,
-            amount: String(round2(d.amount)),
-            currency: d.currency ?? bankAccount.currency,
-            exchangeRate: String(rate),
-            counterpartAccountId: partyAccountId,
-            description:
-              d.kind === "collection"
-                ? `تحصيل من ${partyName}`
-                : `دفعة إلى ${partyName}`,
-            journalEntryId: entry.id,
-            createdBy: req.auth!.userId,
-          });
+          const [bankMovRow] = await tx
+            .insert(bankMovementsTable)
+            .values({
+              companyId,
+              bankAccountId: bankAccount.id,
+              date: d.date,
+              type: movementType,
+              direction,
+              amount: String(round2(d.amount)),
+              currency: d.currency ?? bankAccount.currency,
+              exchangeRate: String(rate),
+              counterpartAccountId: partyAccountId,
+              description:
+                d.kind === "collection"
+                  ? `تحصيل من ${partyName}`
+                  : `دفعة إلى ${partyName}`,
+              journalEntryId: entry.id,
+              createdBy: req.auth!.userId,
+            })
+            .returning({ id: bankMovementsTable.id });
+          if (bankMovRow) {
+            await tx
+              .update(paymentsTable)
+              .set({ bankMovementId: bankMovRow.id })
+              .where(eq(paymentsTable.id, payment!.id));
+          }
         }
 
         return payment!;
@@ -679,6 +689,195 @@ router.post(
         return;
       }
       req.log.error({ err }, "Failed to create payment");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Unallocated (advance payments with remaining balance) ----
+router.get(
+  "/payments/unallocated",
+  requireAuth,
+  requireCapability("payments:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const kind = req.query["kind"] as string | undefined;
+    const customerId = req.query["customerId"] as string | undefined;
+    const supplierId = req.query["supplierId"] as string | undefined;
+
+    if (!kind || (kind !== "collection" && kind !== "payment")) {
+      res.status(400).json({ error: "kind مطلوب: collection أو payment" });
+      return;
+    }
+    if (!customerId && !supplierId) {
+      res.status(400).json({ error: "يجب تحديد customerId أو supplierId" });
+      return;
+    }
+
+    try {
+      const conditions: ReturnType<typeof eq>[] = [
+        eq(paymentsTable.companyId, companyId),
+        eq(paymentsTable.kind, kind as "collection" | "payment"),
+      ];
+      if (customerId) conditions.push(eq(paymentsTable.customerId, customerId));
+      if (supplierId) conditions.push(eq(paymentsTable.supplierId, supplierId));
+
+      const rows = await db
+        .select({
+          id: paymentsTable.id,
+          paymentNo: paymentsTable.paymentNo,
+          date: paymentsTable.date,
+          amount: paymentsTable.amount,
+          currency: paymentsTable.currency,
+          allocated: sql<string>`coalesce((
+            select sum(pa.amount) from payment_allocations pa
+            where pa.payment_id = ${paymentsTable.id}
+              and pa.company_id = ${paymentsTable.companyId}
+          ), '0')`,
+        })
+        .from(paymentsTable)
+        .where(and(...conditions))
+        .orderBy(paymentsTable.date);
+
+      const results = rows
+        .filter((p) => round2(Number(p.amount) - Number(p.allocated)) > 0.005)
+        .map((p) => ({
+          id: p.id,
+          paymentNo: p.paymentNo,
+          date: p.date,
+          amount: Number(p.amount),
+          currency: p.currency ?? null,
+          allocated: round2(Number(p.allocated)),
+          remaining: round2(Number(p.amount) - Number(p.allocated)),
+        }));
+
+      res.json(results);
+    } catch (err) {
+      req.log.error({ err }, "get-unallocated-payments failed");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Apply advance allocation (link existing payment to an invoice) ----
+const ApplyAdvanceBody = z.object({
+  invoiceId: z.string(),
+  amount: z.number().min(0.01),
+});
+
+router.post(
+  "/payments/:id/allocations",
+  requireAuth,
+  requireCapability("payments:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const paymentId = req.params["id"] as string;
+    const parsed = ApplyAdvanceBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "البيانات المدخلة غير صحيحة" });
+      return;
+    }
+    const d = parsed.data;
+
+    try {
+      const [payment] = await db
+        .select()
+        .from(paymentsTable)
+        .where(and(eq(paymentsTable.id, paymentId), eq(paymentsTable.companyId, companyId)))
+        .limit(1);
+      if (!payment) {
+        res.status(404).json({ error: "سند الدفع غير موجود" });
+        return;
+      }
+
+      const [invoice] = await db
+        .select()
+        .from(invoicesTable)
+        .where(and(eq(invoicesTable.id, d.invoiceId), eq(invoicesTable.companyId, companyId)))
+        .limit(1);
+      if (!invoice) {
+        res.status(404).json({ error: "الفاتورة غير موجودة" });
+        return;
+      }
+
+      const expectedKind = payment.kind === "collection" ? "sales" : "purchase";
+      if (invoice.kind !== expectedKind) {
+        res.status(400).json({ error: "نوع الفاتورة لا يتطابق مع سند الدفع" });
+        return;
+      }
+      if (payment.kind === "collection" && payment.customerId !== invoice.customerId) {
+        res.status(400).json({ error: "العميل في السند لا يتطابق مع الفاتورة" });
+        return;
+      }
+      if (payment.kind === "payment" && payment.supplierId !== invoice.supplierId) {
+        res.status(400).json({ error: "المورد في السند لا يتطابق مع الفاتورة" });
+        return;
+      }
+      if (!["approved", "partially_paid"].includes(invoice.status)) {
+        res.status(400).json({ error: "الفاتورة غير قابلة للسداد في حالتها الحالية" });
+        return;
+      }
+
+      const wb = await isWriteBlocked(db, companyId, payment.date);
+      if (wb) {
+        res.status(wb === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wb] });
+        return;
+      }
+
+      await db.transaction(async (tx) => {
+        const [freshInvoice] = await tx
+          .select()
+          .from(invoicesTable)
+          .where(and(eq(invoicesTable.id, invoice.id), eq(invoicesTable.companyId, companyId)))
+          .for("update")
+          .limit(1);
+        if (!freshInvoice)
+          throw Object.assign(new Error("الفاتورة غير موجودة"), { httpStatus: 404 });
+
+        const [allocRow] = await tx
+          .select({ total: sql<string>`coalesce(sum(${paymentAllocationsTable.amount}), '0')` })
+          .from(paymentAllocationsTable)
+          .where(
+            and(
+              eq(paymentAllocationsTable.paymentId, payment.id),
+              eq(paymentAllocationsTable.companyId, companyId),
+            ),
+          );
+
+        const paymentRemaining = round2(Number(payment.amount) - Number(allocRow?.total ?? 0));
+        const invoiceBalance = round2(Number(freshInvoice.total) - Number(freshInvoice.amountPaid));
+
+        if (invoiceBalance <= 0.005)
+          throw Object.assign(new Error("الفاتورة مسددة بالكامل بالفعل"), { httpStatus: 400 });
+        if (d.amount > paymentRemaining + 0.005)
+          throw Object.assign(new Error("المبلغ أكبر من الرصيد المتبقي في سند الدفع"), { httpStatus: 400 });
+        if (d.amount > invoiceBalance + 0.005)
+          throw Object.assign(new Error("المبلغ أكبر من المتبقي على الفاتورة"), { httpStatus: 400 });
+
+        await tx.insert(paymentAllocationsTable).values({
+          paymentId: payment.id,
+          companyId,
+          invoiceId: invoice.id,
+          amount: String(round2(d.amount)),
+        });
+
+        const newPaid = round2(Number(freshInvoice.amountPaid) + d.amount);
+        await tx
+          .update(invoicesTable)
+          .set({
+            amountPaid: String(newPaid),
+            status: invoiceStatusFor(Number(freshInvoice.total), newPaid),
+          })
+          .where(eq(invoicesTable.id, invoice.id));
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      if (err.httpStatus) {
+        res.status(err.httpStatus).json({ error: err.message });
+        return;
+      }
+      req.log.error({ err }, "apply-advance-allocation failed");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

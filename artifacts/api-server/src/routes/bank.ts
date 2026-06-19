@@ -1755,6 +1755,26 @@ router.patch(
         res.status(400).json({ error: "لا يمكن تعديل حركة تمت تسويتها بنكياً" });
         return;
       }
+      // Block classify/edit for movements created by the payment module.
+      // Detected via: the movement's JE is owned by a payment voucher.
+      if (movement.journalEntryId) {
+        const [paymentOwner] = await db
+          .select({ id: paymentsTable.id })
+          .from(paymentsTable)
+          .where(
+            and(
+              eq(paymentsTable.companyId, companyId),
+              eq(paymentsTable.journalEntryId, movement.journalEntryId),
+            ),
+          )
+          .limit(1);
+        if (paymentOwner) {
+          res.status(400).json({
+            error: "هذه الحركة مرتبطة بسند قبض/صرف ولا يمكن تعديلها هنا. استخدم قسم المدفوعات.",
+          });
+          return;
+        }
+      }
 
       // Merge incoming fields over the existing row.
       const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -3273,6 +3293,24 @@ router.post(
           .status(409)
           .json({ error: "هذه الحركة مرتبطة بسند قبض/صرف بالفعل" });
         return;
+      }
+      // Also guard for legacy movements created by the payment module before
+      // bankMovementId tracking: the movement's JE is already owned by a payment.
+      if (movement.journalEntryId) {
+        const [jeOwner] = await db
+          .select({ id: paymentsTable.id })
+          .from(paymentsTable)
+          .where(
+            and(
+              eq(paymentsTable.companyId, companyId),
+              eq(paymentsTable.journalEntryId, movement.journalEntryId),
+            ),
+          )
+          .limit(1);
+        if (jeOwner) {
+          res.status(409).json({ error: "هذه الحركة مرتبطة بسند قبض/صرف بالفعل" });
+          return;
+        }
       }
 
       const kind: "collection" | "payment" =

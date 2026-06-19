@@ -1503,13 +1503,15 @@ function MovementsTab({
                                       <CheckCircle2 className="w-4 h-4" />
                                     </button>
                                   )}
-                                  <button
-                                    onClick={() => setToClassify(m)}
-                                    className="p-1.5 rounded-md hover:bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                                    title={isPending ? t("bank.classify.action") : t("common.edit")}
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </button>
+                                  {!(m as BankMovement & { paymentId?: string | null }).paymentId && (
+                                    <button
+                                      onClick={() => setToClassify(m)}
+                                      className="p-1.5 rounded-md hover:bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                      title={isPending ? t("bank.classify.action") : t("common.edit")}
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                  )}
                                   {(m.type === "customer_collection" || m.type === "supplier_payment") && (
                                     (m as BankMovement & { paymentId?: string | null }).paymentId ? (
                                       <span

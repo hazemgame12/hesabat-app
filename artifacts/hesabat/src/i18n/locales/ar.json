@@ -1922,7 +1922,18 @@
       "selectSupplier": "يجب اختيار المورد أولاً",
       "selectCashAccount": "يجب اختيار حساب النقدية أو البنك",
       "enterAmount": "يجب إدخال مبلغ أكبر من صفر",
-      "allocationsExceedAmount": "إجمالي التخصيصات أكبر من مبلغ السند"
+      "allocationsExceedAmount": "إجمالي التخصيصات أكبر من مبلغ السند",
+      "selectAdvance": "يجب اختيار دفعة مقدمة",
+      "advanceExceedsBalance": "المبلغ أكبر من الرصيد المتبقي للدفعة المقدمة"
+    },
+    "advances": {
+      "newPaymentTab": "دفع جديد",
+      "applyTab": "تطبيق دفعة مقدمة",
+      "description": "اختر دفعة مقدمة مسجلة مسبقاً وطبّقها على هذه الفاتورة دون إنشاء قيد جديد.",
+      "paymentNo": "رقم السند",
+      "remaining": "الرصيد المتبقي",
+      "amount": "المبلغ المطبّق",
+      "apply": "تطبيق الدفعة"
     },
     "paymentDetails": "تفاصيل السند",
     "invoiceDetails": "تفاصيل الفاتورة",
@@ -1975,6 +1986,7 @@
       "deleted": "تم حذف الفاتورة",
       "paymentCreated": "تم تسجيل السند",
       "paymentDeleted": "تم حذف السند",
+      "advanceApplied": "تم تطبيق الدفعة المقدمة على الفاتورة",
       "error": "حدث خطأ",
       "unbalanced": "البنود غير مكتملة"
     },

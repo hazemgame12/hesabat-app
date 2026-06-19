@@ -1922,7 +1922,18 @@
       "selectSupplier": "Please select a supplier first",
       "selectCashAccount": "Please select a cash or bank account",
       "enterAmount": "Please enter an amount greater than zero",
-      "allocationsExceedAmount": "Total allocations exceed the voucher amount"
+      "allocationsExceedAmount": "Total allocations exceed the voucher amount",
+      "selectAdvance": "Please select an advance payment",
+      "advanceExceedsBalance": "Amount exceeds the remaining advance balance"
+    },
+    "advances": {
+      "newPaymentTab": "New payment",
+      "applyTab": "Apply advance",
+      "description": "Select a previously recorded advance payment and apply it to this invoice without creating a new journal entry.",
+      "paymentNo": "Voucher #",
+      "remaining": "Remaining balance",
+      "amount": "Amount to apply",
+      "apply": "Apply advance"
     },
     "paymentDetails": "Voucher details",
     "invoiceDetails": "Invoice details",
@@ -1975,6 +1986,7 @@
       "deleted": "Invoice deleted",
       "paymentCreated": "Voucher recorded",
       "paymentDeleted": "Voucher deleted",
+      "advanceApplied": "Advance payment applied to invoice",
       "error": "An error occurred",
       "unbalanced": "Lines are incomplete"
     },
