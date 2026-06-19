@@ -94,9 +94,28 @@ router.get(
       res.status(400).json({ error: "نوع العملية غير صحيح" });
       return;
     }
+    const q = req.query as Record<string, unknown>;
+    const partyId = typeof q["partyId"] === "string" ? q["partyId"] : undefined;
+    const dateFrom = typeof q["dateFrom"] === "string" ? q["dateFrom"] : undefined;
+    const dateTo = typeof q["dateTo"] === "string" ? q["dateTo"] : undefined;
+    const currency = typeof q["currency"] === "string" ? q["currency"] : undefined;
     try {
-      const cond = and(eq(paymentsTable.companyId, companyId), eq(paymentsTable.kind, kind));
-      const pg = parsePagination(req.query as Record<string, unknown>);
+      const conds = [
+        eq(paymentsTable.companyId, companyId),
+        eq(paymentsTable.kind, kind),
+        ...(partyId
+          ? [
+              kind === "collection"
+                ? eq(paymentsTable.customerId, partyId)
+                : eq(paymentsTable.supplierId, partyId),
+            ]
+          : []),
+        ...(dateFrom ? [sql`${paymentsTable.date} >= ${dateFrom}`] : []),
+        ...(dateTo ? [sql`${paymentsTable.date} <= ${dateTo}`] : []),
+        ...(currency ? [eq(paymentsTable.currency, currency)] : []),
+      ];
+      const cond = and(...conds);
+      const pg = parsePagination(q);
 
       if (pg) {
         const [{ total }] = await db.select({ total: count() }).from(paymentsTable).where(cond);
@@ -207,6 +226,7 @@ async function serializePayments(rows: Payment[], companyId: string) {
     currency: r.currency,
     exchangeRate: Number(r.exchangeRate),
     notes: r.notes,
+    bankMovementId: r.bankMovementId ?? null,
     journalEntryId: r.journalEntryId,
     allocations: (byPayment.get(r.id) ?? []).map((a) => ({
       id: a.id,
@@ -665,6 +685,10 @@ router.post(
 );
 
 // ---- Delete (reverse) ----
+// Deletes a payment and recalculates amountPaid + status for every invoice
+// that was allocated from this payment. Uses a fresh SUM of remaining
+// allocations (not subtraction) so any prior drift in amountPaid is corrected
+// as a side-effect. All mutations run inside one transaction.
 router.delete(
   "/payments/:id",
   requireAuth,
@@ -673,6 +697,7 @@ router.delete(
     const companyId = req.auth!.companyId;
     const id = req.params["id"] as string;
     try {
+      // 1. Load the payment.
       const [payment] = await db
         .select()
         .from(paymentsTable)
@@ -687,59 +712,46 @@ router.delete(
         res.status(404).json({ error: "العملية غير موجودة" });
         return;
       }
-      const allocs = await db
-        .select()
-        .from(paymentAllocationsTable)
-        .where(eq(paymentAllocationsTable.paymentId, id));
-      // Aggregate the reversal amount per invoice (a payment may hold several
-      // allocation rows for one invoice) so each invoice is locked + reversed
-      // exactly once.
-      const reverseByInvoice = new Map<string, number>();
-      for (const a of allocs) {
-        reverseByInvoice.set(
-          a.invoiceId,
-          round2((reverseByInvoice.get(a.invoiceId) ?? 0) + Number(a.amount)),
-        );
+
+      // 2. Block if the payment's fiscal period is locked.
+      const wb = await isWriteBlocked(db, companyId, payment.date);
+      if (wb) {
+        res
+          .status(wb === "period_locked" ? 423 : 400)
+          .json({ error: WRITE_BLOCK_MSG[wb] });
+        return;
       }
+
+      // 3. Collect the distinct invoice IDs affected by this payment's allocations.
+      const allocs = await db
+        .select({ invoiceId: paymentAllocationsTable.invoiceId })
+        .from(paymentAllocationsTable)
+        .where(
+          and(
+            eq(paymentAllocationsTable.paymentId, id),
+            eq(paymentAllocationsTable.companyId, companyId),
+          ),
+        );
+      const affectedInvoiceIds = [...new Set(allocs.map((a) => a.invoiceId))].sort();
+
       await db.transaction(async (tx) => {
-        // Lock each affected invoice FOR UPDATE in deterministic (sorted id)
-        // order, then read-modify-write its balance so a concurrent payment
-        // create/delete on the same invoice can't clobber amountPaid/status.
-        for (const [invoiceId, amount] of [...reverseByInvoice].sort((a, b) =>
-          a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0,
-        )) {
-          const [inv] = await tx
-            .select({
-              total: invoicesTable.total,
-              amountPaid: invoicesTable.amountPaid,
-            })
+        // 4. Lock all affected invoices FOR UPDATE in deterministic (sorted UUID)
+        //    order — prevents deadlocks with concurrent payment create/delete.
+        let invoiceTotals: { id: string; total: string }[] = [];
+        if (affectedInvoiceIds.length > 0) {
+          invoiceTotals = await tx
+            .select({ id: invoicesTable.id, total: invoicesTable.total })
             .from(invoicesTable)
             .where(
               and(
-                eq(invoicesTable.id, invoiceId),
+                inArray(invoicesTable.id, affectedInvoiceIds),
                 eq(invoicesTable.companyId, companyId),
               ),
             )
-            .for("update")
-            .limit(1);
-          if (inv) {
-            const newPaid = round2(Number(inv.amountPaid) - amount);
-            const clamped = newPaid < 0 ? 0 : newPaid;
-            await tx
-              .update(invoicesTable)
-              .set({
-                amountPaid: String(clamped),
-                status: invoiceStatusFor(Number(inv.total), clamped),
-              })
-              .where(
-                and(
-                  eq(invoicesTable.id, invoiceId),
-                  eq(invoicesTable.companyId, companyId),
-                ),
-              );
-          }
+            .for("update");
         }
-        // Delete the payment (allocations cascade).
+
+        // 5. Delete the payment — cascades to payment_allocations via FK.
         await tx
           .delete(paymentsTable)
           .where(
@@ -748,14 +760,44 @@ router.delete(
               eq(paymentsTable.companyId, companyId),
             ),
           );
-        // Delete its journal entry (lines cascade).
+
+        // 6. Delete its journal entry (lines cascade via FK onDelete:cascade).
         if (payment.journalEntryId) {
-          const { journalEntriesTable } = await import("@workspace/db");
           await tx
             .delete(journalEntriesTable)
             .where(eq(journalEntriesTable.id, payment.journalEntryId));
         }
+
+        // 7. Re-sum remaining allocations for each affected invoice and update.
+        //    Using a fresh SUM (not subtraction) corrects any prior drift.
+        for (const inv of invoiceTotals) {
+          const [sumRow] = await tx
+            .select({
+              remaining: sql<string>`coalesce(sum(${paymentAllocationsTable.amount}), '0')`,
+            })
+            .from(paymentAllocationsTable)
+            .where(
+              and(
+                eq(paymentAllocationsTable.invoiceId, inv.id),
+                eq(paymentAllocationsTable.companyId, companyId),
+              ),
+            );
+          const newPaid = round2(Number(sumRow?.remaining ?? 0));
+          await tx
+            .update(invoicesTable)
+            .set({
+              amountPaid: String(newPaid),
+              status: invoiceStatusFor(Number(inv.total), newPaid),
+            })
+            .where(
+              and(
+                eq(invoicesTable.id, inv.id),
+                eq(invoicesTable.companyId, companyId),
+              ),
+            );
+        }
       });
+
       await safeAudit(
         db,
         {
@@ -768,7 +810,11 @@ router.delete(
           entityLabel: `${
             payment.kind === "collection" ? "سند قبض" : "سند صرف"
           } #${payment.paymentNo}`,
-          oldValue: { paymentNo: payment.paymentNo, amount: payment.amount },
+          oldValue: {
+            paymentNo: payment.paymentNo,
+            amount: payment.amount,
+            allocatedInvoices: affectedInvoiceIds.length,
+          },
         },
         req.log,
       );

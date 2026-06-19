@@ -9,4 +9,8 @@ import type { ListPaymentsKind } from './listPaymentsKind';
 
 export type ListPaymentsParams = {
 kind: ListPaymentsKind;
+partyId?: string;
+dateFrom?: string;
+dateTo?: string;
+currency?: string;
 };

@@ -20,6 +20,8 @@ import { Bank } from "@/pages/bank";
 import { Advances } from "@/pages/advances";
 import SalesInvoicesPage from "@/pages/sales-invoices";
 import PurchaseInvoicesPage from "@/pages/purchase-invoices";
+import CollectionsPage from "@/pages/collections";
+import VendorPaymentsPage from "@/pages/vendor-payments";
 import QuotationsPage from "@/pages/quotations";
 import PurchaseOrdersPage from "@/pages/purchase-orders";
 import PrintInvoicePage from "@/pages/print-invoice";
@@ -93,6 +95,8 @@ function ProtectedRoutes() {
         <Route path="/purchases" component={Suppliers} />
         <Route path="/invoices/sales" component={SalesInvoicesPage} />
         <Route path="/invoices/purchases" component={PurchaseInvoicesPage} />
+        <Route path="/collections" component={CollectionsPage} />
+        <Route path="/vendor-payments" component={VendorPaymentsPage} />
         <Route path="/quotations" component={QuotationsPage} />
         <Route path="/purchase-orders" component={PurchaseOrdersPage} />
         <Route path="/revaluation" component={Revaluation} />

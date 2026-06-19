@@ -2144,6 +2144,8 @@ export interface Payment {
   /** @nullable */
   notes?: string | null;
   /** @nullable */
+  bankMovementId?: string | null;
+  /** @nullable */
   journalEntryId?: string | null;
   allocations: PaymentAllocation[];
   createdAt: string;
@@ -2916,6 +2918,10 @@ export const ListInvoicesKind = {
 
 export type ListPaymentsParams = {
 kind: ListPaymentsKind;
+partyId?: string;
+dateFrom?: string;
+dateTo?: string;
+currency?: string;
 };
 
 export type ListPaymentsKind = typeof ListPaymentsKind[keyof typeof ListPaymentsKind];

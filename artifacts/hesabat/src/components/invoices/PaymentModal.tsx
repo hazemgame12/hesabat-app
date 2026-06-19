@@ -346,7 +346,7 @@ export function PaymentModal({
           {partyId && partyInvoices.length > 0 && (
             <div className="flex flex-col gap-2">
               <h3 className="font-bold text-foreground text-sm">
-                {t("invoices.allocations")}
+                {t("invoices.allocations.title")}
               </h3>
               <div className="border rounded-xl overflow-hidden">
                 <table className="w-full text-sm">

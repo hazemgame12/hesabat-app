@@ -2820,6 +2820,26 @@ paths:
           schema:
             type: string
             enum: [collection, payment]
+        - name: partyId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: currency
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: Payments
@@ -6541,6 +6561,8 @@ components:
         exchangeRate:
           type: number
         notes:
+          type: ["string", "null"]
+        bankMovementId:
           type: ["string", "null"]
         journalEntryId:
           type: ["string", "null"]

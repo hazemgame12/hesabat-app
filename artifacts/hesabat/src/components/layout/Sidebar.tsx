@@ -34,6 +34,8 @@ import {
   ShieldCheck,
   ClipboardList,
   FileOutput,
+  ArrowDownLeft,
+  ArrowUpRight,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -80,6 +82,8 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
       { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
       { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
+      { labelKey: "nav.collections", icon: ArrowDownLeft, href: "/collections", requires: "payments:read" },
+      { labelKey: "nav.vendorPayments", icon: ArrowUpRight, href: "/vendor-payments", requires: "payments:read" },
       { labelKey: "nav.quotations", icon: FileOutput, href: "/quotations", requires: "invoices:read" },
       { labelKey: "nav.purchaseOrders", icon: ClipboardList, href: "/purchase-orders", requires: "invoices:read" },
       { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },

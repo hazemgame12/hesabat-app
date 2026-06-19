@@ -2657,7 +2657,11 @@ export const RevertInvoiceResponse = zod.object({
  * @summary List collections or payments for the current company
  */
 export const ListPaymentsQueryParams = zod.object({
-  "kind": zod.enum(['collection', 'payment'])
+  "kind": zod.enum(['collection', 'payment']),
+  "partyId": zod.coerce.string().optional(),
+  "dateFrom": zod.coerce.string().optional(),
+  "dateTo": zod.coerce.string().optional(),
+  "currency": zod.coerce.string().optional()
 })
 
 export const ListPaymentsResponseItem = zod.object({
@@ -2674,6 +2678,7 @@ export const ListPaymentsResponseItem = zod.object({
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
   "notes": zod.string().nullish(),
+  "bankMovementId": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "allocations": zod.array(zod.object({
   "id": zod.string(),
@@ -2736,6 +2741,7 @@ export const GetPaymentResponse = zod.object({
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
   "notes": zod.string().nullish(),
+  "bankMovementId": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "allocations": zod.array(zod.object({
   "id": zod.string(),
@@ -2876,6 +2882,7 @@ export const GetPaymentsSummaryReportResponseItem = zod.object({
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
   "notes": zod.string().nullish(),
+  "bankMovementId": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "allocations": zod.array(zod.object({
   "id": zod.string(),

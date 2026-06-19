@@ -29,6 +29,8 @@ export interface Payment {
   /** @nullable */
   notes?: string | null;
   /** @nullable */
+  bankMovementId?: string | null;
+  /** @nullable */
   journalEntryId?: string | null;
   allocations: PaymentAllocation[];
   createdAt: string;
