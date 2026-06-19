@@ -287,13 +287,13 @@ router.post(
       res.status(400).json({ error: "المبلغ يجب أن يكون أكبر من صفر" });
       return;
     }
-    const baseCurrency = await loadBaseCurrency(companyId);
-    const wbPayment = await isWriteBlocked(db, companyId, d.date);
-    if (wbPayment) {
-      res.status(wbPayment === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbPayment] });
-      return;
-    }
     try {
+      const baseCurrency = await loadBaseCurrency(companyId);
+      const wbPayment = await isWriteBlocked(db, companyId, d.date);
+      if (wbPayment) {
+        res.status(wbPayment === "period_locked" ? 423 : 400).json({ error: WRITE_BLOCK_MSG[wbPayment] });
+        return;
+      }
       // Resolve party and its subsidiary account.
       const invoiceKind = d.kind === "collection" ? "sales" : "purchase";
       let partyAccountId: string;

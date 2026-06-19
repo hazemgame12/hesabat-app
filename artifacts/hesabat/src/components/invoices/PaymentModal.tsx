@@ -221,12 +221,13 @@ export function PaymentModal({
           toast({ title: t("invoices.toast.paymentCreated") });
           onSaved();
         },
-        onError: (e: any) =>
-          toast({
-            variant: "destructive",
-            title: t("common.error"),
-            description: e?.data?.error || t("invoices.toast.error"),
-          }),
+        onError: (e: any) => {
+          const msg =
+            (typeof e?.data === "object" ? e?.data?.error : null) ??
+            e?.message ??
+            t("invoices.toast.error");
+          toast({ variant: "destructive", title: t("common.error"), description: msg });
+        },
       },
     );
   };
