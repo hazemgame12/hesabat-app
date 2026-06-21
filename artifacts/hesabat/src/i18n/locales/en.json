@@ -1630,7 +1630,8 @@
       "costCenter": "Cost center",
       "noCostCenter": "No cost center",
       "saved": "Movement saved",
-      "post": "Save & post entry"
+      "post": "Save & post entry",
+      "exchangeRateWarning": "Exchange rate is 1 — the base amount may be wrong, please set the correct rate"
     },
     "importHint": "Upload the statement with columns: Date, Debit, Credit, Bank description. Movements are saved pending classification, then classify each by picking its counterpart account.",
     "wizard": {

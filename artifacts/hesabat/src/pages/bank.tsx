@@ -879,6 +879,8 @@ function MovementsTab({
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { data: company } = useGetCompany();
+  const baseCurrency = company?.baseCurrency ?? "AED";
   const [selectedId, setSelectedId] = useState<string>(accounts[0]?.id ?? "");
   const effectiveId = selectedId || accounts[0]?.id || "";
   const [movementsPage, setMovementsPage] = useState(1);
@@ -900,7 +902,7 @@ function MovementsTab({
   const [toLinkPayment, setToLinkPayment] = useState<BankMovement | null>(null);
   const [toDelete, setToDelete] = useState<BankMovement | null>(null);
   const [inlineClassify, setInlineClassify] = useState<
-    Record<string, { counterpartAccountId: string; costCenterId: string; description: string }>
+    Record<string, { counterpartAccountId: string; costCenterId: string; description: string; exchangeRate: string }>
   >({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -1365,6 +1367,7 @@ function MovementsTab({
                                     counterpartAccountId: e.target.value,
                                     costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
                                     description: prev[m.id]?.description ?? m.description ?? "",
+                                    exchangeRate: prev[m.id]?.exchangeRate ?? String(m.exchangeRate),
                                   },
                                 }))
                               }
@@ -1401,6 +1404,7 @@ function MovementsTab({
                                       prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
                                     costCenterId: e.target.value,
                                     description: prev[m.id]?.description ?? m.description ?? "",
+                                    exchangeRate: prev[m.id]?.exchangeRate ?? String(m.exchangeRate),
                                   },
                                 }))
                               }
@@ -1422,23 +1426,57 @@ function MovementsTab({
                         {/* Journal Description */}
                         <td className="px-3 py-2">
                           {isPending ? (
-                            <input
-                              type="text"
-                              className="w-full text-xs px-2 py-1.5 rounded-md border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
-                              placeholder={m.notes || t("bank.classify.descriptionPlaceholder")}
-                              value={inline?.description ?? m.description ?? ""}
-                              onChange={(e) =>
-                                setInlineClassify((prev) => ({
-                                  ...prev,
-                                  [m.id]: {
-                                    counterpartAccountId:
-                                      prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
-                                    costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
-                                    description: e.target.value,
-                                  },
-                                }))
-                              }
-                            />
+                            <div className="flex flex-col gap-1">
+                              <input
+                                type="text"
+                                className="w-full text-xs px-2 py-1.5 rounded-md border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                                placeholder={m.notes || t("bank.classify.descriptionPlaceholder")}
+                                value={inline?.description ?? m.description ?? ""}
+                                onChange={(e) =>
+                                  setInlineClassify((prev) => ({
+                                    ...prev,
+                                    [m.id]: {
+                                      counterpartAccountId:
+                                        prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
+                                      costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                      description: e.target.value,
+                                      exchangeRate: prev[m.id]?.exchangeRate ?? String(m.exchangeRate),
+                                    },
+                                  }))
+                                }
+                              />
+                              {m.currency !== baseCurrency && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                                    {t("bank.movement.exchangeRate")}
+                                  </span>
+                                  <input
+                                    type="number"
+                                    step="0.000001"
+                                    min="0.000001"
+                                    dir="ltr"
+                                    className={`w-24 text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                                      (inline?.exchangeRate ?? String(m.exchangeRate)) === "1"
+                                        ? "border-amber-400"
+                                        : "border-border/70"
+                                    } bg-background`}
+                                    value={inline?.exchangeRate ?? String(m.exchangeRate)}
+                                    onChange={(e) =>
+                                      setInlineClassify((prev) => ({
+                                        ...prev,
+                                        [m.id]: {
+                                          counterpartAccountId:
+                                            prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
+                                          costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                          description: prev[m.id]?.description ?? m.description ?? "",
+                                          exchangeRate: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-foreground/70 truncate block max-w-[180px]">
                               {m.description ?? (
@@ -1491,6 +1529,9 @@ function MovementsTab({
                                               counterpartAccountId: cid,
                                               costCenterId: inline?.costCenterId || null,
                                               description: inline?.description?.trim() || null,
+                                              exchangeRate: m.currency !== baseCurrency
+                                                ? (Number(inline?.exchangeRate ?? m.exchangeRate) || 1)
+                                                : 1,
                                             },
                                           },
                                           {
@@ -1609,6 +1650,7 @@ function MovementsTab({
           movement={toClassify}
           leafAccounts={leafAccounts}
           accountLabel={accountLabel}
+          baseCurrency={baseCurrency}
           t={t}
           updateMovement={updateMovement}
           onClose={() => setToClassify(null)}
@@ -2000,6 +2042,7 @@ function ClassifyMovementModal({
   movement,
   leafAccounts,
   accountLabel,
+  baseCurrency,
   t,
   updateMovement,
   onClose,
@@ -2008,6 +2051,7 @@ function ClassifyMovementModal({
   movement: BankMovement;
   leafAccounts: Account[];
   accountLabel: (a: Account) => string;
+  baseCurrency: string;
   t: (k: string, o?: any) => string;
   updateMovement: ReturnType<typeof useUpdateBankMovement>;
   onClose: () => void;
@@ -2015,11 +2059,13 @@ function ClassifyMovementModal({
 }) {
   const { toast } = useToast();
   const isPending = movement.status === "pending";
+  const isForeignCurrency = movement.currency !== baseCurrency;
   const [date, setDate] = useState(movement.date);
   const [type, setType] = useState<MovementType>(
     (movement.type as MovementType) ?? "deposit",
   );
   const [amount, setAmount] = useState(String(movement.amount));
+  const [exchangeRate, setExchangeRate] = useState(String(movement.exchangeRate ?? 1));
   const [counterpartAccountId, setCounterpartAccountId] = useState(
     movement.counterpartAccountId ?? "",
   );
@@ -2058,6 +2104,7 @@ function ClassifyMovementModal({
           date,
           type: type as Exclude<MovementType, "transfer">,
           amount: amt,
+          exchangeRate: isForeignCurrency ? (Number(exchangeRate) || 1) : 1,
           counterpartAccountId,
           costCenterId: costCenterId || null,
           description: description.trim() || null,
@@ -2113,7 +2160,7 @@ function ClassifyMovementModal({
               dir="ltr"
             />
           </div>
-          <div className="col-span-2 sm:col-span-1">
+          <div className={`col-span-2 ${isForeignCurrency ? "sm:col-span-1" : "sm:col-span-1"}`}>
             <label className={labelCls}>
               {t("bank.movement.amount")} ({movement.currency})
             </label>
@@ -2126,6 +2173,27 @@ function ClassifyMovementModal({
               dir="ltr"
             />
           </div>
+          {isForeignCurrency && (
+            <div className="col-span-2 sm:col-span-1">
+              <label className={labelCls}>
+                {t("bank.movement.exchangeRate")} ({movement.currency} → {baseCurrency})
+              </label>
+              <input
+                type="number"
+                step="0.000001"
+                min="0.000001"
+                className={`${inputCls} ${Number(exchangeRate) <= 0 || exchangeRate === "1" ? "border-amber-400 focus:ring-amber-300" : ""}`}
+                value={exchangeRate}
+                onChange={(e) => setExchangeRate(e.target.value)}
+                dir="ltr"
+              />
+              {(exchangeRate === "1" || exchangeRate === "") && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  ⚠️ {t("bank.classify.exchangeRateWarning")}
+                </p>
+              )}
+            </div>
+          )}
           <div className="col-span-2">
             <label className={labelCls}>{t("bank.movement.type")}</label>
             <select
