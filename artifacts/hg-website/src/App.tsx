@@ -8,6 +8,7 @@ import Analytics from "@/components/analytics";
 import SeoHead from "@/components/seo-head";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import HesabatPage from "@/pages/hesabat";
 import Articles from "@/pages/articles";
 import ArticleDetail from "@/pages/article-detail";
 import ServiceDetail from "@/pages/service-detail";
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/services/:slug" component={ServiceDetail} />
       <Route path="/case-studies" component={CaseStudies} />
       <Route path="/case-studies/:slug" component={CaseStudyDetail} />
+      <Route path="/hesabat" component={HesabatPage} />
 
       {/* Admin */}
       <Route path="/admin" component={AdminLogin} />
