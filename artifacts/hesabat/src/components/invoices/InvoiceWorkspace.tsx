@@ -121,7 +121,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [payGridView, togglePayGrid] = useGridView("payments-" + kind);
   const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
 
-  const { data: invoicesRaw = [], isLoading: invLoading } = useListInvoices({
+  const { data: invoicesRaw = [], isLoading: invLoading, refetch: refetchInvoices } = useListInvoices({
     kind,
     ...(filterStatus ? { status: filterStatus } : {}),
     ...(filterDateFrom ? { dateFrom: filterDateFrom } : {}),
@@ -131,10 +131,10 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     ...(kind === "purchase" && filterParty ? { supplierId: filterParty } : {}),
     ...(search ? { search } : {}),
   } as any);
-  const { data: returns = [], isLoading: retLoading } = useListInvoices({
+  const { data: returns = [], isLoading: retLoading, refetch: refetchReturns } = useListInvoices({
     kind: returnKind,
   });
-  const { data: payments = [], isLoading: payLoading } = useListPayments({
+  const { data: payments = [], isLoading: payLoading, refetch: refetchPayments } = useListPayments({
     kind: paymentKind,
   });
   const { data: accounts = [] } = useListAccounts();
@@ -317,12 +317,16 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   ], [t, fmt]);
 
   const invalidateInvoices = () => {
+    void refetchInvoices();
+    void refetchReturns();
     queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
   };
-  const invalidatePayments = () =>
+  const invalidatePayments = () => {
+    void refetchPayments();
     queryClient.invalidateQueries({
       queryKey: getListPaymentsQueryKey({ kind: paymentKind }),
     });
+  };
   const invalidateJournal = () =>
     queryClient.invalidateQueries({
       queryKey: getListJournalEntriesQueryKey(),
@@ -375,51 +379,40 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     );
   };
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!toApprove) return;
-    approveInvoice.mutate(
-      { id: toApprove.id },
-      {
-        onSuccess: () => {
-          invalidateInvoices();
-          invalidateJournal();
-          toast({ title: t("invoices.toast.approved") });
-          setToApprove(null);
-        },
-        onError: (err: any) => {
-          toast({
-            variant: "destructive",
-            title: t("common.error"),
-            description: err?.data?.error || t("invoices.toast.error"),
-          });
-          setToApprove(null);
-        },
-      },
-    );
+    try {
+      await approveInvoice.mutateAsync({ id: toApprove.id });
+      await Promise.all([refetchInvoices(), refetchReturns()]);
+      invalidateJournal();
+      toast({ title: t("invoices.toast.approved") });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: err?.data?.error || t("invoices.toast.error"),
+      });
+    } finally {
+      setToApprove(null);
+    }
   };
 
-  const handleRevert = () => {
+  const handleRevert = async () => {
     if (!toRevert) return;
-    revertInvoice.mutate(
-      { id: toRevert.id },
-      {
-        onSuccess: () => {
-          invalidatePayments();
-          invalidateInvoices();
-          invalidateJournal();
-          toast({ title: t("invoices.toast.reverted", "تم تحويل الفاتورة إلى مسودة") });
-          setToRevert(null);
-        },
-        onError: (err: any) => {
-          toast({
-            variant: "destructive",
-            title: t("common.error"),
-            description: err?.data?.error || t("invoices.toast.error"),
-          });
-          setToRevert(null);
-        },
-      },
-    );
+    try {
+      await revertInvoice.mutateAsync({ id: toRevert.id });
+      await Promise.all([refetchInvoices(), refetchReturns(), refetchPayments()]);
+      invalidateJournal();
+      toast({ title: t("invoices.toast.reverted", "تم تحويل الفاتورة إلى مسودة") });
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: err?.data?.error || t("invoices.toast.error"),
+      });
+    } finally {
+      setToRevert(null);
+    }
   };
 
   const handleBulkDelete = async () => {
