@@ -3094,16 +3094,12 @@ router.get(
       res.status(404).json({ error: "الحركة غير موجودة" });
       return;
     }
-    if (
-      movement.type !== "customer_collection" &&
-      movement.type !== "supplier_payment"
-    ) {
-      res.status(400).json({ error: "هذه الحركة لا يمكن ربطها بفاتورة" });
+    if (movement.type === "transfer") {
+      res.status(400).json({ error: "حركات التحويل لا يمكن ربطها بفاتورة" });
       return;
     }
 
-    const partyType =
-      movement.type === "customer_collection" ? "customer" : "supplier";
+    const partyType = movement.direction === "in" ? "customer" : "supplier";
 
     // Check if already linked
     const [existingPayment] = await db
@@ -3307,11 +3303,8 @@ router.post(
         res.status(404).json({ error: "الحركة غير موجودة" });
         return;
       }
-      if (
-        movement.type !== "customer_collection" &&
-        movement.type !== "supplier_payment"
-      ) {
-        res.status(400).json({ error: "نوع الحركة لا يدعم ربط سند قبض/صرف" });
+      if (movement.type === "transfer") {
+        res.status(400).json({ error: "حركات التحويل لا يمكن ربطها بسند قبض/صرف" });
         return;
       }
       if (await isWriteBlocked(db, companyId, movement.date)) {
@@ -3361,8 +3354,9 @@ router.post(
         }
       }
 
+      // Derive kind from movement direction: in → collection, out → payment
       const kind: "collection" | "payment" =
-        movement.type === "customer_collection" ? "collection" : "payment";
+        movement.direction === "in" ? "collection" : "payment";
 
       // Validate party
       let partyId: string;

@@ -1752,19 +1752,19 @@ function MovementsTab({
                                       <Edit2 className="w-4 h-4" />
                                     </button>
                                   )}
-                                  {(m.type === "customer_collection" || m.type === "supplier_payment") && (
+                                  {!m.isCleared && !m.reconciliationId && (
                                     (m as BankMovement & { paymentId?: string | null }).paymentId ? (
                                       <span
                                         className="p-1.5 rounded-md text-success opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title={m.type === "customer_collection" ? "مرتبط بسند قبض" : "مرتبط بسند صرف"}
+                                        title={m.direction === "in" ? "مرتبط بسند قبض" : "مرتبط بسند صرف"}
                                       >
                                         <Receipt className="w-4 h-4" />
                                       </span>
                                     ) : (
                                       <button
                                         onClick={() => setToLinkPayment(m)}
-                                        className="p-1.5 rounded-md hover:bg-success/10 text-success opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title={m.type === "customer_collection" ? "ربط بسند قبض" : "ربط بسند صرف"}
+                                        className="p-1.5 rounded-md hover:bg-success/10 text-success transition-opacity"
+                                        title={m.direction === "in" ? "ربط بسند قبض" : "ربط بسند صرف"}
                                       >
                                         <Link2 className="w-4 h-4" />
                                       </button>
@@ -2285,7 +2285,10 @@ function ClassifyMovementModal({
   const { data: costCenters = [] } = useListCostCenters();
   const isIn = IN_TYPES.has(type);
 
-  const selectableTypes = MOVEMENT_TYPES.filter((tp) => tp !== "transfer");
+  const selectableTypes = MOVEMENT_TYPES.filter(
+    (tp) => tp !== "transfer" && tp !== "supplier_payment" && tp !== "customer_collection",
+  );
+  const isPaymentType = type === "supplier_payment" || type === "customer_collection";
 
   const submit = () => {
     const amt = Number(amount);
@@ -2350,6 +2353,23 @@ function ClassifyMovementModal({
           </button>
         </div>
         <div className="p-5 grid grid-cols-2 gap-4">
+          {isPaymentType && (
+            <div className="col-span-2 rounded-xl bg-success/10 border border-success/30 px-4 py-3 flex items-start gap-3">
+              <Receipt className="w-5 h-5 text-success mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-success">
+                  {type === "customer_collection" ? "ربط بسند قبض" : "ربط بسند صرف"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  لإنشاء سند {type === "customer_collection" ? "قبض" : "صرف"} وإقفال الفواتير، استخدم زر{" "}
+                  <span className="font-bold text-success">
+                    {type === "customer_collection" ? "ربط بسند قبض" : "ربط بسند صرف"}
+                  </span>{" "}
+                  (أيقونة الربط) في قائمة الحركات مباشرةً.
+                </p>
+              </div>
+            </div>
+          )}
           {movement.notes && (
             <div className="col-span-2 rounded-lg bg-muted/50 border px-3 py-2">
               <span className="text-xs font-bold text-muted-foreground">
