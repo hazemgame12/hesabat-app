@@ -41,7 +41,10 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", apiLimiter, router);
+app.use("/api", (_req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+}, apiLimiter, router);
 app.use(seoRouter);
 
 app.use("/uploads", express.static(uploadsDir, { maxAge: "30d" }));
