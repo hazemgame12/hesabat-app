@@ -21,7 +21,7 @@ pnpm install --frozen-lockfile 2>/dev/null || pnpm install --no-frozen-lockfile
 
 echo ""
 echo "🔨 Building HG website frontend..."
-BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hg-website run build
+PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hg-website run build
 echo "✅ Frontend built"
 
 echo ""
