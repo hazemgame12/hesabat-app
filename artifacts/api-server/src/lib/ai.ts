@@ -27,8 +27,8 @@ interface AIConfig {
  * Throws AIConfigError (mapped to a clear 500 message) when nothing is configured,
  * which is the expected state in production until the user sets a key on Hostinger.
  */
-export function resolveAIConfig(): AIConfig {
-  const geminiKey = process.env["GEMINI_API_KEY"];
+export function resolveAIConfig(overrideKey?: string): AIConfig {
+  const geminiKey = overrideKey || process.env["GEMINI_API_KEY"];
   if (geminiKey) {
     return {
       apiKey: geminiKey,
@@ -62,8 +62,8 @@ export function resolveAIConfig(): AIConfig {
   );
 }
 
-export function getAIClient(): { client: OpenAI; model: string } {
-  const config = resolveAIConfig();
+export function getAIClient(overrideKey?: string): { client: OpenAI; model: string } {
+  const config = resolveAIConfig(overrideKey);
   const client = new OpenAI({
     apiKey: config.apiKey,
     ...(config.baseURL ? { baseURL: config.baseURL } : {}),
@@ -71,9 +71,9 @@ export function getAIClient(): { client: OpenAI; model: string } {
   return { client, model: config.model };
 }
 
-export function isAIConfigured(): boolean {
+export function isAIConfigured(overrideKey?: string): boolean {
   try {
-    resolveAIConfig();
+    resolveAIConfig(overrideKey);
     return true;
   } catch {
     return false;

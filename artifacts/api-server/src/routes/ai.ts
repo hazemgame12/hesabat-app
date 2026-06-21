@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { z } from "zod/v4";
+import { eq } from "drizzle-orm";
+import { db, siteSettingsTable } from "@workspace/db";
 import { adminAuth } from "../middleware/auth";
 import { getAIClient, AIConfigError } from "../lib/ai";
 
@@ -96,7 +98,12 @@ router.post("/admin/ai/generate-content", adminAuth, async (req, res) => {
   let client: ReturnType<typeof getAIClient>["client"];
   let model: string;
   try {
-    ({ client, model } = getAIClient());
+    const dbRow = await db
+      .select({ value: siteSettingsTable.value })
+      .from(siteSettingsTable)
+      .where(eq(siteSettingsTable.key, "gemini_api_key"));
+    const dbKey = dbRow[0]?.value || undefined;
+    ({ client, model } = getAIClient(dbKey));
   } catch (err) {
     if (err instanceof AIConfigError) {
       req.log.warn({ err }, "AI not configured");

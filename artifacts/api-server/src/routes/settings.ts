@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, siteSettingsTable, DEFAULT_SETTINGS } from "@workspace/db";
 import { adminAuth } from "../middleware/auth";
+import { configureSmtpFromSettings } from "../lib/mailer";
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.put("/admin/settings", adminAuth, async (req, res) => {
     const rows = await db.select().from(siteSettingsTable);
     const settings: Record<string, string> = { ...DEFAULT_SETTINGS };
     for (const row of rows) settings[row.key] = row.value;
+    configureSmtpFromSettings(settings);
     res.json(settings);
   } catch (err) {
     req.log.error({ err }, "Failed to update settings");

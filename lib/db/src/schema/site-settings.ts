@@ -32,4 +32,11 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   meta_description_en: "Professional financial consulting services in Egypt and Saudi Arabia — audit, tax, accounting, feasibility studies",
   google_analytics_id: "",
   meta_pixel_id: "",
+  gemini_api_key: "",
+  smtp_host: "",
+  smtp_port: "465",
+  smtp_user: "",
+  smtp_pass: "",
+  smtp_from: "",
+  lead_notification_to: "",
 };

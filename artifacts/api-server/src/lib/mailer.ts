@@ -3,6 +3,32 @@ import nodemailer, { type Transporter } from "nodemailer";
 import { logger } from "./logger";
 
 let cachedSmtp: Transporter | null = null;
+let cachedSmtpFrom: string | null = null;
+let cachedLeadTo: string | null = null;
+
+export function configureSmtpFromSettings(s: Record<string, string>) {
+  const host = s["smtp_host"] || process.env["SMTP_HOST"];
+  const port = s["smtp_port"] || process.env["SMTP_PORT"];
+  const user = s["smtp_user"] || process.env["SMTP_USER"];
+  const pass = s["smtp_pass"] || process.env["SMTP_PASS"];
+  const from = s["smtp_from"] || process.env["SMTP_FROM"] || user;
+  const leadTo = s["lead_notification_to"] || process.env["LEAD_NOTIFICATION_TO"] || user;
+  if (host && port && user && pass) {
+    cachedSmtp = nodemailer.createTransport({
+      host,
+      port: Number(port),
+      secure: Number(port) === 465,
+      auth: { user, pass },
+    });
+    cachedSmtpFrom = from ?? null;
+    cachedLeadTo = leadTo ?? null;
+    logger.info({ host, port, user }, "SMTP configured from settings");
+  } else {
+    cachedSmtp = null;
+    cachedSmtpFrom = null;
+    cachedLeadTo = null;
+  }
+}
 
 function getResendClient(): Resend | null {
   const apiKey = process.env["RESEND_API_KEY"];
@@ -35,6 +61,7 @@ function getEmailProvider(): "resend" | "smtp" | "none" {
 }
 
 function getFromAddress(): string {
+  if (cachedSmtpFrom) return cachedSmtpFrom;
   const from = process.env["SMTP_FROM"] ?? process.env["SMTP_USER"];
   if (from) return from;
   return "info@hg-audit.com";
@@ -93,7 +120,7 @@ export async function sendLeadNotification(lead: {
   message: string;
   service?: string;
 }): Promise<boolean> {
-  const to = process.env["LEAD_NOTIFICATION_TO"] ?? process.env["SMTP_USER"];
+  const to = cachedLeadTo ?? process.env["LEAD_NOTIFICATION_TO"] ?? process.env["SMTP_USER"];
   if (!to) return false;
 
   const subject = `طلب جديد من الموقع - ${lead.name}`;
