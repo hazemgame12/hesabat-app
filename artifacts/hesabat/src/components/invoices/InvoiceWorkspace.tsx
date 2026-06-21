@@ -317,8 +317,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   ], [t, fmt]);
 
   const invalidateInvoices = () => {
-    queryClient.refetchQueries({ queryKey: getListInvoicesQueryKey({ kind }) });
-    queryClient.refetchQueries({ queryKey: getListInvoicesQueryKey({ kind: returnKind }) });
+    queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
   };
   const invalidatePayments = () =>
     queryClient.invalidateQueries({
