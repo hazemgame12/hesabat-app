@@ -74,12 +74,15 @@ export default function Articles() {
                   href={`${base}/articles/${article.slug}`}
                   className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card border border-gray-100 dark:border-gray-800"
                 >
-                  <div className="relative h-52 overflow-hidden">
-                    <img
-                      src={article.image}
-                      alt={lang === "ar" ? article.titleAr : article.titleEn}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
+                  <div className="relative h-52 overflow-hidden bg-gradient-to-br from-[#001d56] to-[#0a3a8e]">
+                    {article.image && (
+                      <img
+                        src={article.image}
+                        alt={lang === "ar" ? article.titleAr : article.titleEn}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-[#001d56]/60 to-transparent" />
                     <span className="absolute top-4 start-4 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">
                       {lang === "ar" ? article.categoryAr : article.categoryEn}

@@ -1,7 +1,7 @@
 import "./lib/load-env";
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedArticles, seedServices, seedPackages, seedSettings } from "./seed";
+import { seedArticles, seedServices, seedPackages, seedSettings, fixWordPressImageUrls } from "./seed";
 import { startScheduler } from "./lib/scheduler";
 
 const rawPort = process.env["PORT"] ?? "3000";
@@ -24,6 +24,7 @@ app.listen(port, host, () => {
     seedServices(),
     seedPackages(),
     seedSettings(),
+    fixWordPressImageUrls(),
   ])
     .then(() => console.log("[startup] ✓ Seed completed"))
     .catch((e) => {
