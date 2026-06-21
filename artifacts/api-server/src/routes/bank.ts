@@ -4156,6 +4156,122 @@ router.post(
 );
 
 // ---------------------------------------------------------------------------
+// POST /bank/movements/bulk-unpost
+// Removes the journal entry from a set of classified movements so they return
+// to "pending" state and can be re-classified. Skips movements that are
+// cleared, transfers, or linked to a payment (must unlink/delete payment first).
+// ---------------------------------------------------------------------------
+router.post(
+  "/bank/movements/bulk-unpost",
+  requireAuth,
+  requireCapability("bank:update"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const { movementIds } = req.body as { movementIds?: unknown };
+    if (
+      !Array.isArray(movementIds) ||
+      movementIds.length === 0 ||
+      movementIds.some((id) => typeof id !== "string")
+    ) {
+      res.status(400).json({ error: "movementIds مطلوب" });
+      return;
+    }
+    const ids = movementIds as string[];
+    try {
+      let unposted = 0;
+      let skipped = 0;
+
+      for (const movId of ids) {
+        const [mov] = await db
+          .select({
+            id: bankMovementsTable.id,
+            journalEntryId: bankMovementsTable.journalEntryId,
+            isCleared: bankMovementsTable.isCleared,
+            type: bankMovementsTable.type,
+            reconciliationId: bankMovementsTable.reconciliationId,
+          })
+          .from(bankMovementsTable)
+          .where(
+            and(
+              eq(bankMovementsTable.id, movId),
+              eq(bankMovementsTable.companyId, companyId),
+            ),
+          )
+          .limit(1);
+
+        if (!mov || !mov.journalEntryId || mov.isCleared || mov.type === "transfer" || mov.reconciliationId) {
+          skipped++;
+          continue;
+        }
+
+        // Check if this movement is linked to a payment
+        const [linked] = await db
+          .select({ id: paymentsTable.id })
+          .from(paymentsTable)
+          .where(
+            and(
+              eq(paymentsTable.companyId, companyId),
+              eq(paymentsTable.bankMovementId, movId),
+            ),
+          )
+          .limit(1);
+        if (linked) {
+          skipped++;
+          continue;
+        }
+
+        // Check if any other movement shares this JE
+        const sharers = await db
+          .select({ id: bankMovementsTable.id })
+          .from(bankMovementsTable)
+          .where(
+            and(
+              eq(bankMovementsTable.companyId, companyId),
+              eq(bankMovementsTable.journalEntryId, mov.journalEntryId),
+            ),
+          );
+
+        await db.transaction(async (tx) => {
+          // Null out movement's JE reference first
+          await tx
+            .update(bankMovementsTable)
+            .set({ journalEntryId: null, counterpartAccountId: null })
+            .where(
+              and(
+                eq(bankMovementsTable.id, movId),
+                eq(bankMovementsTable.companyId, companyId),
+              ),
+            );
+
+          // Delete the JE only if no other movement still references it
+          const otherSharers = sharers.filter((s) => s.id !== movId);
+          if (otherSharers.length === 0) {
+            await tx
+              .delete(journalEntryLinesTable)
+              .where(eq(journalEntryLinesTable.entryId, mov.journalEntryId!));
+            await tx
+              .delete(journalEntriesTable)
+              .where(
+                and(
+                  eq(journalEntriesTable.id, mov.journalEntryId!),
+                  eq(journalEntriesTable.companyId, companyId),
+                ),
+              );
+          }
+        });
+
+        unposted++;
+      }
+
+      res.json({ unposted, skipped });
+    } catch (err) {
+      req.log.error({ err }, "bulk-unpost failed");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
 // GET /bank/fx-audit
 // Lists all classified bank movements where currency ≠ baseCurrency AND
 // exchangeRate = "1" — these have wrong debitBase/creditBase in their JEs.

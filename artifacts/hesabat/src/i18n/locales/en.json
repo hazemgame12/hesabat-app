@@ -1778,6 +1778,12 @@
     },
     "confirmDeleteAccount": "Delete this account?",
     "confirmDeleteMovement": "Delete this movement and its entry?",
+    "bulkUnpost": {
+      "confirmTitle": "Unpost selected movements",
+      "confirmDescription": "The journal entry will be deleted and {{count}} movement(s) will return to pending status for re-classification. Movements linked to payments, transfers, or reconciliations will be skipped.",
+      "done": "{{count}} movement(s) unposted",
+      "partialDone": "{{unposted}} unposted — {{skipped}} skipped (linked or reconciled)"
+    },
     "bulkDelete": {
       "selected": "{{count}} selected",
       "deleteSelected": "Delete selected",

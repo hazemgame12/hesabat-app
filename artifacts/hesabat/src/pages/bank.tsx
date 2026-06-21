@@ -1056,6 +1056,8 @@ function MovementsTab({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkUnpostOpen, setBulkUnpostOpen] = useState(false);
+  const [bulkUnposting, setBulkUnposting] = useState(false);
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const [isGridView, toggleGridView] = useGridView("bank-movements");
 
@@ -1131,6 +1133,35 @@ function MovementsTab({
         },
       },
     );
+  };
+
+  const handleBulkUnpost = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkUnposting(true);
+    try {
+      const resp = await fetch("/api/bank/movements/bulk-unpost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ movementIds: [...selectedIds] }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        toast({ variant: "destructive", title: t("bank.toast.error"), description: data?.error });
+        return;
+      }
+      const { unposted, skipped } = data as { unposted: number; skipped: number };
+      if (skipped > 0) {
+        toast({ title: t("bank.bulkUnpost.partialDone", { unposted, skipped }) });
+      } else {
+        toast({ title: t("bank.bulkUnpost.done", { count: unposted }) });
+      }
+      setSelectedIds(new Set());
+      setBulkUnpostOpen(false);
+      invalidate();
+    } finally {
+      setBulkUnposting(false);
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -1279,10 +1310,14 @@ function MovementsTab({
             <Copy className="w-3.5 h-3.5" />
             {t("bank.bulkCopy", "نسخ")}
           </button>
-          {/* Void: for posted movements */}
-          {Array.from(selectedIds).some((id) => movements.find((m) => m.id === id)?.status === "posted") && (
+          {/* Void: for posted movements not linked to a payment */}
+          {Array.from(selectedIds).some((id) => {
+            const m = movements.find((mv) => mv.id === id);
+            return m?.status === "posted" && !m.reconciliationId && m.type !== "transfer"
+              && !(m as BankMovement & { paymentId?: string | null }).paymentId;
+          }) && (
             <button
-              onClick={() => setBulkDeleteOpen(true)}
+              onClick={() => setBulkUnpostOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -1840,6 +1875,30 @@ function MovementsTab({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={bulkUnpostOpen}
+        onOpenChange={(o) => !o && setBulkUnpostOpen(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("bank.bulkUnpost.confirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("bank.bulkUnpost.confirmDescription", { count: selectedIds.size })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkUnposting}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkUnpost}
+              disabled={bulkUnposting}
+              className="bg-orange-500 text-white hover:bg-orange-600"
+            >
+              {bulkUnposting ? t("common.saving") : t("bank.bulkVoid", "فك الترحيل")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1778,6 +1778,12 @@
     },
     "confirmDeleteAccount": "هل تريد حذف هذا الحساب؟",
     "confirmDeleteMovement": "هل تريد حذف هذه الحركة وقيدها؟",
+    "bulkUnpost": {
+      "confirmTitle": "فك ترحيل الحركات المحددة",
+      "confirmDescription": "سيتم حذف القيد المحاسبي وإعادة {{count}} حركة إلى حالة الانتظار للتبويب مجدداً. الحركات المرتبطة بسندات أو تحويلات أو تسويات سيتم تخطيها.",
+      "done": "تم فك ترحيل {{count}} حركة",
+      "partialDone": "تم فك ترحيل {{unposted}} حركة — تم تخطي {{skipped}} (مرتبطة أو مسوّاة)"
+    },
     "bulkDelete": {
       "selected": "{{count}} محدد",
       "deleteSelected": "حذف المحدد",
