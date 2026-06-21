@@ -60,6 +60,8 @@ import {
   GitMerge,
   CheckCheck,
   AlertCircle,
+  RefreshCw,
+  Wrench,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -174,6 +176,54 @@ export function Bank() {
   const canUpdate = hasCapability(role, "bank:update");
   const canDelete = hasCapability(role, "bank:delete");
 
+  // FX base-amount fix dialog
+  const [fxAudit, setFxAudit] = useState<{
+    count: number;
+    baseCurrency: string;
+    movements: Array<{ id: string; date: string; amount: string; currency: string }>;
+  } | null>(null);
+  const [fxAuditLoading, setFxAuditLoading] = useState(false);
+  const [fxForceRate, setFxForceRate] = useState("");
+  const [fxFixing, setFxFixing] = useState(false);
+
+  const openFxAudit = async () => {
+    setFxAuditLoading(true);
+    try {
+      const res = await fetch("/api/bank/fx-audit");
+      if (res.ok) setFxAudit(await res.json());
+    } finally {
+      setFxAuditLoading(false);
+    }
+  };
+
+  const runFxFix = async () => {
+    if (!fxAudit) return;
+    setFxFixing(true);
+    try {
+      const body: Record<string, unknown> = {};
+      const rate = parseFloat(fxForceRate);
+      if (rate > 0) body.forceRate = rate;
+      const res = await fetch("/api/bank/fix-base-amounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: data.error ?? t("common.error"), variant: "destructive" });
+        return;
+      }
+      toast({
+        title: t("bank.fxFix.done", { fixed: data.fixed, skipped: data.skipped }),
+      });
+      setFxAudit(null);
+      setFxForceRate("");
+      queryClient.invalidateQueries();
+    } finally {
+      setFxFixing(false);
+    }
+  };
+
   const fmt = (n: number) =>
     new Intl.NumberFormat(lang, { maximumFractionDigits: 2 }).format(n);
   const accountLabel = (a: Account) => `${a.code} · ${displayName(a, lang)}`;
@@ -247,15 +297,32 @@ export function Bank() {
             </p>
           </div>
         </div>
-        {tab === "accounts" && canCreate && (
-          <button
-            onClick={() => setAccountModal({ mode: "create", account: null })}
-            className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-4 h-4" />
-            {t("bank.addAccount")}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {canUpdate && (
+            <button
+              onClick={openFxAudit}
+              disabled={fxAuditLoading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-400 text-amber-700 dark:text-amber-400 text-xs font-semibold hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors disabled:opacity-50"
+              title={t("bank.fxFix.auditBtn")}
+            >
+              {fxAuditLoading ? (
+                <Spinner className="w-3.5 h-3.5" />
+              ) : (
+                <RefreshCw className="w-3.5 h-3.5" />
+              )}
+              {t("bank.fxFix.auditBtn")}
+            </button>
+          )}
+          {tab === "accounts" && canCreate && (
+            <button
+              onClick={() => setAccountModal({ mode: "create", account: null })}
+              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+            >
+              <Plus className="w-4 h-4" />
+              {t("bank.addAccount")}
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="px-8 pt-6">
@@ -330,6 +397,88 @@ export function Bank() {
           />
         )}
       </div>
+
+      {/* ── FX base-amount fix dialog ── */}
+      {fxAudit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-card">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-amber-600" />
+                <h2 className="font-bold text-foreground">{t("bank.fxFix.title")}</h2>
+              </div>
+              <button onClick={() => setFxAudit(null)} className="text-muted-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 flex flex-col gap-4">
+              {fxAudit.count === 0 ? (
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                  ✅ {t("bank.fxFix.noIssues")}
+                </p>
+              ) : (
+                <>
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-300 dark:border-amber-500/30 p-3 text-sm text-amber-800 dark:text-amber-300">
+                    ⚠️ {t("bank.fxFix.found", { count: fxAudit.count, currency: fxAudit.baseCurrency })}
+                  </div>
+
+                  {/* Movement list preview */}
+                  <div className="max-h-48 overflow-y-auto rounded-lg border divide-y text-xs">
+                    {fxAudit.movements.slice(0, 20).map((m) => (
+                      <div key={m.id} className="flex items-center justify-between px-3 py-2">
+                        <span className="text-muted-foreground">{m.date}</span>
+                        <span className="font-mono font-bold">
+                          {Number(m.amount).toLocaleString("ar-EG", { minimumFractionDigits: 2 })} {m.currency}
+                        </span>
+                      </div>
+                    ))}
+                    {fxAudit.count > 20 && (
+                      <div className="px-3 py-2 text-muted-foreground text-center">
+                        +{fxAudit.count - 20} {t("bank.fxFix.more")}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-muted-foreground mb-1">
+                      {t("bank.fxFix.forceRateLabel")}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.000001"
+                      min="0.000001"
+                      dir="ltr"
+                      className="w-48 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      placeholder={t("bank.fxFix.forceRatePlaceholder")}
+                      value={fxForceRate}
+                      onChange={(e) => setFxForceRate(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">{t("bank.fxFix.forceRateHint")}</p>
+                  </div>
+
+                  <div className="flex gap-3 justify-end pt-2 border-t">
+                    <button
+                      onClick={() => setFxAudit(null)}
+                      className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted"
+                    >
+                      {t("common.cancel")}
+                    </button>
+                    <button
+                      onClick={runFxFix}
+                      disabled={fxFixing}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-bold hover:opacity-90 disabled:opacity-50"
+                    >
+                      {fxFixing && <Spinner className="w-3.5 h-3.5" />}
+                      <Wrench className="w-3.5 h-3.5" />
+                      {t("bank.fxFix.fixBtn")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {accountModal && (
         <AccountModal

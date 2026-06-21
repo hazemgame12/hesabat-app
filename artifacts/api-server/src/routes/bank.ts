@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
-import { and, eq, inArray, desc, sql, gte, lte, isNotNull, isNull, count, gt } from "drizzle-orm";
+import { and, eq, ne, inArray, desc, sql, gte, lte, isNotNull, isNull, count, gt, or } from "drizzle-orm";
 import { parsePagination, paginatedResponse } from "../lib/pagination";
 import multer from "multer";
 import ExcelJS from "exceljs";
@@ -21,6 +21,7 @@ import {
   paymentsTable,
   paymentAllocationsTable,
   invoicesTable,
+  exchangeRatesTable,
   type BankAccount,
   type BankMovement,
   type BankReconciliation,
@@ -4149,6 +4150,220 @@ router.post(
       res.json({ success: true, hybrid: isHybrid });
     } catch (err) {
       req.log.error({ err }, "transfer-match-confirm failed");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// GET /bank/fx-audit
+// Lists all classified bank movements where currency ≠ baseCurrency AND
+// exchangeRate = "1" — these have wrong debitBase/creditBase in their JEs.
+// ---------------------------------------------------------------------------
+router.get(
+  "/bank/fx-audit",
+  requireAuth,
+  requireCapability("bank:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const baseCurrency = await loadBaseCurrency(companyId);
+      const affected = await db
+        .select({
+          id: bankMovementsTable.id,
+          date: bankMovementsTable.date,
+          amount: bankMovementsTable.amount,
+          currency: bankMovementsTable.currency,
+          exchangeRate: bankMovementsTable.exchangeRate,
+          journalEntryId: bankMovementsTable.journalEntryId,
+        })
+        .from(bankMovementsTable)
+        .where(
+          and(
+            eq(bankMovementsTable.companyId, companyId),
+            isNotNull(bankMovementsTable.journalEntryId),
+            ne(bankMovementsTable.currency, baseCurrency),
+            eq(bankMovementsTable.exchangeRate, "1"),
+          ),
+        )
+        .orderBy(desc(bankMovementsTable.date));
+      res.json({ baseCurrency, count: affected.length, movements: affected });
+    } catch (err) {
+      req.log.error({ err }, "fx-audit failed");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// POST /bank/fix-base-amounts
+// Bulk-fixes debit/debitBase/credit/creditBase in journal_entry_lines for
+// movements where currency ≠ baseCurrency AND exchangeRate = "1".
+//
+// Strategy per movement:
+//   1. Look up exchange_rates table for exact date match (same currency).
+//   2. Fall back to nearest date within ±30 days.
+//   3. Fall back to forceRate body param.
+//   4. If none found → skip.
+//
+// Correction: newDebit = round2(oldDebit * newRate)
+// (debit stored = old amountBase = amount × 1 = FCY amount in wrong base)
+// ---------------------------------------------------------------------------
+router.post(
+  "/bank/fix-base-amounts",
+  requireAuth,
+  requireCapability("bank:update"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const parsed = z
+      .object({ forceRate: z.number().positive().optional() })
+      .safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "بيانات غير صحيحة" });
+      return;
+    }
+    const { forceRate } = parsed.data;
+
+    try {
+      const baseCurrency = await loadBaseCurrency(companyId);
+
+      // Find all affected movements
+      const affected = await db
+        .select({
+          id: bankMovementsTable.id,
+          date: bankMovementsTable.date,
+          amount: bankMovementsTable.amount,
+          currency: bankMovementsTable.currency,
+          journalEntryId: bankMovementsTable.journalEntryId,
+        })
+        .from(bankMovementsTable)
+        .where(
+          and(
+            eq(bankMovementsTable.companyId, companyId),
+            isNotNull(bankMovementsTable.journalEntryId),
+            ne(bankMovementsTable.currency, baseCurrency),
+            eq(bankMovementsTable.exchangeRate, "1"),
+          ),
+        );
+
+      if (affected.length === 0) {
+        res.json({ fixed: 0, skipped: 0, details: [] });
+        return;
+      }
+
+      // Gather distinct (currency, date) pairs to bulk-lookup rates
+      const uniqueCurrencies = [...new Set(affected.map((m) => m.currency))];
+      const allRates = await db
+        .select({
+          currencyCode: exchangeRatesTable.currencyCode,
+          rateDate: exchangeRatesTable.rateDate,
+          rate: exchangeRatesTable.rate,
+        })
+        .from(exchangeRatesTable)
+        .where(
+          and(
+            eq(exchangeRatesTable.companyId, companyId),
+            inArray(exchangeRatesTable.currencyCode, uniqueCurrencies),
+          ),
+        )
+        .orderBy(exchangeRatesTable.currencyCode, exchangeRatesTable.rateDate);
+
+      // Build lookup: currencyCode → sorted list of { rateDate, rate }
+      const ratesByCurrency = new Map<
+        string,
+        Array<{ rateDate: string; rate: string }>
+      >();
+      for (const r of allRates) {
+        const list = ratesByCurrency.get(r.currencyCode) ?? [];
+        list.push({ rateDate: r.rateDate, rate: r.rate });
+        ratesByCurrency.set(r.currencyCode, list);
+      }
+
+      const findRate = (currency: string, date: string): number | null => {
+        if (forceRate) return forceRate;
+        const list = ratesByCurrency.get(currency);
+        if (!list || list.length === 0) return null;
+        // Find exact match first
+        const exact = list.find((r) => r.rateDate === date);
+        if (exact) return Number(exact.rate);
+        // Nearest within ±30 days
+        const target = new Date(date).getTime();
+        let best: { rateDate: string; rate: string } | null = null;
+        let bestDiff = Infinity;
+        for (const r of list) {
+          const diff = Math.abs(new Date(r.rateDate).getTime() - target);
+          if (diff < bestDiff && diff <= 30 * 86400 * 1000) {
+            bestDiff = diff;
+            best = r;
+          }
+        }
+        return best ? Number(best.rate) : null;
+      };
+
+      const details: Array<{
+        movementId: string;
+        date: string;
+        currency: string;
+        amount: string;
+        newRate: number | null;
+        status: "fixed" | "skipped";
+      }> = [];
+
+      let fixed = 0;
+      let skipped = 0;
+
+      for (const m of affected) {
+        const newRate = findRate(m.currency, m.date);
+        if (!newRate || newRate <= 0) {
+          details.push({
+            movementId: m.id,
+            date: m.date,
+            currency: m.currency,
+            amount: m.amount,
+            newRate: null,
+            status: "skipped",
+          });
+          skipped++;
+          continue;
+        }
+
+        await db.transaction(async (tx) => {
+          // Update JE lines: multiply existing debit/credit by newRate
+          await tx.execute(
+            sql`UPDATE journal_entry_lines
+                SET debit       = ROUND(debit::numeric       * ${newRate}, 2),
+                    debit_base  = ROUND(debit_base::numeric  * ${newRate}, 2),
+                    credit      = ROUND(credit::numeric      * ${newRate}, 2),
+                    credit_base = ROUND(credit_base::numeric * ${newRate}, 2)
+                WHERE entry_id = ${m.journalEntryId}
+                  AND company_id = ${companyId}`,
+          );
+          // Update movement exchangeRate
+          await tx
+            .update(bankMovementsTable)
+            .set({ exchangeRate: String(newRate) })
+            .where(
+              and(
+                eq(bankMovementsTable.id, m.id),
+                eq(bankMovementsTable.companyId, companyId),
+              ),
+            );
+        });
+
+        details.push({
+          movementId: m.id,
+          date: m.date,
+          currency: m.currency,
+          amount: m.amount,
+          newRate,
+          status: "fixed",
+        });
+        fixed++;
+      }
+
+      res.json({ fixed, skipped, details });
+    } catch (err) {
+      req.log.error({ err }, "fix-base-amounts failed");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

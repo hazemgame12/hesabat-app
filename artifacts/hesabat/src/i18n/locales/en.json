@@ -1633,6 +1633,18 @@
       "post": "Save & post entry",
       "exchangeRateWarning": "Exchange rate is 1 — the base amount may be wrong, please set the correct rate"
     },
+    "fxFix": {
+      "auditBtn": "FX Audit",
+      "title": "Fix Base Amounts (Foreign Currency)",
+      "noIssues": "No movements with incorrect exchange rate — data looks clean",
+      "found": "Found {{count}} foreign-currency movements stored with exchange rate = 1 (base {{currency}} amounts are wrong)",
+      "more": "more movements",
+      "forceRateLabel": "Exchange rate to apply to all movements (optional)",
+      "forceRatePlaceholder": "e.g. 3.6725",
+      "forceRateHint": "Leave blank to auto-use rates already recorded in the system — or enter a rate to force-apply to every affected movement.",
+      "fixBtn": "Fix Now",
+      "done": "Fixed {{fixed}} movement(s) — skipped {{skipped}} (no rate found)"
+    },
     "importHint": "Upload the statement with columns: Date, Debit, Credit, Bank description. Movements are saved pending classification, then classify each by picking its counterpart account.",
     "wizard": {
       "importBtn": "Import Bank Statement",
