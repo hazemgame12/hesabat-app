@@ -41,6 +41,7 @@ import supportRouter from "./support";
 import adminSupportRouter from "./admin/support";
 import superAdminAuthRouter from "./super-admin-auth";
 import superAdminRouter from "./super-admin";
+import deployWebhookRouter from "./deploy-webhook";
 
 const router: IRouter = Router();
 
@@ -88,6 +89,7 @@ router.use(caseStudiesRouter);
 router.use(uploadsRouter);
 router.use(socialPostsRouter);
 router.use(aiRouter);
+router.use(deployWebhookRouter);
 router.use(superAdminAuthRouter);
 router.use(superAdminRouter);
 
