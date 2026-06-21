@@ -7,6 +7,39 @@ import { formatDate } from "@/lib/articles";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 
+const FALLBACK_IMAGES: Record<string, string> = {
+  "الاستشارات المالية": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&auto=format&fit=crop&q=80",
+  "Financial Consulting": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&auto=format&fit=crop&q=80",
+  "الضرائب": "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=600&auto=format&fit=crop&q=80",
+  "Taxation": "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=600&auto=format&fit=crop&q=80",
+  "المراجعة المالية": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80",
+  "Financial Audit": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80",
+  "تأسيس الشركات": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&auto=format&fit=crop&q=80",
+  "Company Formation": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&auto=format&fit=crop&q=80",
+  "دراسات الجدوى": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=80",
+  "Feasibility Studies": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=80",
+  "المحاسبة": "https://images.unsplash.com/photo-1543286386-713bdd548da4?w=600&auto=format&fit=crop&q=80",
+  "Accounting": "https://images.unsplash.com/photo-1543286386-713bdd548da4?w=600&auto=format&fit=crop&q=80",
+  "التقنية المالية": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=600&auto=format&fit=crop&q=80",
+  "Financial Technology": "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=600&auto=format&fit=crop&q=80",
+};
+const DEFAULT_ARTICLE_FALLBACK = "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=600&auto=format&fit=crop&q=80";
+
+function getArticleFallback(categoryAr?: string | null, categoryEn?: string | null): string {
+  return (categoryAr && FALLBACK_IMAGES[categoryAr])
+    ?? (categoryEn && FALLBACK_IMAGES[categoryEn])
+    ?? DEFAULT_ARTICLE_FALLBACK;
+}
+
+function handleImgError(e: React.SyntheticEvent<HTMLImageElement>, fallback: string) {
+  const img = e.currentTarget;
+  if (img.src !== fallback) {
+    img.src = fallback;
+  } else {
+    img.style.display = "none";
+  }
+}
+
 export default function Articles() {
   const { t, lang } = useLang();
   const ArrowIcon = lang === "ar" ? ArrowLeft : ArrowRight;
@@ -75,14 +108,12 @@ export default function Articles() {
                   className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card border border-gray-100 dark:border-gray-800"
                 >
                   <div className="relative h-52 overflow-hidden bg-gradient-to-br from-[#001d56] to-[#0a3a8e]">
-                    {article.image && (
-                      <img
-                        src={article.image}
-                        alt={lang === "ar" ? article.titleAr : article.titleEn}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                      />
-                    )}
+                    <img
+                      src={article.image || getArticleFallback(article.categoryAr, article.categoryEn)}
+                      alt={lang === "ar" ? article.titleAr : article.titleEn}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => handleImgError(e, getArticleFallback(article.categoryAr, article.categoryEn))}
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#001d56]/60 to-transparent" />
                     <span className="absolute top-4 start-4 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">
                       {lang === "ar" ? article.categoryAr : article.categoryEn}

@@ -7,6 +7,35 @@ import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import SeoHead from "@/components/seo-head";
 
+const INDUSTRY_FALLBACKS: Record<string, string> = {
+  "الصناعة": "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=600&auto=format&fit=crop&q=80",
+  "Industry": "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=600&auto=format&fit=crop&q=80",
+  "التجزئة": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop&q=80",
+  "Retail": "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&auto=format&fit=crop&q=80",
+  "العقارات": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&auto=format&fit=crop&q=80",
+  "Real Estate": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&auto=format&fit=crop&q=80",
+  "الرعاية الصحية": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=600&auto=format&fit=crop&q=80",
+  "Healthcare": "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=600&auto=format&fit=crop&q=80",
+  "التقنية": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&auto=format&fit=crop&q=80",
+  "Technology": "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&auto=format&fit=crop&q=80",
+};
+const DEFAULT_CASE_FALLBACK = "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80";
+
+function getCaseFallback(industryAr?: string | null, industryEn?: string | null): string {
+  return (industryAr && INDUSTRY_FALLBACKS[industryAr])
+    ?? (industryEn && INDUSTRY_FALLBACKS[industryEn])
+    ?? DEFAULT_CASE_FALLBACK;
+}
+
+function handleCaseImgError(e: React.SyntheticEvent<HTMLImageElement>, fallback: string) {
+  const img = e.currentTarget;
+  if (img.src !== fallback) {
+    img.src = fallback;
+  } else {
+    img.style.display = "none";
+  }
+}
+
 export default function CaseStudies() {
   const { t, lang } = useLang();
   const ArrowIcon = lang === "ar" ? ArrowLeft : ArrowRight;
@@ -74,14 +103,12 @@ export default function CaseStudies() {
                   className="group block rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-card border border-gray-100 dark:border-gray-800"
                 >
                   <div className="relative h-52 overflow-hidden bg-gradient-to-br from-[#001d56] to-[#0a3a8e]">
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={lang === "ar" ? item.titleAr : item.titleEn}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                      />
-                    )}
+                    <img
+                      src={item.image || getCaseFallback(item.industryAr, item.industryEn)}
+                      alt={lang === "ar" ? item.titleAr : item.titleEn}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => handleCaseImgError(e, getCaseFallback(item.industryAr, item.industryEn))}
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#001d56]/60 to-transparent" />
                     {(lang === "ar" ? item.industryAr : item.industryEn) && (
                       <span className="absolute top-4 start-4 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">
