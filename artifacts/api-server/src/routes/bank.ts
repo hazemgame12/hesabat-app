@@ -3151,6 +3151,7 @@ router.get(
             total: invoicesTable.total,
             amountPaid: invoicesTable.amountPaid,
             currency: invoicesTable.currency,
+            exchangeRate: invoicesTable.exchangeRate,
             status: invoicesTable.status,
           })
           .from(invoicesTable)
@@ -3173,6 +3174,7 @@ router.get(
           amountPaid: Number(r.amountPaid),
           balance: round2(Number(r.total) - Number(r.amountPaid)),
           currency: r.currency ?? null,
+          exchangeRate: Number(r.exchangeRate) || 1,
           status: r.status,
         }));
       }
@@ -3198,6 +3200,7 @@ router.get(
             total: invoicesTable.total,
             amountPaid: invoicesTable.amountPaid,
             currency: invoicesTable.currency,
+            exchangeRate: invoicesTable.exchangeRate,
             status: invoicesTable.status,
           })
           .from(invoicesTable)
@@ -3220,6 +3223,7 @@ router.get(
           amountPaid: Number(r.amountPaid),
           balance: round2(Number(r.total) - Number(r.amountPaid)),
           currency: r.currency ?? null,
+          exchangeRate: Number(r.exchangeRate) || 1,
           status: r.status,
         }));
       }
@@ -3483,8 +3487,11 @@ router.post(
         }
 
         // Lock invoice rows in sorted order before entryNo lock (lock-order contract)
+        // allocatedBaseAtInvoiceRate: total base-currency equivalent of all allocations
+        //   using each invoice's original exchange rate (for the party JE line).
+        // Overallocation guard uses BASE currency so cross-currency movements (e.g. AED
+        //   movement vs EGP invoices) are compared correctly without mixing currencies.
         let allocatedBaseAtInvoiceRate = 0;
-        let allocatedForeign = 0;
         const sortedAllocs = [...allocs].sort((a, b) =>
           a.invoiceId.localeCompare(b.invoiceId),
         );
@@ -3511,6 +3518,7 @@ router.post(
             throw new Error("INVOICE_NOT_APPROVED");
           const total = Number(inv.total);
           const balance = round2(total - Number(inv.amountPaid));
+          // Per-invoice check: allocatedAmount is in INVOICE currency
           if (alloc.allocatedAmount > balance + LINK_MONEY_EPS)
             throw new Error("OVER_ALLOCATION");
           const newPaid = round2(Number(inv.amountPaid) + alloc.allocatedAmount);
@@ -3530,18 +3538,24 @@ router.post(
             allocatedBaseAtInvoiceRate +
               alloc.allocatedAmount * Number(inv.exchangeRate),
           );
-          allocatedForeign = round2(allocatedForeign + alloc.allocatedAmount);
         }
+
+        // Total base overallocation guard (cross-currency safe)
+        if (allocatedBaseAtInvoiceRate > amountBase + LINK_MONEY_EPS)
+          throw new Error("OVER_ALLOCATION");
 
         // Allocate entryNo AFTER invoice locks (lock-order contract)
         await lockCompanyEntryNo(tx, companyId);
         const paymentNo = await nextPaymentNoInTx(tx, companyId, kind);
 
-        // FX gain/loss
-        const unallocatedForeign = round2(movementAmount - allocatedForeign);
-        const partyBase = round2(
-          allocatedBaseAtInvoiceRate + unallocatedForeign * rate,
-        );
+        // Party JE line: allocated invoices at their original rates + any unallocated
+        // remainder of the movement (in base currency) goes to the party account too.
+        // This correctly handles cross-currency: e.g. AED movement vs EGP invoices —
+        // the difference between amountBase and allocatedBase is an advance on the
+        // party's account (not FX gain/loss), keeping the JE balanced without a
+        // spurious FX line for base-currency invoices.
+        const unallocatedBase = Math.max(0, round2(amountBase - allocatedBaseAtInvoiceRate));
+        const partyBase = round2(allocatedBaseAtInvoiceRate + unallocatedBase);
         const fxGain =
           kind === "collection"
             ? round2(amountBase - partyBase)
