@@ -20,7 +20,8 @@
     "exportExcel": "Export Excel",
     "importExcel": "Import Excel",
     "importSuccess": "Imported {{count}} record(s)",
-    "importError": "Failed to import file"
+    "importError": "Failed to import file",
+    "optional": "Optional"
   },
   "lang": {
     "switch": "Language",

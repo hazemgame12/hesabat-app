@@ -20,7 +20,8 @@
     "exportExcel": "تصدير Excel",
     "importExcel": "استيراد Excel",
     "importSuccess": "تم استيراد {{count}} سجل",
-    "importError": "تعذّر استيراد الملف"
+    "importError": "تعذّر استيراد الملف",
+    "optional": "اختياري"
   },
   "lang": {
     "switch": "اللغة",
