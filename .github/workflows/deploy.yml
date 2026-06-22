@@ -1,13 +1,9 @@
 name: Deploy Hesabat Production
 
 on:
-  # ⚠️ Production deploy is MANUAL ONLY during Beta phase
-  # Change to push: branches: [main] after Beta is approved
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: "Type DEPLOY to confirm production deployment"
-        required: true
 
 jobs:
   deploy-production:
@@ -16,12 +12,6 @@ jobs:
     environment: production
 
     steps:
-      - name: Guard — require explicit confirmation
-        if: ${{ github.event.inputs.confirm != 'DEPLOY' }}
-        run: |
-          echo "❌ You must type DEPLOY in the confirm field to deploy production."
-          exit 1
-
       - name: Checkout
         uses: actions/checkout@v4
 
