@@ -43,17 +43,10 @@ function verifySignature(payload: Buffer, signature: string): boolean {
 
 router.post(
   "/webhook/deploy",
-  (req, res, next) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => {
-      (req as unknown as { rawBody: Buffer }).rawBody = Buffer.concat(chunks);
-      next();
-    });
-  },
   (req, res) => {
     const signature = (req.headers["x-hub-signature-256"] ?? "") as string;
-    const rawBody = (req as unknown as { rawBody: Buffer }).rawBody ?? Buffer.alloc(0);
+    // rawBody is captured by the express.json verify hook in app.ts.
+    const rawBody = (req as unknown as { rawBody?: Buffer }).rawBody ?? Buffer.alloc(0);
 
     if (!verifySignature(rawBody, signature)) {
       res.status(401).json({ error: "Invalid signature" });

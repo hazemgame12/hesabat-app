@@ -38,8 +38,18 @@ app.use(
 );
 app.use(cors());
 app.use(cookieParser());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Capture the raw request body during parsing so the GitHub deploy webhook can
+// verify its HMAC signature. Without this, express.json() consumes the stream
+// first and the webhook sees an empty body -> signature always fails (401).
+const captureRawBody = (
+  req: express.Request,
+  _res: express.Response,
+  buf: Buffer,
+) => {
+  (req as unknown as { rawBody?: Buffer }).rawBody = buf;
+};
+app.use(express.json({ verify: captureRawBody }));
+app.use(express.urlencoded({ extended: true, verify: captureRawBody }));
 
 app.use("/api", (_req, res, next) => {
   res.set("Cache-Control", "no-store");
