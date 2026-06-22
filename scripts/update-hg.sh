@@ -47,12 +47,13 @@ echo "✅ API files copied"
 echo ""
 echo "🔨 Building Hesabat frontend..."
 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hesabat run build
+test -f "$APP_DIR/artifacts/hesabat/dist/public/index.html" || { echo "❌ Hesabat build produced no index.html — aborting before copy/restart"; exit 1; }
 echo "✅ Hesabat frontend built"
 
 echo ""
 echo "📋 Copying Hesabat frontend into hesabat-api dist/public..."
 mkdir -p "$APP_DIR/artifacts/api-server/dist/public"
-cp -r "$APP_DIR/artifacts/hesabat/dist/public/." "$APP_DIR/artifacts/api-server/dist/public/" 2>/dev/null || true
+cp -r "$APP_DIR/artifacts/hesabat/dist/public/." "$APP_DIR/artifacts/api-server/dist/public/"
 echo "✅ Hesabat frontend files copied"
 
 echo ""
