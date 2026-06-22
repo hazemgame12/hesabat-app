@@ -44,6 +44,7 @@ import {
   FileSpreadsheet,
   Copy,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
@@ -65,6 +66,7 @@ import { PartyView, type PartyViewParty } from "./PartyView";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
 import { ImportWizard } from "@/components/import-wizard/ImportWizard";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
+import { InvoicePaymentAllocations } from "./InvoicePaymentAllocations";
 
 type Kind = "sales" | "purchase";
 type Tab = "invoices" | "returns" | "payments" | "reports";
@@ -120,6 +122,7 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
   const [retGridView, toggleRetGrid] = useGridView("returns-" + kind);
   const [payGridView, togglePayGrid] = useGridView("payments-" + kind);
   const [expandedPaymentId, setExpandedPaymentId] = useState<string | null>(null);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
 
   const { data: invoicesRaw = [], isLoading: invLoading, refetch: refetchInvoices } = useListInvoices({
     kind,
@@ -270,8 +273,18 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     { key: "dueDate", header: t("invoices.dueDate"), type: "readonly" },
     { key: "partyName", header: t(kind === "sales" ? "invoices.customer" : "invoices.supplier"), type: "readonly" },
     { key: "currency", header: t("invoices.currency"), type: "readonly", align: "center" },
+    { key: "subtotal", header: t("invoices.subtotal"), type: "readonly", align: "end",
+      render: (v, row) => <span className="font-sans tabular-nums text-foreground/80" dir="ltr">{fmtInv(Number(v ?? 0), row.currency)}</span> },
+    { key: "discountTotal", header: t("invoices.discountTotal"), type: "readonly", align: "end",
+      render: (v, row) => Number(v ?? 0) > 0.005
+        ? <span className="font-sans tabular-nums text-amber-600" dir="ltr">{fmtInv(Number(v), row.currency)}</span>
+        : <span className="text-foreground/30">—</span> },
+    { key: "taxTotal", header: t("invoices.taxTotal"), type: "readonly", align: "end",
+      render: (v, row) => Number(v ?? 0) > 0.005
+        ? <span className="font-sans tabular-nums text-blue-600" dir="ltr">{fmtInv(Number(v), row.currency)}</span>
+        : <span className="text-foreground/30">—</span> },
     { key: "total", header: t("invoices.total"), type: "readonly", align: "end",
-      render: (v, row) => <span className="font-sans tabular-nums" dir="ltr">{fmtInv(Number(v ?? 0), row.currency)}</span> },
+      render: (v, row) => <span className="font-sans tabular-nums font-bold" dir="ltr">{fmtInv(Number(v ?? 0), row.currency)}</span> },
     { key: "amountPaid", header: t("invoices.paid"), type: "readonly", align: "end",
       render: (v, row) => <span className={`font-sans tabular-nums ${Number(v) > 0.005 ? "text-success" : "text-foreground/50"}`} dir="ltr">{fmtInv(Number(v ?? 0), row.currency)}</span> },
     { key: "balance", header: t("invoices.balance"), type: "readonly", align: "end",
@@ -1021,8 +1034,8 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                     </thead>
                     <tbody>
                       {invoices.map((inv) => (
+                        <React.Fragment key={inv.id}>
                         <tr
-                          key={inv.id}
                           className={`border-b border-slate-100 hover:bg-slate-50/50 transition-colors ${selectedIds.has(inv.id) ? "bg-rose-50/40" : ""}`}
                         >
                           {(canDelete || canUpdate) && (
@@ -1125,6 +1138,27 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                                     <HandCoins className="w-3.5 h-3.5" />
                                   </button>
                                 )}
+                              {["approved", "partially_paid", "paid"].includes(inv.status) && (
+                                <button
+                                  onClick={() =>
+                                    setExpandedInvoiceId(
+                                      expandedInvoiceId === inv.id ? null : inv.id,
+                                    )
+                                  }
+                                  className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
+                                    expandedInvoiceId === inv.id
+                                      ? "bg-primary/20 text-primary"
+                                      : "bg-slate-100 text-slate-500 hover:bg-primary/10 hover:text-primary"
+                                  }`}
+                                  title={t("invoices.allocations.title")}
+                                >
+                                  {expandedInvoiceId === inv.id ? (
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              )}
                             </div>
                           </td>
                           {/* Invoice No */}
@@ -1202,6 +1236,21 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                             {statusBadge(inv)}
                           </td>
                         </tr>
+                        {expandedInvoiceId === inv.id && (
+                          <tr className="bg-primary/5 border-b border-primary/10">
+                            <td colSpan={12} className="p-0">
+                              <InvoicePaymentAllocations
+                                invoiceId={inv.id}
+                                invoiceKind={kind}
+                                invoicePartyId={inv.partyId ?? null}
+                                status={inv.status}
+                                currency={inv.currency ?? null}
+                                onChanged={() => refetchInvoices()}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
