@@ -1,15 +1,35 @@
 import { Router, type IRouter } from "express";
 import { createHmac, timingSafeEqual } from "crypto";
 import { spawn } from "child_process";
+import { existsSync } from "fs";
 import path from "path";
 
 const router: IRouter = Router();
 
 const WEBHOOK_SECRET = process.env.ADMIN_SECRET ?? "";
-const SCRIPT_PATH = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
-  "../../../../scripts/update-hg.sh",
-);
+
+// Resolve the deploy script path. On the VPS the bundled server runs from
+// /var/www/hg-website/dist/, so a path relative to import.meta.url is wrong.
+// Prefer an explicit env override, then known VPS locations, then a
+// repo-relative fallback for local/dev use.
+function resolveScriptPath(): string {
+  const fromEnv = process.env.DEPLOY_SCRIPT_PATH;
+  if (fromEnv && existsSync(fromEnv)) return fromEnv;
+
+  const candidates = [
+    "/var/www/hesabat/scripts/update-hg.sh",
+    path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      "../../../../scripts/update-hg.sh",
+    ),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return candidates[0]!;
+}
+
+const SCRIPT_PATH = resolveScriptPath();
 
 function verifySignature(payload: Buffer, signature: string): boolean {
   if (!WEBHOOK_SECRET) return false;
