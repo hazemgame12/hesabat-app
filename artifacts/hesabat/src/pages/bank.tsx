@@ -3695,6 +3695,9 @@ function ReconciliationDetail({
 
 // ---------------------------------------------------------------------------
 // LinkPaymentModal — create a payment voucher from an existing bank movement
+// Supports cross-currency linking (e.g. AED movement ↔ EGP invoice).
+// allocatedAmount is ALWAYS in the INVOICE's own currency; base-currency
+// equivalents are used for overallocation checks and the JE party line.
 // ---------------------------------------------------------------------------
 type OpenInvoice = {
   id: string;
@@ -3706,7 +3709,15 @@ type OpenInvoice = {
   amountPaid: number;
   balance: number;
   currency: string | null;
+  exchangeRate: number; // invoice's original booking rate vs base currency
   status: string;
+};
+
+type AllocRow = {
+  invoiceId: string;
+  allocatedAmount: string; // in invoice currency
+  invoiceCurrency: string;
+  invoiceExchangeRate: number; // used to compute base equivalent
 };
 
 function LinkPaymentModal({
@@ -3721,16 +3732,11 @@ function LinkPaymentModal({
   onSaved: () => void;
 }) {
   const { toast } = useToast();
-  // قبض/صرف يتحدد باتجاه الحركة (وارد = سند قبض / عميل، صادر = سند صرف / مورّد)
-  // مطابقةً للزر وللباك إند (link-options/link-payment) — وليس بنوع الحركة الذي قد
-  // يكون "إيداع" أو غير مصنّف رغم أن الحركة واردة.
   const isCollection = movement.direction === "in";
 
   const [selectedPartyId, setSelectedPartyId] = useState("");
   const [notes, setNotes] = useState("");
-  const [allocations, setAllocations] = useState<
-    { invoiceId: string; allocatedAmount: string }[]
-  >([]);
+  const [allocations, setAllocations] = useState<AllocRow[]>([]);
   const [openInvoices, setOpenInvoices] = useState<OpenInvoice[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -3739,16 +3745,34 @@ function LinkPaymentModal({
   const { data: suppliers = [] } = useListSuppliers();
 
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  const fmt = (n: number) =>
-    n.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmt = (n: number, decimals = 2) =>
+    n.toLocaleString("ar-EG", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+  // Movement exchange rate: how many base-currency units per 1 movement-currency unit
+  const movExchRate = movement.exchangeRate ?? 1;
+  const movCurrency = movement.currency ?? "";
+  const amountBase = r2(movement.amount * movExchRate);
+
+  // Per-allocation base equivalent: allocatedAmount (invoice ccy) × inv.exchangeRate
+  const totalAllocatedBase = r2(
+    allocations.reduce((s, a) => s + (Number(a.allocatedAmount) || 0) * a.invoiceExchangeRate, 0),
+  );
+  // Equivalent in movement currency for display
+  const totalAllocatedInMovCcy = movExchRate > 0 ? r2(totalAllocatedBase / movExchRate) : 0;
+  const remainingInMovCcy = r2(movement.amount - totalAllocatedInMovCcy);
+  // Overallocation: total base exceeds movement base
+  const overAllocated = totalAllocatedBase > amountBase + 0.005;
+
+  // Cross-currency flag: any invoice in a different currency than the movement
+  const isCrossCurrency = openInvoices.some(
+    (inv) => inv.currency && inv.currency !== movCurrency,
+  );
 
   const loadInvoices = async (partyId: string) => {
     setLoadingInvoices(true);
     setOpenInvoices([]);
     try {
-      const param = isCollection
-        ? `customerId=${partyId}`
-        : `supplierId=${partyId}`;
+      const param = isCollection ? `customerId=${partyId}` : `supplierId=${partyId}`;
       const res = await fetch(
         `/api/bank/movements/${movement.id}/link-options?${param}`,
         { credentials: "include" },
@@ -3774,7 +3798,26 @@ function LinkPaymentModal({
     setAllocations((prev) => {
       if (prev.find((a) => a.invoiceId === inv.id))
         return prev.filter((a) => a.invoiceId !== inv.id);
-      return [...prev, { invoiceId: inv.id, allocatedAmount: String(r2(inv.balance)) }];
+
+      // Smart default: suggest min(invoice balance, remaining movement capacity in invoice currency)
+      const currentBase = prev.reduce(
+        (s, a) => s + (Number(a.allocatedAmount) || 0) * a.invoiceExchangeRate,
+        0,
+      );
+      const remainingBase = Math.max(0, amountBase - currentBase);
+      const invRate = inv.exchangeRate || 1;
+      const remainingInInvCcy = r2(remainingBase / invRate);
+      const suggested = r2(Math.min(inv.balance, remainingInInvCcy > 0 ? remainingInInvCcy : inv.balance));
+
+      return [
+        ...prev,
+        {
+          invoiceId: inv.id,
+          allocatedAmount: String(suggested),
+          invoiceCurrency: inv.currency ?? movCurrency,
+          invoiceExchangeRate: invRate,
+        },
+      ];
     });
   };
 
@@ -3783,11 +3826,6 @@ function LinkPaymentModal({
       prev.map((a) => (a.invoiceId === invoiceId ? { ...a, allocatedAmount: value } : a)),
     );
   };
-
-  const totalAllocated = r2(
-    allocations.reduce((s, a) => s + (Number(a.allocatedAmount) || 0), 0),
-  );
-  const overAllocated = totalAllocated > movement.amount + 0.005;
 
   const submit = async () => {
     if (!selectedPartyId) {
@@ -3798,11 +3836,30 @@ function LinkPaymentModal({
       });
       return;
     }
+    if (allocations.length === 0) {
+      toast({
+        variant: "destructive",
+        title: t("bank.toast.error"),
+        description: "يجب تحديد فاتورة واحدة على الأقل",
+      });
+      return;
+    }
+    if (allocations.some((a) => !(Number(a.allocatedAmount) > 0))) {
+      toast({
+        variant: "destructive",
+        title: t("bank.toast.error"),
+        description: "المبلغ المخصص يجب أن يكون أكبر من صفر",
+      });
+      return;
+    }
+    if (overAllocated) return;
+
     const body: Record<string, unknown> = {
       notes: notes.trim() || undefined,
       allocations: allocations.map((a) => ({
         invoiceId: a.invoiceId,
         allocatedAmount: Number(a.allocatedAmount),
+        allocatedCurrency: a.invoiceCurrency || undefined,
       })),
     };
     if (isCollection) body.customerId = selectedPartyId;
@@ -3828,9 +3885,7 @@ function LinkPaymentModal({
         });
         return;
       }
-      toast({
-        title: isCollection ? "تم إنشاء سند القبض" : "تم إنشاء سند الصرف",
-      });
+      toast({ title: isCollection ? "تم إنشاء سند القبض" : "تم إنشاء سند الصرف" });
       onSaved();
     } catch {
       toast({
@@ -3849,7 +3904,7 @@ function LinkPaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-card rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-card z-10">
           <div className="flex items-center gap-2">
@@ -3868,16 +3923,22 @@ function LinkPaymentModal({
           <div className="rounded-xl bg-muted/40 border p-3 text-sm flex flex-wrap gap-x-6 gap-y-1">
             <span className="text-muted-foreground">
               {t("bank.movement.date")}:{" "}
-              <span className="text-foreground font-bold" dir="ltr">
-                {movement.date}
-              </span>
+              <span className="text-foreground font-bold" dir="ltr">{movement.date}</span>
             </span>
             <span className="text-muted-foreground">
               {t("bank.movement.amount")}:{" "}
               <span className="text-foreground font-bold tabular-nums" dir="ltr">
-                {fmt(movement.amount)} {movement.currency}
+                {fmt(movement.amount)} {movCurrency}
               </span>
             </span>
+            {movExchRate !== 1 && (
+              <span className="text-muted-foreground">
+                سعر الصرف:{" "}
+                <span className="text-foreground font-bold tabular-nums" dir="ltr">
+                  1 {movCurrency} = {fmt(movExchRate, 4)} (عملة أساسية)
+                </span>
+              </span>
+            )}
             {movement.description && (
               <span className="text-muted-foreground">{movement.description}</span>
             )}
@@ -3898,53 +3959,77 @@ function LinkPaymentModal({
               </option>
               {isCollection
                 ? (customers as any[]).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nameAr}
-                    </option>
+                    <option key={c.id} value={c.id}>{c.nameAr}</option>
                   ))
                 : (suppliers as any[]).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nameAr}
-                    </option>
+                    <option key={s.id} value={s.id}>{s.nameAr}</option>
                   ))}
             </select>
           </div>
+
+          {/* Cross-currency notice */}
+          {isCrossCurrency && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 text-xs text-amber-800 dark:text-amber-300 flex gap-2 items-start">
+              <span className="text-base leading-none mt-0.5">⚠</span>
+              <span>
+                عملة الحركة (<strong>{movCurrency}</strong>) تختلف عن عملة بعض الفواتير.
+                المبلغ المخصص يُدخل بعملة الفاتورة ويتم احتساب المعادل تلقائيًا.
+                {movExchRate !== 1 && (
+                  <> سعر الصرف المستخدم: <strong dir="ltr">1 {movCurrency} = {fmt(movExchRate, 4)}</strong>.</>
+                )}
+              </span>
+            </div>
+          )}
 
           {/* Open invoices list */}
           {selectedPartyId && (
             <div>
               <label className={labelCls}>
-                {isCollection
-                  ? "الفواتير غير المسددة"
-                  : "فواتير المشتريات غير المسددة"}
+                {isCollection ? "الفواتير غير المسددة" : "فواتير المشتريات غير المسددة"}
                 {loadingInvoices && (
                   <span className="ms-2 text-primary text-xs">جاري التحميل...</span>
                 )}
               </label>
               {!loadingInvoices && openInvoices.length === 0 && (
                 <p className="text-sm text-muted-foreground py-2 text-center border rounded-xl">
-                  لا توجد فواتير مفتوحة لهذا{" "}
-                  {isCollection ? "العميل" : "المورد"}
+                  لا توجد فواتير مفتوحة لهذا {isCollection ? "العميل" : "المورد"}
                 </p>
               )}
               {openInvoices.length > 0 && (
-                <div className="rounded-xl border overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50 text-muted-foreground">
+                <div className="rounded-xl border overflow-x-auto">
+                  <table className="w-full text-sm min-w-[640px]">
+                    <thead className="bg-muted/50 text-muted-foreground text-xs">
                       <tr>
                         <th className="p-2 text-start w-8"></th>
                         <th className="p-2 text-start">{t("common.date")}</th>
                         <th className="p-2 text-start">رقم الفاتورة</th>
                         <th className="p-2 text-end">الإجمالي</th>
+                        <th className="p-2 text-end">المسدد</th>
                         <th className="p-2 text-end">الرصيد</th>
+                        <th className="p-2 text-center">العملة</th>
                         <th className="p-2 text-end">المبلغ المخصص</th>
+                        {isCrossCurrency && (
+                          <th className="p-2 text-end">المعادل {movCurrency}</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {openInvoices.map((inv) => {
-                        const alloc = allocations.find(
-                          (a) => a.invoiceId === inv.id,
-                        );
+                        const alloc = allocations.find((a) => a.invoiceId === inv.id);
+                        const invCcy = inv.currency ?? movCurrency;
+                        const crossCcy = invCcy !== movCurrency;
+                        // Equivalent in movement currency for this row
+                        const allocNum = Number(alloc?.allocatedAmount) || 0;
+                        const invRate = inv.exchangeRate || 1;
+                        const equivInMovCcy = movExchRate > 0
+                          ? r2(allocNum * invRate / movExchRate)
+                          : allocNum;
+                        const maxAlloc = r2(Math.min(
+                          inv.balance,
+                          movExchRate > 0
+                            ? r2((amountBase - (totalAllocatedBase - allocNum * invRate)) / invRate)
+                            : inv.balance,
+                        ));
                         return (
                           <tr
                             key={inv.id}
@@ -3959,47 +4044,52 @@ function LinkPaymentModal({
                                 className="cursor-pointer"
                               />
                             </td>
-                            <td className="p-2 tabular-nums" dir="ltr">
-                              {inv.date}
-                            </td>
+                            <td className="p-2 tabular-nums text-xs" dir="ltr">{inv.date}</td>
                             <td className="p-2 font-mono text-xs">
                               {inv.code ?? `#${inv.invoiceNo}`}
                             </td>
                             <td className="p-2 text-end tabular-nums" dir="ltr">
-                              {fmt(inv.total)}{" "}
-                              <span className="text-muted-foreground text-xs">
-                                {inv.currency}
-                              </span>
+                              {fmt(inv.total)}
+                            </td>
+                            <td className="p-2 text-end tabular-nums text-muted-foreground" dir="ltr">
+                              {fmt(inv.amountPaid)}
                             </td>
                             <td className="p-2 text-end tabular-nums font-bold" dir="ltr">
-                              {fmt(inv.balance)}{" "}
-                              <span className="text-muted-foreground font-normal text-xs">
-                                {inv.currency}
+                              {fmt(inv.balance)}
+                            </td>
+                            <td className="p-2 text-center">
+                              <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${crossCcy ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground"}`}>
+                                {invCcy}
                               </span>
                             </td>
-                            <td
-                              className="p-2"
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                            <td className="p-2" onClick={(e) => e.stopPropagation()}>
                               {alloc ? (
-                                <input
-                                  type="number"
-                                  min="0.01"
-                                  step="0.01"
-                                  max={inv.balance}
-                                  className="w-28 px-2 py-1 rounded-md border bg-background text-sm text-end tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                  value={alloc.allocatedAmount}
-                                  onChange={(e) =>
-                                    setAllocAmount(inv.id, e.target.value)
-                                  }
-                                  dir="ltr"
-                                />
+                                <div className="flex items-center gap-1 justify-end">
+                                  <input
+                                    type="number"
+                                    min="0.01"
+                                    step="0.01"
+                                    max={Math.max(inv.balance, 0)}
+                                    className="w-28 px-2 py-1 rounded-md border bg-background text-sm text-end tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    value={alloc.allocatedAmount}
+                                    onChange={(e) => setAllocAmount(inv.id, e.target.value)}
+                                    dir="ltr"
+                                  />
+                                  <span className="text-xs text-muted-foreground">{invCcy}</span>
+                                </div>
                               ) : (
-                                <span className="text-muted-foreground text-end block">
-                                  —
-                                </span>
+                                <span className="text-muted-foreground text-end block">—</span>
                               )}
                             </td>
+                            {isCrossCurrency && (
+                              <td className="p-2 text-end tabular-nums text-xs text-muted-foreground" dir="ltr">
+                                {alloc && allocNum > 0 ? (
+                                  <span className="text-foreground font-medium">
+                                    {fmt(equivInMovCcy)} {movCurrency}
+                                  </span>
+                                ) : "—"}
+                              </td>
+                            )}
                           </tr>
                         );
                       })}
@@ -4010,31 +4100,53 @@ function LinkPaymentModal({
             </div>
           )}
 
-          {/* Allocation summary bar */}
-          {allocations.length > 0 && (
-            <div
-              className={`rounded-xl p-3 text-sm flex justify-between items-center border ${
-                overAllocated
-                  ? "bg-destructive/10 border-destructive/30"
-                  : "bg-muted/40"
-              }`}
-            >
-              <span className="font-bold text-muted-foreground">
-                إجمالي المخصص
-              </span>
-              <span
-                className={`tabular-nums font-bold ${overAllocated ? "text-destructive" : "text-foreground"}`}
-                dir="ltr"
-              >
-                {fmt(totalAllocated)} / {fmt(movement.amount)} {movement.currency}
-                {overAllocated && (
-                  <span className="text-xs font-normal ms-2">
-                    (يتجاوز مبلغ الحركة)
-                  </span>
-                )}
-              </span>
+          {/* Allocation summary footer */}
+          <div
+            className={`rounded-xl p-3 text-sm border ${
+              overAllocated
+                ? "bg-destructive/10 border-destructive/30"
+                : "bg-muted/40 border-transparent"
+            }`}
+          >
+            <div className="flex justify-between items-center gap-4 flex-wrap">
+              <span className="text-muted-foreground font-bold">ملخص التخصيص</span>
+              {overAllocated && (
+                <span className="text-destructive text-xs font-bold">
+                  ⚠ يتجاوز مبلغ الحركة
+                </span>
+              )}
             </div>
-          )}
+            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+              <div className="rounded-lg bg-background border p-2 text-center">
+                <div className="text-muted-foreground mb-0.5">مبلغ الحركة</div>
+                <div className="font-bold tabular-nums" dir="ltr">
+                  {fmt(movement.amount)} {movCurrency}
+                </div>
+              </div>
+              <div className={`rounded-lg bg-background border p-2 text-center ${overAllocated ? "border-destructive/50" : ""}`}>
+                <div className="text-muted-foreground mb-0.5">إجمالي المخصص</div>
+                <div className={`font-bold tabular-nums ${overAllocated ? "text-destructive" : ""}`} dir="ltr">
+                  {fmt(totalAllocatedInMovCcy)} {movCurrency}
+                  {isCrossCurrency && totalAllocatedBase > 0 && (
+                    <div className="text-muted-foreground font-normal mt-0.5">
+                      ≈ {fmt(totalAllocatedBase)} (أساسية)
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="rounded-lg bg-background border p-2 text-center">
+                <div className="text-muted-foreground mb-0.5">المتبقي غير المخصص</div>
+                <div className={`font-bold tabular-nums ${remainingInMovCcy < -0.005 ? "text-destructive" : remainingInMovCcy > 0 ? "text-amber-600" : "text-success"}`} dir="ltr">
+                  {fmt(Math.max(0, remainingInMovCcy))} {movCurrency}
+                </div>
+              </div>
+            </div>
+            {remainingInMovCcy > 0.005 && allocations.length > 0 && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-2">
+                المبلغ المتبقي ({fmt(remainingInMovCcy)} {movCurrency}) سيُضاف كرصيد للمورد/العميل.
+              </p>
+            )}
+          </div>
 
           {/* Notes */}
           <div>
@@ -4058,7 +4170,7 @@ function LinkPaymentModal({
             </button>
             <button
               onClick={submit}
-              disabled={saving || !selectedPartyId || overAllocated}
+              disabled={saving || !selectedPartyId || overAllocated || allocations.length === 0}
               className="flex items-center gap-2 px-5 py-2 rounded-lg bg-success text-success-foreground text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               <Receipt className="w-4 h-4" />
