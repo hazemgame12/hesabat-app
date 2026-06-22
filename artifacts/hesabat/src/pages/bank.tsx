@@ -3721,7 +3721,10 @@ function LinkPaymentModal({
   onSaved: () => void;
 }) {
   const { toast } = useToast();
-  const isCollection = movement.type === "customer_collection";
+  // قبض/صرف يتحدد باتجاه الحركة (وارد = سند قبض / عميل، صادر = سند صرف / مورّد)
+  // مطابقةً للزر وللباك إند (link-options/link-payment) — وليس بنوع الحركة الذي قد
+  // يكون "إيداع" أو غير مصنّف رغم أن الحركة واردة.
+  const isCollection = movement.direction === "in";
 
   const [selectedPartyId, setSelectedPartyId] = useState("");
   const [notes, setNotes] = useState("");
