@@ -21,7 +21,9 @@
     "importExcel": "استيراد Excel",
     "importSuccess": "تم استيراد {{count}} سجل",
     "importError": "تعذّر استيراد الملف",
-    "optional": "اختياري"
+    "optional": "اختياري",
+    "viewLedger": "كشف الحساب",
+    "viewStatement": "كشف الحساب"
   },
   "lang": {
     "switch": "اللغة",
@@ -120,8 +122,8 @@
     "inventory": "المخزون",
     "bank": "البنوك والنقدية",
     "advances": "العهد والسلف",
-    "sales": "المبيعات والعملاء",
-    "purchases": "المشتريات والموردين",
+    "sales": "العملاء",
+    "purchases": "الموردين",
     "costCenters": "مراكز التكلفة والمشاريع",
     "reports": "التقارير المالية",
     "team": "الفريق والصلاحيات",
@@ -150,7 +152,9 @@
       "treasury": "الخزينة والبنوك",
       "hr": "الموارد البشرية",
       "reports": "التقارير والمراجعة",
-      "support": "الدعم"
+      "support": "الدعم",
+      "sales": "العملاء والمبيعات",
+      "purchases": "الموردين والمشتريات"
     },
     "collections": "سندات القبض",
     "vendorPayments": "سندات الصرف"
@@ -532,6 +536,16 @@
       "bulkFailed": "فشل إضافة {{count}} حساب",
       "bulkEmpty": "لا يوجد حسابات للإضافة",
       "bulkError": "تعذر إضافة الحسابات"
+    },
+    "ledger": {
+      "title": "كشف حركة الحساب",
+      "viewLedger": "كشف الحساب",
+      "debit": "مدين",
+      "credit": "دائن",
+      "balance": "الرصيد",
+      "description": "البيان",
+      "entryNo": "رقم القيد",
+      "noData": "لا توجد حركات في هذه الفترة"
     }
   },
   "team": {
@@ -1044,7 +1058,8 @@
       "addError": "تعذّر إضافة العميل",
       "editError": "تعذّر تعديل العميل",
       "deleteError": "تعذّر حذف العميل"
-    }
+    },
+    "statement": "كشف حساب العميل"
   },
   "suppliers": {
     "title": "الموردون",
@@ -1102,7 +1117,8 @@
       "addError": "تعذّر إضافة المورد",
       "editError": "تعذّر تعديل المورد",
       "deleteError": "تعذّر حذف المورد"
-    }
+    },
+    "statement": "كشف حساب المورد"
   },
   "costCenters": {
     "title": "مراكز التكلفة والمشاريع",
@@ -1893,9 +1909,9 @@
     "tax": "الضريبة",
     "noTax": "بدون ضريبة",
     "lineTotal": "إجمالي البند",
-    "subtotal": "الإجمالي الفرعي",
-    "discountTotal": "إجمالي الخصم",
-    "taxTotal": "إجمالي الضريبة",
+    "subtotal": "قبل الضريبة",
+    "discountTotal": "الخصم",
+    "taxTotal": "الضريبة",
     "grandTotal": "الإجمالي النهائي",
     "allocations": {
       "title": "توزيع على الفواتير",
