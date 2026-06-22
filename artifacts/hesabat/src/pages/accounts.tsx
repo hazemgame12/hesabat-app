@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
 import { 
   useListAccounts, 
   useCreateAccount, 
@@ -16,7 +17,7 @@ import {
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Plus, ChevronDown, ChevronLeft, Check, X, Trash2, Edit2, Lock, Unlock, Search, FolderOpen, FolderClosed, ListPlus, ChevronUp, Landmark } from "lucide-react";
+import { Building2, Plus, ChevronDown, ChevronLeft, Check, X, Trash2, Edit2, Lock, Unlock, Search, FolderOpen, FolderClosed, ListPlus, ChevronUp, Landmark, BookOpen } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -394,6 +395,7 @@ export function Accounts() {
 
   const TreeRow = ({ node, depth }: { node: TreeNode; depth: number }) => {
     const hasChildren = !!node.children?.length;
+    const [, navigate] = useLocation();
     const open = search.trim() ? true : openIds.has(node.id);
     const toggleOpen = () => {
       if (search.trim()) return;
@@ -485,6 +487,15 @@ export function Accounts() {
           </div>
 
           <div className="flex items-center gap-1 flex-shrink-0 px-2">
+            {!node.isGroup && (
+              <button
+                onClick={(e) => { e.stopPropagation(); navigate(`/accounts/${node.id}/ledger`); }}
+                className="w-7 h-7 rounded-md hover:bg-primary/10 text-primary transition-colors flex items-center justify-center"
+                title={t("accounts.ledger.viewLedger")}
+              >
+                <BookOpen className="w-4 h-4" />
+              </button>
+            )}
             {canCreate && (
               <button
                 onClick={(e) => {
