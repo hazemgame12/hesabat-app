@@ -21,7 +21,9 @@
     "importExcel": "Import Excel",
     "importSuccess": "Imported {{count}} record(s)",
     "importError": "Failed to import file",
-    "optional": "Optional"
+    "optional": "Optional",
+    "viewLedger": "Ledger",
+    "viewStatement": "Statement"
   },
   "lang": {
     "switch": "Language",
@@ -120,8 +122,8 @@
     "inventory": "Inventory",
     "bank": "Banks & Cash",
     "advances": "Custody & Advances",
-    "sales": "Sales & Customers",
-    "purchases": "Purchases & Suppliers",
+    "sales": "Customers",
+    "purchases": "Suppliers",
     "costCenters": "Cost Centers & Projects",
     "reports": "Financial Reports",
     "team": "Team & Permissions",
@@ -150,7 +152,9 @@
       "treasury": "Treasury & Banks",
       "hr": "Human Resources",
       "reports": "Reports & Audit",
-      "support": "Support"
+      "support": "Support",
+      "sales": "Customers & Sales",
+      "purchases": "Suppliers & Purchases"
     },
     "collections": "Receipts",
     "vendorPayments": "Vendor Payments"
@@ -532,6 +536,16 @@
       "bulkFailed": "Failed to add {{count}} accounts",
       "bulkEmpty": "No accounts to add",
       "bulkError": "Could not add accounts"
+    },
+    "ledger": {
+      "title": "Account Ledger",
+      "viewLedger": "Ledger",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "description": "Description",
+      "entryNo": "Entry #",
+      "noData": "No transactions in this period"
     }
   },
   "team": {
@@ -1044,7 +1058,8 @@
       "addError": "Could not add customer",
       "editError": "Could not update customer",
       "deleteError": "Could not delete customer"
-    }
+    },
+    "statement": "Customer Statement"
   },
   "suppliers": {
     "title": "Suppliers",
@@ -1102,7 +1117,8 @@
       "addError": "Could not add supplier",
       "editError": "Could not update supplier",
       "deleteError": "Could not delete supplier"
-    }
+    },
+    "statement": "Supplier Statement"
   },
   "costCenters": {
     "title": "Cost Centers & Projects",
@@ -1893,9 +1909,9 @@
     "tax": "Tax",
     "noTax": "No tax",
     "lineTotal": "Line total",
-    "subtotal": "Subtotal",
-    "discountTotal": "Total discount",
-    "taxTotal": "Total tax",
+    "subtotal": "Pre-tax",
+    "discountTotal": "Discount",
+    "taxTotal": "Tax",
     "grandTotal": "Grand total",
     "allocations": {
       "title": "Payment Allocations",
