@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq, asc, sql } from "drizzle-orm";
+import { and, eq, asc, sql, gte, lte } from "drizzle-orm";
 import {
   db,
   accountsTable,
@@ -610,6 +610,97 @@ router.post(
       res.json({ imported: parsed.length });
     } catch (err) {
       req.log.error({ err }, "Failed to import accounts");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// GET /accounts/:id/ledger — كشف حركة حساب مع رصيد متراكم
+router.get(
+  "/accounts/:id/ledger",
+  requireAuth,
+  requireCapability("journal:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const accountId = req.params.id as string;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10));
+    const limit = Math.min(200, Math.max(10, parseInt(String(req.query.limit ?? "50"), 10)));
+
+    try {
+      const [account] = await db
+        .select()
+        .from(accountsTable)
+        .where(and(eq(accountsTable.id, accountId), eq(accountsTable.companyId, companyId)))
+        .limit(1);
+      if (!account) {
+        res.status(404).json({ error: "الحساب غير موجود" });
+        return;
+      }
+
+      const conds = [
+        eq(journalEntryLinesTable.accountId, accountId),
+        eq(journalEntriesTable.companyId, companyId),
+        eq(journalEntriesTable.status, "posted"),
+      ];
+      if (from) conds.push(gte(journalEntriesTable.date, from as any));
+      if (to) conds.push(lte(journalEntriesTable.date, to as any));
+
+      const lines = await db
+        .select({
+          lineId: journalEntryLinesTable.id,
+          entryId: journalEntryLinesTable.entryId,
+          entryNo: journalEntriesTable.entryNo,
+          date: journalEntriesTable.date,
+          entryDesc: journalEntriesTable.notes,
+          lineDesc: journalEntryLinesTable.description,
+          debit: journalEntryLinesTable.debitBase,
+          credit: journalEntryLinesTable.creditBase,
+        })
+        .from(journalEntryLinesTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+        .where(and(...conds))
+        .orderBy(asc(journalEntriesTable.date), asc(journalEntriesTable.entryNo));
+
+      const isDebitNormal = account.type === "asset" || account.type === "expense";
+      let running = 0;
+      const rows = lines.map((l) => {
+        const debit = Number(l.debit ?? 0);
+        const credit = Number(l.credit ?? 0);
+        running += isDebitNormal ? debit - credit : credit - debit;
+        const d = l.date;
+        return {
+          lineId: l.lineId,
+          entryId: l.entryId,
+          entryNo: l.entryNo,
+          date: String(d),
+          description: l.lineDesc || l.entryDesc || "",
+          debit,
+          credit,
+          balance: running,
+        };
+      });
+
+      const total = rows.length;
+      const paged = rows.slice((page - 1) * limit, page * limit);
+
+      res.json({
+        account: {
+          id: account.id,
+          code: account.code,
+          nameAr: account.nameAr,
+          nameEn: account.nameEn,
+          type: account.type,
+        },
+        data: paged,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to get account ledger");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
