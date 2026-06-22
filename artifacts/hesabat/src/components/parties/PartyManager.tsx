@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
 import { type Account, useListCurrencies, useGetCompany, useUpdateCustomer, useUpdateSupplier } from "@workspace/api-client-react";
 import { PaginationBar } from "@/components/ui/pagination-bar";
-import { Plus, X, Check, Trash2, Edit2 } from "lucide-react";
+import { Plus, X, Check, Trash2, Edit2, BookOpen } from "lucide-react";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
@@ -150,6 +151,7 @@ export function PartyManager({
   const lang = i18n.language;
   const { toast } = useToast();
   const ns = config.ns;
+  const [, navigate] = useLocation();
   const Icon = config.icon;
 
   const { data: company } = useGetCompany();
@@ -613,6 +615,13 @@ export function PartyManager({
                     {(canUpdate || canDelete) && (
                       <td className="px-6 py-3.5">
                         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
+                          <button
+                            onClick={() => navigate(`/${ns === "customers" ? "sales" : "purchases"}/${p.id}/statement`)}
+                            className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                            title={t("common.viewStatement")}
+                          >
+                            <BookOpen className="w-4 h-4" />
+                          </button>
                           {canUpdate && (
                             <button
                               onClick={() => openEdit(p)}
