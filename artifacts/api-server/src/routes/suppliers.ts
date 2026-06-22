@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { and, eq, asc, sql, count } from "drizzle-orm";
+import { and, eq, asc, sql, count, gte, lte } from "drizzle-orm";
 import { parsePagination, paginatedResponse } from "../lib/pagination";
 import {
   db,
   suppliersTable,
   accountsTable,
   journalEntryLinesTable,
+  journalEntriesTable,
   type Supplier,
 } from "@workspace/db";
 import { CreateSupplierBody, UpdateSupplierBody } from "@workspace/api-zod";
@@ -700,6 +701,88 @@ router.post(
         return;
       }
       req.log.error({ err }, "Failed to import suppliers");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// GET /suppliers/:id/statement — كشف حساب المورد (حركات دفتر الأستاذ)
+router.get(
+  "/suppliers/:id/statement",
+  requireAuth,
+  requireCapability("suppliers:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const supplierId = req.params.id as string;
+    const from = req.query.from as string | undefined;
+    const to = req.query.to as string | undefined;
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10));
+    const limit = Math.min(200, Math.max(10, parseInt(String(req.query.limit ?? "50"), 10)));
+
+    try {
+      const [supplier] = await db
+        .select()
+        .from(suppliersTable)
+        .where(and(eq(suppliersTable.id, supplierId), eq(suppliersTable.companyId, companyId)))
+        .limit(1);
+      if (!supplier) {
+        res.status(404).json({ error: "المورد غير موجود" });
+        return;
+      }
+
+      const conds = [
+        eq(journalEntryLinesTable.accountId, supplier.accountId),
+        eq(journalEntriesTable.companyId, companyId),
+        eq(journalEntriesTable.status, "posted"),
+      ];
+      if (from) conds.push(gte(journalEntriesTable.date, from as any));
+      if (to) conds.push(lte(journalEntriesTable.date, to as any));
+
+      const lines = await db
+        .select({
+          lineId: journalEntryLinesTable.id,
+          entryId: journalEntryLinesTable.entryId,
+          entryNo: journalEntriesTable.entryNo,
+          date: journalEntriesTable.date,
+          entryDesc: journalEntriesTable.notes,
+          lineDesc: journalEntryLinesTable.description,
+          debit: journalEntryLinesTable.debitBase,
+          credit: journalEntryLinesTable.creditBase,
+        })
+        .from(journalEntryLinesTable)
+        .innerJoin(journalEntriesTable, eq(journalEntriesTable.id, journalEntryLinesTable.entryId))
+        .where(and(...conds))
+        .orderBy(asc(journalEntriesTable.date), asc(journalEntriesTable.entryNo));
+
+      let running = 0;
+      const rows = lines.map((l) => {
+        const debit = Number(l.debit ?? 0);
+        const credit = Number(l.credit ?? 0);
+        running += credit - debit;
+        const d = l.date;
+        return {
+          lineId: l.lineId,
+          entryId: l.entryId,
+          entryNo: l.entryNo,
+          date: String(d),
+          description: l.lineDesc || l.entryDesc || "",
+          debit,
+          credit,
+          balance: running,
+        };
+      });
+
+      const total = rows.length;
+      res.json({
+        party: { id: supplier.id, code: supplier.code, nameAr: supplier.nameAr, nameEn: supplier.nameEn },
+        data: rows.slice((page - 1) * limit, page * limit),
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit) || 1,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to get supplier statement");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
