@@ -61,43 +61,9 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 }
 
 const navEntries: NavEntry[] = [
+  // 1. لوحة التحكم
   { labelKey: "nav.dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  {
-    groupKey: "accounting",
-    labelKey: "nav.groups.accounting",
-    icon: Calculator,
-    children: [
-      { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
-      { labelKey: "nav.journal", icon: FileText, href: "/journal" },
-      { labelKey: "nav.openingBalances", icon: Scale, href: "/opening-balances", requires: "journal:read" },
-      { labelKey: "nav.revaluation", icon: TrendingUp, href: "/revaluation", requires: "revaluation:read" },
-    ],
-  },
-  {
-    groupKey: "salesPurchases",
-    labelKey: "nav.groups.salesPurchases",
-    icon: ShoppingCart,
-    children: [
-      { labelKey: "nav.sales", icon: Users, href: "/sales", requires: "customers:read" },
-      { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
-      { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
-      { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
-      { labelKey: "nav.collections", icon: ArrowDownLeft, href: "/collections", requires: "payments:read" },
-      { labelKey: "nav.vendorPayments", icon: ArrowUpRight, href: "/vendor-payments", requires: "payments:read" },
-      { labelKey: "nav.quotations", icon: FileOutput, href: "/quotations", requires: "invoices:read" },
-      { labelKey: "nav.purchaseOrders", icon: ClipboardList, href: "/purchase-orders", requires: "invoices:read" },
-      { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },
-    ],
-  },
-  {
-    groupKey: "inventoryAssets",
-    labelKey: "nav.groups.inventoryAssets",
-    icon: Warehouse,
-    children: [
-      { labelKey: "nav.inventory", icon: Package, href: "/inventory", requires: "inventory:read" },
-      { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
-    ],
-  },
+  // 2. الخزينة والبنوك
   {
     groupKey: "treasury",
     labelKey: "nav.groups.treasury",
@@ -107,14 +73,39 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.advances", icon: HandCoins, href: "/advances", requires: "advances:read" },
     ],
   },
+  // 3. المبيعات
   {
-    groupKey: "hr",
-    labelKey: "nav.groups.hr",
-    icon: UserCog,
+    groupKey: "sales",
+    labelKey: "nav.groups.sales",
+    icon: ShoppingCart,
     children: [
-      { labelKey: "nav.payroll", icon: Wallet, href: "/payroll", requires: "payroll:read" },
+      { labelKey: "nav.sales", icon: Users, href: "/sales", requires: "customers:read" },
+      { labelKey: "nav.invoicesSales", icon: ReceiptText, href: "/invoices/sales", requires: "invoices:read" },
+      { labelKey: "nav.quotations", icon: FileOutput, href: "/quotations", requires: "invoices:read" },
+      { labelKey: "nav.collections", icon: ArrowDownLeft, href: "/collections", requires: "payments:read" },
     ],
   },
+  // 4. المشتريات
+  {
+    groupKey: "purchases",
+    labelKey: "nav.groups.purchases",
+    icon: Warehouse,
+    children: [
+      { labelKey: "nav.purchases", icon: Receipt, href: "/purchases", requires: "suppliers:read" },
+      { labelKey: "nav.invoicesPurchases", icon: FileSpreadsheet, href: "/invoices/purchases", requires: "invoices:read" },
+      { labelKey: "nav.purchaseOrders", icon: ClipboardList, href: "/purchase-orders", requires: "invoices:read" },
+      { labelKey: "nav.vendorPayments", icon: ArrowUpRight, href: "/vendor-payments", requires: "payments:read" },
+    ],
+  },
+  // 5. المخزون
+  { labelKey: "nav.inventory", icon: Package, href: "/inventory", requires: "inventory:read" },
+  // 6. الأصول الثابتة
+  { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
+  // 7. القيود اليومية
+  { labelKey: "nav.journal", icon: FileText, href: "/journal" },
+  // 8. شجرة الحسابات
+  { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
+  // 9. التقارير
   {
     groupKey: "reports",
     labelKey: "nav.groups.reports",
@@ -124,6 +115,30 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
     ],
   },
+  // 10. الإعدادات
+  { labelKey: "nav.settings", icon: Settings, href: "/settings" },
+  // 11. إدارة المستخدمين والموارد البشرية
+  {
+    groupKey: "hr",
+    labelKey: "nav.groups.hr",
+    icon: UserCog,
+    children: [
+      { labelKey: "nav.team", icon: Users, href: "/settings/team" },
+      { labelKey: "nav.payroll", icon: Wallet, href: "/payroll", requires: "payroll:read" },
+    ],
+  },
+  // 12. محاسبة متقدمة (أرصدة افتتاحية / إعادة تقييم / الفاتورة الإلكترونية)
+  {
+    groupKey: "accounting",
+    labelKey: "nav.groups.accounting",
+    icon: Calculator,
+    children: [
+      { labelKey: "nav.openingBalances", icon: Scale, href: "/opening-balances", requires: "journal:read" },
+      { labelKey: "nav.revaluation", icon: TrendingUp, href: "/revaluation", requires: "revaluation:read" },
+      { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },
+    ],
+  },
+  // 13. الدعم
   {
     groupKey: "support",
     labelKey: "nav.groups.support",
@@ -133,7 +148,6 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.supportAdmin", icon: ShieldCheck, href: "/admin/support", requires: "support:admin" },
     ],
   },
-  { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 
 function useLinkActive() {
