@@ -73,7 +73,7 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.advances", icon: HandCoins, href: "/advances", requires: "advances:read" },
     ],
   },
-  // 3. المبيعات
+  // 3. العملاء والمبيعات
   {
     groupKey: "sales",
     labelKey: "nav.groups.sales",
@@ -85,7 +85,7 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.collections", icon: ArrowDownLeft, href: "/collections", requires: "payments:read" },
     ],
   },
-  // 4. المشتريات
+  // 4. الموردين والمشتريات
   {
     groupKey: "purchases",
     labelKey: "nav.groups.purchases",
@@ -97,27 +97,25 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.vendorPayments", icon: ArrowUpRight, href: "/vendor-payments", requires: "payments:read" },
     ],
   },
-  // 5. المخزون
-  { labelKey: "nav.inventory", icon: Package, href: "/inventory", requires: "inventory:read" },
-  // 6. الأصول الثابتة
-  { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
-  // 7. القيود اليومية
-  { labelKey: "nav.journal", icon: FileText, href: "/journal" },
-  // 8. شجرة الحسابات
-  { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
-  // 9. التقارير
+  // 5. المحاسبة (القيود + شجرة الحسابات + أرصدة افتتاحية + إعادة تقييم)
   {
-    groupKey: "reports",
-    labelKey: "nav.groups.reports",
-    icon: BarChart3,
+    groupKey: "accounting",
+    labelKey: "nav.groups.accounting",
+    icon: Calculator,
     children: [
-      { labelKey: "nav.reports", icon: FileText, href: "/reports" },
-      { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
+      { labelKey: "nav.journal", icon: FileText, href: "/journal" },
+      { labelKey: "nav.accounts", icon: ListTree, href: "/accounts" },
+      { labelKey: "nav.openingBalances", icon: Scale, href: "/opening-balances", requires: "journal:read" },
+      { labelKey: "nav.revaluation", icon: TrendingUp, href: "/revaluation", requires: "revaluation:read" },
     ],
   },
-  // 10. الإعدادات
-  { labelKey: "nav.settings", icon: Settings, href: "/settings" },
-  // 11. إدارة المستخدمين والموارد البشرية
+  // 6. الأصول الثابتة
+  { labelKey: "nav.assets", icon: Boxes, href: "/assets", requires: "assets:read" },
+  // 7. المخزون
+  { labelKey: "nav.inventory", icon: Package, href: "/inventory", requires: "inventory:read" },
+  // 8. الفاتورة الإلكترونية
+  { labelKey: "nav.eInvoice", icon: Receipt, href: "/e-invoice" },
+  // 9. الموارد البشرية
   {
     groupKey: "hr",
     labelKey: "nav.groups.hr",
@@ -127,18 +125,17 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.payroll", icon: Wallet, href: "/payroll", requires: "payroll:read" },
     ],
   },
-  // 12. محاسبة متقدمة (أرصدة افتتاحية / إعادة تقييم / الفاتورة الإلكترونية)
+  // 10. التقارير والمراجعة
   {
-    groupKey: "accounting",
-    labelKey: "nav.groups.accounting",
-    icon: Calculator,
+    groupKey: "reports",
+    labelKey: "nav.groups.reports",
+    icon: BarChart3,
     children: [
-      { labelKey: "nav.openingBalances", icon: Scale, href: "/opening-balances", requires: "journal:read" },
-      { labelKey: "nav.revaluation", icon: TrendingUp, href: "/revaluation", requires: "revaluation:read" },
-      { labelKey: "nav.eInvoice", icon: FileText, href: "/e-invoice" },
+      { labelKey: "nav.reports", icon: FileText, href: "/reports" },
+      { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
     ],
   },
-  // 13. الدعم
+  // 11. الدعم
   {
     groupKey: "support",
     labelKey: "nav.groups.support",
@@ -148,6 +145,8 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.supportAdmin", icon: ShieldCheck, href: "/admin/support", requires: "support:admin" },
     ],
   },
+  // 12. إعدادات الشركة
+  { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 
 function useLinkActive() {
