@@ -35,6 +35,8 @@ import { Settings } from "@/pages/settings";
 import { EInvoice } from "@/pages/e-invoice";
 import { Support } from "@/pages/support";
 import { AdminSupport } from "@/pages/admin-support";
+import AccountLedgerPage from "@/pages/account-ledger";
+import PartyStatementPage from "@/pages/party-statement";
 import { AcceptInvite } from "@/pages/accept-invite";
 import { ChoosePlan } from "@/pages/choose-plan";
 import { LandingPage } from "@/pages/landing";
@@ -68,6 +70,7 @@ function ProtectedRoutes() {
     <AppLayout>
       <Switch>
         <Route path="/dashboard" component={Dashboard} />
+        <Route path="/accounts/:id/ledger" component={AccountLedgerPage} />
         <Route path="/accounts" component={Accounts} />
         <Route path="/journal" component={Journal} />
         <Route path="/assets" component={FixedAssets} />
@@ -91,7 +94,9 @@ function ProtectedRoutes() {
         </Route>
         <Route path="/bank" component={Bank} />
         <Route path="/advances" component={Advances} />
+        <Route path="/sales/:id/statement" component={PartyStatementPage} />
         <Route path="/sales" component={Customers} />
+        <Route path="/purchases/:id/statement" component={PartyStatementPage} />
         <Route path="/purchases" component={Suppliers} />
         <Route path="/invoices/sales" component={SalesInvoicesPage} />
         <Route path="/invoices/purchases" component={PurchaseInvoicesPage} />
