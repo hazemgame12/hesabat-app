@@ -45,6 +45,11 @@ cp "$APP_DIR/artifacts/api-server/dist/thread-stream-worker.mjs" "$HG_DIR/dist/t
 echo "✅ API files copied"
 
 echo ""
+echo "🔨 Building Hesabat frontend..."
+BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hesabat run build
+echo "✅ Hesabat frontend built"
+
+echo ""
 echo "📋 Copying Hesabat frontend into hesabat-api dist/public..."
 mkdir -p "$APP_DIR/artifacts/api-server/dist/public"
 cp -r "$APP_DIR/artifacts/hesabat/dist/public/." "$APP_DIR/artifacts/api-server/dist/public/" 2>/dev/null || true
