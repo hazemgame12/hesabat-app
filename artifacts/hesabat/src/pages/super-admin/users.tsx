@@ -12,7 +12,10 @@ async function fetchUsers(q?: string) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   const res = await fetch(`/api/super-admin/users?${params}`, { credentials: "include" });
-  if (!res.ok) throw new Error("Failed to fetch users");
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`${res.status}: ${body || res.statusText}`);
+  }
   return res.json();
 }
 
@@ -35,9 +38,10 @@ export function SuperAdminUsers() {
   const [editingPassword, setEditingPassword] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["super-admin-users", search],
     queryFn: () => fetchUsers(search),
+    retry: false,
   });
 
   const updatePwd = useMutation({
@@ -67,6 +71,11 @@ export function SuperAdminUsers() {
       <div className="space-y-2">
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">{t("common.loading")}</div>
+        ) : isError ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+            <span className="font-semibold">خطأ في تحميل المستخدمين: </span>
+            {(error as Error)?.message}
+          </div>
         ) : (
           data?.users?.map((user: any) => (
             <Card key={user.id}>
