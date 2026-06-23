@@ -17,7 +17,6 @@ import { countryLabel, currencyLabel, intlLocale, type Lang } from "@workspace/l
 import { Button } from "@/components/ui/button";
 import {
   Building2,
-  Hash,
   Tag,
   PieChart as PieChartIcon,
   Globe,
@@ -34,11 +33,16 @@ import {
   Plus,
   RotateCcw,
   Save,
-  GripVertical,
   X,
+  LayoutDashboard,
+  BookOpen,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  Hash,
   ArrowUpCircle as ArrowUpCircleRaw,
   ArrowDownCircle as ArrowDownCircleRaw,
-  LayoutDashboard,
+  GripVertical,
 } from "lucide-react";
 import {
   PieChart,
@@ -47,8 +51,8 @@ import {
   ResponsiveContainer,
   Tooltip,
   Legend,
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -58,29 +62,23 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 
 // --- Constants ---
-const COLORS = {
-  asset: "hsl(var(--primary))",
-  liability: "hsl(var(--destructive))",
-  equity: "hsl(var(--secondary-foreground))",
-  revenue: "hsl(var(--success))",
-  expense: "hsl(var(--chart-4))",
-};
-
 const ACC_TYPE_COLORS: Record<string, string> = {
-  asset: "#0ea5e9",
-  liability: "#f43f5e",
-  equity: "#8b5cf6",
-  revenue: "#10b981",
-  expense: "#f59e0b",
+  asset: "#2563eb",
+  liability: "#dc2626",
+  equity: "#7c3aed",
+  revenue: "#059669",
+  expense: "#d97706",
 };
 
-const STORAGE_KEY = "hesabat-dashboard-v1";
+const STORAGE_KEY = "hesabat-dashboard-v2";
 
 const DEFAULT_WIDGETS: string[] = [
   "kpi",
   "financial-overview",
-  "accounts-donut",
+  "revenue-chart",
+  "profit-chart",
   "recent-entries",
+  "accounts-donut",
   "outstanding-invoices",
 ];
 
@@ -94,18 +92,18 @@ interface WidgetDef {
 }
 
 const WIDGET_REGISTRY: WidgetDef[] = [
-  { id: "kpi", titleAr: "\u0645\u0624\u0634\u0631\u0627\u062a \u0631\u0626\u064a\u0633\u064a\u0629", titleEn: "Key metrics", type: "kpi", gridSpan: "lg:col-span-full" },
-  { id: "financial-overview", titleAr: "\u0627\u0644\u0646\u0638\u0631\u0629 \u0627\u0644\u0645\u0627\u0644\u064a\u0629", titleEn: "Financial overview", type: "finance", gridSpan: "lg:col-span-full" },
-  { id: "accounts-donut", titleAr: "\u062a\u0648\u0632\u064a\u0639 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a", titleEn: "Accounts distribution", type: "donut", gridSpan: "lg:col-span-2" },
-  { id: "sections-summary", titleAr: "\u0645\u0644\u062e\u0635 \u0627\u0644\u0623\u0642\u0633\u0627\u0645", titleEn: "Sections summary", type: "list", gridSpan: "" },
-  { id: "recent-entries", titleAr: "\u0623\u062d\u062f\u062b \u0627\u0644\u0642\u064a\u0648\u062f", titleEn: "Recent journal entries", type: "table", gridSpan: "lg:col-span-2" },
-  { id: "outstanding-invoices", titleAr: "\u0627\u0644\u0641\u0648\u0627\u062a\u064a\u0631 \u0627\u0644\u0645\u0641\u062a\u0648\u062d\u0629", titleEn: "Outstanding invoices", type: "status", gridSpan: "" },
-  { id: "profit-chart", titleAr: "\u0635\u0627\u0641\u064a \u0627\u0644\u0631\u0628\u062d", titleEn: "Net profit", type: "bar", gridSpan: "" },
-  { id: "revenue-chart", titleAr: "\u0627\u0644\u0625\u064a\u0631\u0627\u062f\u0627\u062a \u0648\u0627\u0644\u0645\u0635\u0631\u0648\u0641\u0627\u062a", titleEn: "Revenue vs expenses", type: "area", gridSpan: "lg:col-span-2" },
-  { id: "company-card", titleAr: "\u0628\u064a\u0627\u0646\u0627\u062a \u0627\u0644\u0634\u0631\u0643\u0629", titleEn: "Company profile", type: "profile", gridSpan: "lg:col-span-full" },
+  { id: "kpi", titleAr: "مؤشرات رئيسية", titleEn: "Key metrics", type: "kpi", gridSpan: "col-span-full" },
+  { id: "financial-overview", titleAr: "النظرة المالية", titleEn: "Financial overview", type: "finance", gridSpan: "col-span-full" },
+  { id: "revenue-chart", titleAr: "الإيرادات والمصروفات", titleEn: "Revenue vs expenses", type: "area", gridSpan: "lg:col-span-2" },
+  { id: "profit-chart", titleAr: "صافي الربح", titleEn: "Net profit", type: "bar", gridSpan: "" },
+  { id: "recent-entries", titleAr: "أحدث القيود", titleEn: "Recent journal entries", type: "table", gridSpan: "lg:col-span-2" },
+  { id: "accounts-donut", titleAr: "توزيع الحسابات", titleEn: "Accounts distribution", type: "donut", gridSpan: "" },
+  { id: "outstanding-invoices", titleAr: "الفواتير المفتوحة", titleEn: "Outstanding invoices", type: "status", gridSpan: "col-span-full" },
+  { id: "sections-summary", titleAr: "ملخص الأقسام", titleEn: "Sections summary", type: "list", gridSpan: "" },
+  { id: "company-card", titleAr: "بيانات الشركة", titleEn: "Company profile", type: "profile", gridSpan: "col-span-full" },
 ];
 
-// --- Widget Card Wrapper ---
+// --- Shared card wrapper used in edit mode ---
 function WidgetCard({
   className = "",
   children,
@@ -128,10 +126,10 @@ function WidgetCard({
   title?: string;
 }) {
   return (
-    <div className={`bg-card rounded-2xl border shadow-sm relative group/card transition-all ${className}`}>
+    <div className={`relative group/card transition-all ${editMode ? "ring-2 ring-primary/30 ring-offset-2 rounded-2xl" : ""} ${className}`}>
       {editMode && title && (
-        <div className="absolute -top-3 start-1/2 -translate-x-1/2 z-20 flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
-          <div className="flex items-center gap-1 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+        <div className="absolute -top-3 start-1/2 -translate-x-1/2 z-20 flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity pointer-events-none">
+          <div className="flex items-center gap-1 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-bold shadow-lg pointer-events-auto">
             <GripVertical className="w-3 h-3" />
             {title}
           </div>
@@ -159,7 +157,49 @@ function WidgetCard({
   );
 }
 
-// --- Widget Renderers ---
+// --------------------------------------------------------------------------
+// KPI Card — CleanPro style: border-t-4 colored + badge
+// --------------------------------------------------------------------------
+function KpiCardItem({
+  label,
+  value,
+  hint,
+  icon,
+  accentColor,
+  badgeText,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  icon: React.ReactNode;
+  accentColor: string;
+  badgeText: string;
+}) {
+  return (
+    <div
+      className="bg-card rounded-2xl p-5 shadow-sm border border-border/60 border-t-4 flex flex-col gap-3"
+      style={{ borderTopColor: accentColor }}
+    >
+      <div className="flex items-start justify-between">
+        <div className="p-2.5 rounded-xl" style={{ backgroundColor: accentColor + "18" }}>
+          {icon}
+        </div>
+        <span
+          className="text-xs font-bold px-2.5 py-1 rounded-full"
+          style={{ backgroundColor: accentColor + "15", color: accentColor }}
+        >
+          {badgeText}
+        </span>
+      </div>
+      <div>
+        <p className="text-muted-foreground text-xs font-semibold mb-0.5">{label}</p>
+        <p className="text-[22px] font-extrabold text-foreground tabular-nums leading-tight">{value}</p>
+        <p className="text-muted-foreground text-[11px] mt-1.5">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
 function KPIWidget({
   summary,
   fmt,
@@ -172,354 +212,109 @@ function KPIWidget({
   const netProfit = summary?.netProfit ?? 0;
   const isProfit = netProfit >= 0;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div className="p-5 flex flex-col gap-4 relative overflow-hidden">
-        <div className="absolute -start-6 -top-6 w-24 h-24 rounded-full blur-2xl opacity-10 bg-primary" />
-        <div className="flex justify-between items-start relative z-10">
-          <div className="bg-primary/5 p-3 rounded-xl">
-            <Hash className="w-6 h-6 text-primary" />
-          </div>
-        </div>
-        <div className="relative z-10">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.totalAccounts")}</h3>
-          <div className="text-2xl font-bold text-foreground font-sans">{summary?.totalAccounts || 0}</div>
-          <p className="text-xs text-muted-foreground mt-2">{t("dashboard.totalAccountsHint")}</p>
-        </div>
-      </div>
-      <div className="p-5 flex flex-col gap-4 relative overflow-hidden">
-        <div className="absolute -start-6 -top-6 w-24 h-24 rounded-full blur-2xl opacity-10 bg-primary" />
-        <div className="flex justify-between items-start relative z-10">
-          <div className="bg-primary/5 p-3 rounded-xl">
-            <Tag className="w-6 h-6 text-primary" />
-          </div>
-        </div>
-        <div className="relative z-10">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.mainSections")}</h3>
-          <div className="text-2xl font-bold text-foreground font-sans">{summary?.accountsByType?.length || 0}</div>
-          <p className="text-xs text-muted-foreground mt-2">{t("dashboard.mainSectionsHint")}</p>
-        </div>
-      </div>
-      <div className="p-5 flex flex-col gap-4 relative overflow-hidden">
-        <div className="absolute -start-6 -top-6 w-24 h-24 rounded-full blur-2xl opacity-10 bg-success" />
-        <div className="flex justify-between items-start relative z-10">
-          <div className={`p-3 rounded-xl ${isProfit ? "bg-success/10" : "bg-destructive/10"}`}>
-            {isProfit ? <TrendingUp className="w-6 h-6 text-success" /> : <TrendingDown className="w-6 h-6 text-destructive" />}
-          </div>
-        </div>
-        <div className="relative z-10">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">{isProfit ? t("dashboard.netProfit") : t("dashboard.netLoss")}</h3>
-          <div className={`text-2xl font-bold font-sans tabular-nums ${isProfit ? "text-success" : "text-destructive"}`}>{fmt(Math.abs(netProfit))}</div>
-          <p className="text-xs text-muted-foreground mt-2">{t("dashboard.fiscalYearHint", { year: summary?.fiscalYear ?? new Date().getFullYear() })}</p>
-        </div>
-      </div>
-      <div className="p-5 flex flex-col gap-4 relative overflow-hidden">
-        <div className="absolute -start-6 -top-6 w-24 h-24 rounded-full blur-2xl opacity-10 bg-primary" />
-        <div className="flex justify-between items-start relative z-10">
-          <div className="bg-primary/5 p-3 rounded-xl">
-            <Wallet className="w-6 h-6 text-primary" />
-          </div>
-        </div>
-        <div className="relative z-10">
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.cashBalance")}</h3>
-          <div className="text-2xl font-bold text-foreground font-sans tabular-nums">{fmt(summary?.cashBalance ?? 0)}</div>
-          <p className="text-xs text-muted-foreground mt-2">{t("dashboard.cashBalanceHint")}</p>
-        </div>
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <KpiCardItem
+        label={isProfit ? t("dashboard.netProfit") : t("dashboard.netLoss")}
+        value={fmt(Math.abs(netProfit))}
+        hint={t("dashboard.fiscalYearHint", { year: summary?.fiscalYear ?? new Date().getFullYear() })}
+        icon={isProfit
+          ? <TrendingUp className="w-5 h-5" style={{ color: "#059669" }} />
+          : <TrendingDown className="w-5 h-5" style={{ color: "#dc2626" }} />}
+        accentColor={isProfit ? "#059669" : "#dc2626"}
+        badgeText={isProfit ? t("dashboard.netProfit") : t("dashboard.netLoss")}
+      />
+      <KpiCardItem
+        label={t("dashboard.cashBalance")}
+        value={fmt(summary?.cashBalance ?? 0)}
+        hint={t("dashboard.cashBalanceHint")}
+        icon={<Wallet className="w-5 h-5" style={{ color: "#2563eb" }} />}
+        accentColor="#2563eb"
+        badgeText={t("dashboard.connected")}
+      />
+      <KpiCardItem
+        label={t("dashboard.outstandingReceivables")}
+        value={fmt(summary?.outstandingReceivables ?? 0)}
+        hint={t("dashboard.outstandingReceivablesHint")}
+        icon={<ArrowDownCircle className="w-5 h-5" style={{ color: "#059669" }} />}
+        accentColor="#059669"
+        badgeText={t("dashboard.receivables").split("(")[0].trim()}
+      />
+      <KpiCardItem
+        label={t("dashboard.outstandingPayables")}
+        value={fmt(summary?.outstandingPayables ?? 0)}
+        hint={t("dashboard.outstandingPayablesHint")}
+        icon={<ArrowUpCircle className="w-5 h-5" style={{ color: "#dc2626" }} />}
+        accentColor="#dc2626"
+        badgeText={t("dashboard.payables").split("(")[0].trim()}
+      />
     </div>
   );
 }
 
+// --------------------------------------------------------------------------
+// Financial overview — 4 secondary metric tiles
+// --------------------------------------------------------------------------
 function FinancialOverviewWidget({
   summary,
+  accounts,
   fmt,
   t,
 }: {
   summary: DashboardSummary;
+  accounts: Account[];
   fmt: (n: number) => string;
   t: (k: string, opts?: any) => string;
 }) {
-  const netProfit = summary?.netProfit ?? 0;
-  const isProfit = netProfit >= 0;
+  const tiles = [
+    {
+      icon: <Hash className="w-4 h-4" style={{ color: "#7c3aed" }} />,
+      bg: "#7c3aed18",
+      label: t("dashboard.totalAccounts"),
+      value: String(summary?.totalAccounts ?? 0),
+      color: "#7c3aed",
+    },
+    {
+      icon: <Tag className="w-4 h-4" style={{ color: "#4f46e5" }} />,
+      bg: "#4f46e518",
+      label: t("dashboard.mainSections"),
+      value: String(summary?.accountsByType?.length ?? accounts.reduce((s: Set<string>, a: Account) => { s.add(a.type); return s; }, new Set<string>()).size),
+      color: "#4f46e5",
+    },
+    {
+      icon: <TrendingUp className="w-4 h-4" style={{ color: "#059669" }} />,
+      bg: "#05966918",
+      label: t("dashboard.totalRevenue"),
+      value: fmt(summary?.totalRevenue ?? 0),
+      color: "#059669",
+    },
+    {
+      icon: <TrendingDown className="w-4 h-4" style={{ color: "#d97706" }} />,
+      bg: "#d9770618",
+      label: t("dashboard.totalExpenses"),
+      value: fmt(summary?.totalExpenses ?? 0),
+      color: "#d97706",
+    },
+  ];
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div className="p-5 flex flex-col gap-3">
-        <div className={`p-3 rounded-xl w-fit ${isProfit ? "bg-success/10" : "bg-destructive/10"}`}>
-          {isProfit ? <TrendingUp className="w-6 h-6 text-success" /> : <TrendingDown className="w-6 h-6 text-destructive" />}
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">{isProfit ? t("dashboard.netProfit") : t("dashboard.netLoss")}</h3>
-          <div className={`text-2xl font-bold font-sans tabular-nums ${isProfit ? "text-success" : "text-destructive"}`}>{fmt(Math.abs(netProfit))}</div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
-            <span className="flex items-center gap-1"><ArrowUpCircle className="w-3.5 h-3.5 text-success" />{fmt(summary?.totalRevenue ?? 0)}</span>
-            <span className="flex items-center gap-1"><ArrowDownCircle className="w-3.5 h-3.5 text-destructive" />{fmt(summary?.totalExpenses ?? 0)}</span>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {tiles.map((tile, i) => (
+        <div key={i} className="bg-card rounded-xl px-4 py-3 shadow-sm border border-border/60 flex items-center gap-3">
+          <div className="p-2 rounded-lg shrink-0" style={{ backgroundColor: tile.bg }}>
+            {tile.icon}
           </div>
-        </div>
-      </div>
-      <div className="p-5 flex flex-col gap-3">
-        <div className="bg-primary/5 p-3 rounded-xl w-fit"><Wallet className="w-6 h-6 text-primary" /></div>
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.cashBalance")}</h3>
-          <div className="text-2xl font-bold text-foreground font-sans tabular-nums">{fmt(summary?.cashBalance ?? 0)}</div>
-          <p className="text-xs text-muted-foreground mt-2">{t("dashboard.cashBalanceHint")}</p>
-        </div>
-      </div>
-      <div className="p-5 flex flex-col gap-3">
-        <div className="bg-success/10 p-3 rounded-xl w-fit"><ArrowDownCircle className="w-6 h-6 text-success" /></div>
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.outstandingReceivables")}</h3>
-          <div className="text-2xl font-bold text-foreground font-sans tabular-nums">{fmt(summary?.outstandingReceivables ?? 0)}</div>
-          <p className="text-xs text-muted-foreground mt-2">{t("dashboard.outstandingReceivablesHint")}</p>
-        </div>
-      </div>
-      <div className="p-5 flex flex-col gap-3">
-        <div className="bg-destructive/10 p-3 rounded-xl w-fit"><ArrowUpCircle className="w-6 h-6 text-destructive" /></div>
-        <div>
-          <h3 className="text-sm font-semibold text-muted-foreground mb-1">{t("dashboard.outstandingPayables")}</h3>
-          <div className="text-2xl font-bold text-foreground font-sans tabular-nums">{fmt(summary?.outstandingPayables ?? 0)}</div>
-          <p className="text-xs text-muted-foreground mt-2">{t("dashboard.outstandingPayablesHint")}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AccountsDonutWidget({
-  accounts = [],
-  lang,
-  fontFamily,
-  t,
-}: {
-  accounts: Account[];
-  lang: Lang;
-  fontFamily: string;
-  t: (k: string, opts?: any) => string;
-}) {
-  const chartData = accounts.length > 0
-    ? Array.from(
-        accounts.reduce((map: Map<string, number>, a: Account) => {
-          map.set(a.type, (map.get(a.type) || 0) + 1);
-          return map;
-        }, new Map<string, number>())
-      ).map(([type, value]) => ({
-        name: t(`accountTypes.${type}`, { defaultValue: type }),
-        value,
-        color: ACC_TYPE_COLORS[type] || "#999",
-      }))
-    : [];
-
-  return (
-    <div className="p-6 flex flex-col">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="text-lg font-bold">{t("dashboard.distribution")}</h2>
-          <p className="text-sm text-muted-foreground">{t("dashboard.distributionHint")}</p>
-        </div>
-      </div>
-      <div className="h-[300px] w-full flex items-center justify-center">
-        {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={chartData} cx="50%" cy="50%" innerRadius={80} outerRadius={110} paddingAngle={5} dataKey="value">
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", fontFamily }} itemStyle={{ fontFamily }} formatter={(value: number) => [value, t("dashboard.accountsCount")]} />
-              <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontFamily, fontSize: "14px", fontWeight: 600 }} />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="text-muted-foreground text-sm font-semibold flex flex-col items-center gap-2">
-            <PieChartIcon className="w-10 h-10 opacity-20" />
-            {t("dashboard.noAccounts")}
+          <div className="min-w-0">
+            <p className="text-muted-foreground text-[10px] font-semibold truncate">{tile.label}</p>
+            <p className="text-sm font-extrabold truncate" style={{ color: tile.color }}>{tile.value}</p>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SectionsSummaryWidget({
-  accounts = [],
-  t,
-}: {
-  accounts: Account[];
-  t: (k: string, opts?: any) => string;
-}) {
-  const counts = accounts.length > 0
-    ? Array.from(
-        accounts.reduce((map: Map<string, number>, a: Account) => {
-          map.set(a.type, (map.get(a.type) || 0) + 1);
-          return map;
-        }, new Map<string, number>())
-      ).map(([type, count]) => ({ type, count }))
-    : [];
-  return (
-    <div className="flex flex-col gap-4 p-6">
-      <h3 className="text-lg font-bold text-foreground mb-2">{t("dashboard.sectionsSummary")}</h3>
-      {counts.map((item) => (
-        <div key={item.type} className="p-4 flex items-center justify-between bg-card border rounded-xl">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ACC_TYPE_COLORS[item.type] || "gray" }} />
-            <span className="font-semibold text-sm">{t(`accountTypes.${item.type}`, { defaultValue: item.type })}</span>
-          </div>
-          <span className="font-bold text-lg font-sans tabular-nums">{item.count}</span>
         </div>
       ))}
     </div>
   );
 }
 
-function RecentEntriesWidget({
-  entries = [],
-  lang,
-  t,
-  fmt,
-  setLocation,
-}: {
-  entries: JournalEntry[];
-  lang: Lang;
-  t: (k: string, opts?: any) => string;
-  fmt: (n: number) => string;
-  setLocation: (path: string) => void;
-}) {
-  const displayName = (entry: JournalEntry) => entry.reference || entry.notes || `${t("journal.entry")} #${entry.entryNo}`;
-  return (
-    <div className="flex flex-col overflow-hidden">
-      <div className="p-6 border-b flex justify-between items-center bg-card">
-        <div>
-          <h2 className="text-lg font-bold">{t("dashboard.recentEntries")}</h2>
-          <p className="text-sm text-muted-foreground">{t("dashboard.recentEntriesHint")}</p>
-        </div>
-        <button onClick={() => setLocation("/journal")} className="text-sm font-bold text-primary hover:underline">{t("dashboard.viewAll")}</button>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-muted-foreground font-semibold">
-            <tr>
-              <th className="px-6 py-4 text-start">{t("journal.entryNo")}</th>
-              <th className="px-6 py-4 text-start">{t("journal.date")}</th>
-              <th className="px-6 py-4 text-start">{t("journal.description")}</th>
-              <th className="px-6 py-4 text-start">{t("journal.status")}</th>
-              <th className="px-6 py-4 text-start">{t("journal.totalDebit")}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {entries.slice(0, 5).map((entry) => (
-              <tr key={entry.id} className="hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setLocation(`/journal/${entry.id}`)}>
-                <td className="px-6 py-4 font-sans font-medium text-muted-foreground" dir="ltr">{entry.entryNumber || entry.entryNo}</td>
-                <td className="px-6 py-4 font-sans">{entry.date}</td>
-                <td className="px-6 py-4 font-semibold">{displayName(entry)}</td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold ${entry.status === "posted" ? "bg-success/10 text-success" : entry.status === "draft" ? "bg-muted text-muted-foreground" : "bg-amber-100 text-amber-700"}`}>
-                    {t(`journal.statuses.${entry.status}`, { defaultValue: entry.status })}
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-sans font-bold text-base">{fmt(entry.totalDebitBase)}</td>
-              </tr>
-            ))}
-            {entries.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground text-sm">
-                  {t("dashboard.noEntries")}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function OutstandingInvoicesWidget({
-  invoices = [],
-  t,
-  fmt,
-  kind,
-}: {
-  invoices: InvoiceSummary[];
-  t: (k: string, opts?: any) => string;
-  fmt: (n: number) => string;
-  kind: "sales" | "purchase";
-}) {
-  const open = invoices.filter((i) => ["approved", "partially_paid"].includes(i.status));
-  const total = open.reduce((s: number, i: InvoiceSummary) => s + (i.balance || 0), 0);
-  const label = kind === "sales" ? t("dashboard.receivables") : t("dashboard.payables");
-  const color = kind === "sales" ? "bg-success" : "bg-destructive";
-  const totalInv = open.reduce((s: number, i: InvoiceSummary) => s + i.total, 0) || 1;
-  return (
-    <div className="flex flex-col gap-6 p-6">
-      <div className="p-5 flex-1 flex flex-col justify-center relative overflow-hidden">
-        <div className={`absolute end-0 top-0 bottom-0 w-1 ${color}`} />
-        <h3 className="text-sm font-bold text-muted-foreground mb-1">{label}</h3>
-        <div className="text-2xl font-bold font-sans">{fmt(total)}</div>
-        <div className="mt-4 w-full bg-border h-2 rounded-full overflow-hidden">
-          <div className={`${color} h-full rounded-full`} style={{ width: `${Math.min(100, open.length > 0 ? (total / totalInv) * 100 : 0)}%` }} />
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">{t("dashboard.openInvoicesCount", { count: open.length })}</p>
-      </div>
-      <div className="flex flex-col gap-2">
-        {open.slice(0, 5).map((inv) => (
-          <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl border bg-card">
-            <div className="flex items-center gap-3">
-              <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-bold ${inv.status === "approved" ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary"}`}>
-                {t(`invoices.statuses.${inv.status}`, { defaultValue: inv.status })}
-              </span>
-              <span className="text-sm font-semibold">{inv.partyName || inv.code || `#${inv.invoiceNo}`}</span>
-            </div>
-            <span className="font-bold font-sans text-sm">{fmt(inv.balance)}</span>
-          </div>
-        ))}
-        {open.length === 0 && (
-          <div className="text-muted-foreground text-sm text-center py-4">{t("dashboard.noInvoices")}</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ProfitChartWidget({
-  summary,
-  fmt,
-  t,
-  lang,
-}: {
-  summary: DashboardSummary;
-  fmt: (n: number) => string;
-  t: (k: string, opts?: any) => string;
-  lang: Lang;
-}) {
-  const fontFamily = lang === "en" ? "Inter, sans-serif" : "Cairo, sans-serif";
-  const data = [
-    { name: "Q1", profit: Math.round((summary?.totalRevenue || 0) * 0.22) },
-    { name: "Q2", profit: Math.round((summary?.totalRevenue || 0) * 0.28) },
-    { name: "Q3", profit: Math.round((summary?.totalRevenue || 0) * 0.25) },
-    { name: "Q4", profit: Math.round((summary?.totalRevenue || 0) * 0.25) },
-  ];
-  return (
-    <div className="p-6 flex flex-col">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="text-lg font-bold">{t("dashboard.profitChart")}</h2>
-          <p className="text-sm text-muted-foreground">{t("dashboard.profitChartHint")}</p>
-        </div>
-      </div>
-      <div className="h-[220px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} tickFormatter={(v: number) => `${v / 1000}k`} />
-            <Tooltip formatter={(v: number) => [fmt(v), t("dashboard.netProfit")]} contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", fontFamily }} itemStyle={{ fontFamily }} />
-            <Bar dataKey="profit" fill="hsl(var(--success))" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
+// --------------------------------------------------------------------------
+// Revenue vs Expenses — Line Chart (CleanPro style)
+// --------------------------------------------------------------------------
 function RevenueChartWidget({
   summary,
   fmt,
@@ -533,47 +328,455 @@ function RevenueChartWidget({
 }) {
   const fontFamily = lang === "en" ? "Inter, sans-serif" : "Cairo, sans-serif";
   const data = [
-    { name: t("months.jan", { defaultValue: "Jan" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.12), expenses: Math.round((summary?.totalExpenses || 0) * 0.14) },
-    { name: t("months.feb", { defaultValue: "Feb" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.14), expenses: Math.round((summary?.totalExpenses || 0) * 0.15) },
-    { name: t("months.mar", { defaultValue: "Mar" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.16), expenses: Math.round((summary?.totalExpenses || 0) * 0.16) },
-    { name: t("months.apr", { defaultValue: "Apr" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.18), expenses: Math.round((summary?.totalExpenses || 0) * 0.17) },
-    { name: t("months.may", { defaultValue: "May" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.20), expenses: Math.round((summary?.totalExpenses || 0) * 0.18) },
-    { name: t("months.jun", { defaultValue: "Jun" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.20), expenses: Math.round((summary?.totalExpenses || 0) * 0.20) },
+    { name: t("months.jan", { defaultValue: "يناير" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.12), expenses: Math.round((summary?.totalExpenses || 0) * 0.14) },
+    { name: t("months.feb", { defaultValue: "فبراير" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.14), expenses: Math.round((summary?.totalExpenses || 0) * 0.15) },
+    { name: t("months.mar", { defaultValue: "مارس" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.16), expenses: Math.round((summary?.totalExpenses || 0) * 0.16) },
+    { name: t("months.apr", { defaultValue: "أبريل" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.18), expenses: Math.round((summary?.totalExpenses || 0) * 0.17) },
+    { name: t("months.may", { defaultValue: "مايو" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.20), expenses: Math.round((summary?.totalExpenses || 0) * 0.18) },
+    { name: t("months.jun", { defaultValue: "يونيو" }), revenue: Math.round((summary?.totalRevenue || 0) * 0.20), expenses: Math.round((summary?.totalExpenses || 0) * 0.20) },
   ];
+  const revKey = t("dashboard.totalRevenue");
+  const expKey = t("dashboard.totalExpenses");
   return (
-    <div className="p-6 flex flex-col">
-      <div className="flex justify-between items-center mb-6">
+    <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-5">
+      <div className="flex justify-between items-start mb-4">
         <div>
-          <h2 className="text-lg font-bold">{t("dashboard.revenueChart")}</h2>
-          <p className="text-sm text-muted-foreground">{t("dashboard.revenueChartHint")}</p>
+          <h2 className="text-sm font-extrabold text-foreground">{t("dashboard.revenueChart")}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("dashboard.revenueChartHint")}</p>
+        </div>
+        <div className="flex gap-3 text-xs font-semibold text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#1e3a5f] inline-block" />
+            {revKey}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#f43f5e] inline-block" />
+            {expKey}
+          </span>
         </div>
       </div>
-      <div className="h-[300px] w-full">
+      <div className="h-[200px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="hsl(var(--secondary))" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="hsl(var(--secondary))" stopOpacity={0} />
-              </linearGradient>
-            </defs>
+          <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} dy={10} />
-            <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} tickFormatter={(v: number) => `${v / 1000}k`} />
-            <Tooltip contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", fontFamily }} itemStyle={{ fontFamily }} formatter={(value: number) => [fmt(value)]} />
-            <Area type="monotone" dataKey="revenue" name={t("dashboard.totalRevenue")} stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-            <Area type="monotone" dataKey="expenses" name={t("dashboard.totalExpenses")} stroke="hsl(var(--secondary-foreground))" strokeWidth={3} fillOpacity={1} fill="url(#colorExp)" />
-          </AreaChart>
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontFamily }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickFormatter={(v: number) => `${v / 1000}k`} />
+            <Tooltip
+              formatter={(v: number) => [fmt(v)]}
+              contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", fontFamily, fontSize: 12 }}
+              itemStyle={{ fontFamily }}
+            />
+            <Line type="monotone" dataKey="revenue" name={revKey} stroke="#1e3a5f" strokeWidth={2.5} dot={{ r: 3, fill: "#1e3a5f" }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey="expenses" name={expKey} stroke="#f43f5e" strokeWidth={2.5} dot={{ r: 3, fill: "#f43f5e" }} activeDot={{ r: 5 }} />
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 }
 
+// --------------------------------------------------------------------------
+// Profit Bar Chart (CleanPro style)
+// --------------------------------------------------------------------------
+function ProfitChartWidget({
+  summary,
+  fmt,
+  t,
+  lang,
+}: {
+  summary: DashboardSummary;
+  fmt: (n: number) => string;
+  t: (k: string, opts?: any) => string;
+  lang: Lang;
+}) {
+  const fontFamily = lang === "en" ? "Inter, sans-serif" : "Cairo, sans-serif";
+  const data = [
+    { name: "Q1", profit: Math.round((summary?.totalRevenue || 0) * 0.22 - (summary?.totalExpenses || 0) * 0.22) },
+    { name: "Q2", profit: Math.round((summary?.totalRevenue || 0) * 0.28 - (summary?.totalExpenses || 0) * 0.27) },
+    { name: "Q3", profit: Math.round((summary?.totalRevenue || 0) * 0.25 - (summary?.totalExpenses || 0) * 0.25) },
+    { name: "Q4", profit: Math.round((summary?.totalRevenue || 0) * 0.25 - (summary?.totalExpenses || 0) * 0.26) },
+  ];
+  return (
+    <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-5">
+      <h2 className="text-sm font-extrabold text-foreground mb-0.5">{t("dashboard.profitChart")}</h2>
+      <p className="text-xs text-muted-foreground mb-4">{t("dashboard.profitChartHint")}</p>
+      <div className="h-[200px] w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontFamily }} />
+            <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickFormatter={(v: number) => `${v / 1000}k`} />
+            <Tooltip
+              formatter={(v: number) => [fmt(v), t("dashboard.netProfit")]}
+              contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", fontFamily, fontSize: 12 }}
+              itemStyle={{ fontFamily }}
+            />
+            <Bar dataKey="profit" fill="#1e3a5f" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Recent Entries Table (CleanPro style)
+// --------------------------------------------------------------------------
+function RecentEntriesWidget({
+  entries = [],
+  t,
+  fmt,
+  setLocation,
+}: {
+  entries: JournalEntry[];
+  t: (k: string, opts?: any) => string;
+  fmt: (n: number) => string;
+  setLocation: (path: string) => void;
+}) {
+  const displayName = (e: JournalEntry) =>
+    e.reference || e.notes || `${t("journal.entry")} #${e.entryNo}`;
+
+  return (
+    <div className="bg-card rounded-2xl shadow-sm border border-border/60 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-border/50 flex justify-between items-center bg-muted/30">
+        <div>
+          <h2 className="text-sm font-extrabold text-foreground">{t("dashboard.recentEntries")}</h2>
+          <p className="text-xs text-muted-foreground">{t("dashboard.recentEntriesHint")}</p>
+        </div>
+        <button
+          onClick={() => setLocation("/journal")}
+          className="text-xs font-bold text-primary border border-primary/30 px-3 py-1 rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
+        >
+          {t("dashboard.viewAll")}
+        </button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="text-muted-foreground font-bold">
+            <tr className="border-b border-border/40">
+              <th className="px-5 py-3 text-start">{t("journal.entryNo")}</th>
+              <th className="px-5 py-3 text-start">{t("journal.date")}</th>
+              <th className="px-5 py-3 text-start">{t("journal.description")}</th>
+              <th className="px-5 py-3 text-start">{t("journal.status")}</th>
+              <th className="px-5 py-3 text-start">{t("journal.totalDebit")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.slice(0, 5).map((entry) => (
+              <tr
+                key={entry.id}
+                className="border-b border-border/30 hover:bg-muted/40 transition-colors cursor-pointer"
+                onClick={() => setLocation(`/journal/${entry.id}`)}
+              >
+                <td className="px-5 py-3 font-mono text-muted-foreground" dir="ltr">
+                  {entry.entryNumber || entry.entryNo}
+                </td>
+                <td className="px-5 py-3 text-muted-foreground">{entry.date}</td>
+                <td className="px-5 py-3 font-semibold text-foreground max-w-[180px] truncate">
+                  {displayName(entry)}
+                </td>
+                <td className="px-5 py-3">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold ${
+                      entry.status === "posted"
+                        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                        : entry.status === "draft"
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                    }`}
+                  >
+                    {entry.status === "posted" ? (
+                      <CheckCircle2 className="w-3 h-3" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3" />
+                    )}
+                    {t(`journal.statuses.${entry.status}`, { defaultValue: entry.status })}
+                  </span>
+                </td>
+                <td className="px-5 py-3 font-extrabold tabular-nums text-foreground">
+                  {fmt(entry.totalDebitBase)}
+                </td>
+              </tr>
+            ))}
+            {entries.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-5 py-8 text-center text-muted-foreground">
+                  {t("dashboard.noEntries")}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Accounts Donut (CleanPro style — with summary below)
+// --------------------------------------------------------------------------
+function AccountsDonutWidget({
+  accounts = [],
+  summary,
+  lang,
+  fmt,
+  t,
+}: {
+  accounts: Account[];
+  summary: DashboardSummary;
+  lang: Lang;
+  fmt: (n: number) => string;
+  t: (k: string, opts?: any) => string;
+}) {
+  const fontFamily = lang === "en" ? "Inter, sans-serif" : "Cairo, sans-serif";
+  const chartData =
+    accounts.length > 0
+      ? Array.from(
+          accounts.reduce((map: Map<string, number>, a: Account) => {
+            map.set(a.type, (map.get(a.type) || 0) + 1);
+            return map;
+          }, new Map<string, number>())
+        ).map(([type, value]) => ({
+          name: t(`accountTypes.${type}`, { defaultValue: type }),
+          value,
+          color: ACC_TYPE_COLORS[type] || "#94a3b8",
+        }))
+      : [];
+
+  const totalRevenue = summary?.totalRevenue ?? 0;
+  const totalExpenses = summary?.totalExpenses ?? 0;
+  const costRatio = totalRevenue > 0 ? ((totalExpenses / totalRevenue) * 100).toFixed(1) : "—";
+
+  return (
+    <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-5">
+      <h2 className="text-sm font-extrabold text-foreground mb-0.5">{t("dashboard.distribution")}</h2>
+      <p className="text-xs text-muted-foreground mb-1">{t("dashboard.distributionHint")}</p>
+      <div className="h-[200px] w-full flex items-center justify-center">
+        {chartData.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={78}
+                paddingAngle={3}
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(v: number) => [`${v} ${t("dashboard.accountsCount")}`]}
+                contentStyle={{ borderRadius: "12px", border: "1px solid hsl(var(--border))", fontFamily, fontSize: 12 }}
+                itemStyle={{ fontFamily }}
+              />
+              <Legend
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ fontFamily, fontSize: 11 }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="text-muted-foreground text-sm font-semibold flex flex-col items-center gap-2">
+            <PieChartIcon className="w-10 h-10 opacity-20" />
+            {t("dashboard.noAccounts")}
+          </div>
+        )}
+      </div>
+      {/* Summary stats */}
+      <div className="mt-3 flex flex-col gap-2 border-t border-border/40 pt-3">
+        <div className="flex justify-between text-xs">
+          <span className="text-muted-foreground font-semibold">{t("dashboard.totalRevenue")}</span>
+          <span className="font-extrabold text-emerald-600">{fmt(totalRevenue)}</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-muted-foreground font-semibold">{t("dashboard.totalExpenses")}</span>
+          <span className="font-extrabold text-rose-600">{fmt(totalExpenses)}</span>
+        </div>
+        {totalRevenue > 0 && (
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground font-semibold">نسبة التكاليف</span>
+            <span className="font-extrabold text-amber-600">{costRatio}%</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Outstanding Invoices (CleanPro style — side-by-side cards)
+// --------------------------------------------------------------------------
+function OutstandingInvoicesWidget({
+  salesInvoices = [],
+  purchaseInvoices = [],
+  t,
+  fmt,
+}: {
+  salesInvoices: InvoiceSummary[];
+  purchaseInvoices: InvoiceSummary[];
+  t: (k: string, opts?: any) => string;
+  fmt: (n: number) => string;
+}) {
+  const openSales = salesInvoices.filter((i) =>
+    ["approved", "partially_paid"].includes(i.status)
+  );
+  const openPurchases = purchaseInvoices.filter((i) =>
+    ["approved", "partially_paid"].includes(i.status)
+  );
+  const salesTotal = openSales.reduce((s: number, i: InvoiceSummary) => s + (i.balance || 0), 0);
+  const purchasesTotal = openPurchases.reduce((s: number, i: InvoiceSummary) => s + (i.balance || 0), 0);
+
+  const InvoiceGroup = ({
+    items,
+    total,
+    label,
+    accentColor,
+    kind,
+  }: {
+    items: InvoiceSummary[];
+    total: number;
+    label: string;
+    accentColor: string;
+    kind: "sales" | "purchase";
+  }) => (
+    <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-5 flex-1 min-w-0">
+      {/* Summary header */}
+      <div
+        className="rounded-xl p-4 mb-4"
+        style={{ backgroundColor: accentColor + "12" }}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs font-semibold" style={{ color: accentColor }}>
+            {label}
+          </p>
+          <FileText className="w-4 h-4 opacity-40" style={{ color: accentColor }} />
+        </div>
+        <p className="text-xl font-extrabold text-foreground tabular-nums">{fmt(total)}</p>
+        <div className="mt-2 bg-border/40 h-1.5 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              backgroundColor: accentColor,
+              width: `${Math.min(100, items.length > 0 ? Math.min(80, items.length * 12) : 0)}%`,
+            }}
+          />
+        </div>
+        <p className="text-xs mt-1.5" style={{ color: accentColor + "aa" }}>
+          {t("dashboard.openInvoicesCount", { count: items.length })}
+        </p>
+      </div>
+      {/* Invoice list */}
+      <div className="flex flex-col gap-2">
+        {items.slice(0, 4).map((inv) => (
+          <div
+            key={inv.id}
+            className="flex items-center justify-between p-3 rounded-xl border border-border/50 hover:bg-muted/40 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={`shrink-0 px-2 py-0.5 rounded-md text-xs font-bold ${
+                  inv.status === "approved"
+                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
+                    : "bg-primary/10 text-primary"
+                }`}
+              >
+                {t(`invoices.statuses.${inv.status}`, { defaultValue: inv.status })}
+              </span>
+              <span className="text-sm font-semibold text-foreground truncate">
+                {inv.partyName || inv.code || `#${inv.invoiceNo}`}
+              </span>
+            </div>
+            <span className="font-extrabold font-sans text-sm text-foreground tabular-nums shrink-0 ms-2">
+              {fmt(inv.balance)}
+            </span>
+          </div>
+        ))}
+        {items.length === 0 && (
+          <div className="text-muted-foreground text-sm text-center py-4">
+            {t("dashboard.noInvoices")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-4">
+      <InvoiceGroup
+        items={openSales}
+        total={salesTotal}
+        label={t("dashboard.receivables")}
+        accentColor="#059669"
+        kind="sales"
+      />
+      <InvoiceGroup
+        items={openPurchases}
+        total={purchasesTotal}
+        label={t("dashboard.payables")}
+        accentColor="#dc2626"
+        kind="purchase"
+      />
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Sections Summary (kept as-is, light reskin)
+// --------------------------------------------------------------------------
+function SectionsSummaryWidget({
+  accounts = [],
+  t,
+}: {
+  accounts: Account[];
+  t: (k: string, opts?: any) => string;
+}) {
+  const counts =
+    accounts.length > 0
+      ? Array.from(
+          accounts.reduce((map: Map<string, number>, a: Account) => {
+            map.set(a.type, (map.get(a.type) || 0) + 1);
+            return map;
+          }, new Map<string, number>())
+        ).map(([type, count]) => ({ type, count }))
+      : [];
+
+  return (
+    <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-5">
+      <h3 className="text-sm font-extrabold text-foreground mb-4">{t("dashboard.sectionsSummary")}</h3>
+      <div className="flex flex-col gap-2">
+        {counts.map((item) => (
+          <div
+            key={item.type}
+            className="flex items-center justify-between p-3 rounded-xl border border-border/40 hover:bg-muted/30 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: ACC_TYPE_COLORS[item.type] || "#94a3b8" }}
+              />
+              <span className="font-semibold text-sm">
+                {t(`accountTypes.${item.type}`, { defaultValue: item.type })}
+              </span>
+            </div>
+            <span className="font-extrabold text-foreground tabular-nums">{item.count}</span>
+          </div>
+        ))}
+        {counts.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">{t("dashboard.noAccounts")}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --------------------------------------------------------------------------
+// Company Card (light reskin)
+// --------------------------------------------------------------------------
 function CompanyCardWidget({
   company,
   user,
@@ -588,24 +791,28 @@ function CompanyCardWidget({
   setLocation: (path: string) => void;
 }) {
   return (
-    <div className="p-6 flex flex-col sm:flex-row items-center gap-5">
-      <div className="w-20 h-20 rounded-2xl bg-muted border flex items-center justify-center overflow-hidden shrink-0">
+    <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-5 flex flex-col sm:flex-row items-center gap-5">
+      <div className="w-16 h-16 rounded-2xl bg-muted border flex items-center justify-center overflow-hidden shrink-0">
         {company?.logoUrl ? (
           <img src={company.logoUrl} alt={t("dashboard.logoAlt")} className="w-full h-full object-contain" />
         ) : (
-          <ImageOff className="w-8 h-8 text-muted-foreground/40" />
+          <ImageOff className="w-7 h-7 text-muted-foreground/40" />
         )}
       </div>
       <div className="flex-1 text-center sm:text-start">
-        <h2 className="text-xl font-bold">{company?.name || user?.companyName}</h2>
-        {company?.tradeName && <p className="text-sm text-muted-foreground mt-0.5">{company.tradeName}</p>}
-        {company?.activityDescription && <p className="text-sm text-muted-foreground mt-1">{company.activityDescription}</p>}
+        <h2 className="text-base font-extrabold text-foreground">{company?.name || user?.companyName}</h2>
+        {company?.tradeName && (
+          <p className="text-sm text-muted-foreground mt-0.5">{company.tradeName}</p>
+        )}
+        {company?.activityDescription && (
+          <p className="text-xs text-muted-foreground mt-1">{company.activityDescription}</p>
+        )}
         <div className="flex flex-wrap gap-2 justify-center sm:justify-start mt-3">
           <span className="inline-flex items-center gap-1 text-xs font-semibold bg-primary/5 text-primary px-3 py-1 rounded-full">
             <Globe className="w-3.5 h-3.5" />
             {countryLabel(company?.country ?? "EG", lang)}
           </span>
-          <span className="inline-flex items-center gap-1 text-xs font-semibold bg-success/10 text-success px-3 py-1 rounded-full">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full dark:bg-emerald-950 dark:text-emerald-400">
             <Coins className="w-3.5 h-3.5" />
             {currencyLabel(company?.baseCurrency ?? "EGP", lang)}
           </span>
@@ -616,7 +823,7 @@ function CompanyCardWidget({
           )}
         </div>
       </div>
-      <Button variant="outline" className="gap-2" onClick={() => setLocation("/company")}>
+      <Button variant="outline" className="gap-2 shrink-0" onClick={() => setLocation("/company")}>
         <Pencil className="w-4 h-4" />
         {t("dashboard.editData")}
       </Button>
@@ -624,18 +831,19 @@ function CompanyCardWidget({
   );
 }
 
-// --- Main Dashboard ---
+// ==========================================================================
+// Main Dashboard
+// ==========================================================================
 export function Dashboard() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language === "en" ? "en" : "ar") as Lang;
-  const fontFamily = lang === "en" ? "Inter, sans-serif" : "Cairo, sans-serif";
   const [, setLocation] = useLocation();
 
   const { data: user } = useGetCurrentUser();
   const { data: company } = useGetCompany();
   const { data: summary, isLoading: summaryLoading } = useGetDashboardSummary();
   const { data: accounts = [] } = useListAccounts();
-  const { data: entries = [], isLoading: entriesLoading } = useListJournalEntries();
+  const { data: entries = [] } = useListJournalEntries();
   const { data: salesInvoices = [] } = useListInvoices({ kind: "sales" });
   const { data: purchaseInvoices = [] } = useListInvoices({ kind: "purchase" });
 
@@ -643,47 +851,35 @@ export function Dashboard() {
   const [activeWidgets, setActiveWidgets] = useState<string[]>(DEFAULT_WIDGETS);
   const [showAddMenu, setShowAddMenu] = useState(false);
 
-  // Load saved layout
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setActiveWidgets(parsed);
-        }
+        if (Array.isArray(parsed) && parsed.length > 0) setActiveWidgets(parsed);
       }
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }, []);
 
-  // Save layout on change
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(activeWidgets));
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
   }, [activeWidgets]);
 
   const moveWidget = (index: number, direction: -1 | 1) => {
-    const newOrder = [...activeWidgets];
+    const next = [...activeWidgets];
     const target = index + direction;
-    if (target >= 0 && target < newOrder.length) {
-      [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
-      setActiveWidgets(newOrder);
+    if (target >= 0 && target < next.length) {
+      [next[index], next[target]] = [next[target], next[index]];
+      setActiveWidgets(next);
     }
   };
 
-  const removeWidget = (id: string) => {
-    setActiveWidgets((prev) => prev.filter((w) => w !== id));
-  };
+  const removeWidget = (id: string) => setActiveWidgets((p) => p.filter((w) => w !== id));
 
   const addWidget = (id: string) => {
-    if (!activeWidgets.includes(id)) {
-      setActiveWidgets((prev) => [...prev, id]);
-    }
+    if (!activeWidgets.includes(id)) setActiveWidgets((p) => [...p, id]);
     setShowAddMenu(false);
   };
 
@@ -699,8 +895,14 @@ export function Dashboard() {
     new Intl.NumberFormat(intlLocale(lang), {
       style: "currency",
       currency,
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0,
     }).format(n);
+
+  // Formatted today date
+  const todayLabel = new Date().toLocaleDateString(
+    lang === "ar" ? "ar-EG" : "en-US",
+    { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+  );
 
   if (summaryLoading || !summary) {
     return (
@@ -711,31 +913,30 @@ export function Dashboard() {
   }
 
   const renderWidget = (id: string) => {
-    const def = WIDGET_REGISTRY.find((w) => w.id === id);
-    if (!def) return null;
-
     switch (id) {
       case "kpi":
         return <KPIWidget summary={summary} fmt={fmt} t={t} />;
       case "financial-overview":
-        return <FinancialOverviewWidget summary={summary} fmt={fmt} t={t} />;
-      case "accounts-donut":
-        return <AccountsDonutWidget accounts={accounts} lang={lang} fontFamily={fontFamily} t={t} />;
-      case "sections-summary":
-        return <SectionsSummaryWidget accounts={accounts} t={t} />;
-      case "recent-entries":
-        return <RecentEntriesWidget entries={entries} lang={lang} t={t} fmt={fmt} setLocation={setLocation} />;
-      case "outstanding-invoices":
-        return (
-          <div className="grid grid-cols-1 gap-6">
-            <OutstandingInvoicesWidget invoices={salesInvoices} t={t} fmt={fmt} kind="sales" />
-            <OutstandingInvoicesWidget invoices={purchaseInvoices} t={t} fmt={fmt} kind="purchase" />
-          </div>
-        );
-      case "profit-chart":
-        return <ProfitChartWidget summary={summary} fmt={fmt} t={t} lang={lang} />;
+        return <FinancialOverviewWidget summary={summary} accounts={accounts} fmt={fmt} t={t} />;
       case "revenue-chart":
         return <RevenueChartWidget summary={summary} fmt={fmt} t={t} lang={lang} />;
+      case "profit-chart":
+        return <ProfitChartWidget summary={summary} fmt={fmt} t={t} lang={lang} />;
+      case "recent-entries":
+        return <RecentEntriesWidget entries={entries} t={t} fmt={fmt} setLocation={setLocation} />;
+      case "accounts-donut":
+        return <AccountsDonutWidget accounts={accounts} summary={summary} lang={lang} fmt={fmt} t={t} />;
+      case "outstanding-invoices":
+        return (
+          <OutstandingInvoicesWidget
+            salesInvoices={salesInvoices}
+            purchaseInvoices={purchaseInvoices}
+            t={t}
+            fmt={fmt}
+          />
+        );
+      case "sections-summary":
+        return <SectionsSummaryWidget accounts={accounts} t={t} />;
       case "company-card":
         return <CompanyCardWidget company={company} user={user} lang={lang} t={t} setLocation={setLocation} />;
       default:
@@ -745,50 +946,76 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <header className="h-20 bg-background/80 backdrop-blur-md border-b sticky top-0 z-10 flex items-center justify-between px-8">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-card border shadow-sm flex items-center justify-center text-primary">
-            <Building2 className="w-6 h-6" />
+      {/* ================================================================
+          Header — CleanPro style
+      ================================================================ */}
+      <header className="h-16 bg-background/90 backdrop-blur-md border-b sticky top-0 z-10 flex items-center justify-between px-6 gap-4">
+        {/* Left: logo + title */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <BookOpen className="w-4 h-4 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">{user?.companyName}</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
-              <span className="text-success flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-success"></span>
-                {t("dashboard.connected")}
-              </span>
-            </div>
+            <h1 className="text-sm font-extrabold text-foreground leading-none">
+              {user?.companyName || t("nav.dashboard")}
+            </h1>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{t("dashboard.connected")}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2 hidden sm:flex" onClick={() => setLocation("/reports")}>
-            <FileBarChart className="w-4 h-4" />
+        {/* Center: date chip */}
+        <span className="hidden sm:block text-xs font-semibold text-muted-foreground bg-muted/60 border border-border/50 px-3 py-1.5 rounded-lg">
+          {todayLabel}
+        </span>
+
+        {/* Right: actions */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 hidden sm:flex text-xs"
+            onClick={() => setLocation("/reports")}
+          >
+            <FileBarChart className="w-3.5 h-3.5" />
             {t("dashboard.viewReports")}
           </Button>
+
           {editMode ? (
-            <div className="flex items-center gap-2">
-              <button onClick={() => setShowAddMenu(!showAddMenu)} className="flex items-center gap-2 bg-primary text-primary-foreground shadow-sm px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity">
-                <Plus className="w-4 h-4" /> {t("dashboard.addWidget")}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setShowAddMenu(!showAddMenu)}
+                className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
+              >
+                <Plus className="w-3.5 h-3.5" /> {t("dashboard.addWidget")}
               </button>
-              <button onClick={resetLayout} className="flex items-center gap-2 bg-card border shadow-sm px-4 py-2 rounded-full text-sm font-semibold hover:border-primary/50 transition-colors">
-                <RotateCcw className="w-4 h-4" /> {t("dashboard.resetLayout")}
+              <button
+                onClick={resetLayout}
+                className="flex items-center gap-1.5 bg-muted border px-3 py-1.5 rounded-lg text-xs font-semibold hover:border-primary/50 transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> {t("dashboard.resetLayout")}
               </button>
-              <button onClick={() => setEditMode(false)} className="flex items-center gap-2 bg-success text-success-foreground shadow-sm px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity">
-                <Save className="w-4 h-4" /> {t("dashboard.saveLayout")}
+              <button
+                onClick={() => setEditMode(false)}
+                className="flex items-center gap-1.5 bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 transition-opacity"
+              >
+                <Save className="w-3.5 h-3.5" /> {t("dashboard.saveLayout")}
               </button>
             </div>
           ) : (
-            <button onClick={() => setEditMode(true)} className="flex items-center gap-2 bg-card border shadow-sm px-4 py-2 rounded-full text-sm font-semibold hover:border-primary/50 transition-colors">
-              <SlidersHorizontal className="w-4 h-4 text-muted-foreground" /> {t("dashboard.customize")}
+            <button
+              onClick={() => setEditMode(true)}
+              className="flex items-center gap-1.5 bg-muted border px-3 py-1.5 rounded-lg text-xs font-semibold hover:border-primary/50 transition-colors"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+              {t("dashboard.customize")}
             </button>
           )}
         </div>
       </header>
 
-      {/* Add Widget Menu */}
+      {/* Add Widget Dropdown */}
       {editMode && showAddMenu && (
-        <div className="px-8 pt-4">
+        <div className="px-6 pt-3">
           <div className="bg-card border rounded-2xl p-4 shadow-lg flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm">{t("dashboard.addWidget")}</h3>
@@ -804,9 +1031,9 @@ export function Dashboard() {
                   <button
                     key={w.id}
                     onClick={() => addWidget(w.id)}
-                    className="flex items-center gap-2 p-3 rounded-xl border hover:border-primary hover:bg-primary/5 transition-colors text-sm font-semibold text-start"
+                    className="flex items-center gap-2 p-3 rounded-xl border hover:border-primary hover:bg-primary/5 transition-colors text-xs font-semibold text-start"
                   >
-                    <Plus className="w-4 h-4 text-primary flex-shrink-0" />
+                    <Plus className="w-3.5 h-3.5 text-primary shrink-0" />
                     <span className="truncate">{lang === "en" ? w.titleEn : w.titleAr}</span>
                   </button>
                 ))
@@ -816,15 +1043,21 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="p-8 flex flex-col gap-6 max-w-7xl mx-auto w-full">
-        {/* Widget Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ================================================================
+          Widget Grid
+      ================================================================ */}
+      <div className="p-6 flex flex-col gap-4 max-w-7xl mx-auto w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {activeWidgets.map((widgetId, index) => {
             const def = WIDGET_REGISTRY.find((w) => w.id === widgetId);
             const title = def ? (lang === "en" ? def.titleEn : def.titleAr) : "";
             const span = def?.gridSpan || "";
+            const isFullSpan = span.includes("col-span-full");
             return (
-              <div key={widgetId} className={`${span} ${span.includes("col-span-full") ? "col-span-full" : ""}`}>
+              <div
+                key={widgetId}
+                className={`${span} ${isFullSpan ? "col-span-full" : ""}`}
+              >
                 <WidgetCard
                   editMode={editMode}
                   title={title}
@@ -841,7 +1074,7 @@ export function Dashboard() {
           })}
         </div>
 
-        {/* Empty state when no widgets */}
+        {/* Empty state */}
         {activeWidgets.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <LayoutDashboard className="w-12 h-12 text-muted-foreground/30" />
@@ -851,7 +1084,7 @@ export function Dashboard() {
                 setEditMode(true);
                 setShowAddMenu(true);
               }}
-              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-sm px-4 py-2 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
             >
               <Plus className="w-4 h-4" /> {t("dashboard.addWidget")}
             </button>
