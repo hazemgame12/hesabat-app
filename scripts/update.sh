@@ -23,8 +23,26 @@ echo "🗄️  Applying DB schema migrations..."
 if [ -f "$APP_DIR/.env" ]; then
   set -a && source "$APP_DIR/.env" && set +a
 fi
-pnpm --filter @workspace/db run push && echo "✅ DB schema up to date" \
-  || echo "⚠️  DB push skipped (DATABASE_URL not in .env — schema unchanged, continuing)"
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "⚠️  DATABASE_URL not set — skipping migrations"
+else
+  SQL_DIR="$APP_DIR/hostinger-deploy-sql"
+  APPLIED_LOG="$APP_DIR/.applied-migrations"
+  touch "$APPLIED_LOG"
+  for sql_file in "$SQL_DIR"/migrate-*.sql; do
+    fname=$(basename "$sql_file")
+    if grep -qF "$fname" "$APPLIED_LOG" 2>/dev/null; then
+      echo "  ⏭  $fname (already applied)"
+    else
+      echo "  ▶  Applying $fname ..."
+      psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$sql_file" \
+        && echo "$fname" >> "$APPLIED_LOG" \
+        && echo "  ✅ $fname applied" \
+        || { echo "  ❌ $fname FAILED — aborting"; exit 1; }
+    fi
+  done
+  echo "✅ DB schema up to date"
+fi
 
 echo ""
 echo "🔨 Building frontend..."
