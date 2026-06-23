@@ -1,5 +1,8 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
+# GitHub push tracker (local only)
+.push-github-sha
+
 # compiled output
 dist
 tmp
