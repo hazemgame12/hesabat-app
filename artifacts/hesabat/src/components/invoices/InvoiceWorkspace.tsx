@@ -1539,24 +1539,28 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
                           {fmt(p.amount)}
                         </td>
                       </tr>
-                      {expandedPaymentId === p.id && p.allocations.length > 0 && (
+                      {expandedPaymentId === p.id && (
                         <tr className="bg-primary/5 border-b border-primary/10">
                           <td colSpan={6} className="px-4 py-2">
                             <p className="text-[11px] font-bold text-primary mb-1.5">
                               {t("invoices.allocations.title")}
                             </p>
-                            <div className="flex flex-col gap-1">
-                              {p.allocations.map((a) => (
-                                <div key={a.id} className="flex items-center justify-between text-xs text-muted-foreground">
-                                  <span>
-                                    {t("invoices.invoiceNo")} #{a.invoiceNo ?? "—"}
-                                  </span>
-                                  <span className="font-mono font-bold text-foreground" dir="ltr">
-                                    {a.amount.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
+                            {p.allocations.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">{t("invoices.allocations.none")}</p>
+                            ) : (
+                              <div className="flex flex-col gap-1">
+                                {p.allocations.map((a) => (
+                                  <div key={a.id} className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>
+                                      {t("invoices.invoiceNo")} #{a.invoiceNo ?? "—"}
+                                    </span>
+                                    <span className="font-mono font-bold text-foreground" dir="ltr">
+                                      {a.amount.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       )}
