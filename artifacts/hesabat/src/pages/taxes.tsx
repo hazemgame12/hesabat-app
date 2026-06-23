@@ -49,6 +49,7 @@ const taxSchema = z.object({
   rate: z.coerce.number().min(0, "rateRequired"),
   serviceNature: z.string().optional(),
   linkedAccountId: z.string().nullable().optional(),
+  whtDebitAccountId: z.string().nullable().optional(),
   isActive: z.boolean().default(true),
 });
 
@@ -91,7 +92,7 @@ export function Taxes() {
   const isActive = watch("isActive");
 
   const openCreateModal = () => {
-    reset({ nameAr: "", nameEn: "", kind: tab, rate: 0, serviceNature: "", linkedAccountId: null, isActive: true });
+    reset({ nameAr: "", nameEn: "", kind: tab, rate: 0, serviceNature: "", linkedAccountId: null, whtDebitAccountId: null, isActive: true });
     setModalMode("create");
   };
 
@@ -103,6 +104,7 @@ export function Taxes() {
       rate: tx.rate,
       serviceNature: tx.serviceNature ?? "",
       linkedAccountId: tx.linkedAccountId,
+      whtDebitAccountId: tx.whtDebitAccountId ?? null,
       isActive: tx.isActive,
     });
     setTaxToEdit(tx);
@@ -124,6 +126,7 @@ export function Taxes() {
       rate: Number(form.rate),
       serviceNature: form.serviceNature || null,
       linkedAccountId: form.linkedAccountId || null,
+      whtDebitAccountId: form.kind === "wht" ? (form.whtDebitAccountId || null) : null,
       isActive: form.isActive ?? true,
     };
     if (modalMode === "create") {
@@ -235,6 +238,7 @@ export function Taxes() {
                   <th className="text-center px-3 py-3">{t("taxes.rate")}</th>
                   <th className="text-start px-3 py-3">{t("taxes.serviceNature")}</th>
                   <th className="text-start px-3 py-3">{t("taxes.linkedAccount")}</th>
+                  {tab === "wht" && <th className="text-start px-3 py-3">{t("taxes.whtDebitAccountLabel")}</th>}
                   <th className="text-center px-3 py-3">{t("taxes.status")}</th>
                   {(canUpdate || canDelete) && <th className="w-20 px-6 py-3" />}
                 </tr>
@@ -242,6 +246,7 @@ export function Taxes() {
               <tbody>
                 {visible.map((tx) => {
                   const acc = tx.linkedAccountId ? accountById.get(tx.linkedAccountId) : null;
+                  const debitAcc = tx.whtDebitAccountId ? accountById.get(tx.whtDebitAccountId) : null;
                   return (
                     <tr key={tx.id} className="group border-t hover:bg-muted/40 transition-colors">
                       <td className="px-6 py-3.5 font-bold text-foreground">{displayName(tx, lang)}</td>
@@ -259,6 +264,18 @@ export function Taxes() {
                           <span className="text-xs text-muted-foreground">{t("taxes.none")}</span>
                         )}
                       </td>
+                      {tab === "wht" && (
+                        <td className="px-3 py-3.5">
+                          {debitAcc ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Link2 className="w-3.5 h-3.5 text-amber-500" />
+                              <span className="font-sans" dir="ltr">{debitAcc.code} - {displayName(debitAcc, lang)}</span>
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">{t("taxes.none")}</span>
+                          )}
+                        </td>
+                      )}
                       <td className="px-3 py-3.5 text-center">
                         {tx.isActive ? (
                           <span className="text-[11px] font-bold text-success bg-success/10 px-2.5 py-1 rounded-full">{t("taxes.active")}</span>
@@ -359,6 +376,22 @@ export function Taxes() {
                   <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
+
+              {watch("kind") === "wht" && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-bold text-foreground">{t("taxes.whtDebitAccountLabel")}<span className="text-xs font-medium text-muted-foreground ms-2">{t("taxes.optional")}</span></label>
+                  <div className="relative">
+                    <select className="w-full appearance-none bg-background border rounded-xl h-11 ps-4 pe-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("whtDebitAccountId")}>
+                      <option value="">{t("taxes.linkedAccountNone")}</option>
+                      {accounts.filter((a) => !a.isGroup).map((a) => (
+                        <option key={a.id} value={a.id}>{a.code} - {displayName(a, lang)}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t("taxes.whtDebitAccountHint")}</p>
+                </div>
+              )}
 
               <div className="flex items-center justify-between bg-secondary/40 border border-secondary rounded-xl px-4 py-3 cursor-pointer" onClick={() => setValue("isActive", !isActive)}>
                 <span className="text-sm font-bold text-foreground">{t("taxes.isActive")}</span>

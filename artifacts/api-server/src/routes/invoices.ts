@@ -285,6 +285,7 @@ function toListItem(
     subtotal: Number(inv.subtotal),
     discountTotal: Number(inv.discountTotal),
     taxTotal: Number(inv.taxTotal),
+    whtTotal: Number(inv.whtTotal),
     total,
     amountPaid,
     balance: round2(total - amountPaid),
@@ -315,6 +316,8 @@ function toLine(l: InvoiceLine) {
     discount: Number(l.discount),
     taxId: l.taxId,
     taxAmount: Number(l.taxAmount),
+    whtTaxId: l.whtTaxId,
+    whtAmount: Number(l.whtAmount),
     lineTotal: Number(l.lineTotal),
     costCenterId: l.costCenterId,
     assetNameAr: l.assetNameAr,
@@ -1346,6 +1349,8 @@ type PreparedLine = {
   discount: number;
   taxId: string | null;
   taxAmount: number;
+  whtTaxId: string | null;
+  whtAmount: number;
   lineTotal: number;
   costCenterId: string | null;
   assetNameAr: string | null;
@@ -1367,6 +1372,7 @@ type IncomingLine = {
   unitPrice: number;
   discount?: number | null;
   taxId?: string | null;
+  whtTaxId?: string | null;
   costCenterId?: string | null;
   assetNameAr?: string | null;
   assetNameEn?: string | null;
@@ -1392,12 +1398,15 @@ function prepareLines(
     const discount = l.discount ?? 0;
     const taxRate = l.taxId ? (taxRates.get(l.taxId) ?? null) : 0;
     if (taxRate === null) return { error: "الضريبة المحددة غير موجودة" };
+    const whtRate = l.whtTaxId ? (taxRates.get(l.whtTaxId) ?? null) : 0;
+    if (whtRate === null) return { error: "ضريبة الخصم من المنبع المحددة غير موجودة" };
     const { lineTotal, taxAmount } = lineMoney(
       l.quantity,
       l.unitPrice,
       discount,
       taxRate,
     );
+    const whtAmount = round2((lineTotal * whtRate) / 100);
     if (lineTotal < 0) return { error: "إجمالي السطر لا يمكن أن يكون سالبًا" };
 
     if (l.lineType === "inventory") {
@@ -1427,6 +1436,8 @@ function prepareLines(
       discount: round2(discount),
       taxId: l.taxId ?? null,
       taxAmount,
+      whtTaxId: l.whtTaxId ?? null,
+      whtAmount,
       lineTotal,
       costCenterId: l.costCenterId ?? null,
       assetNameAr: l.assetNameAr ?? null,
@@ -1439,13 +1450,15 @@ function prepareLines(
     totals.subtotal = round2(totals.subtotal + l.quantity * l.unitPrice);
     totals.discountTotal = round2(totals.discountTotal + discount);
     totals.taxTotal = round2(totals.taxTotal + taxAmount);
-    totals.total = round2(totals.total + lineTotal + taxAmount);
+    totals.whtTotal = round2(totals.whtTotal + whtAmount);
+    // total = net (after discount) + VAT - WHT (WHT reduces the amount due).
+    totals.total = round2(totals.total + lineTotal + taxAmount - whtAmount);
   }
   return { lines: out, totals };
 }
 
 function emptyTotals() {
-  return { subtotal: 0, discountTotal: 0, taxTotal: 0, total: 0 };
+  return { subtotal: 0, discountTotal: 0, taxTotal: 0, whtTotal: 0, total: 0 };
 }
 
 // Loads the tax rates for a company so line tax amounts can be computed.
@@ -1563,6 +1576,7 @@ router.post(
             subtotal: String(prep.totals.subtotal),
             discountTotal: String(prep.totals.discountTotal),
             taxTotal: String(prep.totals.taxTotal),
+            whtTotal: String(prep.totals.whtTotal),
             total: String(prep.totals.total),
             amountPaid: "0",
             createdBy: req.auth!.userId,
@@ -1584,6 +1598,8 @@ router.post(
             discount: String(l.discount),
             taxId: l.taxId,
             taxAmount: String(l.taxAmount),
+            whtTaxId: l.whtTaxId,
+            whtAmount: String(l.whtAmount),
             lineTotal: String(l.lineTotal),
             costCenterId: l.costCenterId,
             assetNameAr: l.assetNameAr,
@@ -1754,6 +1770,7 @@ router.patch(
             subtotal: String(prep.totals.subtotal),
             discountTotal: String(prep.totals.discountTotal),
             taxTotal: String(prep.totals.taxTotal),
+            whtTotal: String(prep.totals.whtTotal),
             total: String(prep.totals.total),
           })
           .where(
@@ -1782,6 +1799,8 @@ router.patch(
             discount: String(l.discount),
             taxId: l.taxId,
             taxAmount: String(l.taxAmount),
+            whtTaxId: l.whtTaxId,
+            whtAmount: String(l.whtAmount),
             lineTotal: String(l.lineTotal),
             costCenterId: l.costCenterId,
             assetNameAr: l.assetNameAr,
@@ -1978,32 +1997,52 @@ router.post(
               rLines.map((l) => l.taxId).filter((x): x is string => !!x),
             ),
           ];
-          const rTaxRows = rTaxIds.length
+          const rWhtTaxIds = [
+            ...new Set(
+              rLines.map((l) => l.whtTaxId).filter((x): x is string => !!x),
+            ),
+          ];
+          const rAllTaxIds = [...new Set([...rTaxIds, ...rWhtTaxIds])];
+          const rAllTaxRows = rAllTaxIds.length
             ? await tx
                 .select({
                   id: taxesTable.id,
                   linkedAccountId: taxesTable.linkedAccountId,
+                  whtDebitAccountId: taxesTable.whtDebitAccountId,
                 })
                 .from(taxesTable)
                 .where(
                   and(
                     eq(taxesTable.companyId, companyId),
-                    inArray(taxesTable.id, rTaxIds),
+                    inArray(taxesTable.id, rAllTaxIds),
                   ),
                 )
             : [];
+          const rTaxMeta = new Map(rAllTaxRows.map((t) => [t.id, t]));
           const rTaxAccount = new Map(
-            rTaxRows.map((t) => [t.id, t.linkedAccountId]),
+            rTaxIds.map((id) => [id, rTaxMeta.get(id)?.linkedAccountId ?? null]),
           );
           for (const tid of rTaxIds) {
             if (!rTaxAccount.get(tid))
               throw new ApproveError(400, "الضريبة المحددة بدون حساب مرتبط");
+          }
+          const rIsSales = rSide === "sales";
+          const rWhtAccount = new Map(
+            rWhtTaxIds.map((id) => {
+              const m = rTaxMeta.get(id);
+              return [id, rIsSales ? m?.whtDebitAccountId ?? null : m?.linkedAccountId ?? null];
+            }),
+          );
+          for (const tid of rWhtTaxIds) {
+            if (!rWhtAccount.get(tid))
+              throw new ApproveError(400, "ضريبة الخصم من المنبع بدون حساب مرتبط في الإشعار");
           }
 
           const rAccountIds: string[] = [rParty.accountId];
           for (const l of rLines) {
             rAccountIds.push(l.accountId);
             if (l.taxId) rAccountIds.push(rTaxAccount.get(l.taxId)!);
+            if (l.whtTaxId) rAccountIds.push(rWhtAccount.get(l.whtTaxId)!);
           }
           const rAccErr = await validateLeafAccounts(
             rAccountIds,
@@ -2030,7 +2069,9 @@ router.post(
           for (const l of rLines) {
             const lineTotalBase = round2(Number(l.lineTotal) * rRate);
             const taxBase = round2(Number(l.taxAmount) * rRate);
-            rPartyBase = round2(rPartyBase + lineTotalBase + taxBase);
+            const whtBase = round2(Number(l.whtAmount) * rRate);
+            // WHT reverses too: sales_return Cr WHT Receivable, purchase_return Dr WHT Payable.
+            rPartyBase = round2(rPartyBase + lineTotalBase + taxBase - whtBase);
             // sales_return reverses a sale: Dr Revenue, Dr VAT, Cr AR.
             // purchase_return reverses a purchase: Cr Expense, Cr VAT, Dr AP.
             rEntryLines.push({
@@ -2048,6 +2089,17 @@ router.post(
                 debit: isSalesReturn ? taxBase : 0,
                 credit: isSalesReturn ? 0 : taxBase,
                 taxId: l.taxId,
+              });
+            }
+            if (whtBase > 0) {
+              // sales_return: Cr WHT Receivable (reverse the Dr on original sale).
+              // purchase_return: Dr WHT Payable (reverse the Cr on original purchase).
+              rEntryLines.push({
+                accountId: rWhtAccount.get(l.whtTaxId!)!,
+                description: l.description,
+                debit: isSalesReturn ? 0 : whtBase,
+                credit: isSalesReturn ? whtBase : 0,
+                taxId: l.whtTaxId,
               });
             }
           }
@@ -2109,26 +2161,53 @@ router.post(
         const taxIds = [
           ...new Set(lines.map((l) => l.taxId).filter((x): x is string => !!x)),
         ];
-        const taxRows = taxIds.length
+        const whtTaxIds = [
+          ...new Set(lines.map((l) => l.whtTaxId).filter((x): x is string => !!x)),
+        ];
+        // Load all tax metadata in one query (VAT + WHT combined).
+        const allTaxIds = [...new Set([...taxIds, ...whtTaxIds])];
+        const allTaxRows = allTaxIds.length
           ? await tx
               .select({
                 id: taxesTable.id,
+                kind: taxesTable.kind,
                 linkedAccountId: taxesTable.linkedAccountId,
+                whtDebitAccountId: taxesTable.whtDebitAccountId,
               })
               .from(taxesTable)
               .where(
                 and(
                   eq(taxesTable.companyId, companyId),
-                  inArray(taxesTable.id, taxIds),
+                  inArray(taxesTable.id, allTaxIds),
                 ),
               )
           : [];
+        const taxMeta = new Map(allTaxRows.map((t) => [t.id, t]));
+        // For VAT: uses linkedAccountId (Dr on purchase, Cr on sales).
         const taxAccount = new Map(
-          taxRows.map((t) => [t.id, t.linkedAccountId]),
+          taxIds.map((id) => [id, taxMeta.get(id)?.linkedAccountId ?? null]),
         );
         for (const tid of taxIds) {
           if (!taxAccount.get(tid))
             throw new ApproveError(400, "الضريبة المحددة بدون حساب مرتبط");
+        }
+        // For WHT: purchase uses linkedAccountId (Cr WHT Payable);
+        //          sales uses whtDebitAccountId (Dr WHT Receivable).
+        const isSalesInv = inv.kind === "sales";
+        const whtAccount = new Map(
+          whtTaxIds.map((id) => {
+            const m = taxMeta.get(id);
+            return [id, isSalesInv ? m?.whtDebitAccountId ?? null : m?.linkedAccountId ?? null];
+          }),
+        );
+        for (const tid of whtTaxIds) {
+          if (!whtAccount.get(tid))
+            throw new ApproveError(
+              400,
+              isSalesInv
+                ? "ضريبة الخصم من المنبع بدون حساب خصم مدين (للمبيعات)"
+                : "ضريبة الخصم من المنبع بدون حساب دائن مرتبط (للمشتريات)",
+            );
         }
 
         const itemIds = [
@@ -2143,6 +2222,7 @@ router.post(
         for (const l of lines) {
           accountIds.push(l.accountId);
           if (l.taxId) accountIds.push(taxAccount.get(l.taxId)!);
+          if (l.whtTaxId) accountIds.push(whtAccount.get(l.whtTaxId)!);
           if (l.lineType === "fixed_asset") {
             accountIds.push(l.assetAccumulatedAccountId!);
             accountIds.push(l.assetExpenseAccountId!);
@@ -2228,15 +2308,17 @@ router.post(
         const assetOps: { line: InvoiceLine; cost: number; salvage: number }[] =
           [];
 
-        let partyBase = 0; // accumulated AR/AP base amount
+        let partyBase = 0; // accumulated AR/AP base amount (net of WHT)
 
         for (const l of lines) {
           const lineTotalBase = round2(Number(l.lineTotal) * rate);
           const taxBase = round2(Number(l.taxAmount) * rate);
-          partyBase = round2(partyBase + lineTotalBase + taxBase);
+          const whtBase = round2(Number(l.whtAmount) * rate);
+          // WHT reduces the amount owed by/to the party.
+          partyBase = round2(partyBase + lineTotalBase + taxBase - whtBase);
 
           if (inv.kind === "sales") {
-            // Revenue credited, tax credited.
+            // Revenue credited, VAT credited.
             entryLines.push({
               accountId: l.accountId,
               description: l.description,
@@ -2252,6 +2334,16 @@ router.post(
                 debit: 0,
                 credit: taxBase,
                 taxId: l.taxId,
+              });
+            }
+            // WHT: Dr WHT Receivable (customer withholds from you).
+            if (whtBase > 0) {
+              entryLines.push({
+                accountId: whtAccount.get(l.whtTaxId!)!,
+                description: l.description,
+                debit: whtBase,
+                credit: 0,
+                taxId: l.whtTaxId,
               });
             }
             if (l.lineType === "inventory") {
@@ -2310,6 +2402,16 @@ router.post(
                 debit: taxBase,
                 credit: 0,
                 taxId: l.taxId,
+              });
+            }
+            // WHT: Cr WHT Payable (you withhold from the supplier).
+            if (whtBase > 0) {
+              entryLines.push({
+                accountId: whtAccount.get(l.whtTaxId!)!,
+                description: l.description,
+                debit: 0,
+                credit: whtBase,
+                taxId: l.whtTaxId,
               });
             }
             if (l.lineType === "inventory") {
@@ -3051,6 +3153,7 @@ router.post(
               subtotal: String(prep.totals.subtotal),
               discountTotal: String(prep.totals.discountTotal),
               taxTotal: String(prep.totals.taxTotal),
+              whtTotal: String(prep.totals.whtTotal),
               total: String(prep.totals.total),
               amountPaid: "0",
               createdBy: req.auth!.userId,
@@ -3072,6 +3175,8 @@ router.post(
               discount: String(l.discount),
               taxId: l.taxId,
               taxAmount: String(l.taxAmount),
+              whtTaxId: l.whtTaxId,
+              whtAmount: String(l.whtAmount),
               lineTotal: String(l.lineTotal),
               costCenterId: l.costCenterId,
               assetNameAr: l.assetNameAr,

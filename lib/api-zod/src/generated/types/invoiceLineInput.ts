@@ -27,6 +27,8 @@ export interface InvoiceLineInput {
   /** @nullable */
   taxId?: string | null;
   /** @nullable */
+  whtTaxId?: string | null;
+  /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
   assetNameAr?: string | null;

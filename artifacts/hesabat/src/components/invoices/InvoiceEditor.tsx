@@ -37,6 +37,7 @@ type LineDraft = {
   unitPrice: string;
   discount: string;
   taxId: string;
+  whtTaxId: string;
   costCenterId: string;
   assetNameAr: string;
   assetUsefulLifeMonths: string;
@@ -61,6 +62,7 @@ function emptyLine(): LineDraft {
     unitPrice: "",
     discount: "0",
     taxId: "",
+    whtTaxId: "",
     costCenterId: "",
     assetNameAr: "",
     assetUsefulLifeMonths: "",
@@ -238,6 +240,7 @@ export function InvoiceEditor({
           unitPrice: String(l.unitPrice),
           discount: String(l.discount),
           taxId: l.taxId ?? "",
+          whtTaxId: l.whtTaxId ?? "",
           costCenterId: l.costCenterId ?? "",
           assetNameAr: l.assetNameAr ?? "",
           assetUsefulLifeMonths:
@@ -268,6 +271,15 @@ export function InvoiceEditor({
     return m;
   }, [items]);
 
+  const vatTaxes = useMemo(
+    () => taxes.filter((tx) => tx.isActive && tx.linkedAccountId && tx.kind !== "wht" && tx.kind !== "income" && tx.kind !== "payroll"),
+    [taxes],
+  );
+  const whtTaxes = useMemo(
+    () => taxes.filter((tx) => tx.isActive && tx.kind === "wht"),
+    [taxes],
+  );
+
   const lineCalc = (l: LineDraft) => {
     const qty = Number(l.quantity) || 0;
     const price = Number(l.unitPrice) || 0;
@@ -275,26 +287,32 @@ export function InvoiceEditor({
     const net = Math.max(0, qty * price - disc);
     const tax = l.taxId ? taxById.get(l.taxId) : undefined;
     const taxAmount = tax ? (net * Number(tax.rate)) / 100 : 0;
-    return { net, taxAmount, total: net + taxAmount };
+    const whtTax = l.whtTaxId ? taxById.get(l.whtTaxId) : undefined;
+    const whtAmount = whtTax ? (net * Number(whtTax.rate)) / 100 : 0;
+    return { net, taxAmount, whtAmount, total: net + taxAmount - whtAmount };
   };
 
   const totals = useMemo(() => {
     let subtotal = 0;
     let discountTotal = 0;
     let taxTotal = 0;
+    let whtTotal = 0;
     for (const l of lines) {
       const qty = Number(l.quantity) || 0;
       const price = Number(l.unitPrice) || 0;
       const disc = Number(l.discount) || 0;
       subtotal += qty * price;
       discountTotal += disc;
-      taxTotal += lineCalc(l).taxAmount;
+      const calc = lineCalc(l);
+      taxTotal += calc.taxAmount;
+      whtTotal += calc.whtAmount;
     }
     return {
       subtotal,
       discountTotal,
       taxTotal,
-      total: subtotal - discountTotal + taxTotal,
+      whtTotal,
+      total: subtotal - discountTotal + taxTotal - whtTotal,
     };
   }, [lines, taxById]);
 
@@ -397,6 +415,7 @@ export function InvoiceEditor({
       unitPrice: Number(l.unitPrice) || 0,
       discount: Number(l.discount) || 0,
       taxId: l.taxId || null,
+      whtTaxId: l.whtTaxId || null,
       costCenterId: l.costCenterId || null,
       assetNameAr:
         l.lineType === "fixed_asset" ? l.assetNameAr.trim() || null : null,
@@ -667,7 +686,7 @@ export function InvoiceEditor({
               {/* ── Inline Excel-like table ── */}
               <div className="border rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[860px] border-collapse">
+                  <table className="w-full text-sm min-w-[1020px] border-collapse">
                     <thead>
                       <tr className="bg-muted/50 text-[11px] font-bold text-muted-foreground border-b">
                         <th className="px-2 py-2 w-8 text-center">#</th>
@@ -678,6 +697,7 @@ export function InvoiceEditor({
                         <th className="px-2 py-2 w-24 text-end">{t("invoices.unitPrice")}</th>
                         <th className="px-2 py-2 w-20 text-end">{t("invoices.discount")}</th>
                         <th className="px-2 py-2 w-28 text-start">{t("invoices.tax")}</th>
+                        <th className="px-2 py-2 w-28 text-start">{t("invoices.whtTax")}</th>
                         <th className="px-2 py-2 w-28 text-start">{t("invoices.costCenter")}</th>
                         <th className="px-2 py-2 w-24 text-end">{t("invoices.lineTotal")}</th>
                         {!disabled && <th className="w-8" />}
@@ -786,7 +806,7 @@ export function InvoiceEditor({
                           dir="ltr"
                         />
                       </td>
-                      {/* Tax */}
+                      {/* Tax (VAT / Zakat only) */}
                       <td className="px-1 py-1">
                         <select
                           className="bg-transparent w-full h-8 px-1 text-xs focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
@@ -795,7 +815,21 @@ export function InvoiceEditor({
                           onChange={(e) => updateLine(idx, { taxId: e.target.value })}
                         >
                           <option value="">{t("invoices.noTax")}</option>
-                          {taxes.filter((tx) => tx.isActive && tx.linkedAccountId).map((tx) => (
+                          {vatTaxes.map((tx) => (
+                            <option key={tx.id} value={tx.id}>{displayName(tx, lang)} ({tx.rate}%)</option>
+                          ))}
+                        </select>
+                      </td>
+                      {/* WHT */}
+                      <td className="px-1 py-1">
+                        <select
+                          className="bg-transparent w-full h-8 px-1 text-xs focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
+                          value={l.whtTaxId}
+                          disabled={disabled}
+                          onChange={(e) => updateLine(idx, { whtTaxId: e.target.value })}
+                        >
+                          <option value="">{t("invoices.noTax")}</option>
+                          {whtTaxes.map((tx) => (
                             <option key={tx.id} value={tx.id}>{displayName(tx, lang)} ({tx.rate}%)</option>
                           ))}
                         </select>
@@ -837,7 +871,7 @@ export function InvoiceEditor({
                     {/* ── Expanded: inventory extra fields ── */}
                     {needsExpand && isExpanded && l.lineType === "inventory" && (
                       <tr className="border-b bg-muted/10">
-                        <td colSpan={disabled ? 10 : 11} className="px-4 py-3">
+                        <td colSpan={disabled ? 11 : 12} className="px-4 py-3">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                               <label className={labelCls}>{t("invoices.item")}</label>
@@ -878,7 +912,7 @@ export function InvoiceEditor({
                     {/* ── Expanded: fixed_asset extra fields ── */}
                     {needsExpand && isExpanded && l.lineType === "fixed_asset" && (
                       <tr className="border-b bg-muted/10">
-                        <td colSpan={disabled ? 10 : 11} className="px-4 py-3">
+                        <td colSpan={disabled ? 11 : 12} className="px-4 py-3">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                               <label className={labelCls}>{t("invoices.assetName")}</label>
@@ -919,7 +953,7 @@ export function InvoiceEditor({
                           className="cursor-pointer hover:bg-primary/5 transition-colors"
                           onClick={addLine}
                         >
-                          <td colSpan={11} className="px-3 py-2 text-sm text-muted-foreground">
+                          <td colSpan={12} className="px-3 py-2 text-sm text-muted-foreground">
                             <span className="flex items-center gap-1.5">
                               <Plus className="w-3.5 h-3.5" />
                               {t("invoices.addLine")}
@@ -964,6 +998,14 @@ export function InvoiceEditor({
                     {fmt(totals.taxTotal)}
                   </span>
                 </div>
+                {totals.whtTotal > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">{t("invoices.whtTotal")}</span>
+                    <span className="font-sans tabular-nums text-amber-600" dir="ltr">
+                      ({fmt(totals.whtTotal)})
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between border-t pt-2 font-bold text-foreground">
                   <span>{t("invoices.grandTotal")}</span>
                   <span className="font-sans tabular-nums" dir="ltr">

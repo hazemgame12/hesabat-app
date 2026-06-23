@@ -85,6 +85,10 @@ export const invoicesTable = pgTable(
     taxTotal: numeric("tax_total", { precision: 18, scale: 2 })
       .notNull()
       .default("0"),
+    // Sum of WHT amounts across all lines. WHT reduces the total amount due.
+    whtTotal: numeric("wht_total", { precision: 18, scale: 2 })
+      .notNull()
+      .default("0"),
     total: numeric("total", { precision: 18, scale: 2 }).notNull().default("0"),
     // Running total of collections/payments allocated to this invoice
     // (transaction currency). Drives status transitions.
@@ -170,6 +174,13 @@ export const invoiceLinesTable = pgTable("invoice_lines", {
     onDelete: "set null",
   }),
   taxAmount: numeric("tax_amount", { precision: 18, scale: 2 })
+    .notNull()
+    .default("0"),
+  // Withholding tax (separate from VAT). WHT reduces the net amount due.
+  whtTaxId: uuid("wht_tax_id").references(() => taxesTable.id, {
+    onDelete: "set null",
+  }),
+  whtAmount: numeric("wht_amount", { precision: 18, scale: 2 })
     .notNull()
     .default("0"),
   // Net of discount, before tax: quantity*unitPrice - discount.

@@ -413,6 +413,8 @@ export interface Tax {
   serviceNature?: string | null;
   /** @nullable */
   linkedAccountId?: string | null;
+  /** @nullable */
+  whtDebitAccountId?: string | null;
   isActive: boolean;
   /** @nullable */
   taxType?: TaxTaxType;
@@ -471,6 +473,8 @@ export interface TaxInput {
   serviceNature?: string | null;
   /** @nullable */
   linkedAccountId?: string | null;
+  /** @nullable */
+  whtDebitAccountId?: string | null;
   isActive?: boolean;
   /** @nullable */
   taxType?: TaxInputTaxType;
@@ -528,6 +532,8 @@ export interface TaxUpdate {
   serviceNature?: string | null;
   /** @nullable */
   linkedAccountId?: string | null;
+  /** @nullable */
+  whtDebitAccountId?: string | null;
   isActive?: boolean;
   /** @nullable */
   taxType?: TaxUpdateTaxType;
@@ -1862,6 +1868,8 @@ export interface InvoiceLineInput {
   /** @nullable */
   taxId?: string | null;
   /** @nullable */
+  whtTaxId?: string | null;
+  /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
   assetNameAr?: string | null;
@@ -1911,6 +1919,9 @@ export interface InvoiceLine {
   /** @nullable */
   taxId?: string | null;
   taxAmount: number;
+  /** @nullable */
+  whtTaxId?: string | null;
+  whtAmount: number;
   lineTotal: number;
   /** @nullable */
   costCenterId?: string | null;
@@ -2029,6 +2040,7 @@ export interface InvoiceSummary {
   subtotal?: number;
   discountTotal?: number;
   taxTotal?: number;
+  whtTotal?: number;
   total: number;
   amountPaid: number;
   balance: number;

@@ -26,6 +26,9 @@ export interface InvoiceLine {
   /** @nullable */
   taxId?: string | null;
   taxAmount: number;
+  /** @nullable */
+  whtTaxId?: string | null;
+  whtAmount: number;
   lineTotal: number;
   /** @nullable */
   costCenterId?: string | null;

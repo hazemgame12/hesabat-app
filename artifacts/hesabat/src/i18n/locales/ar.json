@@ -716,6 +716,8 @@
     "serviceNaturePlaceholder": "مثال: خدمات استشارية",
     "linkedAccountLabel": "الحساب المرتبط",
     "linkedAccountNone": "بدون ربط",
+    "whtDebitAccountLabel": "حساب مدين (ضريبة خصم مستحقة)",
+    "whtDebitAccountHint": "الحساب الذي يُخصم منه عند البيع — مثال: ضرائب خصم مستحقة",
     "isActive": "ضريبة نشطة",
     "save": "حفظ الضريبة",
     "none": "—",
@@ -1912,6 +1914,8 @@
     "subtotal": "قبل الضريبة",
     "discountTotal": "الخصم",
     "taxTotal": "الضريبة",
+    "whtTax": "خصم م/م",
+    "whtTotal": "ضريبة الخصم م/م",
     "grandTotal": "الإجمالي النهائي",
     "allocations": {
       "title": "توزيع على الفواتير",

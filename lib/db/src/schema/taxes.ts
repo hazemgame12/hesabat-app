@@ -21,7 +21,15 @@ export const taxesTable = pgTable("taxes", {
   kind: text("kind").notNull(), // 'vat' | 'wht'
   rate: numeric("rate", { precision: 6, scale: 3 }).notNull(),
   serviceNature: text("service_nature"),
+  // For VAT: the tax payable/receivable account.
+  // For WHT: the credit (payable) account used on purchase invoices.
   linkedAccountId: uuid("linked_account_id").references(
+    () => accountsTable.id,
+    { onDelete: "set null" },
+  ),
+  // WHT only: the debit (receivable) account used on sales invoices.
+  // When the customer withholds tax from you, you Dr this account (asset).
+  whtDebitAccountId: uuid("wht_debit_account_id").references(
     () => accountsTable.id,
     { onDelete: "set null" },
   ),

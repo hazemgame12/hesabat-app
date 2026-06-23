@@ -36,6 +36,7 @@ export interface InvoiceSummary {
   subtotal?: number;
   discountTotal?: number;
   taxTotal?: number;
+  whtTotal?: number;
   total: number;
   amountPaid: number;
   balance: number;

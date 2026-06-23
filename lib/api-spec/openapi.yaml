@@ -4557,6 +4557,8 @@ components:
           type: ["string", "null"]
         linkedAccountId:
           type: ["string", "null"]
+        whtDebitAccountId:
+          type: ["string", "null"]
         isActive:
           type: boolean
         taxType:
@@ -4588,6 +4590,9 @@ components:
         linkedAccountId:
           type: ["string", "null"]
           format: uuid
+        whtDebitAccountId:
+          type: ["string", "null"]
+          format: uuid
         isActive:
           type: boolean
         taxType:
@@ -4614,6 +4619,9 @@ components:
         serviceNature:
           type: ["string", "null"]
         linkedAccountId:
+          type: ["string", "null"]
+          format: uuid
+        whtDebitAccountId:
           type: ["string", "null"]
           format: uuid
         isActive:
@@ -6291,6 +6299,8 @@ components:
           minimum: 0
         taxId:
           type: ["string", "null"]
+        whtTaxId:
+          type: ["string", "null"]
         costCenterId:
           type: ["string", "null"]
         assetNameAr:
@@ -6311,7 +6321,7 @@ components:
     InvoiceLine:
       type: object
       required:
-        [id, lineNo, lineType, accountId, quantity, unitPrice, discount, taxAmount, lineTotal]
+        [id, lineNo, lineType, accountId, quantity, unitPrice, discount, taxAmount, whtAmount, lineTotal]
       properties:
         id:
           type: string
@@ -6339,6 +6349,10 @@ components:
         taxId:
           type: ["string", "null"]
         taxAmount:
+          type: number
+        whtTaxId:
+          type: ["string", "null"]
+        whtAmount:
           type: number
         lineTotal:
           type: number
@@ -6432,6 +6446,8 @@ components:
         discountTotal:
           type: number
         taxTotal:
+          type: number
+        whtTotal:
           type: number
         total:
           type: number

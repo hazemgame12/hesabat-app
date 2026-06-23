@@ -716,6 +716,8 @@
     "serviceNaturePlaceholder": "e.g. Consulting services",
     "linkedAccountLabel": "Linked account",
     "linkedAccountNone": "No link",
+    "whtDebitAccountLabel": "Debit account (WHT receivable)",
+    "whtDebitAccountHint": "Account debited on sales — e.g. WHT receivable",
     "isActive": "Active tax",
     "save": "Save tax",
     "none": "—",
@@ -1912,6 +1914,8 @@
     "subtotal": "Pre-tax",
     "discountTotal": "Discount",
     "taxTotal": "Tax",
+    "whtTax": "WHT",
+    "whtTotal": "Withholding tax",
     "grandTotal": "Grand total",
     "allocations": {
       "title": "Payment Allocations",

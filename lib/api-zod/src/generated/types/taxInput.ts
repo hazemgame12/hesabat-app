@@ -21,6 +21,8 @@ export interface TaxInput {
   serviceNature?: string | null;
   /** @nullable */
   linkedAccountId?: string | null;
+  /** @nullable */
+  whtDebitAccountId?: string | null;
   isActive?: boolean;
   /** @nullable */
   taxType?: TaxInputTaxType;

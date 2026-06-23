@@ -35,6 +35,7 @@ function toTax(row: Tax) {
     rate: Number(row.rate),
     serviceNature: row.serviceNature,
     linkedAccountId: row.linkedAccountId,
+    whtDebitAccountId: row.whtDebitAccountId,
     taxType: row.taxType,
     taxCategory: row.taxCategory,
     isActive: row.isActive,
@@ -79,12 +80,20 @@ router.post("/taxes", requireAuth, requireCapability("taxes:create"), async (req
     return;
   }
   const linkedAccountId = parsed.data.linkedAccountId ?? null;
+  const whtDebitAccountId = (parsed.data as any).whtDebitAccountId ?? null;
   try {
     if (
       linkedAccountId &&
       !(await accountBelongsToCompany(linkedAccountId, req.auth!.companyId))
     ) {
       res.status(400).json({ error: "الحساب المرتبط غير موجود" });
+      return;
+    }
+    if (
+      whtDebitAccountId &&
+      !(await accountBelongsToCompany(whtDebitAccountId, req.auth!.companyId))
+    ) {
+      res.status(400).json({ error: "حساب الخصم المدين غير موجود" });
       return;
     }
     const [row] = await db
@@ -97,6 +106,7 @@ router.post("/taxes", requireAuth, requireCapability("taxes:create"), async (req
         rate: String(parsed.data.rate),
         serviceNature: parsed.data.serviceNature ?? null,
         linkedAccountId,
+        whtDebitAccountId,
         isActive: parsed.data.isActive ?? true,
       })
       .returning();
@@ -165,6 +175,8 @@ router.patch("/taxes/:id", requireAuth, requireCapability("taxes:update"), async
     updates["serviceNature"] = parsed.data.serviceNature;
   if (parsed.data.linkedAccountId !== undefined)
     updates["linkedAccountId"] = parsed.data.linkedAccountId;
+  if ((parsed.data as any).whtDebitAccountId !== undefined)
+    updates["whtDebitAccountId"] = (parsed.data as any).whtDebitAccountId;
   if (parsed.data.isActive !== undefined)
     updates["isActive"] = parsed.data.isActive;
   if (Object.keys(updates).length === 0) {
@@ -178,6 +190,14 @@ router.patch("/taxes/:id", requireAuth, requireCapability("taxes:update"), async
       !(await accountBelongsToCompany(nextLinked, req.auth!.companyId))
     ) {
       res.status(400).json({ error: "الحساب المرتبط غير موجود" });
+      return;
+    }
+    const nextWhtDebit = updates["whtDebitAccountId"] as string | null | undefined;
+    if (
+      nextWhtDebit &&
+      !(await accountBelongsToCompany(nextWhtDebit, req.auth!.companyId))
+    ) {
+      res.status(400).json({ error: "حساب الخصم المدين غير موجود" });
       return;
     }
     const [row] = await db
