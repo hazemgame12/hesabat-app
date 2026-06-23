@@ -1,5 +1,5 @@
-import React from "react";
-import { Switch, Route, Redirect, Router as WouterRouter } from "wouter";
+import React, { useEffect, useState } from "react";
+import { Switch, Route, Redirect, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -122,6 +122,26 @@ function ProtectedRoutes() {
 }
 
 function SuperAdminRoutes() {
+  const [, setLocation] = useLocation();
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/super-admin/auth/me", { credentials: "include" })
+      .then((r) => {
+        if (r.status === 401) setLocation("/super-admin/login");
+      })
+      .catch(() => setLocation("/super-admin/login"))
+      .finally(() => setChecking(false));
+  }, [setLocation]);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted-foreground text-sm">جاري التحقق...</div>
+      </div>
+    );
+  }
+
   return (
     <SuperAdminLayout>
       <Switch>
