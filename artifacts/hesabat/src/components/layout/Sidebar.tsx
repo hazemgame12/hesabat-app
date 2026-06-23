@@ -36,6 +36,8 @@ import {
   FileOutput,
   ArrowDownLeft,
   ArrowUpRight,
+  FileBarChart2,
+  TrendingUp as TrendingUpIcon,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -131,7 +133,9 @@ const navEntries: NavEntry[] = [
     labelKey: "nav.groups.reports",
     icon: BarChart3,
     children: [
-      { labelKey: "nav.reports", icon: FileText, href: "/reports" },
+      { labelKey: "nav.financialReports", icon: FileBarChart2, href: "/reports/financial" },
+      { labelKey: "nav.taxDeclarations", icon: ClipboardList, href: "/reports/tax" },
+      { labelKey: "nav.financialAnalysis", icon: TrendingUpIcon, href: "/reports/analysis" },
       { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
     ],
   },

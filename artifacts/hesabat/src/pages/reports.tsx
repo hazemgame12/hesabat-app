@@ -96,7 +96,7 @@ const CATEGORIES: { key: CategoryKey; tabs: TabKey[] }[] = [
   { key: "audit", tabs: ["auditLog"] },
 ];
 
-function displayName(
+export function displayName(
   e: { nameAr: string; nameEn?: string | null },
   lang: string,
 ): string {
@@ -243,14 +243,14 @@ export function Reports() {
 // ---- shared bits ----
 type Fmt = (n: number) => string;
 
-function today(): string {
+export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
-function startOfYear(): string {
+export function startOfYear(): string {
   return `${new Date().getFullYear()}-01-01`;
 }
 
-function Card({ children }: { children: React.ReactNode }) {
+export function Card({ children }: { children: React.ReactNode }) {
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
       {children}
@@ -258,7 +258,7 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-function DateRange({
+export function DateRange({
   from,
   to,
   onFrom,
@@ -298,7 +298,7 @@ function DateRange({
   );
 }
 
-function Loading() {
+export function Loading() {
   return (
     <div className="flex justify-center py-16">
       <Spinner />
@@ -306,7 +306,7 @@ function Loading() {
   );
 }
 
-function Empty() {
+export function Empty() {
   const { t } = useTranslation();
   return (
     <div className="text-center py-16 text-muted-foreground">
@@ -318,7 +318,7 @@ function Empty() {
 // ---- Report-currency (display-only) controls ----
 // Shared state lifted to <Reports> and passed to the four in-scope tabs so the
 // chosen report currency is preserved while switching between them.
-type CurrencyControls = {
+export type CurrencyControls = {
   reportCurrency: string;
   setReportCurrency: (v: string) => void;
   baseCurrency: string;
@@ -327,12 +327,12 @@ type CurrencyControls = {
 
 // Resolve the value to actually send to the API: undefined when empty or equal
 // to the base currency (so the backend behaves exactly as before).
-function reportCurrencyParam(cc: CurrencyControls): string | undefined {
+export function reportCurrencyParam(cc: CurrencyControls): string | undefined {
   const v = cc.reportCurrency.toUpperCase();
   return v && v !== cc.baseCurrency ? v : undefined;
 }
 
-function ReportCurrencySelect({ cc }: { cc: CurrencyControls }) {
+export function ReportCurrencySelect({ cc }: { cc: CurrencyControls }) {
   const { t } = useTranslation();
   // Drop any list entry equal to the base currency to avoid a duplicate option.
   const codes = cc.currencies
@@ -366,7 +366,7 @@ function ReportCurrencySelect({ cc }: { cc: CurrencyControls }) {
 }
 
 // Small header line shown only when the report was actually converted.
-function CurrencyHeader({ info, fmt }: { info?: CurrencyInfo; fmt: Fmt }) {
+export function CurrencyHeader({ info, fmt }: { info?: CurrencyInfo; fmt: Fmt }) {
   const { t } = useTranslation();
   if (!info || info.rate === 1 || info.reportCurrency === info.baseCurrency)
     return null;
@@ -384,7 +384,7 @@ function CurrencyHeader({ info, fmt }: { info?: CurrencyInfo; fmt: Fmt }) {
 // ---- Trial balance (6 columns: opening / movement / closing, debit & credit) ----
 // Escape any dynamic value before it is interpolated into the print-window
 // HTML, so account names / labels containing markup cannot inject script.
-function esc(v: string | number): string {
+export function esc(v: string | number): string {
   return String(v)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -393,7 +393,7 @@ function esc(v: string | number): string {
     .replace(/'/g, "&#39;");
 }
 
-function buildTrialBalancePdfHtml(
+export function buildTrialBalancePdfHtml(
   data: TrialBalance,
   fmt: Fmt,
   lang: string,
@@ -470,7 +470,7 @@ function buildTrialBalancePdfHtml(
 </body></html>`;
 }
 
-function TrialBalanceTab({
+export function TrialBalanceTab({
   fmt,
   lang,
   cc,
@@ -667,7 +667,7 @@ function TrialBalanceTab({
 }
 
 // ---- Income statement ----
-function PnlSection({
+export function PnlSection({
   title,
   lines,
   total,
@@ -719,7 +719,7 @@ function PnlSection({
   );
 }
 
-function IncomeStatementTab({
+export function IncomeStatementTab({
   fmt,
   lang,
   cc,
@@ -789,7 +789,7 @@ function IncomeStatementTab({
 }
 
 // ---- Balance sheet ----
-function BalanceSheetTab({
+export function BalanceSheetTab({
   fmt,
   lang,
   cc,
@@ -901,7 +901,7 @@ function BalanceSheetTab({
 }
 
 // ---- General ledger ----
-function GeneralLedgerTab({
+export function GeneralLedgerTab({
   fmt,
   lang,
   leafAccounts,
@@ -1430,7 +1430,7 @@ function OutstandingTab({ fmt }: { fmt: Fmt }) {
 }
 
 // ---- Excel export button (shared by analytical tabs) ----
-function ExcelButton({ onClick }: { onClick: () => void }) {
+export function ExcelButton({ onClick }: { onClick: () => void }) {
   const { t } = useTranslation();
   return (
     <button
@@ -1442,7 +1442,7 @@ function ExcelButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function openExport(slug: string, from?: string, to?: string) {
+export function openExport(slug: string, from?: string, to?: string) {
   const qs = new URLSearchParams();
   if (from) qs.set("from", from);
   if (to) qs.set("to", to);
@@ -1451,7 +1451,7 @@ function openExport(slug: string, from?: string, to?: string) {
   window.open(`/api/reports/${slug}/export${suffix}`, "_blank");
 }
 
-function TotalRow({
+export function TotalRow({
   label,
   value,
   fmt,
@@ -1469,7 +1469,7 @@ function TotalRow({
 }
 
 // ---- Cash flow statement ----
-function CashFlowTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+export function CashFlowTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
   const [to, setTo] = useState(today());
@@ -1575,7 +1575,7 @@ const FORECAST_BUCKETS: Record<string, string> = {
   beyond: "reportsPage.cashForecast.beyond",
 };
 
-function CashForecastTab({ fmt }: { fmt: Fmt }) {
+export function CashForecastTab({ fmt }: { fmt: Fmt }) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
   const { data, isLoading } = useGetCashForecast({ asOf: asOf || undefined });
@@ -1848,7 +1848,7 @@ function PurchasesByItemTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
 }
 
 // ---- FX revaluation (period-end unrealized gain/loss) ----
-function RevaluationTab({ fmt }: { fmt: Fmt }) {
+export function RevaluationTab({ fmt }: { fmt: Fmt }) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
   const { data, isLoading } = usePreviewRevaluation({ asOfDate: asOf });

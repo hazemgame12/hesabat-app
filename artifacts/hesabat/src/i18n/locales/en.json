@@ -157,7 +157,10 @@
       "purchases": "Suppliers & Purchases"
     },
     "collections": "Receipts",
-    "vendorPayments": "Vendor Payments"
+    "vendorPayments": "Vendor Payments",
+    "financialReports": "Financial Reports",
+    "taxDeclarations": "Tax Declarations",
+    "financialAnalysis": "Budgets & Analysis"
   },
   "support": {
     "title": "Support",
@@ -2726,5 +2729,88 @@
     "totalAmount": "Total Amount",
     "linkedToMovement": "Linked to bank movement",
     "notLinked": "Not linked"
+  },
+  "financialReports": {
+    "title": "Financial Reports",
+    "subtitle": "Financial statements built on posted journal entries",
+    "kpi": {
+      "revenue": "Total Revenue",
+      "expenses": "Total Expenses",
+      "profit": "Net Profit",
+      "margin": "Profit Margin",
+      "marginNote": "Net profit as % of revenue"
+    },
+    "chart": {
+      "title": "Revenue vs Expenses",
+      "revenue": "Revenue",
+      "expenses": "Expenses",
+      "profit": "Profit"
+    },
+    "period": {
+      "month": "This Month",
+      "quarter": "This Quarter",
+      "year": "This Year"
+    }
+  },
+  "taxDeclarations": {
+    "title": "Tax Declarations",
+    "subtitle": "Tax declarations based on company country — VAT, WHT, and payroll tax"
+  },
+  "analysis": {
+    "title": "Budgets & Financial Analysis",
+    "subtitle": "Comprehensive financial analysis and key performance indicators",
+    "loading": "Analysing financial data...",
+    "health": {
+      "title": "Financial Health",
+      "good": "Excellent",
+      "moderate": "Acceptable",
+      "weak": "Needs Improvement",
+      "note": "Score based on profit margin, debt ratio, return on assets, and equity ratio"
+    },
+    "chart": {
+      "incomeTitle": "Revenue vs Expenses",
+      "bsTitle": "Balance Sheet Structure",
+      "assets": "Assets",
+      "liabilities": "Liabilities",
+      "equity": "Equity"
+    },
+    "ratios": {
+      "title": "Key Financial Ratios",
+      "profitMargin": "Profit Margin",
+      "profitMarginBench": "Good: >10% | Fair: 5-10%",
+      "debtToEquity": "Debt / Equity",
+      "debtToEquityBench": "Good: <1 | Fair: 1-2",
+      "roa": "Return on Assets",
+      "roaBench": "Good: >8% | Fair: 3-8%",
+      "equityRatio": "Equity Ratio",
+      "equityRatioBench": "Good: >40% | Fair: 20-40%",
+      "expenseRatio": "Expense Ratio",
+      "expenseRatioBench": "Good: <70% | Fair: 70-85%"
+    },
+    "figures": {
+      "title": "Key Figures",
+      "assets": "Total Assets",
+      "liabilities": "Total Liabilities",
+      "equity": "Total Equity"
+    },
+    "guidance": {
+      "title": "Financial Guidance",
+      "strengthsTitle": "✓ Strengths",
+      "warningsTitle": "⚠ Watch Points",
+      "actionsTitle": "↗ Recommended Actions",
+      "goodMargin": "Good profit margin reflecting pricing and cost efficiency",
+      "lowMargin": "Low profit margin — review cost structure and pricing",
+      "loss": "Company is operating at a loss — immediate cost review required",
+      "lowDebt": "Healthy debt ratio — company relies mainly on equity",
+      "modDebt": "Moderate debt — monitor repayment obligations",
+      "highDebt": "High debt ratio — long-term financial risk",
+      "goodRoa": "Good return on assets — efficient use of resources",
+      "improveRoa": "Improve asset utilization and grow revenues",
+      "reduceExpenses": "High expense ratio — look for cost reduction opportunities",
+      "buildEquity": "Build retained earnings to reduce reliance on debt",
+      "strongEquity": "Strong equity base supports financial stability",
+      "reviewMonthly": "Review financial ratios monthly to catch trends early",
+      "cashBuffer": "Maintain a cash buffer covering 3 months of expenses"
+    }
   }
 }
