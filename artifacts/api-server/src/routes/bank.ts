@@ -4084,18 +4084,24 @@ router.post(
                 eq(bankMovementsTable.journalEntryId, classifiedMov.journalEntryId),
               ),
             );
-          if (jeSharers.length === 1) {
-            // Safe to delete
-            await tx.delete(journalEntryLinesTable).where(
-              eq(journalEntryLinesTable.entryId, classifiedMov.journalEntryId),
-            );
-            await tx.delete(journalEntriesTable).where(
-              and(
-                eq(journalEntriesTable.id, classifiedMov.journalEntryId),
-                eq(journalEntriesTable.companyId, companyId),
-              ),
+          if (jeSharers.length > 1) {
+            // Multiple movements share this JE — deleting it would corrupt other
+            // movements. This shouldn't happen in normal flow; abort to prevent
+            // creating a duplicate JE for the same bank account.
+            throw new Error(
+              "القيد المرتبط بالحركة مشترك مع حركات أخرى ولا يمكن حذفه تلقائياً — يرجى إلغاء تصنيف الحركة أولاً ثم إعادة المطابقة",
             );
           }
+          // Safe to delete — exactly one movement owns this JE
+          await tx.delete(journalEntryLinesTable).where(
+            eq(journalEntryLinesTable.entryId, classifiedMov.journalEntryId),
+          );
+          await tx.delete(journalEntriesTable).where(
+            and(
+              eq(journalEntriesTable.id, classifiedMov.journalEntryId),
+              eq(journalEntriesTable.companyId, companyId),
+            ),
+          );
           // Clear the old JE reference from the classified movement so the update below works
           await tx
             .update(bankMovementsTable)
