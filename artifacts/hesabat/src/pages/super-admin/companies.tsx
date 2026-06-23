@@ -12,7 +12,10 @@ async function fetchCompanies(q?: string) {
   const params = new URLSearchParams();
   if (q) params.set("q", q);
   const res = await fetch(`/api/super-admin/companies?${params}`, { credentials: "include" });
-  if (!res.ok) throw new Error("Failed to fetch companies");
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`${res.status}: ${body || res.statusText}`);
+  }
   return res.json();
 }
 
@@ -81,9 +84,10 @@ export function SuperAdminCompanies() {
   const [editingStatus, setEditingStatus] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["super-admin-companies", search],
     queryFn: () => fetchCompanies(search),
+    retry: false,
   });
 
   const { data: plans } = useQuery({
@@ -159,6 +163,11 @@ export function SuperAdminCompanies() {
       <div className="space-y-2">
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">{t("common.loading")}</div>
+        ) : isError ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm text-destructive">
+            <span className="font-semibold">خطأ في تحميل الشركات: </span>
+            {(error as Error)?.message}
+          </div>
         ) : (
           data?.companies?.map((company: any) => (
             <Card key={company.id} className="overflow-hidden">
