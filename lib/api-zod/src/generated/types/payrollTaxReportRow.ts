@@ -5,11 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PayrollTaxReportRowLinesItem } from './payrollTaxReportRowLinesItem';
 
 export interface PayrollTaxReportRow {
   period: string;
   employeeCount: number;
   gross: number;
   deductions: number;
+  companyInsurance?: number;
+  employeeInsurance?: number;
   netPay: number;
+  lines?: PayrollTaxReportRowLinesItem[];
 }

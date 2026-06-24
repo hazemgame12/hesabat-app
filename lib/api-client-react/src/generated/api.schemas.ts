@@ -907,6 +907,8 @@ export interface PayComponent {
   nameAr: string;
   amount: number;
   isActive: boolean;
+  /** @nullable */
+  linkedAccountId?: string | null;
 }
 
 export type PayComponentInputKind = typeof PayComponentInputKind[keyof typeof PayComponentInputKind];
@@ -924,6 +926,8 @@ export interface PayComponentInput {
   /** @minimum 0 */
   amount: number;
   isActive?: boolean;
+  /** @nullable */
+  linkedAccountId?: string | null;
 }
 
 export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
@@ -932,6 +936,14 @@ export type EmployeeStatus = typeof EmployeeStatus[keyof typeof EmployeeStatus];
 export const EmployeeStatus = {
   active: 'active',
   terminated: 'terminated',
+} as const;
+
+export type EmployeeEmployeeType = typeof EmployeeEmployeeType[keyof typeof EmployeeEmployeeType];
+
+
+export const EmployeeEmployeeType = {
+  permanent: 'permanent',
+  temporary: 'temporary',
 } as const;
 
 export interface Employee {
@@ -944,6 +956,14 @@ export interface Employee {
   jobTitle?: string | null;
   hireDate: string;
   status: EmployeeStatus;
+  employeeType: EmployeeEmployeeType;
+  /** @nullable */
+  nationalId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  insuranceSalary?: number | null;
+  includeInsurance: boolean;
   baseSalary: number;
   /** @nullable */
   notes?: string | null;
@@ -959,6 +979,14 @@ export const EmployeeInputStatus = {
   terminated: 'terminated',
 } as const;
 
+export type EmployeeInputEmployeeType = typeof EmployeeInputEmployeeType[keyof typeof EmployeeInputEmployeeType];
+
+
+export const EmployeeInputEmployeeType = {
+  permanent: 'permanent',
+  temporary: 'temporary',
+} as const;
+
 export interface EmployeeInput {
   /** @minLength 1 */
   nameAr: string;
@@ -969,6 +997,17 @@ export interface EmployeeInput {
   /** @minLength 1 */
   hireDate: string;
   status?: EmployeeInputStatus;
+  employeeType?: EmployeeInputEmployeeType;
+  /** @nullable */
+  nationalId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  insuranceSalary?: number | null;
+  includeInsurance?: boolean;
   /** @minimum 0 */
   baseSalary: number;
   /** @nullable */
@@ -984,6 +1023,14 @@ export const EmployeeUpdateStatus = {
   terminated: 'terminated',
 } as const;
 
+export type EmployeeUpdateEmployeeType = typeof EmployeeUpdateEmployeeType[keyof typeof EmployeeUpdateEmployeeType];
+
+
+export const EmployeeUpdateEmployeeType = {
+  permanent: 'permanent',
+  temporary: 'temporary',
+} as const;
+
 export interface EmployeeUpdate {
   /** @minLength 1 */
   nameAr?: string;
@@ -994,6 +1041,17 @@ export interface EmployeeUpdate {
   /** @minLength 1 */
   hireDate?: string;
   status?: EmployeeUpdateStatus;
+  employeeType?: EmployeeUpdateEmployeeType;
+  /** @nullable */
+  nationalId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  insuranceSalary?: number | null;
+  includeInsurance?: boolean;
   /** @minimum 0 */
   baseSalary?: number;
   /** @nullable */
@@ -1005,9 +1063,15 @@ export interface PayrollRunLine {
   id: string;
   employeeId: string;
   employeeName: string;
+  /** @nullable */
+  costCenterId?: string | null;
   baseSalary: number;
   totalAllowances: number;
   totalDeductions: number;
+  insuranceSalary: number;
+  companyInsurance: number;
+  employeeInsurance: number;
+  payrollTax: number;
   netPay: number;
 }
 
@@ -1019,9 +1083,18 @@ export interface PayrollRun {
   netPayableAccountId: string;
   /** @nullable */
   deductionsAccountId?: string | null;
+  /** @nullable */
+  insuranceExpenseAccountId?: string | null;
+  /** @nullable */
+  insuranceLiabilityAccountId?: string | null;
   totalGross: number;
   totalDeductions: number;
   totalNet: number;
+  companyInsuranceTotal: number;
+  employeeInsuranceTotal: number;
+  totalPayrollTax?: number;
+  /** @nullable */
+  payrollTaxLiabilityAccountId?: string | null;
   employeeCount: number;
   /** @nullable */
   notes?: string | null;
@@ -1033,15 +1106,48 @@ export interface PayrollRun {
   lines?: PayrollRunLine[];
 }
 
+export type PayrollRunInputEmployeeTaxesItem = {
+  employeeId: string;
+  payrollTax: number;
+};
+
 export interface PayrollRunInput {
   /** @minLength 7 */
   period: string;
-  salaryExpenseAccountId: string;
-  netPayableAccountId: string;
+  employeeTaxes?: PayrollRunInputEmployeeTaxesItem[];
+  /** @nullable */
+  notes?: string | null;
+}
+
+export interface PayrollSettings {
+  /** @nullable */
+  salaryExpenseAccountId?: string | null;
+  /** @nullable */
+  netPayableAccountId?: string | null;
   /** @nullable */
   deductionsAccountId?: string | null;
   /** @nullable */
-  notes?: string | null;
+  insuranceExpenseAccountId?: string | null;
+  /** @nullable */
+  insuranceLiabilityAccountId?: string | null;
+  /** @nullable */
+  payrollTaxLiabilityAccountId?: string | null;
+}
+
+export interface PayrollDetailRow {
+  period: string;
+  employeeId: string;
+  employeeName: string;
+  employeeCode: string;
+  /** @nullable */
+  costCenterName?: string | null;
+  baseSalary: number;
+  totalAllowances: number;
+  totalDeductions: number;
+  payrollTax: number;
+  employeeInsurance: number;
+  companyInsurance: number;
+  netPay: number;
 }
 
 export type AdvanceStatus = typeof AdvanceStatus[keyof typeof AdvanceStatus];
@@ -2301,18 +2407,36 @@ export interface WhtReport {
   rows: WhtReportRow[];
 }
 
+export type PayrollTaxReportRowLinesItem = {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  /** @nullable */
+  nationalId: string | null;
+  gross: number;
+  insuranceSalary: number;
+  companyInsurance: number;
+  employeeInsurance: number;
+  netPay: number;
+};
+
 export interface PayrollTaxReportRow {
   period: string;
   employeeCount: number;
   gross: number;
   deductions: number;
+  companyInsurance?: number;
+  employeeInsurance?: number;
   netPay: number;
+  lines?: PayrollTaxReportRowLinesItem[];
 }
 
 export interface PayrollTaxReportTotals {
   employeeCount: number;
   gross: number;
   deductions: number;
+  companyInsurance: number;
+  employeeInsurance: number;
   netPay: number;
 }
 
@@ -2321,6 +2445,8 @@ export interface PayrollTaxReport {
   from?: string | null;
   /** @nullable */
   to?: string | null;
+  /** @nullable */
+  groupBy?: string | null;
   rows: PayrollTaxReportRow[];
   totals: PayrollTaxReportTotals;
 }
@@ -3044,6 +3170,29 @@ to?: string;
 export type GetPayrollTaxReportParams = {
 from?: string;
 to?: string;
+groupBy?: GetPayrollTaxReportGroupBy;
+};
+
+export type GetPayrollTaxReportGroupBy = typeof GetPayrollTaxReportGroupBy[keyof typeof GetPayrollTaxReportGroupBy];
+
+
+export const GetPayrollTaxReportGroupBy = {
+  month: 'month',
+  quarter: 'quarter',
+  year: 'year',
+} as const;
+
+export type GetPayrollDetailReportParams = {
+from?: string;
+to?: string;
+};
+
+export type GetPayrollDetailReport200 = {
+  /** @nullable */
+  from?: string | null;
+  /** @nullable */
+  to?: string | null;
+  rows: PayrollDetailRow[];
 };
 
 export type GetEmployeeStatementParams = {

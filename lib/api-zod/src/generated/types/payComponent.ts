@@ -13,4 +13,6 @@ export interface PayComponent {
   nameAr: string;
   amount: number;
   isActive: boolean;
+  /** @nullable */
+  linkedAccountId?: string | null;
 }

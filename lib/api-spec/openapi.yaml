@@ -1914,6 +1914,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /payroll/settings:
+    get:
+      operationId: getPayrollSettings
+      tags: [payroll]
+      summary: Get company payroll account settings
+      responses:
+        "200":
+          description: Payroll settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollSettings"
+    put:
+      operationId: updatePayrollSettings
+      tags: [payroll]
+      summary: Save company payroll account settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayrollSettings"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollSettings"
+        "400":
+          description: Invalid account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /payroll/runs:
     get:
       operationId: listPayrollRuns
@@ -3137,7 +3173,37 @@ paths:
     get:
       operationId: getPayrollTaxReport
       tags: [financialReports]
-      summary: Company-wide payroll (كسب العمل) summary over a date range
+      summary: Company-wide payroll insurance summary (monthly / quarterly / annual)
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: groupBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [month, quarter, year]
+      responses:
+        "200":
+          description: Payroll-tax summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayrollTaxReport"
+
+  /reports/payroll-detail:
+    get:
+      operationId: getPayrollDetailReport
+      tags: [financialReports]
+      summary: Detailed per-employee payroll rows over a date range
       parameters:
         - name: from
           in: query
@@ -3151,11 +3217,21 @@ paths:
             type: string
       responses:
         "200":
-          description: Payroll-tax summary
+          description: Detailed payroll rows
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PayrollTaxReport"
+                type: object
+                required: [rows]
+                properties:
+                  from:
+                    type: ["string", "null"]
+                  to:
+                    type: ["string", "null"]
+                  rows:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PayrollDetailRow"
 
   /reports/employee-statement:
     get:
@@ -5153,6 +5229,8 @@ components:
           type: number
         isActive:
           type: boolean
+        linkedAccountId:
+          type: ["string", "null"]
 
     PayComponentInput:
       type: object
@@ -5169,6 +5247,8 @@ components:
           minimum: 0
         isActive:
           type: boolean
+        linkedAccountId:
+          type: ["string", "null"]
 
     Employee:
       type: object
@@ -5179,6 +5259,8 @@ components:
           nameAr,
           hireDate,
           status,
+          employeeType,
+          includeInsurance,
           baseSalary,
           components,
           createdAt,
@@ -5199,6 +5281,17 @@ components:
         status:
           type: string
           enum: [active, terminated]
+        employeeType:
+          type: string
+          enum: [permanent, temporary]
+        nationalId:
+          type: ["string", "null"]
+        costCenterId:
+          type: ["string", "null"]
+        insuranceSalary:
+          type: ["number", "null"]
+        includeInsurance:
+          type: boolean
         baseSalary:
           type: number
         notes:
@@ -5227,6 +5320,19 @@ components:
         status:
           type: string
           enum: [active, terminated]
+        employeeType:
+          type: string
+          enum: [permanent, temporary]
+        nationalId:
+          type: ["string", "null"]
+        costCenterId:
+          type: ["string", "null"]
+          format: uuid
+        insuranceSalary:
+          type: ["number", "null"]
+          minimum: 0
+        includeInsurance:
+          type: boolean
         baseSalary:
           type: number
           minimum: 0
@@ -5253,6 +5359,19 @@ components:
         status:
           type: string
           enum: [active, terminated]
+        employeeType:
+          type: string
+          enum: [permanent, temporary]
+        nationalId:
+          type: ["string", "null"]
+        costCenterId:
+          type: ["string", "null"]
+          format: uuid
+        insuranceSalary:
+          type: ["number", "null"]
+          minimum: 0
+        includeInsurance:
+          type: boolean
         baseSalary:
           type: number
           minimum: 0
@@ -5273,6 +5392,10 @@ components:
           baseSalary,
           totalAllowances,
           totalDeductions,
+          insuranceSalary,
+          companyInsurance,
+          employeeInsurance,
+          payrollTax,
           netPay,
         ]
       properties:
@@ -5282,11 +5405,21 @@ components:
           type: string
         employeeName:
           type: string
+        costCenterId:
+          type: ["string", "null"]
         baseSalary:
           type: number
         totalAllowances:
           type: number
         totalDeductions:
+          type: number
+        insuranceSalary:
+          type: number
+        companyInsurance:
+          type: number
+        employeeInsurance:
+          type: number
+        payrollTax:
           type: number
         netPay:
           type: number
@@ -5303,6 +5436,8 @@ components:
           totalGross,
           totalDeductions,
           totalNet,
+          companyInsuranceTotal,
+          employeeInsuranceTotal,
           employeeCount,
           createdAt,
         ]
@@ -5319,12 +5454,24 @@ components:
           type: string
         deductionsAccountId:
           type: ["string", "null"]
+        insuranceExpenseAccountId:
+          type: ["string", "null"]
+        insuranceLiabilityAccountId:
+          type: ["string", "null"]
         totalGross:
           type: number
         totalDeductions:
           type: number
         totalNet:
           type: number
+        companyInsuranceTotal:
+          type: number
+        employeeInsuranceTotal:
+          type: number
+        totalPayrollTax:
+          type: number
+        payrollTaxLiabilityAccountId:
+          type: ["string", "null"]
         employeeCount:
           type: integer
         notes:
@@ -5342,22 +5489,82 @@ components:
 
     PayrollRunInput:
       type: object
-      required: [period, salaryExpenseAccountId, netPayableAccountId]
+      required: [period]
       properties:
         period:
           type: string
           minLength: 7
-        salaryExpenseAccountId:
-          type: string
-          format: uuid
-        netPayableAccountId:
-          type: string
-          format: uuid
-        deductionsAccountId:
-          type: ["string", "null"]
-          format: uuid
+        employeeTaxes:
+          type: array
+          items:
+            type: object
+            required: [employeeId, payrollTax]
+            properties:
+              employeeId:
+                type: string
+                format: uuid
+              payrollTax:
+                type: number
         notes:
           type: ["string", "null"]
+
+    PayrollSettings:
+      type: object
+      properties:
+        salaryExpenseAccountId:
+          type: ["string", "null"]
+        netPayableAccountId:
+          type: ["string", "null"]
+        deductionsAccountId:
+          type: ["string", "null"]
+        insuranceExpenseAccountId:
+          type: ["string", "null"]
+        insuranceLiabilityAccountId:
+          type: ["string", "null"]
+        payrollTaxLiabilityAccountId:
+          type: ["string", "null"]
+
+    PayrollDetailRow:
+      type: object
+      required:
+        [
+          period,
+          employeeId,
+          employeeName,
+          employeeCode,
+          baseSalary,
+          totalAllowances,
+          totalDeductions,
+          payrollTax,
+          employeeInsurance,
+          companyInsurance,
+          netPay,
+        ]
+      properties:
+        period:
+          type: string
+        employeeId:
+          type: string
+        employeeName:
+          type: string
+        employeeCode:
+          type: string
+        costCenterName:
+          type: ["string", "null"]
+        baseSalary:
+          type: number
+        totalAllowances:
+          type: number
+        totalDeductions:
+          type: number
+        payrollTax:
+          type: number
+        employeeInsurance:
+          type: number
+        companyInsurance:
+          type: number
+        netPay:
+          type: number
 
     Advance:
       type: object
@@ -6877,18 +7084,61 @@ components:
           type: number
         deductions:
           type: number
+        companyInsurance:
+          type: number
+        employeeInsurance:
+          type: number
         netPay:
           type: number
+        lines:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                employeeId,
+                employeeCode,
+                employeeName,
+                nationalId,
+                gross,
+                insuranceSalary,
+                companyInsurance,
+                employeeInsurance,
+                netPay,
+              ]
+            properties:
+              employeeId:
+                type: string
+              employeeCode:
+                type: string
+              employeeName:
+                type: string
+              nationalId:
+                type: ["string", "null"]
+              gross:
+                type: number
+              insuranceSalary:
+                type: number
+              companyInsurance:
+                type: number
+              employeeInsurance:
+                type: number
+              netPay:
+                type: number
 
     PayrollTaxReportTotals:
       type: object
-      required: [employeeCount, gross, deductions, netPay]
+      required: [employeeCount, gross, deductions, companyInsurance, employeeInsurance, netPay]
       properties:
         employeeCount:
           type: number
         gross:
           type: number
         deductions:
+          type: number
+        companyInsurance:
+          type: number
+        employeeInsurance:
           type: number
         netPay:
           type: number
@@ -6900,6 +7150,8 @@ components:
         from:
           type: ["string", "null"]
         to:
+          type: ["string", "null"]
+        groupBy:
           type: ["string", "null"]
         rows:
           type: array

@@ -90,6 +90,8 @@ import type {
   GetOutstandingInvoicesParams,
   GetPartyStatementParams,
   GetPaymentsSummaryReportParams,
+  GetPayrollDetailReport200,
+  GetPayrollDetailReportParams,
   GetPayrollTaxReportParams,
   GetPurchasesByItemParams,
   GetSalesByItemParams,
@@ -128,6 +130,7 @@ import type {
   PaymentInput,
   PayrollRun,
   PayrollRunInput,
+  PayrollSettings,
   PayrollTaxReport,
   PeriodLockUpdate,
   PreviewRevaluationParams,
@@ -5205,6 +5208,154 @@ export const useDeleteEmployee = <TError = ErrorType<ErrorResponse>,
       return useMutation(getDeleteEmployeeMutationOptions(options));
     }
 
+export const getGetPayrollSettingsUrl = () => {
+
+
+
+
+  return `/api/payroll/settings`
+}
+
+/**
+ * @summary Get company payroll account settings
+ */
+export const getPayrollSettings = async ( options?: RequestInit): Promise<PayrollSettings> => {
+
+  return customFetch<PayrollSettings>(getGetPayrollSettingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayrollSettingsQueryKey = () => {
+    return [
+    `/api/payroll/settings`
+    ] as const;
+    }
+
+
+export const getGetPayrollSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getPayrollSettings>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayrollSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayrollSettingsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayrollSettings>>> = ({ signal }) => getPayrollSettings({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayrollSettings>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayrollSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getPayrollSettings>>>
+export type GetPayrollSettingsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get company payroll account settings
+ */
+
+export function useGetPayrollSettings<TData = Awaited<ReturnType<typeof getPayrollSettings>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayrollSettings>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayrollSettingsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdatePayrollSettingsUrl = () => {
+
+
+
+
+  return `/api/payroll/settings`
+}
+
+/**
+ * @summary Save company payroll account settings
+ */
+export const updatePayrollSettings = async (payrollSettings: PayrollSettings, options?: RequestInit): Promise<PayrollSettings> => {
+
+  return customFetch<PayrollSettings>(getUpdatePayrollSettingsUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      payrollSettings,)
+  }
+);}
+
+
+
+
+export const getUpdatePayrollSettingsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePayrollSettings>>, TError,{data: BodyType<PayrollSettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePayrollSettings>>, TError,{data: BodyType<PayrollSettings>}, TContext> => {
+
+const mutationKey = ['updatePayrollSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePayrollSettings>>, {data: BodyType<PayrollSettings>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updatePayrollSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePayrollSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updatePayrollSettings>>>
+    export type UpdatePayrollSettingsMutationBody = BodyType<PayrollSettings>
+    export type UpdatePayrollSettingsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Save company payroll account settings
+ */
+export const useUpdatePayrollSettings = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePayrollSettings>>, TError,{data: BodyType<PayrollSettings>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePayrollSettings>>,
+        TError,
+        {data: BodyType<PayrollSettings>},
+        TContext
+      > => {
+      return useMutation(getUpdatePayrollSettingsMutationOptions(options));
+    }
+
 export const getListPayrollRunsUrl = () => {
 
 
@@ -8450,7 +8601,7 @@ export const getGetPayrollTaxReportUrl = (params?: GetPayrollTaxReportParams,) =
 }
 
 /**
- * @summary Company-wide payroll (كسب العمل) summary over a date range
+ * @summary Company-wide payroll insurance summary (monthly / quarterly / annual)
  */
 export const getPayrollTaxReport = async (params?: GetPayrollTaxReportParams, options?: RequestInit): Promise<PayrollTaxReport> => {
 
@@ -8497,7 +8648,7 @@ export type GetPayrollTaxReportQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Company-wide payroll (كسب العمل) summary over a date range
+ * @summary Company-wide payroll insurance summary (monthly / quarterly / annual)
  */
 
 export function useGetPayrollTaxReport<TData = Awaited<ReturnType<typeof getPayrollTaxReport>>, TError = ErrorType<unknown>>(
@@ -8506,6 +8657,90 @@ export function useGetPayrollTaxReport<TData = Awaited<ReturnType<typeof getPayr
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPayrollTaxReportQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPayrollDetailReportUrl = (params?: GetPayrollDetailReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/reports/payroll-detail?${stringifiedParams}` : `/api/reports/payroll-detail`
+}
+
+/**
+ * @summary Detailed per-employee payroll rows over a date range
+ */
+export const getPayrollDetailReport = async (params?: GetPayrollDetailReportParams, options?: RequestInit): Promise<GetPayrollDetailReport200> => {
+
+  return customFetch<GetPayrollDetailReport200>(getGetPayrollDetailReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPayrollDetailReportQueryKey = (params?: GetPayrollDetailReportParams,) => {
+    return [
+    `/api/reports/payroll-detail`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetPayrollDetailReportQueryOptions = <TData = Awaited<ReturnType<typeof getPayrollDetailReport>>, TError = ErrorType<unknown>>(params?: GetPayrollDetailReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayrollDetailReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPayrollDetailReportQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPayrollDetailReport>>> = ({ signal }) => getPayrollDetailReport(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPayrollDetailReport>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPayrollDetailReportQueryResult = NonNullable<Awaited<ReturnType<typeof getPayrollDetailReport>>>
+export type GetPayrollDetailReportQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Detailed per-employee payroll rows over a date range
+ */
+
+export function useGetPayrollDetailReport<TData = Awaited<ReturnType<typeof getPayrollDetailReport>>, TError = ErrorType<unknown>>(
+ params?: GetPayrollDetailReportParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPayrollDetailReport>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPayrollDetailReportQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

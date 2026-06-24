@@ -1439,6 +1439,11 @@ export const ListEmployeesResponseItem = zod.object({
   "jobTitle": zod.string().nullish(),
   "hireDate": zod.string(),
   "status": zod.enum(['active', 'terminated']),
+  "employeeType": zod.enum(['permanent', 'temporary']),
+  "nationalId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "insuranceSalary": zod.number().nullish(),
+  "includeInsurance": zod.boolean(),
   "baseSalary": zod.number(),
   "notes": zod.string().nullish(),
   "components": zod.array(zod.object({
@@ -1446,7 +1451,8 @@ export const ListEmployeesResponseItem = zod.object({
   "kind": zod.enum(['allowance', 'deduction']),
   "nameAr": zod.string(),
   "amount": zod.number(),
-  "isActive": zod.boolean()
+  "isActive": zod.boolean(),
+  "linkedAccountId": zod.string().nullish()
 })),
   "createdAt": zod.string()
 })
@@ -1457,6 +1463,8 @@ export const ListEmployeesResponse = zod.array(ListEmployeesResponseItem)
  * @summary Create an employee (with recurring pay components)
  */
 
+
+export const createEmployeeBodyInsuranceSalaryMin = 0;
 
 export const createEmployeeBodyBaseSalaryMin = 0;
 
@@ -1471,13 +1479,19 @@ export const CreateEmployeeBody = zod.object({
   "jobTitle": zod.string().nullish(),
   "hireDate": zod.string().min(1),
   "status": zod.enum(['active', 'terminated']).optional(),
+  "employeeType": zod.enum(['permanent', 'temporary']).optional(),
+  "nationalId": zod.string().nullish(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "insuranceSalary": zod.number().min(createEmployeeBodyInsuranceSalaryMin).nullish(),
+  "includeInsurance": zod.boolean().optional(),
   "baseSalary": zod.number().min(createEmployeeBodyBaseSalaryMin),
   "notes": zod.string().nullish(),
   "components": zod.array(zod.object({
   "kind": zod.enum(['allowance', 'deduction']),
   "nameAr": zod.string().min(1),
   "amount": zod.number().min(createEmployeeBodyComponentsItemAmountMin),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "linkedAccountId": zod.string().nullish()
 })).optional()
 })
 
@@ -1497,6 +1511,11 @@ export const GetEmployeeResponse = zod.object({
   "jobTitle": zod.string().nullish(),
   "hireDate": zod.string(),
   "status": zod.enum(['active', 'terminated']),
+  "employeeType": zod.enum(['permanent', 'temporary']),
+  "nationalId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "insuranceSalary": zod.number().nullish(),
+  "includeInsurance": zod.boolean(),
   "baseSalary": zod.number(),
   "notes": zod.string().nullish(),
   "components": zod.array(zod.object({
@@ -1504,7 +1523,8 @@ export const GetEmployeeResponse = zod.object({
   "kind": zod.enum(['allowance', 'deduction']),
   "nameAr": zod.string(),
   "amount": zod.number(),
-  "isActive": zod.boolean()
+  "isActive": zod.boolean(),
+  "linkedAccountId": zod.string().nullish()
 })),
   "createdAt": zod.string()
 })
@@ -1519,6 +1539,8 @@ export const UpdateEmployeeParams = zod.object({
 
 
 
+export const updateEmployeeBodyInsuranceSalaryMin = 0;
+
 export const updateEmployeeBodyBaseSalaryMin = 0;
 
 
@@ -1532,13 +1554,19 @@ export const UpdateEmployeeBody = zod.object({
   "jobTitle": zod.string().nullish(),
   "hireDate": zod.string().min(1).optional(),
   "status": zod.enum(['active', 'terminated']).optional(),
+  "employeeType": zod.enum(['permanent', 'temporary']).optional(),
+  "nationalId": zod.string().nullish(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "insuranceSalary": zod.number().min(updateEmployeeBodyInsuranceSalaryMin).nullish(),
+  "includeInsurance": zod.boolean().optional(),
   "baseSalary": zod.number().min(updateEmployeeBodyBaseSalaryMin).optional(),
   "notes": zod.string().nullish(),
   "components": zod.array(zod.object({
   "kind": zod.enum(['allowance', 'deduction']),
   "nameAr": zod.string().min(1),
   "amount": zod.number().min(updateEmployeeBodyComponentsItemAmountMin),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "linkedAccountId": zod.string().nullish()
 })).optional()
 })
 
@@ -1550,6 +1578,11 @@ export const UpdateEmployeeResponse = zod.object({
   "jobTitle": zod.string().nullish(),
   "hireDate": zod.string(),
   "status": zod.enum(['active', 'terminated']),
+  "employeeType": zod.enum(['permanent', 'temporary']),
+  "nationalId": zod.string().nullish(),
+  "costCenterId": zod.string().nullish(),
+  "insuranceSalary": zod.number().nullish(),
+  "includeInsurance": zod.boolean(),
   "baseSalary": zod.number(),
   "notes": zod.string().nullish(),
   "components": zod.array(zod.object({
@@ -1557,7 +1590,8 @@ export const UpdateEmployeeResponse = zod.object({
   "kind": zod.enum(['allowance', 'deduction']),
   "nameAr": zod.string(),
   "amount": zod.number(),
-  "isActive": zod.boolean()
+  "isActive": zod.boolean(),
+  "linkedAccountId": zod.string().nullish()
 })),
   "createdAt": zod.string()
 })
@@ -1576,6 +1610,41 @@ export const DeleteEmployeeResponse = zod.object({
 
 
 /**
+ * @summary Get company payroll account settings
+ */
+export const GetPayrollSettingsResponse = zod.object({
+  "salaryExpenseAccountId": zod.string().nullish(),
+  "netPayableAccountId": zod.string().nullish(),
+  "deductionsAccountId": zod.string().nullish(),
+  "insuranceExpenseAccountId": zod.string().nullish(),
+  "insuranceLiabilityAccountId": zod.string().nullish(),
+  "payrollTaxLiabilityAccountId": zod.string().nullish()
+})
+
+
+/**
+ * @summary Save company payroll account settings
+ */
+export const UpdatePayrollSettingsBody = zod.object({
+  "salaryExpenseAccountId": zod.string().nullish(),
+  "netPayableAccountId": zod.string().nullish(),
+  "deductionsAccountId": zod.string().nullish(),
+  "insuranceExpenseAccountId": zod.string().nullish(),
+  "insuranceLiabilityAccountId": zod.string().nullish(),
+  "payrollTaxLiabilityAccountId": zod.string().nullish()
+})
+
+export const UpdatePayrollSettingsResponse = zod.object({
+  "salaryExpenseAccountId": zod.string().nullish(),
+  "netPayableAccountId": zod.string().nullish(),
+  "deductionsAccountId": zod.string().nullish(),
+  "insuranceExpenseAccountId": zod.string().nullish(),
+  "insuranceLiabilityAccountId": zod.string().nullish(),
+  "payrollTaxLiabilityAccountId": zod.string().nullish()
+})
+
+
+/**
  * @summary List payroll runs for the current company
  */
 export const ListPayrollRunsResponseItem = zod.object({
@@ -1585,9 +1654,15 @@ export const ListPayrollRunsResponseItem = zod.object({
   "salaryExpenseAccountId": zod.string(),
   "netPayableAccountId": zod.string(),
   "deductionsAccountId": zod.string().nullish(),
+  "insuranceExpenseAccountId": zod.string().nullish(),
+  "insuranceLiabilityAccountId": zod.string().nullish(),
   "totalGross": zod.number(),
   "totalDeductions": zod.number(),
   "totalNet": zod.number(),
+  "companyInsuranceTotal": zod.number(),
+  "employeeInsuranceTotal": zod.number(),
+  "totalPayrollTax": zod.number().optional(),
+  "payrollTaxLiabilityAccountId": zod.string().nullish(),
   "employeeCount": zod.number(),
   "notes": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
@@ -1597,9 +1672,14 @@ export const ListPayrollRunsResponseItem = zod.object({
   "id": zod.string(),
   "employeeId": zod.string(),
   "employeeName": zod.string(),
+  "costCenterId": zod.string().nullish(),
   "baseSalary": zod.number(),
   "totalAllowances": zod.number(),
   "totalDeductions": zod.number(),
+  "insuranceSalary": zod.number(),
+  "companyInsurance": zod.number(),
+  "employeeInsurance": zod.number(),
+  "payrollTax": zod.number(),
   "netPay": zod.number()
 })).optional()
 })
@@ -1615,9 +1695,10 @@ export const createPayrollRunBodyPeriodMin = 7;
 
 export const CreatePayrollRunBody = zod.object({
   "period": zod.string().min(createPayrollRunBodyPeriodMin),
-  "salaryExpenseAccountId": zod.string().uuid(),
-  "netPayableAccountId": zod.string().uuid(),
-  "deductionsAccountId": zod.string().uuid().nullish(),
+  "employeeTaxes": zod.array(zod.object({
+  "employeeId": zod.string().uuid(),
+  "payrollTax": zod.number()
+})).optional(),
   "notes": zod.string().nullish()
 })
 
@@ -1636,9 +1717,15 @@ export const GetPayrollRunResponse = zod.object({
   "salaryExpenseAccountId": zod.string(),
   "netPayableAccountId": zod.string(),
   "deductionsAccountId": zod.string().nullish(),
+  "insuranceExpenseAccountId": zod.string().nullish(),
+  "insuranceLiabilityAccountId": zod.string().nullish(),
   "totalGross": zod.number(),
   "totalDeductions": zod.number(),
   "totalNet": zod.number(),
+  "companyInsuranceTotal": zod.number(),
+  "employeeInsuranceTotal": zod.number(),
+  "totalPayrollTax": zod.number().optional(),
+  "payrollTaxLiabilityAccountId": zod.string().nullish(),
   "employeeCount": zod.number(),
   "notes": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
@@ -1648,9 +1735,14 @@ export const GetPayrollRunResponse = zod.object({
   "id": zod.string(),
   "employeeId": zod.string(),
   "employeeName": zod.string(),
+  "costCenterId": zod.string().nullish(),
   "baseSalary": zod.number(),
   "totalAllowances": zod.number(),
   "totalDeductions": zod.number(),
+  "insuranceSalary": zod.number(),
+  "companyInsurance": zod.number(),
+  "employeeInsurance": zod.number(),
+  "payrollTax": zod.number(),
   "netPay": zod.number()
 })).optional()
 })
@@ -2966,29 +3058,74 @@ export const GetWhtReportResponse = zod.object({
 
 
 /**
- * @summary Company-wide payroll (كسب العمل) summary over a date range
+ * @summary Company-wide payroll insurance summary (monthly / quarterly / annual)
  */
 export const GetPayrollTaxReportQueryParams = zod.object({
   "from": zod.coerce.string().optional(),
-  "to": zod.coerce.string().optional()
+  "to": zod.coerce.string().optional(),
+  "groupBy": zod.enum(['month', 'quarter', 'year']).optional()
 })
 
 export const GetPayrollTaxReportResponse = zod.object({
   "from": zod.string().nullish(),
   "to": zod.string().nullish(),
+  "groupBy": zod.string().nullish(),
   "rows": zod.array(zod.object({
   "period": zod.string(),
   "employeeCount": zod.number(),
   "gross": zod.number(),
   "deductions": zod.number(),
+  "companyInsurance": zod.number().optional(),
+  "employeeInsurance": zod.number().optional(),
+  "netPay": zod.number(),
+  "lines": zod.array(zod.object({
+  "employeeId": zod.string(),
+  "employeeCode": zod.string(),
+  "employeeName": zod.string(),
+  "nationalId": zod.string().nullable(),
+  "gross": zod.number(),
+  "insuranceSalary": zod.number(),
+  "companyInsurance": zod.number(),
+  "employeeInsurance": zod.number(),
   "netPay": zod.number()
+})).optional()
 })),
   "totals": zod.object({
   "employeeCount": zod.number(),
   "gross": zod.number(),
   "deductions": zod.number(),
+  "companyInsurance": zod.number(),
+  "employeeInsurance": zod.number(),
   "netPay": zod.number()
 })
+})
+
+
+/**
+ * @summary Detailed per-employee payroll rows over a date range
+ */
+export const GetPayrollDetailReportQueryParams = zod.object({
+  "from": zod.coerce.string().optional(),
+  "to": zod.coerce.string().optional()
+})
+
+export const GetPayrollDetailReportResponse = zod.object({
+  "from": zod.string().nullish(),
+  "to": zod.string().nullish(),
+  "rows": zod.array(zod.object({
+  "period": zod.string(),
+  "employeeId": zod.string(),
+  "employeeName": zod.string(),
+  "employeeCode": zod.string(),
+  "costCenterName": zod.string().nullish(),
+  "baseSalary": zod.number(),
+  "totalAllowances": zod.number(),
+  "totalDeductions": zod.number(),
+  "payrollTax": zod.number(),
+  "employeeInsurance": zod.number(),
+  "companyInsurance": zod.number(),
+  "netPay": zod.number()
+}))
 })
 
 

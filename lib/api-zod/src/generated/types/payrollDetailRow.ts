@@ -6,18 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface PayrollRunLine {
-  id: string;
+export interface PayrollDetailRow {
+  period: string;
   employeeId: string;
   employeeName: string;
+  employeeCode: string;
   /** @nullable */
-  costCenterId?: string | null;
+  costCenterName?: string | null;
   baseSalary: number;
   totalAllowances: number;
   totalDeductions: number;
-  insuranceSalary: number;
-  companyInsurance: number;
-  employeeInsurance: number;
   payrollTax: number;
+  employeeInsurance: number;
+  companyInsurance: number;
   netPay: number;
 }

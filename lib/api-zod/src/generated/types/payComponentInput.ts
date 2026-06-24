@@ -14,4 +14,6 @@ export interface PayComponentInput {
   /** @minimum 0 */
   amount: number;
   isActive?: boolean;
+  /** @nullable */
+  linkedAccountId?: string | null;
 }

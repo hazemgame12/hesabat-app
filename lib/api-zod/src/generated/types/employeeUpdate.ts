@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EmployeeUpdateEmployeeType } from './employeeUpdateEmployeeType';
 import type { EmployeeUpdateStatus } from './employeeUpdateStatus';
 import type { PayComponentInput } from './payComponentInput';
 
@@ -18,6 +19,17 @@ export interface EmployeeUpdate {
   /** @minLength 1 */
   hireDate?: string;
   status?: EmployeeUpdateStatus;
+  employeeType?: EmployeeUpdateEmployeeType;
+  /** @nullable */
+  nationalId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  /**
+     * @minimum 0
+     * @nullable
+     */
+  insuranceSalary?: number | null;
+  includeInsurance?: boolean;
   /** @minimum 0 */
   baseSalary?: number;
   /** @nullable */

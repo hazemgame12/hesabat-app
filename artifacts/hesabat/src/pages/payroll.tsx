@@ -7,19 +7,24 @@ import {
   useListPayrollRuns,
   useGetPayrollRun,
   useCreatePayrollRun,
+  useGetPayrollSettings,
+  useUpdatePayrollSettings,
+  useListCostCenters,
   useListCustodies,
   useListAccounts,
   useGetCurrentUser,
   getListEmployeesQueryKey,
   getListPayrollRunsQueryKey,
   getListJournalEntriesQueryKey,
+  getGetPayrollSettingsQueryKey,
   type Employee,
   type PayrollRun,
   type Account,
+  type CostCenter,
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 import {
@@ -31,6 +36,7 @@ import {
   Edit2,
   PlayCircle,
   Eye,
+  Settings,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
@@ -51,6 +57,7 @@ type ComponentDraft = {
   nameAr: string;
   amount: string;
   isActive: boolean;
+  linkedAccountId: string;
 };
 
 type EmployeeForm = {
@@ -60,6 +67,11 @@ type EmployeeForm = {
   hireDate: string;
   baseSalary: string;
   status: "active" | "terminated";
+  employeeType: "permanent" | "temporary";
+  nationalId: string;
+  costCenterId: string;
+  insuranceSalary: string;
+  includeInsurance: boolean;
   notes: string;
   components: ComponentDraft[];
 };
@@ -87,6 +99,11 @@ function emptyForm(): EmployeeForm {
     hireDate: today(),
     baseSalary: "",
     status: "active",
+    employeeType: "permanent",
+    nationalId: "",
+    costCenterId: "",
+    insuranceSalary: "",
+    includeInsurance: true,
     notes: "",
     components: [],
   };
@@ -98,7 +115,7 @@ export function Payroll() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [tab, setTab] = useState<"employees" | "runs">("employees");
+  const [tab, setTab] = useState<"employees" | "runs" | "report">("employees");
 
   const [employeesPage, setEmployeesPage] = useState(1);
   const { data: paginatedEmployees, isLoading: employeesLoading } =
@@ -111,6 +128,8 @@ export function Payroll() {
     [custodies],
   );
   const { data: accounts = [] } = useListAccounts();
+  const { data: costCenters = [] } = useListCostCenters();
+  const { data: payrollSettings } = useGetPayrollSettings();
   const postableAccounts = useMemo(
     () => accounts.filter((a: Account) => !a.isGroup),
     [accounts],
@@ -120,6 +139,7 @@ export function Payroll() {
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
   const createRun = useCreatePayrollRun();
+  const updatePayrollSettings = useUpdatePayrollSettings();
 
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
@@ -140,10 +160,19 @@ export function Payroll() {
 
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [runPeriod, setRunPeriod] = useState(currentMonth());
-  const [salaryAcc, setSalaryAcc] = useState("");
-  const [netAcc, setNetAcc] = useState("");
-  const [deductionsAcc, setDeductionsAcc] = useState("");
+  const [empTaxes, setEmpTaxes] = useState<Map<string, string>>(new Map());
   const [runNotes, setRunNotes] = useState("");
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsForm, setSettingsForm] = useState({
+    salaryExpenseAccountId: "",
+    netPayableAccountId: "",
+    deductionsAccountId: "",
+    insuranceExpenseAccountId: "",
+    insuranceLiabilityAccountId: "",
+    payrollTaxLiabilityAccountId: "",
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const [runToView, setRunToView] = useState<string | null>(null);
 
@@ -220,12 +249,18 @@ export function Payroll() {
       hireDate: e.hireDate,
       baseSalary: String(e.baseSalary),
       status: e.status as "active" | "terminated",
+      employeeType: ((e as any).employeeType ?? "permanent") as "permanent" | "temporary",
+      nationalId: (e as any).nationalId ?? "",
+      costCenterId: (e as any).costCenterId ?? "",
+      insuranceSalary: (e as any).insuranceSalary != null ? String((e as any).insuranceSalary) : "",
+      includeInsurance: (e as any).includeInsurance ?? true,
       notes: e.notes ?? "",
       components: e.components.map((c) => ({
         kind: c.kind as "allowance" | "deduction",
         nameAr: c.nameAr,
         amount: String(c.amount),
         isActive: c.isActive,
+        linkedAccountId: (c as any).linkedAccountId ?? "",
       })),
     });
     setEmpToEdit(e);
@@ -242,7 +277,7 @@ export function Payroll() {
       ...f,
       components: [
         ...f.components,
-        { kind, nameAr: "", amount: "", isActive: true },
+        { kind, nameAr: "", amount: "", isActive: true, linkedAccountId: "" },
       ],
     }));
   };
@@ -282,20 +317,26 @@ export function Payroll() {
         nameAr: c.nameAr.trim(),
         amount: Number(c.amount) || 0,
         isActive: c.isActive,
+        linkedAccountId: c.linkedAccountId || null,
       }));
-    const payload = {
+    const payload: Record<string, unknown> = {
       nameAr: form.nameAr.trim(),
       nameEn: form.nameEn.trim() || null,
       jobTitle: form.jobTitle.trim() || null,
       hireDate: form.hireDate,
       baseSalary: Number(form.baseSalary) || 0,
       status: form.status,
+      employeeType: form.employeeType,
+      nationalId: form.nationalId.trim() || null,
+      costCenterId: form.costCenterId || null,
+      insuranceSalary: form.insuranceSalary ? Number(form.insuranceSalary) : null,
+      includeInsurance: form.includeInsurance,
       notes: form.notes.trim() || null,
       components,
     };
     if (empModalMode === "create") {
       createEmployee.mutate(
-        { data: payload },
+        { data: payload as any },
         {
           onSuccess: () => {
             invalidateEmployees();
@@ -312,7 +353,7 @@ export function Payroll() {
       );
     } else if (empModalMode === "edit" && empToEdit) {
       updateEmployee.mutate(
-        { id: empToEdit.id, data: payload },
+        { id: empToEdit.id, data: payload as any },
         {
           onSuccess: () => {
             invalidateEmployees();
@@ -370,31 +411,68 @@ export function Payroll() {
   // ---- run modal ----
   const openRunModal = () => {
     setRunPeriod(currentMonth());
-    setSalaryAcc("");
-    setNetAcc("");
-    setDeductionsAcc("");
+    setEmpTaxes(new Map());
     setRunNotes("");
     setRunModalOpen(true);
   };
 
+  const openSettingsModal = () => {
+    setSettingsForm({
+      salaryExpenseAccountId: payrollSettings?.salaryExpenseAccountId ?? "",
+      netPayableAccountId: payrollSettings?.netPayableAccountId ?? "",
+      deductionsAccountId: payrollSettings?.deductionsAccountId ?? "",
+      insuranceExpenseAccountId: payrollSettings?.insuranceExpenseAccountId ?? "",
+      insuranceLiabilityAccountId: payrollSettings?.insuranceLiabilityAccountId ?? "",
+      payrollTaxLiabilityAccountId: payrollSettings?.payrollTaxLiabilityAccountId ?? "",
+    });
+    setSettingsOpen(true);
+  };
+
+  const submitSettings = () => {
+    setIsSavingSettings(true);
+    updatePayrollSettings.mutate(
+      {
+        data: {
+          salaryExpenseAccountId: settingsForm.salaryExpenseAccountId || null,
+          netPayableAccountId: settingsForm.netPayableAccountId || null,
+          deductionsAccountId: settingsForm.deductionsAccountId || null,
+          insuranceExpenseAccountId: settingsForm.insuranceExpenseAccountId || null,
+          insuranceLiabilityAccountId: settingsForm.insuranceLiabilityAccountId || null,
+          payrollTaxLiabilityAccountId: settingsForm.payrollTaxLiabilityAccountId || null,
+        } as any,
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetPayrollSettingsQueryKey() });
+          toast({ title: t("payroll.settings.saved") });
+          setSettingsOpen(false);
+        },
+        onError: (err: any) =>
+          toast({ variant: "destructive", title: t("common.error"), description: err?.data?.error || t("payroll.settings.saveError") }),
+        onSettled: () => setIsSavingSettings(false),
+      },
+    );
+  };
+
   const submitRun = () => {
-    if (!runPeriod || !salaryAcc || !netAcc) {
+    if (!runPeriod) {
       toast({
         variant: "destructive",
         title: t("common.error"),
-        description: t("payroll.run.run"),
+        description: t("payroll.run.periodRequired"),
       });
       return;
     }
+    const employeeTaxes = Array.from(empTaxes.entries())
+      .filter(([, v]) => Number(v) > 0)
+      .map(([employeeId, payrollTax]) => ({ employeeId, payrollTax: Number(payrollTax) }));
     createRun.mutate(
       {
         data: {
           period: runPeriod,
-          salaryExpenseAccountId: salaryAcc,
-          netPayableAccountId: netAcc,
-          deductionsAccountId: deductionsAcc || null,
           notes: runNotes.trim() || null,
-        },
+          employeeTaxes,
+        } as any,
       },
       {
         onSuccess: (run) => {
@@ -458,14 +536,23 @@ export function Payroll() {
               canImport={canCreate}
               invalidateKeys={[getListEmployeesQueryKey()]}
             />
-          ) : (
+          ) : tab === "runs" ? (
             <ExcelToolbar
               exportPath="/api/payroll/runs/export"
               invalidateKeys={[getListPayrollRunsQueryKey()]}
             />
-          )}
+          ) : null}
           {tab === "employees" && employees.length > 0 && (
             <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
+          )}
+          {canCreate && (
+            <button
+              onClick={openSettingsModal}
+              className="flex items-center gap-2 bg-card border text-foreground px-4 py-2 rounded-full text-sm font-bold hover:bg-muted transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+              {t("payroll.settings.title")}
+            </button>
           )}
           {canCreate && employees.length > 0 && (
             <button
@@ -490,7 +577,7 @@ export function Payroll() {
 
       <div className="px-8 pt-6">
         <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-full w-fit">
-          {(["employees", "runs"] as const).map((tk) => (
+          {(["employees", "runs", "report"] as const).map((tk) => (
             <button
               key={tk}
               onClick={() => setTab(tk)}
@@ -681,6 +768,8 @@ export function Payroll() {
               />
             )}
           </div>
+        ) : tab === "report" ? (
+          <PayrollDetailReport />
         ) : (
           <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
             {runsLoading ? (
@@ -897,6 +986,75 @@ export function Payroll() {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>{t("payroll.form.employeeType")}</label>
+                <select
+                  className={inputCls}
+                  value={form.employeeType}
+                  onChange={(e) => setForm((f) => ({ ...f, employeeType: e.target.value as "permanent" | "temporary" }))}
+                >
+                  <option value="permanent">{t("payroll.form.permanent")}</option>
+                  <option value="temporary">{t("payroll.form.temporary")}</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>
+                  {t("payroll.form.nationalId")}
+                  <span className="text-xs font-medium text-muted-foreground ms-2">{t("payroll.optional")}</span>
+                </label>
+                <input
+                  className={inputCls}
+                  dir="ltr"
+                  placeholder="12345678901234"
+                  value={form.nationalId}
+                  onChange={(e) => setForm((f) => ({ ...f, nationalId: e.target.value }))}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>
+                  {t("payroll.form.costCenter")}
+                  <span className="text-xs font-medium text-muted-foreground ms-2">{t("payroll.optional")}</span>
+                </label>
+                <select
+                  className={inputCls}
+                  value={form.costCenterId}
+                  onChange={(e) => setForm((f) => ({ ...f, costCenterId: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {costCenters.map((cc) => (
+                    <option key={cc.id} value={cc.id}>{cc.nameAr}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>
+                  {t("payroll.form.insuranceSalary")}
+                  <span className="text-xs font-medium text-muted-foreground ms-2">{t("payroll.optional")}</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={inputCls}
+                  dir="ltr"
+                  placeholder={t("payroll.form.insuranceSalaryPlaceholder")}
+                  value={form.insuranceSalary}
+                  onChange={(e) => setForm((f) => ({ ...f, insuranceSalary: e.target.value }))}
+                />
+              </div>
+              <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-4 py-3 sm:col-span-2">
+                <input
+                  type="checkbox"
+                  id="includeInsurance"
+                  checked={form.includeInsurance}
+                  onChange={(e) => setForm((f) => ({ ...f, includeInsurance: e.target.checked }))}
+                  className="w-4 h-4 rounded border-input accent-primary"
+                />
+                <label htmlFor="includeInsurance" className="text-sm font-medium text-foreground cursor-pointer">
+                  {t("payroll.form.includeInsurance")}
+                </label>
+                <span className="text-xs text-muted-foreground">{t("payroll.form.includeInsuranceHint")}</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
                 <label className={labelCls}>
                   {t("payroll.form.notes")}
                   <span className="text-xs font-medium text-muted-foreground ms-2">
@@ -983,6 +1141,19 @@ export function Payroll() {
                             updateComponent(idx, { amount: e.target.value })
                           }
                         />
+                        {c.kind === "deduction" && (
+                          <select
+                            className="flex-1 min-w-[120px] bg-background border rounded-lg h-9 px-2 text-xs text-start focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            value={c.linkedAccountId}
+                            onChange={(e) => updateComponent(idx, { linkedAccountId: e.target.value })}
+                            title={t("payroll.form.linkedAccount")}
+                          >
+                            <option value="">{t("payroll.form.linkedAccountPlaceholder")}</option>
+                            {postableAccounts.map((a) => (
+                              <option key={a.id} value={a.id}>{accountLabel(a)}</option>
+                            ))}
+                          </select>
+                        )}
                         <button
                           type="button"
                           onClick={() => removeComponent(idx)}
@@ -1038,11 +1209,20 @@ export function Payroll() {
             </div>
 
             <div className="p-6 flex flex-col gap-4">
+              {!payrollSettings?.salaryExpenseAccountId && (
+                <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  {t("payroll.run.noSettings")}
+                  <button
+                    onClick={() => { setRunModalOpen(false); openSettingsModal(); }}
+                    className="font-bold underline ms-2"
+                  >
+                    {t("payroll.settings.title")}
+                  </button>
+                </div>
+              )}
               {openCustodies.length > 0 && (
                 <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-                  {t("payroll.run.custodyAlert", {
-                    count: openCustodies.length,
-                  })}
+                  {t("payroll.run.custodyAlert", { count: openCustodies.length })}
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
@@ -1054,79 +1234,52 @@ export function Payroll() {
                   value={runPeriod}
                   onChange={(e) => setRunPeriod(e.target.value)}
                 />
-                <span className="text-xs text-muted-foreground">
-                  {t("payroll.run.periodHint")}
-                </span>
+                <span className="text-xs text-muted-foreground">{t("payroll.run.periodHint")}</span>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls}>
-                  {t("payroll.run.salaryExpenseAccount")}
-                </label>
-                <select
-                  className={inputCls}
-                  value={salaryAcc}
-                  onChange={(e) => setSalaryAcc(e.target.value)}
-                >
-                  <option value="">{t("payroll.selectAccount")}</option>
-                  {postableAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {accountLabel(a)}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-xs text-muted-foreground">
-                  {t("payroll.run.salaryExpenseHint")}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls}>
-                  {t("payroll.run.netPayableAccount")}
-                </label>
-                <select
-                  className={inputCls}
-                  value={netAcc}
-                  onChange={(e) => setNetAcc(e.target.value)}
-                >
-                  <option value="">{t("payroll.selectAccount")}</option>
-                  {postableAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {accountLabel(a)}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-xs text-muted-foreground">
-                  {t("payroll.run.netPayableHint")}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls}>
-                  {t("payroll.run.deductionsAccount")}
-                  <span className="text-xs font-medium text-muted-foreground ms-2">
-                    {t("payroll.optional")}
-                  </span>
-                </label>
-                <select
-                  className={inputCls}
-                  value={deductionsAcc}
-                  onChange={(e) => setDeductionsAcc(e.target.value)}
-                >
-                  <option value="">{t("payroll.selectAccount")}</option>
-                  {postableAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {accountLabel(a)}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-xs text-muted-foreground">
-                  {t("payroll.run.deductionsHint")}
-                </span>
-              </div>
+              {employees.filter((e) => e.status === "active").length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <label className={labelCls}>{t("payroll.run.employeeTaxes")}</label>
+                  <p className="text-xs text-muted-foreground">{t("payroll.run.employeeTaxesHint")}</p>
+                  <div className="border rounded-xl overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-muted/40 text-xs font-bold text-muted-foreground">
+                          <th className="text-start px-4 py-2">{t("payroll.employee")}</th>
+                          <th className="text-end px-4 py-2 w-36">{t("payroll.run.payrollTax")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {employees.filter((e) => e.status === "active").map((e) => (
+                          <tr key={e.id} className="border-t">
+                            <td className="px-4 py-2 font-medium">{displayName(e, lang)}</td>
+                            <td className="px-3 py-1.5">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                dir="ltr"
+                                className="w-full bg-background border rounded-lg h-8 px-2 text-sm text-end font-sans tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                placeholder="0.00"
+                                value={empTaxes.get(e.id) ?? ""}
+                                onChange={(ev) => {
+                                  const m = new Map(empTaxes);
+                                  if (ev.target.value) m.set(e.id, ev.target.value);
+                                  else m.delete(e.id);
+                                  setEmpTaxes(m);
+                                }}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <label className={labelCls}>
                   {t("payroll.run.notes")}
-                  <span className="text-xs font-medium text-muted-foreground ms-2">
-                    {t("payroll.optional")}
-                  </span>
+                  <span className="text-xs font-medium text-muted-foreground ms-2">{t("payroll.optional")}</span>
                 </label>
                 <input
                   className={inputCls}
@@ -1166,6 +1319,61 @@ export function Payroll() {
 
       {runToView && (
         <RunDetailModal id={runToView} onClose={() => setRunToView(null)} />
+      )}
+
+      {/* payroll settings modal */}
+      {settingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h2 className="text-lg font-bold text-foreground">{t("payroll.settings.title")}</h2>
+              <button onClick={() => setSettingsOpen(false)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <p className="text-sm text-muted-foreground">{t("payroll.settings.hint")}</p>
+              {(["salaryExpenseAccountId", "netPayableAccountId", "deductionsAccountId", "insuranceExpenseAccountId", "insuranceLiabilityAccountId", "payrollTaxLiabilityAccountId"] as const).map((key) => {
+                const labelMap: Record<string, string> = {
+                  salaryExpenseAccountId: t("payroll.run.salaryExpenseAccount"),
+                  netPayableAccountId: t("payroll.run.netPayableAccount"),
+                  deductionsAccountId: t("payroll.run.deductionsAccount"),
+                  insuranceExpenseAccountId: t("payroll.run.insuranceExpenseAccount"),
+                  insuranceLiabilityAccountId: t("payroll.run.insuranceLiabilityAccount"),
+                  payrollTaxLiabilityAccountId: t("payroll.settings.payrollTaxLiabilityAccount"),
+                };
+                const required = ["salaryExpenseAccountId", "netPayableAccountId"].includes(key);
+                return (
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <label className={labelCls}>
+                      {labelMap[key]}
+                      {!required && <span className="text-xs font-medium text-muted-foreground ms-2">{t("payroll.optional")}</span>}
+                    </label>
+                    <select
+                      className={inputCls}
+                      value={settingsForm[key]}
+                      onChange={(e) => setSettingsForm((f) => ({ ...f, [key]: e.target.value }))}
+                    >
+                      <option value="">—</option>
+                      {postableAccounts.map((a) => (
+                        <option key={a.id} value={a.id}>{accountLabel(a)}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-muted/30">
+              <button type="button" onClick={() => setSettingsOpen(false)} className="px-5 py-2.5 rounded-full text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors">
+                {t("payroll.form.cancel")}
+              </button>
+              <button type="button" onClick={submitSettings} disabled={isSavingSettings} className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-5 py-2.5 rounded-full text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-60">
+                <Check className="w-4 h-4" />
+                {isSavingSettings ? t("payroll.settings.saving") : t("payroll.settings.save")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && setBulkDeleteOpen(false)}>
@@ -1270,78 +1478,52 @@ function RunDetailModal({
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                  <th className="text-start px-4 py-3">
-                    {t("payroll.employee")}
-                  </th>
-                  <th className="text-end px-3 py-3">
-                    {t("payroll.baseSalary")}
-                  </th>
-                  <th className="text-end px-3 py-3">
-                    {t("payroll.allowances")}
-                  </th>
-                  <th className="text-end px-3 py-3">
-                    {t("payroll.deductions")}
-                  </th>
+                  <th className="text-start px-4 py-3">{t("payroll.employee")}</th>
+                  <th className="text-end px-3 py-3">{t("payroll.baseSalary")}</th>
+                  <th className="text-end px-3 py-3">{t("payroll.allowances")}</th>
+                  <th className="text-end px-3 py-3">{t("payroll.detail.empInsurance")}</th>
+                  <th className="text-end px-3 py-3">{t("payroll.detail.coInsurance")}</th>
+                  <th className="text-end px-3 py-3">{t("payroll.detail.payrollTax")}</th>
+                  <th className="text-end px-3 py-3">{t("payroll.deductions")}</th>
                   <th className="text-end px-4 py-3">{t("payroll.net")}</th>
                 </tr>
               </thead>
               <tbody>
                 {(run.lines ?? []).map((l) => (
                   <tr key={l.id} className="border-t">
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {l.employeeName}
+                    <td className="px-4 py-3 font-medium text-foreground">{l.employeeName}</td>
+                    <td className="px-3 py-3 text-end font-sans tabular-nums text-foreground/80" dir="ltr">{fmt(l.baseSalary)}</td>
+                    <td className="px-3 py-3 text-end font-sans tabular-nums text-success" dir="ltr">{fmt(l.totalAllowances)}</td>
+                    <td className="px-3 py-3 text-end font-sans tabular-nums text-amber-600" dir="ltr">
+                      {(l as any).employeeInsurance > 0 ? fmt((l as any).employeeInsurance) : "—"}
                     </td>
-                    <td
-                      className="px-3 py-3 text-end font-sans tabular-nums text-foreground/80"
-                      dir="ltr"
-                    >
-                      {fmt(l.baseSalary)}
+                    <td className="px-3 py-3 text-end font-sans tabular-nums text-amber-700" dir="ltr">
+                      {(l as any).companyInsurance > 0 ? fmt((l as any).companyInsurance) : "—"}
                     </td>
-                    <td
-                      className="px-3 py-3 text-end font-sans tabular-nums text-success"
-                      dir="ltr"
-                    >
-                      {fmt(l.totalAllowances)}
+                    <td className="px-3 py-3 text-end font-sans tabular-nums text-orange-600" dir="ltr">
+                      {(l as any).payrollTax > 0 ? fmt((l as any).payrollTax) : "—"}
                     </td>
-                    <td
-                      className="px-3 py-3 text-end font-sans tabular-nums text-destructive"
-                      dir="ltr"
-                    >
-                      {fmt(l.totalDeductions)}
-                    </td>
-                    <td
-                      className="px-4 py-3 text-end font-bold font-sans tabular-nums text-foreground"
-                      dir="ltr"
-                    >
-                      {fmt(l.netPay)}
-                    </td>
+                    <td className="px-3 py-3 text-end font-sans tabular-nums text-destructive" dir="ltr">{fmt(l.totalDeductions)}</td>
+                    <td className="px-4 py-3 text-end font-bold font-sans tabular-nums text-foreground" dir="ltr">{fmt(l.netPay)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 font-bold bg-muted/40">
-                  <td className="px-4 py-3 text-foreground">
-                    {t("payroll.gross")} / {t("payroll.net")}
-                  </td>
-                  <td
-                    className="px-3 py-3 text-end font-sans tabular-nums text-foreground"
-                    dir="ltr"
-                  >
-                    {fmt(run.totalGross)}
-                  </td>
+                  <td className="px-4 py-3 text-foreground">{t("payroll.gross")} / {t("payroll.net")}</td>
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-foreground" dir="ltr">{fmt(run.totalGross)}</td>
                   <td className="px-3 py-3" />
-                  <td
-                    className="px-3 py-3 text-end font-sans tabular-nums text-destructive"
-                    dir="ltr"
-                  >
-                    {fmt(run.totalDeductions)}
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-amber-600" dir="ltr">
+                    {(run as any).employeeInsuranceTotal > 0 ? fmt((run as any).employeeInsuranceTotal) : "—"}
                   </td>
-                  <td
-                    className="px-4 py-3 text-end font-sans tabular-nums text-foreground"
-                    dir="ltr"
-                  >
-                    {fmt(run.totalNet)}
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-amber-700" dir="ltr">
+                    {(run as any).companyInsuranceTotal > 0 ? fmt((run as any).companyInsuranceTotal) : "—"}
                   </td>
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-orange-600" dir="ltr">
+                    {(run as any).totalPayrollTax > 0 ? fmt((run as any).totalPayrollTax) : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-destructive" dir="ltr">{fmt(run.totalDeductions)}</td>
+                  <td className="px-4 py-3 text-end font-sans tabular-nums text-foreground" dir="ltr">{fmt(run.totalNet)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -1358,6 +1540,123 @@ function RunDetailModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PayrollDetailReport() {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const fmt = (n: number) =>
+    new Intl.NumberFormat(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+  type DetailRow = {
+    period: string;
+    employeeName: string;
+    costCenterName: string | null;
+    baseSalary: number;
+    allowances: number;
+    employeeInsurance: number;
+    companyInsurance: number;
+    payrollTax: number;
+    totalDeductions: number;
+    netPay: number;
+  };
+  type DetailReport = {
+    rows: DetailRow[];
+    totals: { gross: number; payrollTax: number; totalDeductions: number; netPay: number };
+  };
+
+  const { data, isLoading } = useQuery<DetailReport>({
+    queryKey: ["/api/reports/payroll-detail", from, to],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      const res = await fetch(`/api/reports/payroll-detail?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("fetch failed");
+      return res.json();
+    },
+  });
+
+  return (
+    <div className="bg-card border rounded-2xl shadow-sm overflow-hidden min-h-[300px]">
+      <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-bold text-foreground">{t("common.from")}</label>
+          <input
+            type="date"
+            className="bg-background border rounded-lg h-9 px-3 text-sm"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-bold text-foreground">{t("common.to")}</label>
+          <input
+            type="date"
+            className="bg-background border rounded-lg h-9 px-3 text-sm"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center p-12">
+          <Spinner className="w-8 h-8 text-primary" />
+        </div>
+      ) : !data || data.rows.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-2 text-center">
+          <p className="font-bold text-foreground">{t("payroll.noRuns")}</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
+                <th className="text-start px-4 py-3">{t("payroll.period")}</th>
+                <th className="text-start px-3 py-3">{t("payroll.employee")}</th>
+                <th className="text-start px-3 py-3">{t("payroll.form.costCenter")}</th>
+                <th className="text-end px-3 py-3">{t("payroll.gross")}</th>
+                <th className="text-end px-3 py-3">{t("payroll.detail.empInsurance")}</th>
+                <th className="text-end px-3 py-3">{t("payroll.detail.coInsurance")}</th>
+                <th className="text-end px-3 py-3">{t("payroll.detail.payrollTax")}</th>
+                <th className="text-end px-3 py-3">{t("payroll.deductions")}</th>
+                <th className="text-end px-4 py-3">{t("payroll.net")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.rows.map((r, idx) => (
+                <tr key={idx} className="border-t hover:bg-muted/20 transition-colors">
+                  <td className="px-4 py-3 font-sans tabular-nums font-bold" dir="ltr">{r.period}</td>
+                  <td className="px-3 py-3 font-medium">{r.employeeName}</td>
+                  <td className="px-3 py-3 text-muted-foreground">{r.costCenterName ?? "—"}</td>
+                  <td className="px-3 py-3 text-end font-sans tabular-nums" dir="ltr">{fmt(r.baseSalary + r.allowances)}</td>
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-amber-600" dir="ltr">{r.employeeInsurance > 0 ? fmt(r.employeeInsurance) : "—"}</td>
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-amber-700" dir="ltr">{r.companyInsurance > 0 ? fmt(r.companyInsurance) : "—"}</td>
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-orange-600" dir="ltr">{r.payrollTax > 0 ? fmt(r.payrollTax) : "—"}</td>
+                  <td className="px-3 py-3 text-end font-sans tabular-nums text-destructive" dir="ltr">{fmt(r.totalDeductions)}</td>
+                  <td className="px-4 py-3 text-end font-bold font-sans tabular-nums" dir="ltr">{fmt(r.netPay)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 font-bold bg-muted/40">
+                <td className="px-4 py-3" colSpan={3}>{t("payroll.gross")} / {t("payroll.net")}</td>
+                <td className="px-3 py-3 text-end font-sans tabular-nums" dir="ltr">{fmt(data.totals.gross)}</td>
+                <td className="px-3 py-3" />
+                <td className="px-3 py-3" />
+                <td className="px-3 py-3 text-end font-sans tabular-nums text-orange-600" dir="ltr">{fmt(data.totals.payrollTax)}</td>
+                <td className="px-3 py-3 text-end font-sans tabular-nums text-destructive" dir="ltr">{fmt(data.totals.totalDeductions)}</td>
+                <td className="px-4 py-3 text-end font-sans tabular-nums" dir="ltr">{fmt(data.totals.netPay)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

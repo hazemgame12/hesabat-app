@@ -5,14 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PayrollRunInputEmployeeTaxesItem } from './payrollRunInputEmployeeTaxesItem';
 
 export interface PayrollRunInput {
   /** @minLength 7 */
   period: string;
-  salaryExpenseAccountId: string;
-  netPayableAccountId: string;
-  /** @nullable */
-  deductionsAccountId?: string | null;
+  employeeTaxes?: PayrollRunInputEmployeeTaxesItem[];
   /** @nullable */
   notes?: string | null;
 }

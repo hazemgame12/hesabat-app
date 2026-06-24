@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { EmployeeEmployeeType } from './employeeEmployeeType';
 import type { EmployeeStatus } from './employeeStatus';
 import type { PayComponent } from './payComponent';
 
@@ -18,6 +19,14 @@ export interface Employee {
   jobTitle?: string | null;
   hireDate: string;
   status: EmployeeStatus;
+  employeeType: EmployeeEmployeeType;
+  /** @nullable */
+  nationalId?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  insuranceSalary?: number | null;
+  includeInsurance: boolean;
   baseSalary: number;
   /** @nullable */
   notes?: string | null;

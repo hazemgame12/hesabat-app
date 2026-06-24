@@ -6,11 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface PayrollTaxReportTotals {
-  employeeCount: number;
+export type PayrollTaxReportRowLinesItem = {
+  employeeId: string;
+  employeeCode: string;
+  employeeName: string;
+  /** @nullable */
+  nationalId: string | null;
   gross: number;
-  deductions: number;
+  insuranceSalary: number;
   companyInsurance: number;
   employeeInsurance: number;
   netPay: number;
-}
+};

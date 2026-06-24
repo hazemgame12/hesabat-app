@@ -10,6 +10,7 @@ import {
   employeesTable,
   payrollRunsTable,
   payrollRunLinesTable,
+  costCentersTable,
   advancesTable,
 } from "@workspace/db";
 import { requireAuth } from "../middleware/require-auth";
@@ -648,6 +649,79 @@ router.get(
       });
     } catch (err) {
       req.log.error({ err }, "Failed to export payroll-tax report");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ───────────────────────────────────────────────
+// Payroll Detail Report — per-employee breakdown
+// ───────────────────────────────────────────────
+
+router.get(
+  "/reports/payroll-detail",
+  requireAuth,
+  requireCapability("payroll:read"),
+  async (req: Request, res: Response) => {
+    try {
+      const companyId = req.auth!.companyId;
+      const from = typeof req.query.from === "string" ? req.query.from : null;
+      const to = typeof req.query.to === "string" ? req.query.to : null;
+      const fromMonth = from ? from.slice(0, 7) : null;
+      const toMonth = to ? to.slice(0, 7) : null;
+
+      const conds = [
+        eq(payrollRunLinesTable.companyId, companyId),
+        eq(payrollRunsTable.companyId, companyId),
+      ];
+      if (fromMonth) conds.push(gte(payrollRunsTable.period, fromMonth));
+      if (toMonth) conds.push(lte(payrollRunsTable.period, toMonth));
+
+      const lines = await db
+        .select({
+          period: payrollRunsTable.period,
+          employeeName: payrollRunLinesTable.employeeName,
+          costCenterName: costCentersTable.nameAr,
+          baseSalary: payrollRunLinesTable.baseSalary,
+          totalAllowances: payrollRunLinesTable.totalAllowances,
+          employeeInsurance: payrollRunLinesTable.employeeInsurance,
+          companyInsurance: payrollRunLinesTable.companyInsurance,
+          payrollTax: payrollRunLinesTable.payrollTax,
+          totalDeductions: payrollRunLinesTable.totalDeductions,
+          netPay: payrollRunLinesTable.netPay,
+        })
+        .from(payrollRunLinesTable)
+        .innerJoin(payrollRunsTable, eq(payrollRunsTable.id, payrollRunLinesTable.runId))
+        .leftJoin(costCentersTable, eq(costCentersTable.id, payrollRunLinesTable.costCenterId))
+        .where(and(...conds))
+        .orderBy(asc(payrollRunsTable.period), asc(payrollRunLinesTable.employeeName));
+
+      const rows = lines.map((l) => ({
+        period: l.period,
+        employeeName: l.employeeName,
+        costCenterName: l.costCenterName ?? null,
+        baseSalary: Number(l.baseSalary) || 0,
+        allowances: Number(l.totalAllowances) || 0,
+        employeeInsurance: Number(l.employeeInsurance) || 0,
+        companyInsurance: Number(l.companyInsurance) || 0,
+        payrollTax: Number(l.payrollTax) || 0,
+        totalDeductions: Number(l.totalDeductions) || 0,
+        netPay: Number(l.netPay) || 0,
+      }));
+
+      const totals = rows.reduce(
+        (acc, r) => ({
+          gross: round2(acc.gross + r.baseSalary + r.allowances),
+          payrollTax: round2(acc.payrollTax + r.payrollTax),
+          totalDeductions: round2(acc.totalDeductions + r.totalDeductions),
+          netPay: round2(acc.netPay + r.netPay),
+        }),
+        { gross: 0, payrollTax: 0, totalDeductions: 0, netPay: 0 },
+      );
+
+      res.json({ from, to, rows, totals });
+    } catch (err) {
+      req.log.error({ err }, "Failed to fetch payroll-detail report");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },

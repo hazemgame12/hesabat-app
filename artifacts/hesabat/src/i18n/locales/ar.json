@@ -1319,7 +1319,8 @@
     "subtitle": "ملفات الموظفين وتشغيل رواتب الشهر",
     "tabs": {
       "employees": "الموظفون",
-      "runs": "مسيرات الرواتب"
+      "runs": "مسيرات الرواتب",
+      "report": "تقرير التفصيل"
     },
     "addEmployee": "إضافة موظف",
     "runPayroll": "تشغيل الرواتب",
@@ -1373,6 +1374,17 @@
       "allowance": "بدل",
       "deduction": "استقطاع",
       "noComponents": "لا توجد بدلات أو استقطاعات",
+      "employeeType": "نوع الموظف",
+      "permanent": "دائم",
+      "temporary": "مؤقت",
+      "nationalId": "الرقم القومي",
+      "insuranceSalary": "وعاء التأمين",
+      "insuranceSalaryPlaceholder": "اتركه فارغاً لاستخدام الراتب الأساسي",
+      "includeInsurance": "تضمين التأمينات الاجتماعية",
+      "includeInsuranceHint": "11% موظف · 18.75% شركة — مصر فقط",
+      "linkedAccount": "الحساب المرتبط بالاستقطاع",
+      "linkedAccountPlaceholder": "— حساب الاستقطاع (اختياري) —",
+      "costCenter": "مركز التكلفة",
       "save": "حفظ",
       "saving": "جاري الحفظ...",
       "cancel": "إلغاء"
@@ -1387,19 +1399,40 @@
       "netPayableHint": "دائن بصافي الرواتب المستحقة للموظفين.",
       "deductionsAccount": "حساب الاستقطاعات",
       "deductionsHint": "دائن بإجمالي الاستقطاعات (مطلوب عند وجود استقطاعات).",
+      "insuranceExpenseAccount": "حساب مصروف التأمينات",
+      "insuranceExpenseHint": "مدين بحصة الشركة في التأمينات الاجتماعية.",
+      "insuranceLiabilityAccount": "حساب التأمينات المستحقة",
+      "insuranceLiabilityHint": "دائن بإجمالي التأمينات (حصة الموظف + حصة الشركة) المستحقة للهيئة.",
       "notes": "ملاحظات",
       "notesPlaceholder": "ملاحظات على المسيّر",
       "preview": "سيتم إنشاء قيد يومية مسودة بإجمالي الرواتب.",
       "custodyAlert": "تنبيه: يوجد {{count}} عهدة مفتوحة لم تُسوَّ بعد. العهد لا تُخصم تلقائياً من الرواتب.",
       "run": "تشغيل الرواتب",
       "running": "جاري التشغيل...",
-      "cancel": "إلغاء"
+      "cancel": "إلغاء",
+      "employeeTaxes": "ضريبة كسب العمل (لكل موظف)",
+      "employeeTaxesHint": "أدخل مبلغ الضريبة لكل موظف تنطبق عليه — اتركه فارغاً إذا لم تنطبق.",
+      "payrollTax": "ضريبة كسب العمل",
+      "noSettings": "لم تُضبط إعدادات حسابات الرواتب بعد.",
+      "periodRequired": "يجب تحديد الشهر"
     },
     "detail": {
       "title": "تفاصيل مسيّر الرواتب",
       "close": "إغلاق",
       "linesTitle": "تفاصيل الموظفين",
-      "journalEntry": "قيد اليومية رقم"
+      "journalEntry": "قيد اليومية رقم",
+      "empInsurance": "تأمين الموظف",
+      "coInsurance": "تأمين الشركة",
+      "payrollTax": "ضريبة كسب العمل"
+    },
+    "settings": {
+      "title": "إعدادات الرواتب",
+      "hint": "حدّد الحسابات الافتراضية التي تُستخدم عند تشغيل الرواتب.",
+      "payrollTaxLiabilityAccount": "حساب التزامات ضريبة كسب العمل",
+      "save": "حفظ الإعدادات",
+      "saving": "جاري الحفظ...",
+      "saved": "تم حفظ الإعدادات",
+      "saveError": "تعذر حفظ الإعدادات"
     },
     "toast": {
       "added": "تمت إضافة الموظف",

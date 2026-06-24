@@ -15,9 +15,18 @@ export interface PayrollRun {
   netPayableAccountId: string;
   /** @nullable */
   deductionsAccountId?: string | null;
+  /** @nullable */
+  insuranceExpenseAccountId?: string | null;
+  /** @nullable */
+  insuranceLiabilityAccountId?: string | null;
   totalGross: number;
   totalDeductions: number;
   totalNet: number;
+  companyInsuranceTotal: number;
+  employeeInsuranceTotal: number;
+  totalPayrollTax?: number;
+  /** @nullable */
+  payrollTaxLiabilityAccountId?: string | null;
   employeeCount: number;
   /** @nullable */
   notes?: string | null;

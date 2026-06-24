@@ -13,6 +13,8 @@ export interface PayrollTaxReport {
   from?: string | null;
   /** @nullable */
   to?: string | null;
+  /** @nullable */
+  groupBy?: string | null;
   rows: PayrollTaxReportRow[];
   totals: PayrollTaxReportTotals;
 }

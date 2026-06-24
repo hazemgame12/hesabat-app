@@ -1319,7 +1319,8 @@
     "subtitle": "Employee files and monthly payroll runs",
     "tabs": {
       "employees": "Employees",
-      "runs": "Payroll Runs"
+      "runs": "Payroll Runs",
+      "report": "Detail Report"
     },
     "addEmployee": "Add Employee",
     "runPayroll": "Run Payroll",
@@ -1373,6 +1374,17 @@
       "allowance": "Allowance",
       "deduction": "Deduction",
       "noComponents": "No allowances or deductions",
+      "employeeType": "Employee Type",
+      "permanent": "Permanent",
+      "temporary": "Temporary",
+      "nationalId": "National ID",
+      "insuranceSalary": "Insurance Base Salary",
+      "insuranceSalaryPlaceholder": "Leave blank to use base salary",
+      "includeInsurance": "Include social insurance",
+      "includeInsuranceHint": "11% employee · 18.75% employer — Egypt only",
+      "linkedAccount": "Linked deduction account",
+      "linkedAccountPlaceholder": "— Deduction account (optional) —",
+      "costCenter": "Cost Center",
       "save": "Save",
       "saving": "Saving...",
       "cancel": "Cancel"
@@ -1387,19 +1399,40 @@
       "netPayableHint": "Credited with net pay owed to employees.",
       "deductionsAccount": "Deductions Account",
       "deductionsHint": "Credited with total deductions (required when deductions exist).",
+      "insuranceExpenseAccount": "Insurance Expense Account",
+      "insuranceExpenseHint": "Debited with the employer's social insurance contribution.",
+      "insuranceLiabilityAccount": "Insurance Liability Account",
+      "insuranceLiabilityHint": "Credited with total insurance (employee + employer) payable to the authority.",
       "notes": "Notes",
       "notesPlaceholder": "Run notes",
       "preview": "A draft journal entry will be created for the total payroll.",
       "custodyAlert": "Note: there are {{count}} open custodies not yet settled. Custodies are not auto-deducted from payroll.",
       "run": "Run Payroll",
       "running": "Running...",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "employeeTaxes": "Income Tax per Employee",
+      "employeeTaxesHint": "Enter the tax amount for each applicable employee — leave blank if not applicable.",
+      "payrollTax": "Income Tax",
+      "noSettings": "Payroll account settings have not been configured yet.",
+      "periodRequired": "Month is required"
     },
     "detail": {
       "title": "Payroll Run Details",
       "close": "Close",
       "linesTitle": "Employee Breakdown",
-      "journalEntry": "Journal Entry No."
+      "journalEntry": "Journal Entry No.",
+      "empInsurance": "Emp. Insurance",
+      "coInsurance": "Co. Insurance",
+      "payrollTax": "Income Tax"
+    },
+    "settings": {
+      "title": "Payroll Settings",
+      "hint": "Set the default accounts used when running payroll.",
+      "payrollTaxLiabilityAccount": "Payroll Tax Liability Account",
+      "save": "Save Settings",
+      "saving": "Saving...",
+      "saved": "Settings saved",
+      "saveError": "Failed to save settings"
     },
     "toast": {
       "added": "Employee added",

@@ -5,8 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GetPayrollTaxReportGroupBy } from './getPayrollTaxReportGroupBy';
 
 export type GetPayrollTaxReportParams = {
 from?: string;
 to?: string;
+groupBy?: GetPayrollTaxReportGroupBy;
 };

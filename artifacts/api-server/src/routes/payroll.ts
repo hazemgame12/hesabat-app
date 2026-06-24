@@ -7,8 +7,10 @@ import {
   employeePayComponentsTable,
   payrollRunsTable,
   payrollRunLinesTable,
+  payrollSettingsTable,
   accountsTable,
   companiesTable,
+  costCentersTable,
   journalEntriesTable,
   advancesTable,
   advanceInstallmentsTable,
@@ -55,6 +57,10 @@ function isUniqueViolation(err: unknown): boolean {
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+// Egyptian social insurance rates (Law 79/2019)
+const EG_EMPLOYEE_RATE = 0.11;
+const EG_COMPANY_RATE = 0.1875;
+
 function toComponent(row: EmployeePayComponent) {
   return {
     id: row.id,
@@ -62,6 +68,7 @@ function toComponent(row: EmployeePayComponent) {
     nameAr: row.nameAr,
     amount: Number(row.amount),
     isActive: row.isActive,
+    linkedAccountId: row.linkedAccountId ?? null,
   };
 }
 
@@ -74,6 +81,11 @@ function toEmployee(row: Employee, components: EmployeePayComponent[]) {
     jobTitle: row.jobTitle,
     hireDate: row.hireDate,
     status: row.status,
+    employeeType: row.employeeType,
+    nationalId: row.nationalId ?? null,
+    costCenterId: row.costCenterId ?? null,
+    insuranceSalary: row.insuranceSalary != null ? Number(row.insuranceSalary) : null,
+    includeInsurance: row.includeInsurance,
     baseSalary: Number(row.baseSalary),
     notes: row.notes,
     components: components.map(toComponent),
@@ -88,10 +100,16 @@ function toRun(row: PayrollRun, lines: PayrollRunLine[], entryNo: number | null)
     status: row.status,
     salaryExpenseAccountId: row.salaryExpenseAccountId,
     netPayableAccountId: row.netPayableAccountId,
-    deductionsAccountId: row.deductionsAccountId,
+    deductionsAccountId: row.deductionsAccountId ?? null,
+    insuranceExpenseAccountId: row.insuranceExpenseAccountId ?? null,
+    insuranceLiabilityAccountId: row.insuranceLiabilityAccountId ?? null,
     totalGross: Number(row.totalGross),
     totalDeductions: Number(row.totalDeductions),
     totalNet: Number(row.totalNet),
+    companyInsuranceTotal: Number(row.companyInsuranceTotal),
+    employeeInsuranceTotal: Number(row.employeeInsuranceTotal),
+    totalPayrollTax: Number(row.totalPayrollTax ?? 0),
+    payrollTaxLiabilityAccountId: row.payrollTaxLiabilityAccountId ?? null,
     employeeCount: row.employeeCount,
     notes: row.notes,
     journalEntryId: row.journalEntryId,
@@ -101,9 +119,14 @@ function toRun(row: PayrollRun, lines: PayrollRunLine[], entryNo: number | null)
       id: l.id,
       employeeId: l.employeeId,
       employeeName: l.employeeName,
+      costCenterId: l.costCenterId ?? null,
       baseSalary: Number(l.baseSalary),
       totalAllowances: Number(l.totalAllowances),
       totalDeductions: Number(l.totalDeductions),
+      insuranceSalary: Number(l.insuranceSalary),
+      companyInsurance: Number(l.companyInsurance),
+      employeeInsurance: Number(l.employeeInsurance),
+      payrollTax: Number(l.payrollTax ?? 0),
       netPay: Number(l.netPay),
     })),
   };
@@ -406,7 +429,7 @@ async function insertComponents(
   tx: Tx,
   companyId: string,
   employeeId: string,
-  components: { kind: string; nameAr: string; amount: number; isActive?: boolean }[],
+  components: { kind: string; nameAr: string; amount: number; isActive?: boolean; linkedAccountId?: string | null }[],
 ) {
   if (components.length === 0) return;
   await tx.insert(employeePayComponentsTable).values(
@@ -417,6 +440,7 @@ async function insertComponents(
       nameAr: c.nameAr,
       amount: String(c.amount),
       isActive: c.isActive ?? true,
+      linkedAccountId: c.linkedAccountId ?? null,
     })),
   );
 }
@@ -451,6 +475,11 @@ router.post(
             jobTitle: d.jobTitle ?? null,
             hireDate: d.hireDate,
             status: d.status ?? "active",
+            employeeType: (d as any).employeeType ?? "permanent",
+            nationalId: (d as any).nationalId ?? null,
+            costCenterId: (d as any).costCenterId ?? null,
+            insuranceSalary: (d as any).insuranceSalary != null ? String((d as any).insuranceSalary) : null,
+            includeInsurance: (d as any).includeInsurance ?? true,
             baseSalary: String(d.baseSalary),
             notes: d.notes ?? null,
           })
@@ -501,9 +530,14 @@ router.patch(
       if (d.jobTitle !== undefined) updates["jobTitle"] = d.jobTitle;
       if (d.hireDate !== undefined) updates["hireDate"] = d.hireDate;
       if (d.status !== undefined) updates["status"] = d.status;
-      if (d.baseSalary !== undefined)
-        updates["baseSalary"] = String(d.baseSalary);
+      if (d.baseSalary !== undefined) updates["baseSalary"] = String(d.baseSalary);
       if (d.notes !== undefined) updates["notes"] = d.notes;
+      const dAny = d as any;
+      if (dAny.employeeType !== undefined) updates["employeeType"] = dAny.employeeType;
+      if (dAny.nationalId !== undefined) updates["nationalId"] = dAny.nationalId;
+      if (dAny.costCenterId !== undefined) updates["costCenterId"] = dAny.costCenterId;
+      if (dAny.insuranceSalary !== undefined) updates["insuranceSalary"] = dAny.insuranceSalary != null ? String(dAny.insuranceSalary) : null;
+      if (dAny.includeInsurance !== undefined) updates["includeInsurance"] = dAny.includeInsurance;
 
       await db.transaction(async (tx) => {
         if (Object.keys(updates).length > 0) {
@@ -586,6 +620,107 @@ router.delete(
       res.json({ status: "ok" });
     } catch (err) {
       req.log.error({ err }, "Failed to delete employee");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+// ---- Payroll settings ----
+
+router.get(
+  "/payroll/settings",
+  requireAuth,
+  requireCapability("payroll:read"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    try {
+      const [row] = await db
+        .select()
+        .from(payrollSettingsTable)
+        .where(eq(payrollSettingsTable.companyId, companyId))
+        .limit(1);
+      res.json({
+        salaryExpenseAccountId: row?.salaryExpenseAccountId ?? null,
+        netPayableAccountId: row?.netPayableAccountId ?? null,
+        deductionsAccountId: row?.deductionsAccountId ?? null,
+        insuranceExpenseAccountId: row?.insuranceExpenseAccountId ?? null,
+        insuranceLiabilityAccountId: row?.insuranceLiabilityAccountId ?? null,
+        payrollTaxLiabilityAccountId: row?.payrollTaxLiabilityAccountId ?? null,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to get payroll settings");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
+
+router.put(
+  "/payroll/settings",
+  requireAuth,
+  requireCapability("payroll:create"),
+  async (req, res) => {
+    const companyId = req.auth!.companyId;
+    const body = req.body as {
+      salaryExpenseAccountId?: string | null;
+      netPayableAccountId?: string | null;
+      deductionsAccountId?: string | null;
+      insuranceExpenseAccountId?: string | null;
+      insuranceLiabilityAccountId?: string | null;
+      payrollTaxLiabilityAccountId?: string | null;
+    };
+    try {
+      const ids = [
+        body.salaryExpenseAccountId,
+        body.netPayableAccountId,
+        body.deductionsAccountId,
+        body.insuranceExpenseAccountId,
+        body.insuranceLiabilityAccountId,
+        body.payrollTaxLiabilityAccountId,
+      ].filter((x): x is string => !!x);
+      if (ids.length > 0) {
+        const err = await validatePayrollAccounts(ids, companyId);
+        if (err) {
+          res.status(400).json({ error: err });
+          return;
+        }
+      }
+      await db
+        .insert(payrollSettingsTable)
+        .values({
+          companyId,
+          salaryExpenseAccountId: body.salaryExpenseAccountId ?? null,
+          netPayableAccountId: body.netPayableAccountId ?? null,
+          deductionsAccountId: body.deductionsAccountId ?? null,
+          insuranceExpenseAccountId: body.insuranceExpenseAccountId ?? null,
+          insuranceLiabilityAccountId: body.insuranceLiabilityAccountId ?? null,
+          payrollTaxLiabilityAccountId: body.payrollTaxLiabilityAccountId ?? null,
+        })
+        .onConflictDoUpdate({
+          target: payrollSettingsTable.companyId,
+          set: {
+            salaryExpenseAccountId: body.salaryExpenseAccountId ?? null,
+            netPayableAccountId: body.netPayableAccountId ?? null,
+            deductionsAccountId: body.deductionsAccountId ?? null,
+            insuranceExpenseAccountId: body.insuranceExpenseAccountId ?? null,
+            insuranceLiabilityAccountId: body.insuranceLiabilityAccountId ?? null,
+            payrollTaxLiabilityAccountId: body.payrollTaxLiabilityAccountId ?? null,
+          },
+        });
+      const [row] = await db
+        .select()
+        .from(payrollSettingsTable)
+        .where(eq(payrollSettingsTable.companyId, companyId))
+        .limit(1);
+      res.json({
+        salaryExpenseAccountId: row?.salaryExpenseAccountId ?? null,
+        netPayableAccountId: row?.netPayableAccountId ?? null,
+        deductionsAccountId: row?.deductionsAccountId ?? null,
+        insuranceExpenseAccountId: row?.insuranceExpenseAccountId ?? null,
+        insuranceLiabilityAccountId: row?.insuranceLiabilityAccountId ?? null,
+        payrollTaxLiabilityAccountId: row?.payrollTaxLiabilityAccountId ?? null,
+      });
+    } catch (err) {
+      req.log.error({ err }, "Failed to update payroll settings");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
@@ -743,13 +878,27 @@ router.post(
       res.status(400).json({ error: "الشهر غير صحيح" });
       return;
     }
-    if (d.deductionsAccountId === d.salaryExpenseAccountId) {
-      res
-        .status(400)
-        .json({ error: "حساب الخصومات يجب أن يختلف عن حساب المصروف" });
-      return;
-    }
     try {
+      // Load payroll account settings for this company
+      const [settings] = await db
+        .select()
+        .from(payrollSettingsTable)
+        .where(eq(payrollSettingsTable.companyId, companyId))
+        .limit(1);
+      if (!settings?.salaryExpenseAccountId || !settings?.netPayableAccountId) {
+        res.status(400).json({ error: "يجب ضبط إعدادات حسابات الرواتب أولاً" });
+        return;
+      }
+      // Narrow from string | null | undefined to string (checked above)
+      const salaryExpAccId = settings.salaryExpenseAccountId as string;
+      const netPayableAccId = settings.netPayableAccountId as string;
+
+      // Per-employee payroll tax map (keyed by employeeId)
+      const employeeTaxMap = new Map<string, number>();
+      for (const et of (d.employeeTaxes ?? [])) {
+        if (et.payrollTax > EPS) employeeTaxMap.set(et.employeeId, et.payrollTax);
+      }
+
       const existingRun = await db
         .select({ id: payrollRunsTable.id })
         .from(payrollRunsTable)
@@ -772,9 +921,9 @@ router.post(
 
       const accErr = await validatePayrollAccounts(
         [
-          d.salaryExpenseAccountId,
-          d.netPayableAccountId,
-          ...(d.deductionsAccountId ? [d.deductionsAccountId] : []),
+          settings.salaryExpenseAccountId,
+          settings.netPayableAccountId,
+          ...(settings.deductionsAccountId ? [settings.deductionsAccountId] : []),
         ],
         companyId,
       );
@@ -784,11 +933,12 @@ router.post(
       }
 
       const [company] = await db
-        .select({ baseCurrency: companiesTable.baseCurrency })
+        .select({ baseCurrency: companiesTable.baseCurrency, country: companiesTable.country })
         .from(companiesTable)
         .where(eq(companiesTable.id, companyId))
         .limit(1);
       const baseCurrency = (company?.baseCurrency || "EGP").toUpperCase();
+      const isEgypt = (company?.country ?? "EG").toUpperCase() === "EG";
 
       // Active employees + their active components.
       const employees = await db
@@ -818,32 +968,55 @@ router.post(
       type EmpPay = {
         id: string;
         nameAr: string;
+        costCenterId: string | null;
         base: number;
         allowances: number;
-        regularDeductions: number;
+        // deductions split by whether they have a linked account
+        unlinkedDeductions: number;   // Cr catch-all deductionsAccountId
+        linkedDeductions: { accountId: string; amount: number }[];
         gross: number;
+        // social insurance
+        insuranceSalary: number;
+        employeeInsurance: number;
+        companyInsurance: number;
       };
       const empPays: EmpPay[] = [];
       for (const e of employees) {
         const comps = (compMap.get(e.id) ?? []).filter((c) => c.isActive);
         const base = round2(Number(e.baseSalary));
         let allowances = 0;
-        let deductions = 0;
+        let unlinkedDeductions = 0;
+        const linkedDeductionMap = new Map<string, number>();
         for (const c of comps) {
           const amt = round2(Number(c.amount));
-          if (c.kind === "allowance") allowances = round2(allowances + amt);
-          else if (c.kind === "deduction") deductions = round2(deductions + amt);
+          if (c.kind === "allowance") {
+            allowances = round2(allowances + amt);
+          } else if (c.kind === "deduction") {
+            if (c.linkedAccountId) {
+              linkedDeductionMap.set(c.linkedAccountId, round2((linkedDeductionMap.get(c.linkedAccountId) ?? 0) + amt));
+            } else {
+              unlinkedDeductions = round2(unlinkedDeductions + amt);
+            }
+          }
         }
+        const linkedDeductions = [...linkedDeductionMap.entries()].map(([accountId, amount]) => ({ accountId, amount }));
         const gross = round2(base + allowances);
         if (gross <= EPS) continue; // skip employees with nothing to pay
-        empPays.push({
-          id: e.id,
-          nameAr: e.nameAr,
-          base,
-          allowances,
-          regularDeductions: deductions,
-          gross,
-        });
+
+        // Social insurance (EG: auto; other countries: 0 — add manually via components)
+        let insuranceSalary = 0;
+        let employeeInsurance = 0;
+        let companyInsurance = 0;
+        if (isEgypt && e.includeInsurance) {
+          const insSalary = e.insuranceSalary != null ? round2(Number(e.insuranceSalary)) : base;
+          if (insSalary > EPS) {
+            insuranceSalary = insSalary;
+            employeeInsurance = round2(insSalary * EG_EMPLOYEE_RATE);
+            companyInsurance = round2(insSalary * EG_COMPANY_RATE);
+          }
+        }
+
+        empPays.push({ id: e.id, nameAr: e.nameAr, costCenterId: e.costCenterId ?? null, base, allowances, unlinkedDeductions, linkedDeductions, gross, insuranceSalary, employeeInsurance, companyInsurance });
       }
 
       if (empPays.length === 0) {
@@ -851,16 +1024,26 @@ router.post(
         return;
       }
 
-      const totalRegularDeductions = round2(
-        empPays.reduce((s, e) => s + e.regularDeductions, 0),
-      );
+      const totalUnlinkedDeductions = round2(empPays.reduce((s, e) => s + e.unlinkedDeductions, 0));
+      const totalCompanyInsurance = round2(empPays.reduce((s, e) => s + e.companyInsurance, 0));
+      const totalEmployeeInsurance = round2(empPays.reduce((s, e) => s + e.employeeInsurance, 0));
 
-      // Only *regular* deductions need a deductions account; advance
-      // installments are credited to their own advances account(s).
-      if (totalRegularDeductions > EPS && !d.deductionsAccountId) {
-        res.status(400).json({
-          error: "يوجد خصومات — يجب تحديد حساب الخصومات",
-        });
+      // Aggregate linked deductions by account across all employees
+      const allLinkedByAccount = new Map<string, number>();
+      for (const e of empPays) {
+        for (const { accountId, amount } of e.linkedDeductions) {
+          allLinkedByAccount.set(accountId, round2((allLinkedByAccount.get(accountId) ?? 0) + amount));
+        }
+      }
+
+      // Only *unlinked* deductions need the catch-all deductions account
+      if (totalUnlinkedDeductions > EPS && !settings.deductionsAccountId) {
+        res.status(400).json({ error: "يوجد خصومات — يجب تحديد حساب الخصومات في إعدادات الرواتب" });
+        return;
+      }
+      // Insurance accounts required when there are auto-computed insurance amounts
+      if (totalCompanyInsurance > EPS && (!settings.insuranceExpenseAccountId || !settings.insuranceLiabilityAccountId)) {
+        res.status(400).json({ error: "يوجد تأمينات اجتماعية — يجب تحديد حسابا التأمين في إعدادات الرواتب" });
         return;
       }
 
@@ -918,99 +1101,103 @@ router.post(
         const runLines: {
           employeeId: string;
           employeeName: string;
+          costCenterId: string | null;
           baseSalary: number;
           totalAllowances: number;
           totalDeductions: number;
+          insuranceSalary: number;
+          companyInsurance: number;
+          employeeInsurance: number;
+          payrollTax: number;
           netPay: number;
         }[] = [];
         let totalGross = 0;
         let totalNet = 0;
+        let totalPayrollTax = 0;
         let totalAdvanceInstallments = 0;
         const advanceCreditByAccount = new Map<string, number>();
         const installmentsToApply: AdvanceDeduction[] = [];
         for (const e of empPays) {
           const empAdvances = advancesByEmp.get(e.id) ?? [];
-          const advanceTotal = round2(
-            empAdvances.reduce((s, x) => s + x.amount, 0),
-          );
-          const lineDeductions = round2(e.regularDeductions + advanceTotal);
-          const net = round2(e.gross - lineDeductions);
+          const advanceTotal = round2(empAdvances.reduce((s, x) => s + x.amount, 0));
+          const payrollTax = round2(employeeTaxMap.get(e.id) ?? 0);
+          const allDeductions = round2(e.unlinkedDeductions + e.linkedDeductions.reduce((s, x) => s + x.amount, 0) + advanceTotal + e.employeeInsurance + payrollTax);
+          const net = round2(e.gross - allDeductions);
           if (net < -EPS) {
-            throw new PayrollError(
-              `الخصومات تتجاوز إجمالي الراتب للموظف ${e.nameAr}`,
-            );
+            throw new PayrollError(`الخصومات تتجاوز إجمالي الراتب للموظف ${e.nameAr}`);
           }
           runLines.push({
             employeeId: e.id,
             employeeName: e.nameAr,
+            costCenterId: e.costCenterId,
             baseSalary: e.base,
             totalAllowances: e.allowances,
-            totalDeductions: lineDeductions,
+            totalDeductions: allDeductions,
+            insuranceSalary: e.insuranceSalary,
+            companyInsurance: e.companyInsurance,
+            employeeInsurance: e.employeeInsurance,
+            payrollTax,
             netPay: net,
           });
           totalGross = round2(totalGross + e.gross);
           totalNet = round2(totalNet + net);
-          totalAdvanceInstallments = round2(
-            totalAdvanceInstallments + advanceTotal,
-          );
+          totalPayrollTax = round2(totalPayrollTax + payrollTax);
+          totalAdvanceInstallments = round2(totalAdvanceInstallments + advanceTotal);
           for (const ad of empAdvances) {
             installmentsToApply.push(ad);
             const accId = ad.advance.advancesAccountId;
-            advanceCreditByAccount.set(
-              accId,
-              round2((advanceCreditByAccount.get(accId) ?? 0) + ad.amount),
-            );
+            advanceCreditByAccount.set(accId, round2((advanceCreditByAccount.get(accId) ?? 0) + ad.amount));
           }
         }
-        const totalDeductions = round2(
-          totalRegularDeductions + totalAdvanceInstallments,
-        );
+        const totalAllRegularDeductions = round2(totalUnlinkedDeductions + [...allLinkedByAccount.values()].reduce((s, v) => s + v, 0));
+        const totalDeductions = round2(totalAllRegularDeductions + totalAdvanceInstallments + totalEmployeeInsurance + totalPayrollTax);
 
         // Advance accounts being credited must still be valid leaf accounts.
-        const advAccErr = await validatePayrollAccounts(
-          [...advanceCreditByAccount.keys()],
-          companyId,
-        );
+        const advAccErr = await validatePayrollAccounts([...advanceCreditByAccount.keys()], companyId);
         if (advAccErr) throw new PayrollError(advAccErr);
+        // Linked component accounts must be valid leaf accounts too.
+        const linkedAccErr = await validatePayrollAccounts([...allLinkedByAccount.keys()], companyId);
+        if (linkedAccErr) throw new PayrollError(linkedAccErr);
 
-        // Posting lines: Dr expense (gross) / Cr deductions / Cr advances / Cr net.
-        const postingLines: {
-          accountId: string;
-          description?: string | null;
-          debit: number;
-          credit: number;
-        }[] = [
-          {
-            accountId: d.salaryExpenseAccountId,
-            description: `رواتب ${period}`,
-            debit: totalGross,
-            credit: 0,
-          },
+        // Posting lines:
+        // Dr  salary expense account           (total gross of all employees)
+        // Dr  insurance expense account        (company insurance share, if any)
+        // Cr  catch-all deductions account     (unlinked deductions)
+        // Cr  per-component linked accounts    (deductions with own accounts)
+        // Cr  insurance liability account      (employee + company insurance)
+        // Cr  advance asset account(s)         (installments)
+        // Cr  net payable account              (net salary)
+        const postingLines: { accountId: string; description?: string | null; debit: number; credit: number }[] = [
+          { accountId: salaryExpAccId, description: `رواتب ${period}`, debit: totalGross, credit: 0 },
         ];
-        if (totalRegularDeductions > EPS && d.deductionsAccountId) {
-          postingLines.push({
-            accountId: d.deductionsAccountId,
-            description: `خصومات رواتب ${period}`,
-            debit: 0,
-            credit: totalRegularDeductions,
-          });
+        // Company insurance share (additional expense)
+        if (totalCompanyInsurance > EPS && settings.insuranceExpenseAccountId) {
+          postingLines.push({ accountId: settings.insuranceExpenseAccountId, description: `تأمينات اجتماعية — حصة الشركة ${period}`, debit: totalCompanyInsurance, credit: 0 });
+        }
+        // Catch-all unlinked deductions
+        if (totalUnlinkedDeductions > EPS && settings.deductionsAccountId) {
+          postingLines.push({ accountId: settings.deductionsAccountId, description: `خصومات رواتب ${period}`, debit: 0, credit: totalUnlinkedDeductions });
+        }
+        // Per-component linked deduction accounts
+        for (const [accountId, amount] of allLinkedByAccount) {
+          if (amount <= EPS) continue;
+          postingLines.push({ accountId, description: `استقطاعات رواتب ${period}`, debit: 0, credit: amount });
+        }
+        // Insurance liability (employee + company portions both payable to authority)
+        const totalInsuranceLiability = round2(totalEmployeeInsurance + totalCompanyInsurance);
+        if (totalInsuranceLiability > EPS && settings.insuranceLiabilityAccountId) {
+          postingLines.push({ accountId: settings.insuranceLiabilityAccountId, description: `تأمينات اجتماعية مستحقة ${period}`, debit: 0, credit: totalInsuranceLiability });
+        }
+        // Payroll income tax liability
+        if (totalPayrollTax > EPS && settings.payrollTaxLiabilityAccountId) {
+          postingLines.push({ accountId: settings.payrollTaxLiabilityAccountId, description: `ضريبة كسب العمل ${period}`, debit: 0, credit: totalPayrollTax });
         }
         // Advance installments lower the advances asset account(s).
         for (const [accountId, amount] of advanceCreditByAccount) {
           if (amount <= EPS) continue;
-          postingLines.push({
-            accountId,
-            description: `سداد أقساط سلف ${period}`,
-            debit: 0,
-            credit: amount,
-          });
+          postingLines.push({ accountId, description: `سداد أقساط سلف ${period}`, debit: 0, credit: amount });
         }
-        postingLines.push({
-          accountId: d.netPayableAccountId,
-          description: `صافي رواتب ${period}`,
-          debit: 0,
-          credit: totalNet,
-        });
+        postingLines.push({ accountId: netPayableAccId, description: `صافي رواتب ${period}`, debit: 0, credit: totalNet });
 
         const entry = await createDraftJournalEntry(tx, {
           companyId,
@@ -1027,12 +1214,18 @@ router.post(
             companyId,
             period,
             status: "posted",
-            salaryExpenseAccountId: d.salaryExpenseAccountId,
-            netPayableAccountId: d.netPayableAccountId,
-            deductionsAccountId: d.deductionsAccountId ?? null,
+            salaryExpenseAccountId: salaryExpAccId,
+            netPayableAccountId: netPayableAccId,
+            deductionsAccountId: settings.deductionsAccountId ?? null,
+            insuranceExpenseAccountId: settings.insuranceExpenseAccountId ?? null,
+            insuranceLiabilityAccountId: settings.insuranceLiabilityAccountId ?? null,
             totalGross: String(totalGross),
             totalDeductions: String(totalDeductions),
             totalNet: String(totalNet),
+            companyInsuranceTotal: String(totalCompanyInsurance),
+            employeeInsuranceTotal: String(totalEmployeeInsurance),
+            totalPayrollTax: String(totalPayrollTax),
+            payrollTaxLiabilityAccountId: totalPayrollTax > EPS ? (settings.payrollTaxLiabilityAccountId ?? null) : null,
             employeeCount: runLines.length,
             notes: d.notes ?? null,
             journalEntryId: entry.id,
@@ -1045,9 +1238,14 @@ router.post(
             runId: run!.id,
             employeeId: l.employeeId,
             employeeName: l.employeeName,
+            costCenterId: l.costCenterId ?? null,
             baseSalary: String(l.baseSalary),
             totalAllowances: String(l.totalAllowances),
             totalDeductions: String(l.totalDeductions),
+            insuranceSalary: String(l.insuranceSalary),
+            companyInsurance: String(l.companyInsurance),
+            employeeInsurance: String(l.employeeInsurance),
+            payrollTax: String(l.payrollTax),
             netPay: String(l.netPay),
           })),
         );

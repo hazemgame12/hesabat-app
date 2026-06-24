@@ -15,6 +15,7 @@ import { companiesTable } from "./companies";
 import { usersTable } from "./users";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
+import { costCentersTable } from "./cost-centers";
 
 // An employee belongs to exactly one company. `code` is the human-facing
 // employee number, unique within the company. `baseSalary` is the monthly base;
@@ -32,9 +33,19 @@ export const employeesTable = pgTable(
     jobTitle: text("job_title"),
     hireDate: date("hire_date").notNull(),
     status: text("status").notNull().default("active"), // 'active' | 'terminated'
+    employeeType: text("employee_type").notNull().default("permanent"), // 'permanent' | 'temporary'
+    nationalId: text("national_id"),
+    costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
+      onDelete: "set null",
+    }),
     baseSalary: numeric("base_salary", { precision: 18, scale: 2 })
       .notNull()
       .default("0"),
+    // Egyptian social insurance: المرتب التأميني (insurance wage base).
+    // For EG companies, employee share = 11%, company share = 18.75%.
+    // null = use baseSalary as insurance salary.
+    insuranceSalary: numeric("insurance_salary", { precision: 18, scale: 2 }),
+    includeInsurance: boolean("include_insurance").notNull().default(true),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -48,8 +59,10 @@ export const employeesTable = pgTable(
 );
 
 // Recurring monthly pay components for an employee. `kind` is 'allowance'
-// (added to gross) or 'deduction' (subtracted to reach net). Manual amounts —
-// no automatic insurance/tax calculation (deferred to a future milestone).
+// (added to gross) or 'deduction' (subtracted to reach net).
+// `linkedAccountId` — when set, this component gets its OWN Cr line in the
+// payroll journal entry instead of going to the run-level catch-all deductions
+// account. Useful for union dues, specific tax withholdings, etc.
 export const employeePayComponentsTable = pgTable("employee_pay_components", {
   id: uuid("id").primaryKey().defaultRandom(),
   companyId: uuid("company_id")
@@ -62,6 +75,11 @@ export const employeePayComponentsTable = pgTable("employee_pay_components", {
   nameAr: text("name_ar").notNull(),
   amount: numeric("amount", { precision: 18, scale: 2 }).notNull().default("0"),
   isActive: boolean("is_active").notNull().default(true),
+  // Optional COA account: when set and kind='deduction', Cr this account in JE.
+  linkedAccountId: uuid("linked_account_id").references(
+    () => accountsTable.id,
+    { onDelete: "set null" },
+  ),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -86,10 +104,19 @@ export const payrollRunsTable = pgTable(
     netPayableAccountId: uuid("net_payable_account_id")
       .notNull()
       .references(() => accountsTable.id, { onDelete: "restrict" }),
+    // Catch-all Cr for deductions WITHOUT their own linkedAccountId.
     deductionsAccountId: uuid("deductions_account_id").references(
       () => accountsTable.id,
       { onDelete: "restrict" },
     ),
+    // Social insurance accounts (required when companyInsuranceTotal > 0).
+    insuranceExpenseAccountId: uuid("insurance_expense_account_id").references(
+      () => accountsTable.id,
+      { onDelete: "restrict" },
+    ),
+    insuranceLiabilityAccountId: uuid(
+      "insurance_liability_account_id",
+    ).references(() => accountsTable.id, { onDelete: "restrict" }),
     totalGross: numeric("total_gross", { precision: 18, scale: 2 })
       .notNull()
       .default("0"),
@@ -99,6 +126,24 @@ export const payrollRunsTable = pgTable(
     totalNet: numeric("total_net", { precision: 18, scale: 2 })
       .notNull()
       .default("0"),
+    companyInsuranceTotal: numeric("company_insurance_total", {
+      precision: 18,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
+    employeeInsuranceTotal: numeric("employee_insurance_total", {
+      precision: 18,
+      scale: 2,
+    })
+      .notNull()
+      .default("0"),
+    totalPayrollTax: numeric("total_payroll_tax", { precision: 18, scale: 2 })
+      .notNull()
+      .default("0"),
+    payrollTaxLiabilityAccountId: uuid(
+      "payroll_tax_liability_account_id",
+    ).references(() => accountsTable.id, { onDelete: "restrict" }),
     employeeCount: integer("employee_count").notNull().default(0),
     notes: text("notes"),
     journalEntryId: uuid("journal_entry_id").references(
@@ -139,6 +184,22 @@ export const payrollRunLinesTable = pgTable("payroll_run_lines", {
   totalDeductions: numeric("total_deductions", { precision: 18, scale: 2 })
     .notNull()
     .default("0"),
+  // Social insurance snapshot per employee
+  insuranceSalary: numeric("insurance_salary", { precision: 18, scale: 2 })
+    .notNull()
+    .default("0"),
+  companyInsurance: numeric("company_insurance", { precision: 18, scale: 2 })
+    .notNull()
+    .default("0"),
+  employeeInsurance: numeric("employee_insurance", { precision: 18, scale: 2 })
+    .notNull()
+    .default("0"),
+  payrollTax: numeric("payroll_tax", { precision: 18, scale: 2 })
+    .notNull()
+    .default("0"),
+  costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
+    onDelete: "set null",
+  }),
   netPay: numeric("net_pay", { precision: 18, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -268,6 +329,42 @@ export const custodyAttachmentsTable = pgTable("custody_attachments", {
     .notNull()
     .defaultNow(),
 });
+
+// Per-company payroll account settings — stored once, used on every run.
+// All account references are nullable so companies can save partial configs.
+export const payrollSettingsTable = pgTable("payroll_settings", {
+  companyId: uuid("company_id")
+    .primaryKey()
+    .references(() => companiesTable.id, { onDelete: "cascade" }),
+  salaryExpenseAccountId: uuid("salary_expense_account_id").references(
+    () => accountsTable.id,
+    { onDelete: "restrict" },
+  ),
+  netPayableAccountId: uuid("net_payable_account_id").references(
+    () => accountsTable.id,
+    { onDelete: "restrict" },
+  ),
+  deductionsAccountId: uuid("deductions_account_id").references(
+    () => accountsTable.id,
+    { onDelete: "restrict" },
+  ),
+  insuranceExpenseAccountId: uuid("insurance_expense_account_id").references(
+    () => accountsTable.id,
+    { onDelete: "restrict" },
+  ),
+  insuranceLiabilityAccountId: uuid(
+    "insurance_liability_account_id",
+  ).references(() => accountsTable.id, { onDelete: "restrict" }),
+  payrollTaxLiabilityAccountId: uuid(
+    "payroll_tax_liability_account_id",
+  ).references(() => accountsTable.id, { onDelete: "restrict" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+export type PayrollSettings = typeof payrollSettingsTable.$inferSelect;
 
 export const insertEmployeeSchema = createInsertSchema(employeesTable).omit({
   id: true,
