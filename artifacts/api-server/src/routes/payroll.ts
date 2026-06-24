@@ -721,8 +721,7 @@ router.put(
       });
     } catch (err) {
       req.log.error({ err }, "Failed to update payroll settings");
-      const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ error: msg });
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
 );
