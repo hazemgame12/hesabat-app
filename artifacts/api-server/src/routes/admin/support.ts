@@ -129,6 +129,29 @@ router.get("/admin/support/tickets/stats", requireAuth, requireCapability("suppo
   }
 });
 
+// Admin: unread count — MUST come before /:id
+router.get("/admin/support/tickets/unread-count", requireAuth, requireCapability("support:admin"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  try {
+    const [row] = await db
+      .select({ count: count() })
+      .from(ticketCommentsTable)
+      .innerJoin(supportTicketsTable, eq(supportTicketsTable.id, ticketCommentsTable.ticketId))
+      .where(
+        and(
+          eq(supportTicketsTable.companyId, companyId),
+          eq(ticketCommentsTable.isAdminReply, false),
+          eq(ticketCommentsTable.isInternal, false),
+          eq(ticketCommentsTable.isReadByAdmin, false),
+        ),
+      );
+    res.json({ count: row?.count ?? 0 });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get admin unread count");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
 // Admin: get ticket detail
 router.get("/admin/support/tickets/:id", requireAuth, requireCapability("support:admin"), async (req, res) => {
   const companyId = req.auth!.companyId;
@@ -172,6 +195,8 @@ router.get("/admin/support/tickets/:id", requireAuth, requireCapability("support
         userId: ticketCommentsTable.userId,
         body: ticketCommentsTable.body,
         isInternal: ticketCommentsTable.isInternal,
+        isAdminReply: ticketCommentsTable.isAdminReply,
+        isReadByAdmin: ticketCommentsTable.isReadByAdmin,
         createdAt: ticketCommentsTable.createdAt,
         userName: usersTable.name,
       })
@@ -282,29 +307,6 @@ router.post("/admin/support/tickets/:id/comments", requireAuth, requireCapabilit
     res.status(201).json({ comment });
   } catch (err) {
     req.log.error({ err }, "Failed to add admin comment");
-    res.status(500).json({ error: "حدث خطأ في الخادم" });
-  }
-});
-
-// Admin: unread count (user messages not yet seen by admin)
-router.get("/admin/support/tickets/unread-count", requireAuth, requireCapability("support:admin"), async (req, res) => {
-  const companyId = req.auth!.companyId;
-  try {
-    const [row] = await db
-      .select({ count: count() })
-      .from(ticketCommentsTable)
-      .innerJoin(supportTicketsTable, eq(supportTicketsTable.id, ticketCommentsTable.ticketId))
-      .where(
-        and(
-          eq(supportTicketsTable.companyId, companyId),
-          eq(ticketCommentsTable.isAdminReply, false),
-          eq(ticketCommentsTable.isInternal, false),
-          eq(ticketCommentsTable.isReadByAdmin, false),
-        ),
-      );
-    res.json({ count: row?.count ?? 0 });
-  } catch (err) {
-    req.log.error({ err }, "Failed to get admin unread count");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });

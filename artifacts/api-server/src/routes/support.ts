@@ -112,6 +112,30 @@ router.post("/support/tickets", requireAuth, requireCapability("support:create")
   }
 });
 
+// User: unread count — MUST come before /:id
+router.get("/support/tickets/unread-count", requireAuth, requireCapability("support:read"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  const userId = req.auth!.userId;
+  try {
+    const [row] = await db
+      .select({ count: count() })
+      .from(ticketCommentsTable)
+      .innerJoin(supportTicketsTable, eq(supportTicketsTable.id, ticketCommentsTable.ticketId))
+      .where(
+        and(
+          eq(supportTicketsTable.companyId, companyId),
+          eq(supportTicketsTable.userId, userId),
+          eq(ticketCommentsTable.isAdminReply, true),
+          eq(ticketCommentsTable.isReadByUser, false),
+        ),
+      );
+    res.json({ count: row?.count ?? 0 });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get unread count");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
 // User: get ticket detail with comments
 router.get("/support/tickets/:id", requireAuth, requireCapability("support:read"), async (req, res) => {
   const companyId = req.auth!.companyId;
@@ -203,30 +227,6 @@ router.post("/support/tickets/:id/comments", requireAuth, requireCapability("sup
     res.status(201).json({ comment });
   } catch (err) {
     req.log.error({ err }, "Failed to add comment");
-    res.status(500).json({ error: "حدث خطأ في الخادم" });
-  }
-});
-
-// User: unread count (admin replies not yet seen by user)
-router.get("/support/tickets/unread-count", requireAuth, requireCapability("support:read"), async (req, res) => {
-  const companyId = req.auth!.companyId;
-  const userId = req.auth!.userId;
-  try {
-    const [row] = await db
-      .select({ count: count() })
-      .from(ticketCommentsTable)
-      .innerJoin(supportTicketsTable, eq(supportTicketsTable.id, ticketCommentsTable.ticketId))
-      .where(
-        and(
-          eq(supportTicketsTable.companyId, companyId),
-          eq(supportTicketsTable.userId, userId),
-          eq(ticketCommentsTable.isAdminReply, true),
-          eq(ticketCommentsTable.isReadByUser, false),
-        ),
-      );
-    res.json({ count: row?.count ?? 0 });
-  } catch (err) {
-    req.log.error({ err }, "Failed to get unread count");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });
