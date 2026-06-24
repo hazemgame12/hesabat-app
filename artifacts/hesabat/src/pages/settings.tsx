@@ -13,6 +13,7 @@ import {
   CalendarRange,
   Database,
   LifeBuoy,
+  Inbox,
 } from "lucide-react";
 import { CompanyProfile } from "@/pages/company";
 import { Team } from "@/pages/team";
@@ -22,6 +23,7 @@ import { Taxes } from "@/pages/taxes";
 import { FiscalYears } from "@/pages/fiscal-years";
 import { Backup } from "@/pages/backup";
 import { Support } from "@/pages/support";
+import { AdminSupport } from "@/pages/admin-support";
 
 type SettingsTab = {
   key: string;
@@ -40,6 +42,7 @@ const TABS: SettingsTab[] = [
   { key: "fiscal-years", labelKey: "settings.tabs.fiscalYears",  icon: CalendarRange,component: FiscalYears,   requires: "fiscalyear:read" },
   { key: "backup",       labelKey: "settings.tabs.backup",       icon: Database,     component: Backup },
   { key: "support",      labelKey: "settings.tabs.support",      icon: LifeBuoy,     component: Support,       requires: "support:read" },
+  { key: "support-admin",labelKey: "settings.tabs.supportAdmin",  icon: Inbox,        component: AdminSupport,  requires: "support:admin" },
 ];
 
 export function Settings() {

@@ -368,7 +368,8 @@
       "fiscalYears": "Fiscal Years",
       "password": "Password",
       "backup": "Backup",
-      "support": "Support"
+      "support": "Support",
+      "supportAdmin": "Support Inbox"
     },
     "password": {
       "title": "Change Password",

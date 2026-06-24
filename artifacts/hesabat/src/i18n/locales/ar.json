@@ -368,7 +368,8 @@
       "fiscalYears": "السنوات المالية",
       "password": "كلمة المرور",
       "backup": "نسخ احتياطي",
-      "support": "الدعم الفني"
+      "support": "الدعم الفني",
+      "supportAdmin": "درج الدعم"
     },
     "password": {
       "title": "تغيير كلمة المرور",

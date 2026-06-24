@@ -37,7 +37,6 @@ import { OpeningBalances } from "@/pages/opening-balances";
 import { Settings } from "@/pages/settings";
 import { EInvoice } from "@/pages/e-invoice";
 import { Support } from "@/pages/support";
-import { AdminSupport } from "@/pages/admin-support";
 import AccountLedgerPage from "@/pages/account-ledger";
 import PartyStatementPage from "@/pages/party-statement";
 import { AcceptInvite } from "@/pages/accept-invite";
@@ -115,7 +114,7 @@ function ProtectedRoutes() {
         <Route path="/audit" component={Audit} />
         <Route path="/e-invoice" component={EInvoice} />
         <Route path="/support"><Redirect to="/settings/support" /></Route>
-        <Route path="/admin/support" component={AdminSupport} />
+        <Route path="/admin/support"><Redirect to="/settings/support-admin" /></Route>
         <Route path="/fiscal-years">
           <Redirect to="/settings/fiscal-years" />
         </Route>
