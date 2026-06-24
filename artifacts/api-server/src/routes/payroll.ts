@@ -491,8 +491,7 @@ router.post(
       res.status(201).json(toEmployee(created, compMap.get(created.id) ?? []));
     } catch (err) {
       req.log.error({ err }, "Failed to create employee");
-      const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ error: `DB: ${msg}` });
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
 );
@@ -722,8 +721,7 @@ router.put(
       });
     } catch (err) {
       req.log.error({ err }, "Failed to update payroll settings");
-      const msg = err instanceof Error ? err.message : String(err);
-      res.status(500).json({ error: `DB: ${msg}` });
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
   },
 );
