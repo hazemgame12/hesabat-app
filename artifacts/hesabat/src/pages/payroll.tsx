@@ -233,6 +233,27 @@ export function Payroll() {
         : <span className="text-muted-foreground text-xs">—</span>,
     },
     { key: "includeInsurance" as keyof Employee, header: "تأمين اجتماعي", type: "boolean", editable: canUpdate, width: "110px" },
+    { key: "allowancesTotal" as keyof Employee, header: "إجمالي البدلات", type: "readonly", align: "end", width: "130px",
+      render: (_v, row) => {
+        const total = (row?.components ?? []).filter((c) => c.kind === "allowance" && c.isActive).reduce((s, c) => s + Number(c.amount), 0);
+        return total > 0
+          ? <span className="font-sans tabular-nums text-success">{fmt(total)}</span>
+          : <span className="text-muted-foreground text-xs">—</span>;
+      },
+    },
+    { key: "deductionsTotal" as keyof Employee, header: "إجمالي الاستقطاعات", type: "readonly", align: "end", width: "140px",
+      render: (_v, row) => {
+        const total = (row?.components ?? []).filter((c) => c.kind === "deduction" && c.isActive).reduce((s, c) => s + Number(c.amount), 0);
+        return total > 0
+          ? <span className="font-sans tabular-nums text-destructive">{fmt(total)}</span>
+          : <span className="text-muted-foreground text-xs">—</span>;
+      },
+    },
+    { key: "payrollTax" as keyof Employee, header: "ضريبة كسب العمل", type: "number", editable: canUpdate, align: "end", width: "145px",
+      render: (v) => Number(v ?? 0) > 0
+        ? <span className="font-sans tabular-nums">{fmt(Number(v))}</span>
+        : <span className="text-muted-foreground text-xs">—</span>,
+    },
     { key: "notes", header: "ملاحظات", type: "text", editable: canUpdate, width: "180px" },
   ];
 
@@ -256,6 +277,7 @@ export function Payroll() {
           ? (patch.insuranceSalary !== "" && patch.insuranceSalary != null ? Number(patch.insuranceSalary) : null)
           : (ea.insuranceSalary != null ? Number(ea.insuranceSalary) : null),
         includeInsurance: patch.includeInsurance !== undefined ? Boolean(patch.includeInsurance) : (ea.includeInsurance ?? true),
+        payrollTax: patch.payrollTax !== undefined ? Number(patch.payrollTax) : Number(ea.payrollTax ?? 0),
         notes: patch.notes !== undefined ? (String(patch.notes) || null) : e.notes ?? null,
         components: (e.components ?? []).map((c) => ({ kind: c.kind, nameAr: c.nameAr, amount: Number(c.amount), isActive: c.isActive, linkedAccountId: (c as any).linkedAccountId ?? null })),
       };
@@ -294,6 +316,7 @@ export function Payroll() {
     status: "active",
     employeeType: "permanent" as any,
     includeInsurance: true as any,
+    ...(({ payrollTax: 0 }) as any),
     components: [],
   });
 
@@ -479,7 +502,13 @@ export function Payroll() {
   // ---- run modal ----
   const openRunModal = () => {
     setRunPeriod(currentMonth());
-    setEmpTaxes(new Map());
+    // Pre-populate income tax from the employee's default monthly payroll_tax.
+    const prefilled = new Map<string, string>();
+    for (const e of employees) {
+      const tax = Number((e as any).payrollTax ?? 0);
+      if (tax > 0) prefilled.set(e.id, String(tax));
+    }
+    setEmpTaxes(prefilled);
     setRunNotes("");
     setRunModalOpen(true);
   };

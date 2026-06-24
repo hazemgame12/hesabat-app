@@ -73,6 +73,10 @@ export async function ensurePayrollSchema(): Promise<void> {
       ddl: `ALTER TABLE employees ADD COLUMN IF NOT EXISTS include_insurance BOOLEAN NOT NULL DEFAULT TRUE`,
     },
     {
+      name: "employees.payroll_tax",
+      ddl: `ALTER TABLE employees ADD COLUMN IF NOT EXISTS payroll_tax NUMERIC(18,2) NOT NULL DEFAULT 0`,
+    },
+    {
       name: "employee_pay_components.linked_account_id",
       ddl: `ALTER TABLE employee_pay_components ADD COLUMN IF NOT EXISTS linked_account_id UUID REFERENCES accounts(id) ON DELETE SET NULL`,
     },
