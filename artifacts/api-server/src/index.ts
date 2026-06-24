@@ -3,6 +3,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { seedArticles, seedServices, seedPackages, seedSettings, fixWordPressImageUrls } from "./seed";
 import { startScheduler } from "./lib/scheduler";
+import { ensurePayrollSchema } from "./lib/ensure-schema";
 
 const rawPort = process.env["PORT"] ?? "3000";
 const port = Number(rawPort);
@@ -15,6 +16,10 @@ if (Number.isNaN(port) || port <= 0) {
 console.log(`[startup] Booting server on port ${port}...`);
 
 const host = "0.0.0.0";
+
+ensurePayrollSchema()
+  .then(() => console.log("[startup] ✓ Payroll schema ensured"))
+  .catch((e) => console.error("[startup] ensurePayrollSchema error:", e));
 
 app.listen(port, host, () => {
   console.log(`[startup] ✓ Server listening on ${host}:${port}`);
