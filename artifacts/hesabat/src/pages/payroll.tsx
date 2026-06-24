@@ -23,7 +23,7 @@ import {
   type CostCenter,
 } from "@workspace/api-client-react";
 import { hasCapability } from "@workspace/permissions";
-import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
+import { GridTable, type GridColumn } from "@/components/GridTable";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 import { PaginationBar } from "@/components/ui/pagination-bar";
@@ -33,11 +33,11 @@ import {
   X,
   Check,
   Trash2,
-  Edit2,
   PlayCircle,
   Eye,
   Settings,
 } from "lucide-react";
+
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -156,7 +156,6 @@ export function Payroll() {
   const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [isGridView, toggleGridView] = useGridView("payroll:employees");
 
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [runPeriod, setRunPeriod] = useState(currentMonth());
@@ -193,20 +192,48 @@ export function Payroll() {
     { key: "code", header: t("payroll.code"), type: "readonly", width: "90px" },
     { key: "nameAr", header: t("payroll.name") + " (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
     { key: "nameEn", header: t("payroll.name") + " (EN)", type: "text", editable: canUpdate },
-    { key: "jobTitle", header: t("payroll.jobTitle") ?? "المسمى الوظيفي", type: "text", editable: canUpdate },
+    { key: "jobTitle", header: t("payroll.jobTitle"), type: "text", editable: canUpdate },
+    { key: "hireDate", header: t("payroll.hireDate"), type: "text", editable: canUpdate, width: "130px",
+      validate: (v) => !v ? "مطلوب" : null },
     { key: "baseSalary", header: t("payroll.baseSalary"), type: "number", editable: canUpdate, align: "end",
       render: (v) => <span className="font-sans tabular-nums">{fmt(Number(v ?? 0))}</span>,
       validate: (v) => Number(v) < 0 ? "يجب أن يكون موجباً" : null },
-    { key: "hireDate", header: t("payroll.hireDate") ?? "تاريخ التعيين", type: "readonly" },
     { key: "status", header: t("payroll.status"), type: "select", editable: canUpdate, width: "110px",
       options: [
-        { value: "active", label: t("payroll.active") ?? "نشط" },
-        { value: "terminated", label: t("payroll.terminated") ?? "منتهي" },
+        { value: "active", label: t("payroll.active") },
+        { value: "terminated", label: t("payroll.terminated") },
       ],
       render: (v) => v === "active"
-        ? <span className="text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">{t("payroll.active") ?? "نشط"}</span>
-        : <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t("payroll.terminated") ?? "منتهي"}</span>
+        ? <span className="text-[11px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">{t("payroll.active")}</span>
+        : <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{t("payroll.terminated")}</span>
     },
+    { key: "employeeType" as keyof Employee, header: "نوع التوظيف", type: "select", editable: canUpdate, width: "110px",
+      options: [
+        { value: "permanent", label: "دائم" },
+        { value: "temporary", label: "مؤقت" },
+      ],
+      render: (v) => v === "temporary"
+        ? <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">مؤقت</span>
+        : <span className="text-[11px] font-bold text-primary/80 bg-primary/5 px-2 py-0.5 rounded-full">دائم</span>
+    },
+    { key: "nationalId" as keyof Employee, header: "الرقم القومي", type: "text", editable: canUpdate, width: "145px" },
+    { key: "costCenterId" as keyof Employee, header: "مركز التكلفة", type: "select", editable: canUpdate, width: "150px",
+      options: [
+        { value: "", label: "—" },
+        ...costCenters.map((c: CostCenter) => ({ value: c.id, label: (c as any).name ?? c.id })),
+      ],
+      render: (v) => {
+        const cc = costCenters.find((c: CostCenter) => c.id === v);
+        return <span>{cc ? ((cc as any).name ?? cc.id) : "—"}</span>;
+      },
+    },
+    { key: "insuranceSalary" as keyof Employee, header: "وعاء التأمين", type: "number", editable: canUpdate, align: "end",
+      render: (v) => v != null && Number(v) > 0
+        ? <span className="font-sans tabular-nums">{fmt(Number(v))}</span>
+        : <span className="text-muted-foreground text-xs">—</span>,
+    },
+    { key: "includeInsurance" as keyof Employee, header: "تأمين اجتماعي", type: "boolean", editable: canUpdate, width: "110px" },
+    { key: "notes", header: "ملاحظات", type: "text", editable: canUpdate, width: "180px" },
   ];
 
   const handleEmpGridSave = async (changes: { id: string; field: string; oldValue: unknown; newValue: unknown }[]) => {
@@ -214,20 +241,61 @@ export function Payroll() {
     for (const c of changes) { if (!byRow.has(c.id)) byRow.set(c.id, {}); byRow.get(c.id)![c.field] = c.newValue; }
     for (const [id, patch] of byRow.entries()) {
       const e = employees.find((x) => x.id === id); if (!e) continue;
+      const ea = e as any;
       const data = {
         nameAr: String(patch.nameAr ?? e.nameAr),
         nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : e.nameEn ?? null,
         jobTitle: patch.jobTitle !== undefined ? (String(patch.jobTitle) || null) : e.jobTitle ?? null,
-        hireDate: e.hireDate,
+        hireDate: patch.hireDate !== undefined ? String(patch.hireDate) : e.hireDate,
         baseSalary: patch.baseSalary !== undefined ? Number(patch.baseSalary) : Number(e.baseSalary),
         status: String(patch.status ?? e.status) as "active" | "terminated",
-        notes: e.notes ?? null,
-        components: (e.components ?? []).map((c) => ({ kind: c.kind, nameAr: c.nameAr, amount: Number(c.amount), isActive: c.isActive })),
+        employeeType: String(patch.employeeType ?? ea.employeeType ?? "permanent") as "permanent" | "temporary",
+        nationalId: patch.nationalId !== undefined ? (String(patch.nationalId) || null) : ea.nationalId ?? null,
+        costCenterId: patch.costCenterId !== undefined ? (String(patch.costCenterId) || null) : ea.costCenterId ?? null,
+        insuranceSalary: patch.insuranceSalary !== undefined
+          ? (patch.insuranceSalary !== "" && patch.insuranceSalary != null ? Number(patch.insuranceSalary) : null)
+          : (ea.insuranceSalary != null ? Number(ea.insuranceSalary) : null),
+        includeInsurance: patch.includeInsurance !== undefined ? Boolean(patch.includeInsurance) : (ea.includeInsurance ?? true),
+        notes: patch.notes !== undefined ? (String(patch.notes) || null) : e.notes ?? null,
+        components: (e.components ?? []).map((c) => ({ kind: c.kind, nameAr: c.nameAr, amount: Number(c.amount), isActive: c.isActive, linkedAccountId: (c as any).linkedAccountId ?? null })),
       };
-      await new Promise<void>((res, rej) => updateEmployee.mutate({ id, data }, { onSuccess: () => res(), onError: rej }));
+      await new Promise<void>((res, rej) => updateEmployee.mutate({ id, data: data as any }, { onSuccess: () => res(), onError: rej }));
     }
     invalidateEmployees();
   };
+
+  const handleEmpGridCreate = async (rows: Partial<Employee>[]) => {
+    for (const row of rows) {
+      const ra = row as any;
+      const data = {
+        nameAr: String(ra.nameAr ?? ""),
+        nameEn: ra.nameEn ? String(ra.nameEn) : null,
+        jobTitle: ra.jobTitle ? String(ra.jobTitle) : null,
+        hireDate: String(ra.hireDate ?? today()),
+        baseSalary: Number(ra.baseSalary ?? 0),
+        status: (ra.status as "active" | "terminated") ?? "active",
+        employeeType: (ra.employeeType as "permanent" | "temporary") ?? "permanent",
+        nationalId: ra.nationalId ? String(ra.nationalId) : null,
+        costCenterId: ra.costCenterId ? String(ra.costCenterId) : null,
+        insuranceSalary: ra.insuranceSalary != null && ra.insuranceSalary !== "" ? Number(ra.insuranceSalary) : null,
+        includeInsurance: ra.includeInsurance ?? true,
+        notes: ra.notes ? String(ra.notes) : null,
+        components: [],
+      };
+      await createEmployee.mutateAsync({ data: data as any });
+    }
+    invalidateEmployees();
+  };
+
+  const empNewRowTemplate = (): Partial<Employee> => ({
+    nameAr: "",
+    hireDate: today(),
+    baseSalary: "0" as any,
+    status: "active",
+    employeeType: "permanent" as any,
+    includeInsurance: true as any,
+    components: [],
+  });
 
   const handleEmpGridDelete = async (ids: string[]) => {
     for (const id of ids) await deleteEmployee.mutateAsync({ id });
@@ -496,17 +564,6 @@ export function Payroll() {
     );
   };
 
-  const empBaseAndComponents = (e: Employee) => {
-    let allowances = 0;
-    let deductions = 0;
-    for (const c of e.components) {
-      if (!c.isActive) continue;
-      if (c.kind === "allowance") allowances += Number(c.amount);
-      else deductions += Number(c.amount);
-    }
-    const gross = Number(e.baseSalary) + allowances;
-    return { allowances, deductions, net: gross - deductions };
-  };
 
   const inputCls =
     "bg-background border rounded-xl h-11 px-4 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary";
@@ -542,9 +599,6 @@ export function Payroll() {
               invalidateKeys={[getListPayrollRunsQueryKey()]}
             />
           ) : null}
-          {tab === "employees" && employees.length > 0 && (
-            <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
-          )}
           {canCreate && (
             <button
               onClick={openSettingsModal}
@@ -600,24 +654,7 @@ export function Payroll() {
               <div className="flex items-center justify-center p-12">
                 <Spinner className="w-8 h-8 text-primary" />
               </div>
-            ) : employees.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-2 text-center">
-                <p className="font-bold text-foreground">
-                  {t("payroll.noEmployees")}
-                </p>
-                <p className="text-sm max-w-md">
-                  {t("payroll.noEmployeesHint")}
-                </p>
-                {canCreate && (
-                  <button
-                    onClick={openCreateEmp}
-                    className="mt-2 text-primary font-bold hover:underline"
-                  >
-                    {t("payroll.addFirst")}
-                  </button>
-                )}
-              </div>
-            ) : isGridView ? (
+            ) : (
               <GridTable
                 rows={employees}
                 columns={empGridColumns}
@@ -625,138 +662,15 @@ export function Payroll() {
                 canDelete={canDelete}
                 onSave={handleEmpGridSave}
                 onDeleteRows={handleEmpGridDelete}
+                onCreateRows={canCreate ? handleEmpGridCreate : undefined}
+                newRowTemplate={canCreate ? empNewRowTemplate : undefined}
                 selectedIds={selectedEmpIds}
                 onSelectionChange={setSelectedEmpIds}
                 emptyMessage={t("payroll.noEmployees")}
                 rowClassName={(row) => row.status === "terminated" ? "opacity-60" : ""}
+                defaultHiddenColumns={["notes"]}
+                stickyFirstCol
               />
-            ) : (
-              <>
-                {selectedEmpIds.size > 0 && canDelete && (
-                  <div className="flex items-center gap-3 bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex-wrap">
-                    <span className="text-sm font-bold text-slate-700">تم تحديد {selectedEmpIds.size} موظف</span>
-                    <button onClick={() => setBulkDeleteOpen(true)} className="flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1.5 rounded-lg text-sm font-bold hover:opacity-90">
-                      <Trash2 className="w-4 h-4" />حذف المحدد
-                    </button>
-                    <button onClick={() => setSelectedEmpIds(new Set())} className="text-sm text-slate-500 hover:underline ms-auto">إلغاء التحديد</button>
-                  </div>
-                )}
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs font-bold text-muted-foreground bg-muted/40">
-                      {canDelete && (
-                        <th className="px-3 py-3 w-8">
-                          {(() => {
-                            const all = employees.length > 0 && employees.every((e) => selectedEmpIds.has(e.id));
-                            const some = employees.some((e) => selectedEmpIds.has(e.id)) && !all;
-                            return <input type="checkbox" checked={all} ref={(el) => { if (el) el.indeterminate = some; }} onChange={() => all ? setSelectedEmpIds(new Set()) : setSelectedEmpIds(new Set(employees.map((e) => e.id)))} className="w-4 h-4 accent-primary cursor-pointer" />;
-                          })()}
-                        </th>
-                      )}
-                      <th className="text-start px-6 py-3">{t("payroll.code")}</th>
-                      <th className="text-start px-3 py-3">{t("payroll.name")}</th>
-                      <th className="text-end px-3 py-3">{t("payroll.baseSalary")}</th>
-                      <th className="text-end px-3 py-3">{t("payroll.allowances")}</th>
-                      <th className="text-end px-3 py-3">{t("payroll.deductions")}</th>
-                      <th className="text-end px-3 py-3">{t("payroll.net")}</th>
-                      <th className="text-center px-3 py-3">{t("payroll.status")}</th>
-                      {(canUpdate || canDelete) && (<th className="w-20 px-6 py-3" />)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                  {employees.map((e) => {
-                    const calc = empBaseAndComponents(e);
-                    return (
-                      <tr
-                        key={e.id}
-                        className={`group border-t hover:bg-muted/40 transition-colors ${selectedEmpIds.has(e.id) ? "bg-rose-50/40" : ""}`}
-                      >
-                        {canDelete && (
-                          <td className="px-3 py-3.5">
-                            <input type="checkbox" checked={selectedEmpIds.has(e.id)} onChange={() => { const n = new Set(selectedEmpIds); n.has(e.id) ? n.delete(e.id) : n.add(e.id); setSelectedEmpIds(n); }} className="w-4 h-4 accent-primary cursor-pointer" />
-                          </td>
-                        )}
-                        <td
-                          className="px-6 py-3.5 font-sans tabular-nums text-foreground/80"
-                          dir="ltr"
-                        >
-                          {e.code}
-                        </td>
-                        <td className="px-3 py-3.5">
-                          <div className="font-medium text-foreground">
-                            {displayName(e, lang)}
-                          </div>
-                          {e.jobTitle && (
-                            <div className="text-xs text-muted-foreground">
-                              {e.jobTitle}
-                            </div>
-                          )}
-                        </td>
-                        <td
-                          className="px-3 py-3.5 text-end font-sans tabular-nums text-foreground/80"
-                          dir="ltr"
-                        >
-                          {fmt(Number(e.baseSalary))}
-                        </td>
-                        <td
-                          className="px-3 py-3.5 text-end font-sans tabular-nums text-success"
-                          dir="ltr"
-                        >
-                          {fmt(calc.allowances)}
-                        </td>
-                        <td
-                          className="px-3 py-3.5 text-end font-sans tabular-nums text-destructive"
-                          dir="ltr"
-                        >
-                          {fmt(calc.deductions)}
-                        </td>
-                        <td
-                          className="px-3 py-3.5 text-end font-bold font-sans tabular-nums text-foreground"
-                          dir="ltr"
-                        >
-                          {fmt(calc.net)}
-                        </td>
-                        <td className="px-3 py-3.5 text-center">
-                          {e.status === "active" ? (
-                            <span className="text-[11px] font-bold text-success bg-success/10 px-2.5 py-1 rounded-full">
-                              {t("payroll.active")}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] font-bold text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
-                              {t("payroll.terminated")}
-                            </span>
-                          )}
-                        </td>
-                        {(canUpdate || canDelete) && (
-                          <td className="px-6 py-3.5">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 justify-end">
-                              {canUpdate && (
-                                <button
-                                  onClick={() => openEditEmp(e)}
-                                  className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                                  title={t("common.edit")}
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </button>
-                              )}
-                              {canDelete && (
-                                <button
-                                  onClick={() => setEmpToDelete(e)}
-                                  className="p-1.5 rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                                  title={t("common.delete")}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              </>
             )}
             {paginatedEmployees && paginatedEmployees.totalPages > 1 && (
               <PaginationBar
