@@ -20,6 +20,33 @@ echo "📦 Installing dependencies..."
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install --no-frozen-lockfile
 
 echo ""
+echo "🗄️  Applying DB schema migrations..."
+if [ -f "$APP_DIR/.env" ]; then
+  set -a && source "$APP_DIR/.env" && set +a
+fi
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "⚠️  DATABASE_URL not set — skipping migrations"
+else
+  SQL_DIR="$APP_DIR/hostinger-deploy-sql"
+  APPLIED_LOG="$APP_DIR/.applied-migrations"
+  touch "$APPLIED_LOG"
+  for sql_file in "$SQL_DIR"/migrate-*.sql; do
+    [ -f "$sql_file" ] || continue
+    fname=$(basename "$sql_file")
+    if grep -qF "$fname" "$APPLIED_LOG" 2>/dev/null; then
+      echo "  ⏭  $fname (already applied)"
+    else
+      echo "  ▶  Applying $fname ..."
+      psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$sql_file" \
+        && echo "$fname" >> "$APPLIED_LOG" \
+        && echo "  ✅ $fname applied" \
+        || { echo "  ❌ $fname FAILED — aborting"; exit 1; }
+    fi
+  done
+  echo "✅ DB schema up to date"
+fi
+
+echo ""
 echo "🔨 Building HG website frontend..."
 PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hg-website run build
 echo "✅ Frontend built"
