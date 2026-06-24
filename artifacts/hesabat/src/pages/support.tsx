@@ -51,11 +51,13 @@ interface SupportTicket {
 }
 
 interface TicketComment {
-  id: string;
+  id: number;
   ticketId: string;
   userId: string;
   body: string;
   isInternal: boolean;
+  isAdminReply: boolean;
+  isReadByUser: boolean;
   createdAt: string;
 }
 
@@ -320,6 +322,13 @@ function TicketDetailView({
 
   const [comment, setComment] = useState("");
 
+  // mark-read on open
+  React.useEffect(() => {
+    apiFetch(`/support/tickets/${ticketId}/mark-read`, { method: "POST" }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["support", "unread-count"] });
+    }).catch(() => {});
+  }, [ticketId, queryClient]);
+
   const commentMutation = useMutation({
     mutationFn: () =>
       apiFetch(`/support/tickets/${ticketId}/comments`, {
@@ -330,6 +339,19 @@ function TicketDetailView({
     onSuccess: () => {
       setComment("");
       queryClient.invalidateQueries({ queryKey: ["support", "ticket", ticketId] });
+    },
+    onError: (err: any) => {
+      toast({ variant: "destructive", title: err?.message || t("support.error") });
+    },
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: () =>
+      apiFetch(`/support/tickets/${ticketId}/reopen`, { method: "POST" }),
+    onSuccess: () => {
+      toast({ title: t("support.reopened") });
+      queryClient.invalidateQueries({ queryKey: ["support", "ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ["support", "tickets"] });
     },
     onError: (err: any) => {
       toast({ variant: "destructive", title: err?.message || t("support.error") });
@@ -372,6 +394,7 @@ function TicketDetailView({
   }
 
   const { ticket, comments, votes, userVoted } = data;
+  const isClosed = ticket.status === "resolved" || ticket.status === "closed";
 
   return (
     <div className="p-6 lg:p-8 max-w-3xl mx-auto">
@@ -386,7 +409,7 @@ function TicketDetailView({
       <Card className="p-6 shadow-sm border-border mb-6">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <Badge
                 variant="secondary"
                 className={
@@ -415,27 +438,44 @@ function TicketDetailView({
             </p>
           </div>
 
-          {ticket.type === "feature_request" && (
-            <Button
-              variant={userVoted ? "default" : "outline"}
-              size="sm"
-              onClick={() => voteMutation.mutate()}
-              disabled={voteMutation.isPending}
-              className="shrink-0"
-            >
-              <ThumbsUp className="w-4 h-4 me-1" />
-              {userVoted ? t("support.voted") : t("support.vote")}
-              <span className="ms-1 font-bold">{votes}</span>
-            </Button>
-          )}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            {ticket.type === "feature_request" && (
+              <Button
+                variant={userVoted ? "default" : "outline"}
+                size="sm"
+                onClick={() => voteMutation.mutate()}
+                disabled={voteMutation.isPending}
+              >
+                <ThumbsUp className="w-4 h-4 me-1" />
+                {userVoted ? t("support.voted") : t("support.vote")}
+                <span className="ms-1 font-bold">{votes}</span>
+              </Button>
+            )}
+            {isClosed && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => reopenMutation.mutate()}
+                disabled={reopenMutation.isPending}
+                className="text-amber-600 border-amber-300 hover:bg-amber-50"
+              >
+                {reopenMutation.isPending ? (
+                  <Spinner className="w-3.5 h-3.5 me-1" />
+                ) : (
+                  <LifeBuoy className="w-3.5 h-3.5 me-1" />
+                )}
+                {t("support.reopen")}
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+        <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap border-t pt-4">
           {ticket.body}
         </div>
       </Card>
 
-      {/* Comments */}
+      {/* Thread */}
       <div className="mb-4">
         <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <MessageSquare className="w-4 h-4" />
@@ -443,47 +483,59 @@ function TicketDetailView({
         </h3>
 
         {comments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("support.noTickets")}</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">{t("support.noComments")}</p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {comments.map((c) => (
-              <Card key={c.id} className="p-4 shadow-sm border-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                    {c.userId.slice(0, 1).toUpperCase()}
+          <div className="flex flex-col gap-2">
+            {comments.map((c) => {
+              const isAdmin = (c as any).isAdminReply;
+              return (
+                <div
+                  key={c.id}
+                  className={`flex gap-3 ${isAdmin ? "flex-row" : "flex-row-reverse"}`}
+                >
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isAdmin ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    {isAdmin ? "د" : "أ"}
                   </div>
-                  <span className="text-xs text-muted-foreground">{fmtDate(c.createdAt)}</span>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${isAdmin ? "bg-primary/10 text-foreground rounded-tl-sm" : "bg-muted text-foreground rounded-tr-sm"}`}>
+                    <p className="leading-relaxed">{c.body}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">{fmtDate(c.createdAt)}</p>
+                  </div>
                 </div>
-                <p className="text-sm text-foreground">{c.body}</p>
-              </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Add comment */}
-      <div className="flex flex-col gap-3">
-        <Textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder={t("support.commentPlaceholder")}
-          rows={3}
-        />
-        <div className="flex justify-end">
-          <Button
-            onClick={() => commentMutation.mutate()}
-            disabled={commentMutation.isPending || !comment.trim()}
-            className="h-10 text-sm font-bold shadow-md hover:opacity-90"
-          >
-            {commentMutation.isPending ? (
-              <Spinner className="w-4 h-4 me-2" />
-            ) : (
-              <Send className="w-4 h-4 me-2" />
-            )}
-            {t("support.addComment")}
-          </Button>
+      {/* Reply box — disabled when closed */}
+      {!isClosed ? (
+        <div className="flex flex-col gap-3">
+          <Textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder={t("support.commentPlaceholder")}
+            rows={3}
+          />
+          <div className="flex justify-end">
+            <Button
+              onClick={() => commentMutation.mutate()}
+              disabled={commentMutation.isPending || !comment.trim()}
+              className="h-10 text-sm font-bold shadow-md hover:opacity-90"
+            >
+              {commentMutation.isPending ? (
+                <Spinner className="w-4 h-4 me-2" />
+              ) : (
+                <Send className="w-4 h-4 me-2" />
+              )}
+              {t("support.addComment")}
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="text-center text-sm text-muted-foreground py-4 bg-muted/30 rounded-xl">
+          {t("support.closedNote")}
+        </div>
+      )}
     </div>
   );
 }

@@ -253,7 +253,7 @@ export function SuperAdminCompanies() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-2 text-sm text-muted-foreground">
+                <div className="mt-3 grid grid-cols-2 md:grid-cols-6 gap-2 text-sm text-muted-foreground">
                   <div>
                     <div className="text-xs font-medium text-muted-foreground/70">الدولة</div>
                     <div>{company.country}</div>
@@ -273,6 +273,10 @@ export function SuperAdminCompanies() {
                   <div>
                     <div className="text-xs font-medium text-muted-foreground/70">المستخدمين</div>
                     <div>{company.userCount}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground/70">التليفون</div>
+                    <div dir="ltr" className="font-mono text-xs">{company.phone || "—"}</div>
                   </div>
                 </div>
 

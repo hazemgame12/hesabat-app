@@ -274,11 +274,59 @@ router.post("/admin/support/tickets/:id/comments", requireAuth, requireCapabilit
         userId,
         body: commentBody.trim(),
         isInternal: isInternal ?? false,
+        isAdminReply: true,
+        isReadByUser: false,
+        isReadByAdmin: true,
       })
       .returning();
     res.status(201).json({ comment });
   } catch (err) {
     req.log.error({ err }, "Failed to add admin comment");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// Admin: unread count (user messages not yet seen by admin)
+router.get("/admin/support/tickets/unread-count", requireAuth, requireCapability("support:admin"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  try {
+    const [row] = await db
+      .select({ count: count() })
+      .from(ticketCommentsTable)
+      .innerJoin(supportTicketsTable, eq(supportTicketsTable.id, ticketCommentsTable.ticketId))
+      .where(
+        and(
+          eq(supportTicketsTable.companyId, companyId),
+          eq(ticketCommentsTable.isAdminReply, false),
+          eq(ticketCommentsTable.isInternal, false),
+          eq(ticketCommentsTable.isReadByAdmin, false),
+        ),
+      );
+    res.json({ count: row?.count ?? 0 });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get admin unread count");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// Admin: mark ticket comments as read by admin
+router.post("/admin/support/tickets/:id/mark-read", requireAuth, requireCapability("support:admin"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  const ticketId = req.params.id as string;
+  try {
+    const [ticket] = await db
+      .select({ id: supportTicketsTable.id })
+      .from(supportTicketsTable)
+      .where(and(eq(supportTicketsTable.id, ticketId), eq(supportTicketsTable.companyId, companyId)))
+      .limit(1);
+    if (!ticket) { res.status(404).json({ error: "التذكرة غير موجودة" }); return; }
+    await db
+      .update(ticketCommentsTable)
+      .set({ isReadByAdmin: true })
+      .where(and(eq(ticketCommentsTable.ticketId, ticketId), eq(ticketCommentsTable.isAdminReply, false)));
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to mark admin read");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });

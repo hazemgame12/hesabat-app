@@ -68,11 +68,13 @@ interface AdminTicket {
 }
 
 interface TicketComment {
-  id: string;
+  id: number;
   ticketId: string;
   userId: string;
   body: string;
   isInternal: boolean;
+  isAdminReply: boolean;
+  isReadByAdmin: boolean;
   createdAt: string;
   userName?: string;
 }
@@ -159,6 +161,13 @@ function AdminTicketDetail({
     queryKey: ["admin", "support", "ticket", ticketId],
     queryFn: () => apiFetch(`/admin/support/tickets/${ticketId}`),
   });
+
+  // mark-read on open
+  React.useEffect(() => {
+    apiFetch(`/admin/support/tickets/${ticketId}/mark-read`, { method: "POST" }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "support", "unread-count"] });
+    }).catch(() => {});
+  }, [ticketId, queryClient]);
 
   const [comment, setComment] = useState("");
   const [isInternal, setIsInternal] = useState(false);
@@ -339,7 +348,7 @@ function AdminTicketDetail({
         </div>
       </Card>
 
-      {/* Comments */}
+      {/* Thread */}
       <div className="mb-4">
         <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
           <MessageSquare className="w-4 h-4" />
@@ -347,25 +356,35 @@ function AdminTicketDetail({
         </h3>
 
         {comments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("support.noTickets")}</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">{t("support.noComments")}</p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {comments.map((c) => (
-              <Card key={c.id} className={`p-4 shadow-sm border-border ${c.isInternal ? "border-l-4 border-l-amber-400" : ""}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                    {(c.userName || c.userId).slice(0, 1).toUpperCase()}
+          <div className="flex flex-col gap-2">
+            {comments.map((c) => {
+              const isAdmin = c.isAdminReply ?? false;
+              if (c.isInternal) {
+                return (
+                  <div key={c.id} className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+                    <div className="flex items-center gap-2 mb-1 text-xs text-amber-600">
+                      <span className="font-bold">{t("support.admin.internalComment")}</span>
+                      <span>{fmtDate(c.createdAt)}</span>
+                    </div>
+                    <p>{c.body}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground">{fmtDate(c.createdAt)}</span>
-                  {c.isInternal && (
-                    <Badge variant="secondary" className="bg-amber-50 text-amber-700 text-xs">
-                      {t("support.admin.internalComment")}
-                    </Badge>
-                  )}
+                );
+              }
+              return (
+                <div key={c.id} className={`flex gap-3 ${isAdmin ? "flex-row" : "flex-row-reverse"}`}>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isAdmin ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    {isAdmin ? "د" : ((c.userName || c.userId).slice(0, 1).toUpperCase())}
+                  </div>
+                  <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${isAdmin ? "bg-primary/10 text-foreground rounded-tl-sm" : "bg-muted text-foreground rounded-tr-sm"}`}>
+                    {!isAdmin && <p className="text-xs font-bold text-muted-foreground mb-1">{c.userName || "—"}</p>}
+                    <p className="leading-relaxed">{c.body}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1.5">{fmtDate(c.createdAt)}</p>
+                  </div>
                 </div>
-                <p className="text-sm text-foreground">{c.body}</p>
-              </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

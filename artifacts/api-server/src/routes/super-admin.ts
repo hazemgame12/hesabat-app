@@ -103,6 +103,7 @@ router.get("/super-admin/companies", async (req, res) => {
       subscriptionStatus: companiesTable.subscriptionStatus,
       trialEndsAt: companiesTable.trialEndsAt,
       isActive: companiesTable.isActive,
+      phone: companiesTable.phone,
       createdAt: companiesTable.createdAt,
       updatedAt: companiesTable.updatedAt,
     })

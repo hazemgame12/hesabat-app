@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { useGetCurrentUser } from "@workspace/api-client-react";
 import { hasCapability, type Capability } from "@workspace/permissions";
 import {
@@ -51,6 +52,23 @@ export function Settings() {
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
 
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ["support", "unread-count"],
+    queryFn: () => fetch("/api/support/tickets/unread-count", { credentials: "include" }).then((r) => r.json()),
+    refetchInterval: 30000,
+    enabled: hasCapability(role, "support:read"),
+  });
+
+  const { data: adminUnreadData } = useQuery<{ count: number }>({
+    queryKey: ["admin", "support", "unread-count"],
+    queryFn: () => fetch("/api/admin/support/tickets/unread-count", { credentials: "include" }).then((r) => r.json()),
+    refetchInterval: 30000,
+    enabled: hasCapability(role, "support:admin"),
+  });
+
+  const unreadCount = unreadData?.count ?? 0;
+  const adminUnreadCount = adminUnreadData?.count ?? 0;
+
   const tabs = TABS.filter((tab) => !tab.requires || hasCapability(role, tab.requires));
   const currentKey = location.split("/")[2] || tabs[0]?.key;
   const active = tabs.find((tab) => tab.key === currentKey) ?? tabs[0];
@@ -87,6 +105,12 @@ export function Settings() {
         <nav className="flex flex-col gap-0.5 p-3 flex-1">
           {tabs.map((tab) => {
             const isActive = tab.key === active?.key;
+            const badge =
+              tab.key === "support" && unreadCount > 0
+                ? unreadCount
+                : tab.key === "support-admin" && adminUnreadCount > 0
+                  ? adminUnreadCount
+                  : 0;
             return (
               <Link
                 key={tab.key}
@@ -98,7 +122,12 @@ export function Settings() {
                 }`}
               >
                 <tab.icon className="w-4 h-4 shrink-0" />
-                <span className="truncate">{t(tab.labelKey)}</span>
+                <span className="truncate flex-1">{t(tab.labelKey)}</span>
+                {badge > 0 && (
+                  <span className={`min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center px-1 ${isActive ? "bg-white/20 text-white" : "bg-red-500 text-white"}`}>
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
               </Link>
             );
           })}

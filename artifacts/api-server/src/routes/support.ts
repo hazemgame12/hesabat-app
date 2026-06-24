@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, sql } from "drizzle-orm";
 import {
   db,
   supportTicketsTable,
@@ -195,11 +195,89 @@ router.post("/support/tickets/:id/comments", requireAuth, requireCapability("sup
         ticketId,
         userId,
         body: commentBody.trim(),
+        isAdminReply: false,
+        isReadByUser: true,
+        isReadByAdmin: false,
       })
       .returning();
     res.status(201).json({ comment });
   } catch (err) {
     req.log.error({ err }, "Failed to add comment");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// User: unread count (admin replies not yet seen by user)
+router.get("/support/tickets/unread-count", requireAuth, requireCapability("support:read"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  const userId = req.auth!.userId;
+  try {
+    const [row] = await db
+      .select({ count: count() })
+      .from(ticketCommentsTable)
+      .innerJoin(supportTicketsTable, eq(supportTicketsTable.id, ticketCommentsTable.ticketId))
+      .where(
+        and(
+          eq(supportTicketsTable.companyId, companyId),
+          eq(supportTicketsTable.userId, userId),
+          eq(ticketCommentsTable.isAdminReply, true),
+          eq(ticketCommentsTable.isReadByUser, false),
+        ),
+      );
+    res.json({ count: row?.count ?? 0 });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get unread count");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// User: mark ticket comments as read
+router.post("/support/tickets/:id/mark-read", requireAuth, requireCapability("support:read"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  const userId = req.auth!.userId;
+  const ticketId = req.params.id as string;
+  try {
+    const [ticket] = await db
+      .select({ id: supportTicketsTable.id })
+      .from(supportTicketsTable)
+      .where(and(eq(supportTicketsTable.id, ticketId), eq(supportTicketsTable.companyId, companyId), eq(supportTicketsTable.userId, userId)))
+      .limit(1);
+    if (!ticket) { res.status(404).json({ error: "التذكرة غير موجودة" }); return; }
+    await db
+      .update(ticketCommentsTable)
+      .set({ isReadByUser: true })
+      .where(and(eq(ticketCommentsTable.ticketId, ticketId), eq(ticketCommentsTable.isAdminReply, true)));
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to mark read");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// User: reopen a resolved/closed ticket
+router.post("/support/tickets/:id/reopen", requireAuth, requireCapability("support:create"), async (req, res) => {
+  const companyId = req.auth!.companyId;
+  const userId = req.auth!.userId;
+  const ticketId = req.params.id as string;
+  try {
+    const [ticket] = await db
+      .select({ status: supportTicketsTable.status })
+      .from(supportTicketsTable)
+      .where(and(eq(supportTicketsTable.id, ticketId), eq(supportTicketsTable.companyId, companyId), eq(supportTicketsTable.userId, userId)))
+      .limit(1);
+    if (!ticket) { res.status(404).json({ error: "التذكرة غير موجودة" }); return; }
+    if (!["resolved", "closed"].includes(ticket.status)) {
+      res.status(400).json({ error: "يمكن إعادة فتح التذاكر المحلولة أو المغلقة فقط" });
+      return;
+    }
+    const [updated] = await db
+      .update(supportTicketsTable)
+      .set({ status: "open" })
+      .where(eq(supportTicketsTable.id, ticketId))
+      .returning();
+    res.json({ ticket: updated });
+  } catch (err) {
+    req.log.error({ err }, "Failed to reopen ticket");
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });
