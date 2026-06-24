@@ -30,53 +30,13 @@ type SettingsTab = {
 };
 
 const TABS: SettingsTab[] = [
-  {
-    key: "company",
-    labelKey: "settings.tabs.company",
-    icon: Building2,
-    component: CompanyProfile,
-  },
-  {
-    key: "team",
-    labelKey: "settings.tabs.team",
-    icon: ShieldCheck,
-    component: Team,
-    requires: "team:manage",
-  },
-  {
-    key: "cost-centers",
-    labelKey: "settings.tabs.costCenters",
-    icon: Boxes,
-    component: CostCenters,
-    requires: "costCenters:read",
-  },
-  {
-    key: "currencies",
-    labelKey: "settings.tabs.currencies",
-    icon: Coins,
-    component: Currencies,
-    requires: "currencies:read",
-  },
-  {
-    key: "taxes",
-    labelKey: "settings.tabs.taxes",
-    icon: Percent,
-    component: Taxes,
-    requires: "taxes:read",
-  },
-  {
-    key: "fiscal-years",
-    labelKey: "settings.tabs.fiscalYears",
-    icon: CalendarRange,
-    component: FiscalYears,
-    requires: "fiscalyear:read",
-  },
-  {
-    key: "backup",
-    labelKey: "settings.tabs.backup",
-    icon: Database,
-    component: Backup,
-  },
+  { key: "company",      labelKey: "settings.tabs.company",      icon: Building2,    component: CompanyProfile },
+  { key: "team",         labelKey: "settings.tabs.team",         icon: ShieldCheck,  component: Team,          requires: "team:manage" },
+  { key: "cost-centers", labelKey: "settings.tabs.costCenters",  icon: Boxes,        component: CostCenters,   requires: "costCenters:read" },
+  { key: "currencies",   labelKey: "settings.tabs.currencies",   icon: Coins,        component: Currencies,    requires: "currencies:read" },
+  { key: "taxes",        labelKey: "settings.tabs.taxes",        icon: Percent,      component: Taxes,         requires: "taxes:read" },
+  { key: "fiscal-years", labelKey: "settings.tabs.fiscalYears",  icon: CalendarRange,component: FiscalYears,   requires: "fiscalyear:read" },
+  { key: "backup",       labelKey: "settings.tabs.backup",       icon: Database,     component: Backup },
 ];
 
 export function Settings() {
@@ -85,9 +45,7 @@ export function Settings() {
   const { data: user } = useGetCurrentUser();
   const role = user?.role ?? "";
 
-  const tabs = TABS.filter(
-    (tab) => !tab.requires || hasCapability(role, tab.requires),
-  );
+  const tabs = TABS.filter((tab) => !tab.requires || hasCapability(role, tab.requires));
   const currentKey = location.split("/")[2] || tabs[0]?.key;
   const active = tabs.find((tab) => tab.key === currentKey) ?? tabs[0];
   const ActiveComponent = active?.component;
@@ -99,43 +57,50 @@ export function Settings() {
   }, [currentKey, active, setLocation]);
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <header className="bg-background/80 backdrop-blur-md border-b sticky top-0 z-20">
-        <div className="flex items-center gap-4 px-8 pt-5">
-          <div className="w-12 h-12 rounded-xl bg-card border shadow-sm flex items-center justify-center text-primary">
-            <SettingsIcon className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-foreground">
-              {t("settings.title")}
-            </h1>
-            <p className="text-sm text-muted-foreground font-medium">
-              {t("settings.subtitle")}
-            </p>
+    <div className="flex min-h-screen">
+      {/* Settings sidebar nav — sticky, fixed width */}
+      <aside className="w-56 border-l bg-card/50 flex flex-col sticky top-0 h-screen overflow-y-auto shrink-0">
+        {/* Sidebar header */}
+        <div className="px-4 pt-6 pb-4 border-b">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <SettingsIcon className="w-4 h-4" />
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-bold text-foreground leading-tight truncate">
+                {t("settings.title")}
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">
+                {t("settings.subtitle")}
+              </p>
+            </div>
           </div>
         </div>
-        <nav className="flex gap-1 px-6 mt-4 overflow-x-auto">
+
+        {/* Nav items */}
+        <nav className="flex flex-col gap-0.5 p-3 flex-1">
           {tabs.map((tab) => {
             const isActive = tab.key === active?.key;
             return (
               <Link
                 key={tab.key}
                 href={`/settings/${tab.key}`}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 whitespace-nowrap transition-colors ${
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                   isActive
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 }`}
               >
-                <tab.icon className="w-4 h-4 flex-shrink-0" />
-                {t(tab.labelKey)}
+                <tab.icon className="w-4 h-4 shrink-0" />
+                <span className="truncate">{t(tab.labelKey)}</span>
               </Link>
             );
           })}
         </nav>
-      </header>
+      </aside>
 
-      <div className="flex-1">
+      {/* Content area */}
+      <div className="flex-1 overflow-auto min-h-screen bg-background">
         {ActiveComponent ? <ActiveComponent /> : null}
       </div>
     </div>

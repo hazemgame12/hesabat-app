@@ -203,14 +203,10 @@ export function CompanyProfile() {
 
   return (
     <div className="flex flex-col">
-      <header className="h-20 bg-background/80 backdrop-blur-md border-b flex items-center px-8">
-        <div>
-          <h1 className="text-lg font-bold text-foreground">{t("company.title")}</h1>
-          <p className="text-sm text-muted-foreground font-medium">
-            {t("company.subtitle")}
-          </p>
-        </div>
-      </header>
+      <div className="px-8 pt-7 pb-1">
+        <h2 className="text-base font-extrabold text-foreground">{t("company.title")}</h2>
+        <p className="text-sm text-muted-foreground">{t("company.subtitle")}</p>
+      </div>
 
       <div className="p-8 flex flex-col gap-6 max-w-4xl mx-auto w-full">
         {/* Logo + identity */}

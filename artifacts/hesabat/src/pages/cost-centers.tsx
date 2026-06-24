@@ -195,15 +195,10 @@ export function CostCenters() {
 
   return (
     <div className="flex flex-col">
-      <header className="h-20 bg-background/80 backdrop-blur-md border-b flex items-center justify-between px-8">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-card border shadow-sm flex items-center justify-center text-primary">
-            <Boxes className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-foreground">{t("costCenters.title")}</h1>
-            <p className="text-sm text-muted-foreground font-medium">{t("costCenters.subtitle")}</p>
-          </div>
+      <div className="flex items-center justify-between px-8 pt-7 pb-1">
+        <div>
+          <h2 className="text-base font-extrabold text-foreground">{t("costCenters.title")}</h2>
+          <p className="text-sm text-muted-foreground">{t("costCenters.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
@@ -223,7 +218,7 @@ export function CostCenters() {
             </button>
           )}
         </div>
-      </header>
+      </div>
 
       <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
         {isLoading ? (
