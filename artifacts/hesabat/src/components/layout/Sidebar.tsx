@@ -31,6 +31,7 @@ import {
   BarChart3,
   ChevronDown,
   ShieldCheck,
+  LifeBuoy,
   ClipboardList,
   FileOutput,
   ArrowDownLeft,
@@ -140,6 +141,8 @@ const navEntries: NavEntry[] = [
   },
   // 11. إعدادات الشركة
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
+  // 12. درج الدعم (للأدمن)
+  { labelKey: "nav.supportAdmin", icon: LifeBuoy, href: "/admin/support", requires: "support:admin" },
 ];
 
 function useLinkActive() {
