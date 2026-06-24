@@ -236,8 +236,11 @@ router.get(
 
 // ---- Excel export / import (employees) ------------------------------------
 
-// Streams all of the company's employees as an .xlsx workbook (round-trips the
-// import format; pay components are managed separately and not included here).
+// Streams all of the company's employees as an .xlsx workbook.
+// Includes baseSalary, payroll_tax (ضريبة كسب العمل), and one column per
+// unique pay-component name (allowances then deductions). The import endpoint
+// round-trips this format: existing employees get their payroll_tax and
+// component amounts updated; unknown codes create new employees.
 router.get(
   "/employees/export",
   requireAuth,
@@ -250,6 +253,64 @@ router.get(
         .from(employeesTable)
         .where(eq(employeesTable.companyId, companyId))
         .orderBy(asc(employeesTable.code));
+
+      // Load all pay components for these employees.
+      const empIds = rows.map((r) => r.id);
+      const allComps =
+        empIds.length > 0
+          ? await db
+              .select()
+              .from(employeePayComponentsTable)
+              .where(
+                and(
+                  eq(employeePayComponentsTable.companyId, companyId),
+                  inArray(employeePayComponentsTable.employeeId, empIds),
+                ),
+              )
+              .orderBy(asc(employeePayComponentsTable.createdAt))
+          : [];
+
+      const compsByEmp = new Map<string, typeof allComps>();
+      for (const c of allComps) {
+        if (!compsByEmp.has(c.employeeId)) compsByEmp.set(c.employeeId, []);
+        compsByEmp.get(c.employeeId)!.push(c);
+      }
+
+      // Collect unique component names in order of first appearance, grouped
+      // by kind so allowances come before deductions.
+      const allowanceNames: string[] = [];
+      const deductionNames: string[] = [];
+      for (const c of allComps) {
+        if (c.kind === "allowance" && !allowanceNames.includes(c.nameAr))
+          allowanceNames.push(c.nameAr);
+        if (c.kind === "deduction" && !deductionNames.includes(c.nameAr))
+          deductionNames.push(c.nameAr);
+      }
+
+      type EmpRow = (typeof rows)[number];
+      const dynamicCols = [
+        ...allowanceNames.map((name) => ({
+          header: name,
+          value: (r: EmpRow) =>
+            Number(
+              compsByEmp
+                .get(r.id)
+                ?.find((c) => c.kind === "allowance" && c.nameAr === name)
+                ?.amount ?? 0,
+            ),
+        })),
+        ...deductionNames.map((name) => ({
+          header: name,
+          value: (r: EmpRow) =>
+            Number(
+              compsByEmp
+                .get(r.id)
+                ?.find((c) => c.kind === "deduction" && c.nameAr === name)
+                ?.amount ?? 0,
+            ),
+        })),
+      ];
+
       await exportWorkbook(res, {
         sheetName: "Employees",
         fileName: "employees-export",
@@ -261,6 +322,11 @@ router.get(
           { header: "hireDate", value: (r) => r.hireDate },
           { header: "status", value: (r) => r.status },
           { header: "baseSalary", value: (r) => Number(r.baseSalary) },
+          {
+            header: "payroll_tax",
+            value: (r) => Number((r as any).payrollTax ?? 0),
+          },
+          ...dynamicCols,
           { header: "notes", value: (r) => r.notes ?? "" },
         ],
         rows,
@@ -272,8 +338,15 @@ router.get(
   },
 );
 
-// Bulk-creates employees from an .xlsx (round-trips the export format).
-// All-or-nothing: any invalid/duplicate row aborts the whole import.
+// Imports employees from an .xlsx that round-trips the export format.
+// All-or-nothing transaction.
+// • New codes   → create employee.
+// • Existing codes → update payroll_tax + component amounts (other fields
+//   like name/salary are left unchanged so the user can safely re-upload
+//   the monthly sheet without accidentally overwriting master data).
+// Any column header that is not a known fixed field is treated as a pay-
+// component name and its numeric value is used to update that component's
+// amount for the employee (component must already exist).
 router.post(
   "/employees/import",
   requireAuth,
@@ -291,21 +364,30 @@ router.post(
         res.status(400).json({ error: "الملف لا يحتوي على بيانات" });
         return;
       }
-      if (!sheet.has("code") || !sheet.has("nameAr")) {
+      if (!sheet.has("code")) {
         res.status(400).json({
-          error:
-            "صيغة الملف غير صحيحة. الأعمدة المطلوبة: code, nameAr, hireDate, baseSalary",
+          error: "صيغة الملف غير صحيحة. العمود المطلوب: code",
         });
         return;
       }
 
+      // Detect dynamic component columns (everything that isn't a fixed field).
+      const FIXED_COLS = new Set([
+        "code", "nameAr", "nameEn", "jobTitle", "hireDate",
+        "status", "baseSalary", "payroll_tax", "notes",
+      ]);
+      const compCols = Object.keys(sheet.colIndex).filter(
+        (h) => !FIXED_COLS.has(h),
+      );
+
+      // Load existing employees for this company (code → id map).
       const existing = await db
-        .select({ code: employeesTable.code })
+        .select({ id: employeesTable.id, code: employeesTable.code })
         .from(employeesTable)
         .where(eq(employeesTable.companyId, companyId));
-      const existingCodes = new Set(existing.map((e) => e.code));
+      const existingByCode = new Map(existing.map((e) => [e.code, e.id]));
 
-      type Row = {
+      type ParsedRow = {
         code: string;
         nameAr: string;
         nameEn: string | null;
@@ -313,76 +395,141 @@ router.post(
         hireDate: string;
         status: "active" | "terminated";
         baseSalary: number;
+        payrollTax: number;
+        components: Record<string, number>; // nameAr → amount
         notes: string | null;
+        isNew: boolean;
       };
-      const parsed: Row[] = [];
+      const parsed: ParsedRow[] = [];
       const seen = new Set<string>();
+
       for (const { rowNo, row } of sheet.rows) {
         const code = sheet.str(row, "code");
-        const nameAr = sheet.str(row, "nameAr");
-        if (!code && !nameAr) continue; // skip blank rows
-        if (!code || !nameAr) {
-          res
-            .status(400)
-            .json({ error: `السطر ${rowNo}: code و nameAr مطلوبان` });
+        if (!code) continue; // skip blank rows
+
+        if (seen.has(code)) {
+          res.status(400).json({ error: `السطر ${rowNo}: كود الموظف ${code} مكرر في الملف` });
           return;
         }
-        if (seen.has(code) || existingCodes.has(code)) {
-          res
-            .status(400)
-            .json({ error: `السطر ${rowNo}: كود الموظف ${code} مكرر` });
-          return;
+
+        const isNew = !existingByCode.has(code);
+        if (isNew) {
+          // New employees require nameAr and hireDate.
+          const nameAr = sheet.str(row, "nameAr");
+          if (!nameAr) {
+            res.status(400).json({ error: `السطر ${rowNo}: nameAr مطلوب للموظفين الجدد` });
+            return;
+          }
+          const hireDate = sheet.str(row, "hireDate");
+          if (!hireDate) {
+            res.status(400).json({ error: `السطر ${rowNo}: hireDate مطلوب للموظفين الجدد` });
+            return;
+          }
+          const baseSalary = sheet.has("baseSalary") ? sheet.num(row, "baseSalary") : 0;
+          if (baseSalary < 0) {
+            res.status(400).json({ error: `السطر ${rowNo}: الراتب الأساسي غير صحيح` });
+            return;
+          }
+          const statusRaw = sheet.has("status") ? sheet.str(row, "status") : "";
+          const components: Record<string, number> = {};
+          for (const col of compCols) components[col] = sheet.num(row, col);
+          seen.add(code);
+          parsed.push({
+            code,
+            nameAr,
+            nameEn: sheet.str(row, "nameEn") || null,
+            jobTitle: sheet.str(row, "jobTitle") || null,
+            hireDate,
+            status: statusRaw === "terminated" ? "terminated" : "active",
+            baseSalary,
+            payrollTax: sheet.has("payroll_tax") ? sheet.num(row, "payroll_tax") : 0,
+            components,
+            notes: sheet.str(row, "notes") || null,
+            isNew: true,
+          });
+        } else {
+          // Existing employee: only update payroll_tax + component amounts.
+          const components: Record<string, number> = {};
+          for (const col of compCols) components[col] = sheet.num(row, col);
+          seen.add(code);
+          parsed.push({
+            code,
+            nameAr: "", nameEn: null, jobTitle: null,
+            hireDate: "", status: "active", baseSalary: 0,
+            payrollTax: sheet.has("payroll_tax") ? sheet.num(row, "payroll_tax") : 0,
+            components,
+            notes: null,
+            isNew: false,
+          });
         }
-        const hireDate = sheet.str(row, "hireDate");
-        if (!hireDate) {
-          res.status(400).json({ error: `السطر ${rowNo}: hireDate مطلوب` });
-          return;
-        }
-        const baseStr = sheet.has("baseSalary")
-          ? sheet.str(row, "baseSalary")
-          : "";
-        const baseSalary = baseStr ? sheet.num(row, "baseSalary") : 0;
-        if (baseSalary < 0) {
-          res
-            .status(400)
-            .json({ error: `السطر ${rowNo}: الراتب الأساسي غير صحيح` });
-          return;
-        }
-        const statusRaw = sheet.has("status") ? sheet.str(row, "status") : "";
-        const status = statusRaw === "terminated" ? "terminated" : "active";
-        seen.add(code);
-        parsed.push({
-          code,
-          nameAr,
-          nameEn: sheet.str(row, "nameEn") || null,
-          jobTitle: sheet.str(row, "jobTitle") || null,
-          hireDate,
-          status,
-          baseSalary,
-          notes: sheet.str(row, "notes") || null,
-        });
       }
+
       if (parsed.length === 0) {
         res.status(400).json({ error: "الملف لا يحتوي على موظفين" });
         return;
       }
 
+      let created = 0;
+      let updated = 0;
+
       await db.transaction(async (tx) => {
         for (const r of parsed) {
-          await tx.insert(employeesTable).values({
-            companyId,
-            code: r.code,
-            nameAr: r.nameAr,
-            nameEn: r.nameEn,
-            jobTitle: r.jobTitle,
-            hireDate: r.hireDate,
-            status: r.status,
-            baseSalary: String(r.baseSalary),
-            notes: r.notes,
-          });
+          if (r.isNew) {
+            const [inserted] = await tx.insert(employeesTable).values({
+              companyId,
+              code: r.code,
+              nameAr: r.nameAr,
+              nameEn: r.nameEn,
+              jobTitle: r.jobTitle,
+              hireDate: r.hireDate,
+              status: r.status,
+              baseSalary: String(r.baseSalary),
+              payrollTax: String(r.payrollTax),
+              notes: r.notes,
+            } as any).returning({ id: employeesTable.id });
+            created++;
+            // Insert components for new employees.
+            for (const [nameAr, amount] of Object.entries(r.components)) {
+              if (amount > 0) {
+                await tx.insert(employeePayComponentsTable).values({
+                  companyId,
+                  employeeId: inserted!.id,
+                  kind: "allowance", // default — user can adjust via modal
+                  nameAr,
+                  amount: String(amount),
+                });
+              }
+            }
+          } else {
+            const empId = existingByCode.get(r.code)!;
+            // Update payroll_tax.
+            await tx
+              .update(employeesTable)
+              .set({ payrollTax: String(r.payrollTax) } as any)
+              .where(
+                and(
+                  eq(employeesTable.id, empId),
+                  eq(employeesTable.companyId, companyId),
+                ),
+              );
+            // Update component amounts by nameAr match.
+            for (const [nameAr, amount] of Object.entries(r.components)) {
+              await tx
+                .update(employeePayComponentsTable)
+                .set({ amount: String(amount) })
+                .where(
+                  and(
+                    eq(employeePayComponentsTable.companyId, companyId),
+                    eq(employeePayComponentsTable.employeeId, empId),
+                    eq(employeePayComponentsTable.nameAr, nameAr),
+                  ),
+                );
+            }
+            updated++;
+          }
         }
       });
-      res.json({ imported: parsed.length });
+      res.json({ created, updated, imported: created + updated });
     } catch (err) {
       if (isUniqueViolation(err)) {
         res.status(409).json({ error: "يوجد كود موظف مكرر في الملف" });
@@ -538,6 +685,7 @@ router.patch(
       if (dAny.costCenterId !== undefined) updates["costCenterId"] = dAny.costCenterId;
       if (dAny.insuranceSalary !== undefined) updates["insuranceSalary"] = dAny.insuranceSalary != null ? String(dAny.insuranceSalary) : null;
       if (dAny.includeInsurance !== undefined) updates["includeInsurance"] = dAny.includeInsurance;
+      if (dAny.payrollTax !== undefined) updates["payrollTax"] = dAny.payrollTax != null ? String(dAny.payrollTax) : "0";
 
       await db.transaction(async (tx) => {
         if (Object.keys(updates).length > 0) {

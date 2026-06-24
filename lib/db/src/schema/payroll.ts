@@ -46,6 +46,8 @@ export const employeesTable = pgTable(
     // null = use baseSalary as insurance salary.
     insuranceSalary: numeric("insurance_salary", { precision: 18, scale: 2 }),
     includeInsurance: boolean("include_insurance").notNull().default(true),
+    // Default monthly income tax (ضريبة كسب العمل) — pre-filled in the payroll run.
+    payrollTax: numeric("payroll_tax", { precision: 18, scale: 2 }).default("0"),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
