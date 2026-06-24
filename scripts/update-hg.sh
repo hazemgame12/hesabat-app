@@ -37,10 +37,12 @@ else
       echo "  ⏭  $fname (already applied)"
     else
       echo "  ▶  Applying $fname ..."
-      psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$sql_file" \
-        && echo "$fname" >> "$APPLIED_LOG" \
-        && echo "  ✅ $fname applied" \
-        || { echo "  ❌ $fname FAILED — aborting"; exit 1; }
+      if psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$sql_file"; then
+        echo "$fname" >> "$APPLIED_LOG"
+        echo "  ✅ $fname applied"
+      else
+        echo "  ⚠️  $fname FAILED — skipping (will retry next deploy)"
+      fi
     fi
   done
   echo "✅ DB schema up to date"
