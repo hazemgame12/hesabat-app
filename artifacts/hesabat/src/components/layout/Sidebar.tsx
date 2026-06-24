@@ -30,7 +30,6 @@ import {
   UserCog,
   BarChart3,
   ChevronDown,
-  LifeBuoy,
   ShieldCheck,
   ClipboardList,
   FileOutput,
@@ -139,17 +138,7 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
     ],
   },
-  // 11. الدعم
-  {
-    groupKey: "support",
-    labelKey: "nav.groups.support",
-    icon: LifeBuoy,
-    children: [
-      { labelKey: "nav.support", icon: LifeBuoy, href: "/support", requires: "support:read" },
-      { labelKey: "nav.supportAdmin", icon: ShieldCheck, href: "/admin/support", requires: "support:admin" },
-    ],
-  },
-  // 12. إعدادات الشركة
+  // 11. إعدادات الشركة
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 

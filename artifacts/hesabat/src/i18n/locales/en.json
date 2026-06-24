@@ -367,7 +367,8 @@
       "taxes": "Taxes",
       "fiscalYears": "Fiscal Years",
       "password": "Password",
-      "backup": "Backup"
+      "backup": "Backup",
+      "support": "Support"
     },
     "password": {
       "title": "Change Password",

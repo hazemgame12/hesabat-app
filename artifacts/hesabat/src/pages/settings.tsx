@@ -12,6 +12,7 @@ import {
   Percent,
   CalendarRange,
   Database,
+  LifeBuoy,
 } from "lucide-react";
 import { CompanyProfile } from "@/pages/company";
 import { Team } from "@/pages/team";
@@ -20,6 +21,7 @@ import { Currencies } from "@/pages/currencies";
 import { Taxes } from "@/pages/taxes";
 import { FiscalYears } from "@/pages/fiscal-years";
 import { Backup } from "@/pages/backup";
+import { Support } from "@/pages/support";
 
 type SettingsTab = {
   key: string;
@@ -37,6 +39,7 @@ const TABS: SettingsTab[] = [
   { key: "taxes",        labelKey: "settings.tabs.taxes",        icon: Percent,      component: Taxes,         requires: "taxes:read" },
   { key: "fiscal-years", labelKey: "settings.tabs.fiscalYears",  icon: CalendarRange,component: FiscalYears,   requires: "fiscalyear:read" },
   { key: "backup",       labelKey: "settings.tabs.backup",       icon: Database,     component: Backup },
+  { key: "support",      labelKey: "settings.tabs.support",      icon: LifeBuoy,     component: Support,       requires: "support:read" },
 ];
 
 export function Settings() {

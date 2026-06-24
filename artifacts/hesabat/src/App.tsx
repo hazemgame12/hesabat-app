@@ -114,7 +114,7 @@ function ProtectedRoutes() {
         <Route path="/reports" component={Reports} />
         <Route path="/audit" component={Audit} />
         <Route path="/e-invoice" component={EInvoice} />
-        <Route path="/support" component={Support} />
+        <Route path="/support"><Redirect to="/settings/support" /></Route>
         <Route path="/admin/support" component={AdminSupport} />
         <Route path="/fiscal-years">
           <Redirect to="/settings/fiscal-years" />
