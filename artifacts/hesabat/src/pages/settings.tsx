@@ -14,7 +14,6 @@ import {
   CalendarRange,
   Database,
   LifeBuoy,
-  Inbox,
 } from "lucide-react";
 import { CompanyProfile } from "@/pages/company";
 import { Team } from "@/pages/team";
@@ -24,7 +23,6 @@ import { Taxes } from "@/pages/taxes";
 import { FiscalYears } from "@/pages/fiscal-years";
 import { Backup } from "@/pages/backup";
 import { Support } from "@/pages/support";
-import { AdminSupport } from "@/pages/admin-support";
 
 type SettingsTab = {
   key: string;
@@ -43,7 +41,6 @@ const TABS: SettingsTab[] = [
   { key: "fiscal-years", labelKey: "settings.tabs.fiscalYears",  icon: CalendarRange,component: FiscalYears,   requires: "fiscalyear:read" },
   { key: "backup",       labelKey: "settings.tabs.backup",       icon: Database,     component: Backup },
   { key: "support",      labelKey: "settings.tabs.support",      icon: LifeBuoy,     component: Support,       requires: "support:read" },
-  { key: "support-admin",labelKey: "settings.tabs.supportAdmin",  icon: Inbox,        component: AdminSupport,  requires: "support:admin" },
 ];
 
 export function Settings() {
@@ -59,15 +56,7 @@ export function Settings() {
     enabled: hasCapability(role, "support:read"),
   });
 
-  const { data: adminUnreadData } = useQuery<{ count: number }>({
-    queryKey: ["admin", "support", "unread-count"],
-    queryFn: () => fetch("/api/admin/support/tickets/unread-count", { credentials: "include" }).then((r) => r.json()),
-    refetchInterval: 30000,
-    enabled: hasCapability(role, "support:admin"),
-  });
-
   const unreadCount = unreadData?.count ?? 0;
-  const adminUnreadCount = adminUnreadData?.count ?? 0;
 
   const tabs = TABS.filter((tab) => !tab.requires || hasCapability(role, tab.requires));
   const currentKey = location.split("/")[2] || tabs[0]?.key;
@@ -105,12 +94,7 @@ export function Settings() {
         <nav className="flex flex-col gap-0.5 p-3 flex-1">
           {tabs.map((tab) => {
             const isActive = tab.key === active?.key;
-            const badge =
-              tab.key === "support" && unreadCount > 0
-                ? unreadCount
-                : tab.key === "support-admin" && adminUnreadCount > 0
-                  ? adminUnreadCount
-                  : 0;
+            const badge = tab.key === "support" && unreadCount > 0 ? unreadCount : 0;
             return (
               <Link
                 key={tab.key}
