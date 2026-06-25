@@ -522,9 +522,23 @@ export function CompanyProfile() {
             </div>
           </div>
 
-          <div className="rounded-lg bg-primary/5 border border-primary/10 p-3 flex flex-col gap-1">
+          <div className="rounded-lg bg-primary/5 border border-primary/10 p-4 flex flex-col gap-3">
             <p className="text-xs font-semibold text-primary">{t("company.inbox.howTitle")}</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{t("company.inbox.howBody")}</p>
+            <ol className="flex flex-col gap-2.5">
+              {(["step1", "step2", "step3"] as const).map((key, i) => (
+                <li key={key} className="flex items-start gap-2.5">
+                  <span className="bg-primary text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    {i + 1}
+                  </span>
+                  <span className="text-xs text-muted-foreground leading-relaxed">
+                    {t(`company.inbox.${key}`)}
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p className="text-[11px] text-muted-foreground/70 border-t border-primary/10 pt-2">
+              {t("company.inbox.privacy")}
+            </p>
           </div>
 
           {canEdit && (

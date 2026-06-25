@@ -184,6 +184,25 @@ router.post("/documents/upload", requireAuth, handleUpload, async (req, res) => 
   res.status(201).json({ ...doc, filePath: undefined });
 });
 
+// GET /documents/:id/view — serve inline (browser preview: PDF viewer, image)
+router.get("/documents/:id/view", requireAuth, async (req, res) => {
+  const { companyId } = req.auth!;
+  const id = req.params["id"] as string;
+  const [doc] = await db
+    .select()
+    .from(documentsTable)
+    .where(and(eq(documentsTable.id, id), eq(documentsTable.companyId, companyId)));
+
+  if (!doc) { res.status(404).json({ error: "المستند غير موجود" }); return; }
+
+  const filePath = path.join(uploadsDir, doc.filePath);
+  if (!fs.existsSync(filePath)) { res.status(404).json({ error: "الملف غير موجود على الخادم" }); return; }
+
+  res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(doc.displayName)}`);
+  res.setHeader("Content-Type", doc.mimeType);
+  fs.createReadStream(filePath).pipe(res);
+});
+
 // GET /documents/:id/download
 router.get("/documents/:id/download", requireAuth, async (req, res) => {
   const { companyId } = req.auth!;

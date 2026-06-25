@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   FileText, Download, Upload, Link2, Link2Off,
-  FileImage, FileSpreadsheet, X, Inbox, Loader2,
+  FileImage, FileSpreadsheet, X, Inbox, Loader2, Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
@@ -261,6 +261,15 @@ export function DocumentsSection({ entityType, entityId, readOnly = false }: Doc
                 <span className="text-xs text-muted-foreground font-sans shrink-0">{fmtSize(d.sizeBytes)}</span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <a
+                  href={`${BASE}/${d.id}/view`}
+                  className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
+                  title={t("documents.view", "عرض")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Eye className="w-4 h-4" />
+                </a>
                 <a
                   href={`${BASE}/${d.id}/download`}
                   className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"

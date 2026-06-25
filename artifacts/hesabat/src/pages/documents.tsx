@@ -5,7 +5,7 @@ import {
   Upload, Search, Download, Link2, Link2Off, Trash2,
   MoreHorizontal, Mail, HardDrive, File, FileImage,
   FileSpreadsheet, FileText, Pencil, Check, X,
-  Receipt, BookOpen, ChevronDown, Inbox, AlertCircle,
+  Receipt, BookOpen, ChevronDown, Inbox, AlertCircle, Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -522,6 +522,12 @@ export function DocumentsPage() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="relative flex items-center gap-1">
+                        <a href={`${BASE}/${doc.id}/view`}
+                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
+                          title="عرض"
+                          target="_blank" rel="noopener noreferrer">
+                          <Eye className="w-4 h-4" />
+                        </a>
                         <a href={`${BASE}/${doc.id}/download`}
                           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
                           title="تحميل">

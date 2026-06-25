@@ -92,7 +92,7 @@ router.get("/company", requireAuth, async (req, res) => {
     }
     // Lazy-init inbox token on first access
     if (!company.inboxToken) {
-      const token = crypto.randomBytes(24).toString("hex");
+      const token = crypto.randomBytes(6).toString("hex");
       const [updated] = await db
         .update(companiesTable)
         .set({ inboxToken: token })
@@ -113,7 +113,7 @@ router.post(
   requireCapability("company:manage"),
   async (req, res) => {
     try {
-      const token = crypto.randomBytes(24).toString("hex");
+      const token = crypto.randomBytes(6).toString("hex");
       const [updated] = await db
         .update(companiesTable)
         .set({ inboxToken: token })
