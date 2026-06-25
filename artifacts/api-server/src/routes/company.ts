@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import path from "path";
 import crypto from "crypto";
 import multer from "multer";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, ne } from "drizzle-orm";
 import {
   db,
   companiesTable,
@@ -84,15 +84,17 @@ function nameToSlugBase(name: string): string {
   return latin || "company";
 }
 
-async function generateInboxSlug(companyName: string): Promise<string> {
+async function generateInboxSlug(companyName: string, excludeCompanyId?: string): Promise<string> {
   const base = nameToSlugBase(companyName);
-  // Try base, then base-2, base-3 … until unique
+  // Try base, then base-2, base-3 … until unique (skip own company's current token)
   for (let i = 0; i < 50; i++) {
     const candidate = i === 0 ? base : `${base}-${i + 1}`;
+    const conds: ReturnType<typeof eq>[] = [eq(companiesTable.inboxToken, candidate)];
+    if (excludeCompanyId) conds.push(ne(companiesTable.id, excludeCompanyId));
     const [existing] = await db
       .select({ id: companiesTable.id })
       .from(companiesTable)
-      .where(eq(companiesTable.inboxToken, candidate))
+      .where(and(...conds))
       .limit(1);
     if (!existing) return candidate;
   }
@@ -141,7 +143,7 @@ router.get("/company", requireAuth, async (req, res) => {
     // - old format (pure hex, no dashes) → migrate to name-based slug
     const isOldHexToken = company.inboxToken && /^[0-9a-f]+$/.test(company.inboxToken);
     if (!company.inboxToken || isOldHexToken) {
-      const token = await generateInboxSlug(company.name);
+      const token = await generateInboxSlug(company.name, company.id);
       const [updated] = await db
         .update(companiesTable)
         .set({ inboxToken: token })
@@ -167,7 +169,7 @@ router.post(
         res.status(404).json({ error: "الشركة غير موجودة" });
         return;
       }
-      const token = await generateInboxSlug(company.name);
+      const token = await generateInboxSlug(company.name, company.id);
       const [updated] = await db
         .update(companiesTable)
         .set({ inboxToken: token })
