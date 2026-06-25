@@ -19,7 +19,7 @@ export function Backup() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || t("backup.error"));
+        throw new Error(body.error || t("settings.backup.error"));
       }
       const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -31,9 +31,9 @@ export function Backup() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast({ title: t("backup.success") });
+      toast({ title: t("settings.backup.success") });
     } catch (err: any) {
-      toast({ variant: "destructive", title: err.message || t("backup.error") });
+      toast({ variant: "destructive", title: err.message || t("settings.backup.error") });
     } finally {
       setLoading(false);
     }
@@ -47,30 +47,30 @@ export function Backup() {
             <Database className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-foreground">{t("backup.title")}</h2>
-            <p className="text-sm text-muted-foreground">{t("backup.subtitle")}</p>
+            <h2 className="text-lg font-bold text-foreground">{t("settings.backup.title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("settings.backup.subtitle")}</p>
           </div>
         </div>
 
         <div className="flex flex-col gap-4">
           <div className="bg-muted/50 rounded-lg p-4 text-sm text-muted-foreground">
-            <p className="mb-2">{t("backup.description")}</p>
+            <p className="mb-2">{t("settings.backup.description")}</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>{t("backup.includes.company")}</li>
-              <li>{t("backup.includes.accounts")}</li>
-              <li>{t("backup.includes.journal")}</li>
-              <li>{t("backup.includes.customers")}</li>
-              <li>{t("backup.includes.suppliers")}</li>
-              <li>{t("backup.includes.invoices")}</li>
-              <li>{t("backup.includes.inventory")}</li>
-              <li>{t("backup.includes.fixedAssets")}</li>
-              <li>{t("backup.includes.payroll")}</li>
-              <li>{t("backup.includes.bank")}</li>
-              <li>{t("backup.includes.currencies")}</li>
-              <li>{t("backup.includes.taxes")}</li>
-              <li>{t("backup.includes.costCenters")}</li>
-              <li>{t("backup.includes.fiscalYears")}</li>
-              <li>{t("backup.includes.team")}</li>
+              <li>{t("settings.backup.includes.company")}</li>
+              <li>{t("settings.backup.includes.accounts")}</li>
+              <li>{t("settings.backup.includes.journal")}</li>
+              <li>{t("settings.backup.includes.customers")}</li>
+              <li>{t("settings.backup.includes.suppliers")}</li>
+              <li>{t("settings.backup.includes.invoices")}</li>
+              <li>{t("settings.backup.includes.inventory")}</li>
+              <li>{t("settings.backup.includes.fixedAssets")}</li>
+              <li>{t("settings.backup.includes.payroll")}</li>
+              <li>{t("settings.backup.includes.bank")}</li>
+              <li>{t("settings.backup.includes.currencies")}</li>
+              <li>{t("settings.backup.includes.taxes")}</li>
+              <li>{t("settings.backup.includes.costCenters")}</li>
+              <li>{t("settings.backup.includes.fiscalYears")}</li>
+              <li>{t("settings.backup.includes.team")}</li>
             </ul>
           </div>
 
@@ -82,12 +82,12 @@ export function Backup() {
             {loading ? (
               <>
                 <Spinner className="w-4 h-4 me-2" />
-                {t("backup.exporting")}
+                {t("settings.backup.exporting")}
               </>
             ) : (
               <>
                 <Download className="w-4 h-4 me-2" />
-                {t("backup.export")}
+                {t("settings.backup.export")}
               </>
             )}
           </Button>
