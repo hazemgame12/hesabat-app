@@ -44,9 +44,8 @@ export const ticketCommentsTable = pgTable(
     ticketId: uuid("ticket_id")
       .notNull()
       .references(() => supportTicketsTable.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => usersTable.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => usersTable.id, { onDelete: "set null" }),
+    authorName: text("author_name"),
     body: text("body").notNull(),
     isInternal: boolean("is_internal").notNull().default(false),
     isAdminReply: boolean("is_admin_reply").notNull().default(false),

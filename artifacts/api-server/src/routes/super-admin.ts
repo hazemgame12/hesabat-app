@@ -5,6 +5,7 @@ import {
   companiesTable,
   usersTable,
   supportTicketsTable,
+  ticketCommentsTable,
   subscriptionPlansTable,
   subscriptionsTable,
   superAdminsTable,
@@ -362,11 +363,150 @@ router.get("/super-admin/subscriptions", async (req, res) => {
 
 // GET /super-admin/support-tickets
 router.get("/super-admin/support-tickets", async (req, res) => {
-  const tickets = await db
-    .select()
-    .from(supportTicketsTable)
-    .orderBy(desc(supportTicketsTable.createdAt));
-  res.json(tickets);
+  try {
+    const tickets = await db
+      .select({
+        id: supportTicketsTable.id,
+        companyId: supportTicketsTable.companyId,
+        type: supportTicketsTable.type,
+        subject: supportTicketsTable.subject,
+        status: supportTicketsTable.status,
+        priority: supportTicketsTable.priority,
+        createdAt: supportTicketsTable.createdAt,
+        updatedAt: supportTicketsTable.updatedAt,
+        userName: usersTable.name,
+        companyName: companiesTable.name,
+      })
+      .from(supportTicketsTable)
+      .leftJoin(usersTable, eq(usersTable.id, supportTicketsTable.userId))
+      .leftJoin(companiesTable, eq(companiesTable.id, supportTicketsTable.companyId))
+      .orderBy(desc(supportTicketsTable.createdAt));
+    res.json(tickets);
+  } catch (err) {
+    req.log.error({ err }, "Failed to list super-admin tickets");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// GET /super-admin/support-tickets/:id — detail + comments
+router.get("/super-admin/support-tickets/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [ticket] = await db
+      .select({
+        id: supportTicketsTable.id,
+        companyId: supportTicketsTable.companyId,
+        userId: supportTicketsTable.userId,
+        type: supportTicketsTable.type,
+        subject: supportTicketsTable.subject,
+        body: supportTicketsTable.body,
+        status: supportTicketsTable.status,
+        priority: supportTicketsTable.priority,
+        createdAt: supportTicketsTable.createdAt,
+        updatedAt: supportTicketsTable.updatedAt,
+        userName: usersTable.name,
+        userEmail: usersTable.email,
+        companyName: companiesTable.name,
+      })
+      .from(supportTicketsTable)
+      .leftJoin(usersTable, eq(usersTable.id, supportTicketsTable.userId))
+      .leftJoin(companiesTable, eq(companiesTable.id, supportTicketsTable.companyId))
+      .where(eq(supportTicketsTable.id, id))
+      .limit(1);
+    if (!ticket) {
+      res.status(404).json({ error: "التذكرة غير موجودة" });
+      return;
+    }
+    const comments = await db
+      .select({
+        id: ticketCommentsTable.id,
+        ticketId: ticketCommentsTable.ticketId,
+        userId: ticketCommentsTable.userId,
+        authorName: ticketCommentsTable.authorName,
+        body: ticketCommentsTable.body,
+        isInternal: ticketCommentsTable.isInternal,
+        isAdminReply: ticketCommentsTable.isAdminReply,
+        createdAt: ticketCommentsTable.createdAt,
+        userName: usersTable.name,
+      })
+      .from(ticketCommentsTable)
+      .leftJoin(usersTable, eq(usersTable.id, ticketCommentsTable.userId))
+      .where(eq(ticketCommentsTable.ticketId, id))
+      .orderBy(ticketCommentsTable.createdAt);
+    res.json({ ticket, comments });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get super-admin ticket");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// PATCH /super-admin/support-tickets/:id — update status
+router.patch("/super-admin/support-tickets/:id", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body as { status?: string };
+  if (!status || !["open", "in_progress", "resolved", "closed"].includes(status)) {
+    res.status(400).json({ error: "حالة غير صالحة" });
+    return;
+  }
+  try {
+    const [updated] = await db
+      .update(supportTicketsTable)
+      .set({ status: status as "open" | "in_progress" | "resolved" | "closed", updatedAt: new Date() })
+      .where(eq(supportTicketsTable.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "التذكرة غير موجودة" });
+      return;
+    }
+    res.json({ ticket: updated });
+  } catch (err) {
+    req.log.error({ err }, "Failed to update super-admin ticket status");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
+});
+
+// POST /super-admin/support-tickets/:id/comments — admin reply
+router.post("/super-admin/support-tickets/:id/comments", async (req, res) => {
+  const { id } = req.params;
+  const { body: commentBody, isInternal } = req.body as { body?: string; isInternal?: boolean };
+  if (!commentBody || commentBody.trim().length === 0) {
+    res.status(400).json({ error: "الرد مطلوب" });
+    return;
+  }
+  try {
+    const [ticket] = await db
+      .select({ id: supportTicketsTable.id, status: supportTicketsTable.status })
+      .from(supportTicketsTable)
+      .where(eq(supportTicketsTable.id, id))
+      .limit(1);
+    if (!ticket) {
+      res.status(404).json({ error: "التذكرة غير موجودة" });
+      return;
+    }
+    const [comment] = await db
+      .insert(ticketCommentsTable)
+      .values({
+        ticketId: id,
+        userId: null,
+        authorName: req.superAdmin!.name || "مدير النظام",
+        body: commentBody.trim(),
+        isInternal: isInternal ?? false,
+        isAdminReply: true,
+        isReadByUser: false,
+        isReadByAdmin: true,
+      })
+      .returning();
+    if (ticket.status === "open" && !(isInternal ?? false)) {
+      await db
+        .update(supportTicketsTable)
+        .set({ status: "in_progress", updatedAt: new Date() })
+        .where(eq(supportTicketsTable.id, id));
+    }
+    res.status(201).json({ comment });
+  } catch (err) {
+    req.log.error({ err }, "Failed to add super-admin comment");
+    res.status(500).json({ error: "حدث خطأ في الخادم" });
+  }
 });
 
 // GET /super-admin/stats
