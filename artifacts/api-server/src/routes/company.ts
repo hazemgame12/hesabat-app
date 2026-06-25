@@ -54,6 +54,52 @@ function getInboxEmail(token: string | null | undefined): string | null {
   return `${token}@${INBOUND_EMAIL_DOMAIN}`;
 }
 
+// Arabic → Latin phonetic map (single chars + digraphs handled by longest-match)
+const AR_MAP: Record<string, string> = {
+  "أ":"a","إ":"a","آ":"a","ا":"a",
+  "ب":"b","ت":"t","ث":"th","ج":"j","ح":"h","خ":"kh",
+  "د":"d","ذ":"dh","ر":"r","ز":"z","س":"s","ش":"sh",
+  "ص":"s","ض":"d","ط":"t","ظ":"z","ع":"a","غ":"gh",
+  "ف":"f","ق":"q","ك":"k","ل":"l","م":"m","ن":"n",
+  "ه":"h","و":"w","ي":"y","ى":"a","ة":"a",
+  "ء":"","ئ":"y","ؤ":"w",
+};
+
+function transliterateArabic(text: string): string {
+  let out = "";
+  for (const ch of text) out += AR_MAP[ch] ?? ch;
+  return out;
+}
+
+function nameToSlugBase(name: string): string {
+  // Strip diacritics, transliterate Arabic, lower, keep alphanum + spaces
+  const latin = transliterateArabic(name.normalize("NFC"))
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .slice(0, 30)
+    .replace(/-+$/, "");
+  return latin || "company";
+}
+
+async function generateInboxSlug(companyName: string): Promise<string> {
+  const base = nameToSlugBase(companyName);
+  // Try base, then base-2, base-3 … until unique
+  for (let i = 0; i < 50; i++) {
+    const candidate = i === 0 ? base : `${base}-${i + 1}`;
+    const [existing] = await db
+      .select({ id: companiesTable.id })
+      .from(companiesTable)
+      .where(eq(companiesTable.inboxToken, candidate))
+      .limit(1);
+    if (!existing) return candidate;
+  }
+  // Extremely unlikely fallback — append random suffix
+  return `${base}-${crypto.randomBytes(3).toString("hex")}`;
+}
+
 function toCompany(row: Company) {
   return {
     id: row.id,
@@ -90,9 +136,9 @@ router.get("/company", requireAuth, async (req, res) => {
       res.status(404).json({ error: "الشركة غير موجودة" });
       return;
     }
-    // Lazy-init inbox token on first access
+    // Lazy-init inbox token on first access (name-based slug)
     if (!company.inboxToken) {
-      const token = crypto.randomBytes(6).toString("hex");
+      const token = await generateInboxSlug(company.name);
       const [updated] = await db
         .update(companiesTable)
         .set({ inboxToken: token })
@@ -113,7 +159,12 @@ router.post(
   requireCapability("company:manage"),
   async (req, res) => {
     try {
-      const token = crypto.randomBytes(6).toString("hex");
+      const company = await loadCompany(req.auth!.companyId);
+      if (!company) {
+        res.status(404).json({ error: "الشركة غير موجودة" });
+        return;
+      }
+      const token = await generateInboxSlug(company.name);
       const [updated] = await db
         .update(companiesTable)
         .set({ inboxToken: token })
