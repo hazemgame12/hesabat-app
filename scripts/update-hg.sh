@@ -3,16 +3,51 @@
 # HG Website — Quick Update (pull + rebuild + restart)
 # Usage: bash /var/www/hesabat/scripts/update-hg.sh
 # =============================================================
+
+# ─── Self-update via curl (runs before set -e so failures are safe) ───────────
+# This lets the script pull its own latest version from GitHub even if git
+# fetch fails.  The public repo URL works without any authentication.
+if [ -z "${HG_SELF_UPDATED:-}" ]; then
+  _TMP=$(mktemp /tmp/update-hg-XXXXXX.sh)
+  if curl -sLf \
+       "https://raw.githubusercontent.com/hazemgame12/hesabat-app/main/scripts/update-hg.sh" \
+       -o "$_TMP" 2>/dev/null && [ -s "$_TMP" ]; then
+    echo "🔄  Self-updated script from GitHub — re-executing..."
+    HG_SELF_UPDATED=1 exec bash "$_TMP"
+  fi
+  rm -f "$_TMP"
+  echo "⚠️  curl self-update failed — running existing version"
+fi
+# ──────────────────────────────────────────────────────────────────────────────
+
 set -euo pipefail
 
 APP_DIR=/var/www/hesabat
 HG_DIR=/var/www/hg-website
+
+# ─── Ensure pnpm & node are in PATH ───────────────────────────────────────────
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
 
+# Common pnpm install locations (fallback if nvm did not add it)
+for _P in \
+  "$HOME/.local/share/pnpm" \
+  "$HOME/.pnpm" \
+  "/usr/local/bin" \
+  "/root/.local/share/pnpm"; do
+  [ -d "$_P" ] && export PATH="$_P:$PATH"
+done
+# ──────────────────────────────────────────────────────────────────────────────
+
 echo "⬇️  Pulling latest code from GitHub..."
 cd "$APP_DIR"
-git fetch origin && git reset --hard origin/main
+
+# Force HTTPS so the fetch works even when no SSH agent is available
+git remote set-url origin https://github.com/hazemgame12/hesabat-app.git
+
+# Fetch + reset as two separate commands so set -euo pipefail catches failures
+git fetch origin
+git reset --hard origin/main
 echo "✅ Code updated — $(git log --oneline -1)"
 
 echo ""
@@ -76,7 +111,8 @@ echo "✅ API files copied"
 echo ""
 echo "🔨 Building Hesabat frontend..."
 PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hesabat run build
-test -f "$APP_DIR/artifacts/hesabat/dist/public/index.html" || { echo "❌ Hesabat build produced no index.html — aborting before copy/restart"; exit 1; }
+test -f "$APP_DIR/artifacts/hesabat/dist/public/index.html" || \
+  { echo "❌ Hesabat build produced no index.html — aborting before copy/restart"; exit 1; }
 echo "✅ Hesabat frontend built"
 
 echo ""
