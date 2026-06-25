@@ -8,6 +8,7 @@ import {
   Receipt, BookOpen, ChevronDown, Inbox, AlertCircle, Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import DocumentReviewPanel from "@/components/documents/DocumentReviewPanel";
 
 interface ApiDocument {
   id: string;
@@ -328,6 +329,7 @@ export function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [linkDoc, setLinkDoc] = useState<ApiDocument | null>(null);
+  const [reviewDocId, setReviewDocId] = useState<string | null>(null);
   const [menuId, setMenuId] = useState<string | null>(null);
   const [renameId, setRenameId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -522,12 +524,12 @@ export function DocumentsPage() {
                     </td>
                     <td className="px-3 py-3">
                       <div className="relative flex items-center gap-1">
-                        <a href={`${BASE}/${doc.id}/view`}
+                        <button
+                          onClick={() => setReviewDocId(doc.id)}
                           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
-                          title="عرض"
-                          target="_blank" rel="noopener noreferrer">
+                          title="مراجعة وربط">
                           <Eye className="w-4 h-4" />
-                        </a>
+                        </button>
                         <a href={`${BASE}/${doc.id}/download`}
                           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-all"
                           title="تحميل">
@@ -586,6 +588,7 @@ export function DocumentsPage() {
 
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
       {linkDoc && <LinkDialog doc={linkDoc} onClose={() => setLinkDoc(null)} />}
+      <DocumentReviewPanel docId={reviewDocId} onClose={() => setReviewDocId(null)} />
     </div>
   );
 }

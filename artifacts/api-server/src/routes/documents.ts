@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import {
   db,
   documentsTable,
@@ -74,6 +74,78 @@ router.get("/documents/unlinked-count", requireAuth, async (req, res) => {
       ),
     );
   res.json({ count: row?.count ?? 0 });
+});
+
+// GET /documents/link-search — search invoices / journals / bank movements for linking (MUST be before /:id)
+router.get("/documents/link-search", requireAuth, async (req, res) => {
+  const { companyId } = req.auth!;
+  const type = String(req.query["type"] ?? "");
+  const q = String(req.query["q"] ?? "").trim().toLowerCase();
+
+  if (type === "invoice") {
+    const rows = await db
+      .select({ id: invoicesTable.id, invoiceNo: invoicesTable.invoiceNo, kind: invoicesTable.kind,
+                code: invoicesTable.code, date: invoicesTable.date,
+                total: invoicesTable.total, status: invoicesTable.status })
+      .from(invoicesTable)
+      .where(eq(invoicesTable.companyId, companyId))
+      .orderBy(desc(invoicesTable.invoiceNo))
+      .limit(50);
+    const kl = (k: string) =>
+      ({ purchase: "شراء", sales: "مبيعات", purchase_return: "مردود شراء", sales_return: "مردود مبيعات" } as Record<string, string>)[k] ?? k;
+    const filtered = q
+      ? rows.filter((r) => String(r.invoiceNo).includes(q) || (r.code ?? "").toLowerCase().includes(q))
+      : rows;
+    res.json(filtered.slice(0, 25).map((r) => ({
+      id: r.id,
+      label: `فاتورة ${kl(r.kind)} #${String(r.invoiceNo).padStart(5, "0")}`,
+      sublabel: r.code ?? r.date,
+      date: r.date, amount: Number(r.total), status: r.status,
+    })));
+    return;
+  }
+
+  if (type === "journal") {
+    const rows = await db
+      .select({ id: journalEntriesTable.id, entryNo: journalEntriesTable.entryNo,
+                date: journalEntriesTable.date, notes: journalEntriesTable.notes,
+                status: journalEntriesTable.status })
+      .from(journalEntriesTable)
+      .where(eq(journalEntriesTable.companyId, companyId))
+      .orderBy(desc(journalEntriesTable.entryNo))
+      .limit(50);
+    const filtered = q
+      ? rows.filter((r) => String(r.entryNo).includes(q) || (r.notes ?? "").toLowerCase().includes(q))
+      : rows;
+    res.json(filtered.slice(0, 25).map((r) => ({
+      id: r.id,
+      label: `JV-${new Date(r.date).getFullYear()}-${String(r.entryNo).padStart(6, "0")}`,
+      sublabel: r.notes ? r.notes.slice(0, 60) : null,
+      date: r.date, status: r.status,
+    })));
+    return;
+  }
+
+  if (type === "bank") {
+    const rows = await db
+      .select({ id: bankMovementsTable.id, date: bankMovementsTable.date,
+                direction: bankMovementsTable.direction, amount: bankMovementsTable.amount,
+                notes: bankMovementsTable.notes })
+      .from(bankMovementsTable)
+      .where(and(eq(bankMovementsTable.companyId, companyId), isNull(bankMovementsTable.journalEntryId)))
+      .orderBy(desc(bankMovementsTable.date))
+      .limit(50);
+    const filtered = q ? rows.filter((r) => (r.notes ?? "").toLowerCase().includes(q)) : rows;
+    res.json(filtered.slice(0, 25).map((r) => ({
+      id: r.id,
+      label: `${r.direction === "in" ? "وارد ↑" : "صادر ↓"} ${Number(r.amount).toLocaleString("ar-EG")}`,
+      sublabel: r.notes ? r.notes.slice(0, 60) : null,
+      date: r.date,
+    })));
+    return;
+  }
+
+  res.status(400).json({ error: "type مطلوب: invoice | journal | bank" });
 });
 
 // GET /documents
@@ -182,6 +254,52 @@ router.post("/documents/upload", requireAuth, handleUpload, async (req, res) => 
     .returning();
 
   res.status(201).json({ ...doc, filePath: undefined });
+});
+
+// GET /documents/:id — single document with full metadata + linked label
+router.get("/documents/:id", requireAuth, async (req, res) => {
+  const { companyId } = req.auth!;
+  const id = req.params["id"] as string;
+  const [doc] = await db
+    .select()
+    .from(documentsTable)
+    .where(and(eq(documentsTable.id, id), eq(documentsTable.companyId, companyId)));
+  if (!doc) { res.status(404).json({ error: "المستند غير موجود" }); return; }
+
+  let linkedLabel: string | null = null;
+  let linkedModule: "invoice" | "journal" | "bank" | null = null;
+
+  if (doc.invoiceId) {
+    const [inv] = await db
+      .select({ invoiceNo: invoicesTable.invoiceNo, kind: invoicesTable.kind })
+      .from(invoicesTable)
+      .where(and(eq(invoicesTable.id, doc.invoiceId), eq(invoicesTable.companyId, companyId)));
+    if (inv) {
+      const kl = ({ purchase: "شراء", sales: "مبيعات", purchase_return: "مردود شراء", sales_return: "مردود مبيعات" } as Record<string, string>)[inv.kind] ?? inv.kind;
+      linkedLabel = `فاتورة ${kl} #${String(inv.invoiceNo).padStart(5, "0")}`;
+      linkedModule = "invoice";
+    }
+  } else if (doc.journalEntryId) {
+    const [je] = await db
+      .select({ entryNo: journalEntriesTable.entryNo, date: journalEntriesTable.date })
+      .from(journalEntriesTable)
+      .where(and(eq(journalEntriesTable.id, doc.journalEntryId), eq(journalEntriesTable.companyId, companyId)));
+    if (je) {
+      linkedLabel = `JV-${new Date(je.date).getFullYear()}-${String(je.entryNo).padStart(6, "0")}`;
+      linkedModule = "journal";
+    }
+  } else if (doc.bankMovementId) {
+    const [mv] = await db
+      .select({ notes: bankMovementsTable.notes, amount: bankMovementsTable.amount })
+      .from(bankMovementsTable)
+      .where(and(eq(bankMovementsTable.id, doc.bankMovementId), eq(bankMovementsTable.companyId, companyId)));
+    if (mv) {
+      linkedLabel = mv.notes ?? `حركة بنكية ${Number(mv.amount).toLocaleString()}`;
+      linkedModule = "bank";
+    }
+  }
+
+  res.json({ ...doc, filePath: undefined, linkedLabel, linkedModule });
 });
 
 // GET /documents/:id/view — serve inline (browser preview: PDF viewer, image)

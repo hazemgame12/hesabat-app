@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Spinner } from "@/components/ui/spinner";
+import DocumentReviewPanel from "./DocumentReviewPanel";
 
 const BASE = "/api/documents";
 
@@ -75,6 +76,7 @@ export function DocumentsSection({ entityType, entityId, readOnly = false }: Doc
   const [uploading, setUploading] = useState(false);
   const [showInboxPicker, setShowInboxPicker] = useState(false);
   const [linking, setLinking] = useState<string | null>(null);
+  const [reviewDocId, setReviewDocId] = useState<string | null>(null);
 
   const entityQKey = ["documents", "entity", entityType, entityId];
 
@@ -261,15 +263,13 @@ export function DocumentsSection({ entityType, entityId, readOnly = false }: Doc
                 <span className="text-xs text-muted-foreground font-sans shrink-0">{fmtSize(d.sizeBytes)}</span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <a
-                  href={`${BASE}/${d.id}/view`}
+                <button
+                  onClick={() => setReviewDocId(d.id)}
                   className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
-                  title={t("documents.view", "عرض")}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  title={t("documents.view", "مراجعة وربط")}
                 >
                   <Eye className="w-4 h-4" />
-                </a>
+                </button>
                 <a
                   href={`${BASE}/${d.id}/download`}
                   className="p-1.5 rounded-md hover:bg-primary/10 text-primary transition-colors"
@@ -294,6 +294,12 @@ export function DocumentsSection({ entityType, entityId, readOnly = false }: Doc
           ))}
         </ul>
       )}
+      <DocumentReviewPanel
+        docId={reviewDocId}
+        onClose={() => setReviewDocId(null)}
+        prefillType={entityType === "bank-movement" ? "bank" : entityType}
+        prefillId={entityId}
+      />
     </div>
   );
 }
