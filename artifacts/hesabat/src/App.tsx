@@ -37,6 +37,7 @@ import { OpeningBalances } from "@/pages/opening-balances";
 import { Settings } from "@/pages/settings";
 import { EInvoice } from "@/pages/e-invoice";
 import { Support } from "@/pages/support";
+import { DocumentsPage } from "@/pages/documents";
 import AccountLedgerPage from "@/pages/account-ledger";
 import PartyStatementPage from "@/pages/party-statement";
 import { AcceptInvite } from "@/pages/accept-invite";
@@ -119,6 +120,7 @@ function ProtectedRoutes() {
           <Redirect to="/settings/fiscal-years" />
         </Route>
         <Route path="/opening-balances" component={OpeningBalances} />
+        <Route path="/documents" component={DocumentsPage} />
         <Route path="/" component={Dashboard} />
         <Route component={NotFound} />
       </Switch>

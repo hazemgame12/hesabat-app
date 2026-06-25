@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
 import { displayName } from "./InvoiceWorkspace";
 import { InvoicePaymentAllocations } from "./InvoicePaymentAllocations";
+import { DocumentsSection } from "@/components/documents/DocumentsSection";
 
 type Kind = "sales" | "purchase" | "quotation" | "purchase_order";
 type LineType = "service" | "inventory" | "fixed_asset";
@@ -1026,6 +1027,13 @@ export function InvoiceEditor({
                   onChanged={onAllocated ?? (() => {})}
                 />
               )}
+            {invoiceId && (
+              <DocumentsSection
+                entityType="invoice"
+                entityId={invoiceId}
+                readOnly={readOnly}
+              />
+            )}
           </div>
         )}
 

@@ -37,6 +37,7 @@ import {
   ArrowUpRight,
   FileBarChart2,
   TrendingUp as TrendingUpIcon,
+  Inbox,
 } from "lucide-react";
 
 type IconType = React.ComponentType<{ className?: string }>;
@@ -138,7 +139,9 @@ const navEntries: NavEntry[] = [
       { labelKey: "nav.audit", icon: History, href: "/audit", requires: "audit:read" },
     ],
   },
-  // 11. إعدادات الشركة
+  // 11. صندوق المستندات
+  { labelKey: "nav.documents", icon: Inbox, href: "/documents" },
+  // 12. إعدادات الشركة
   { labelKey: "nav.settings", icon: Settings, href: "/settings" },
 ];
 

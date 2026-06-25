@@ -50,3 +50,4 @@ export * from "./password-reset";
 export * from "./support";
 export * from "./super-admin";
 export * from "./subscriptions";
+export * from "./documents";

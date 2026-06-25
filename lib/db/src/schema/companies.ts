@@ -30,6 +30,8 @@ export const companiesTable = pgTable("companies", {
   lockedThrough: date("locked_through"),
   maxUsers: integer("max_users").default(1),
   maxTransactions: integer("max_transactions").default(1000),
+  // Document inbox: unique token used to generate the per-company inbound email address.
+  inboxToken: text("inbox_token").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
