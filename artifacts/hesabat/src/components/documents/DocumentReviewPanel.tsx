@@ -4,12 +4,13 @@ import { useLocation } from "wouter";
 import {
   X, Download, Link2, Link2Off, FileText, FileImage,
   FileSpreadsheet, Search, Check, Loader2,
-  Receipt, BookOpen, Banknote, Archive,
+  Receipt, BookOpen, Banknote, Archive, Plus,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { setPendingDocLink, type PendingDocLink } from "@/hooks/usePendingDocLink";
 
 const BASE = "/api/documents";
 
@@ -63,6 +64,23 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+type CreateAction = {
+  key: string;
+  label: string;
+  icon: React.ElementType;
+  field: PendingDocLink["field"];
+  path: string;
+  direction?: "in" | "out";
+};
+
+const CREATE_ACTIONS: CreateAction[] = [
+  { key: "journal",      label: "قيد يومي",      icon: BookOpen, field: "journalEntryId",  path: "/journal" },
+  { key: "sales-inv",   label: "فاتورة عميل",   icon: Receipt,  field: "invoiceId",        path: "/invoices/sales" },
+  { key: "purchase-inv",label: "فاتورة مورد",   icon: Receipt,  field: "invoiceId",        path: "/invoices/purchases" },
+  { key: "bank-in",     label: "سند استلام ↑",  icon: Banknote, field: "bankMovementId",   path: "/bank", direction: "in" },
+  { key: "bank-out",    label: "سند صرف ↓",     icon: Banknote, field: "bankMovementId",   path: "/bank", direction: "out" },
+];
+
 interface Props {
   docId: string | null;
   onClose: () => void;
@@ -78,6 +96,13 @@ export default function DocumentReviewPanel({ docId, onClose, prefillType, prefi
   const [linkType, setLinkType] = useState<LinkType | null>(null);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const handleCreateNew = (action: CreateAction) => {
+    if (!doc) return;
+    setPendingDocLink({ docId: doc.id, docName: doc.displayName, field: action.field, direction: action.direction });
+    onClose();
+    setLocation(action.path);
+  };
 
   const { data: doc, isLoading } = useQuery<DocDetail>({
     queryKey: ["doc-detail", docId],
@@ -374,21 +399,12 @@ export default function DocumentReviewPanel({ docId, onClose, prefillType, prefi
                         )}
                       </div>
 
-                      <button
-                        onClick={() => {
-                          onClose();
-                          setLocation(navPaths[linkType] ?? "/");
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 text-xs py-2.5 rounded-lg border-2 border-dashed border-border hover:border-primary/40 hover:text-primary text-muted-foreground transition-all"
-                      >
-                        + إنشاء {navLabels[linkType]} جديدة ثم ربطها
-                      </button>
                     </div>
                   )}
                 </div>
 
                 {/* Save footer */}
-                <div className="p-4 border-t shrink-0">
+                <div className="p-4 border-t shrink-0 space-y-3">
                   <Button
                     className="w-full"
                     disabled={saveMutation.isPending || !canSave}
@@ -401,6 +417,28 @@ export default function DocumentReviewPanel({ docId, onClose, prefillType, prefi
                     )}
                     {linkType === "none" ? "فك الربط وحفظ" : "حفظ الربط"}
                   </Button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                    <div className="relative flex justify-center text-[11px]">
+                      <span className="bg-background px-2 text-muted-foreground">أو أنشئ جديداً وارتبط تلقائياً</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-1">
+                    {CREATE_ACTIONS.map((a) => (
+                      <button
+                        key={a.key}
+                        onClick={() => handleCreateNew(a)}
+                        disabled={!doc}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border hover:border-primary/40 hover:bg-primary/5 text-xs text-muted-foreground hover:text-primary transition-all text-start disabled:opacity-40"
+                      >
+                        <a.icon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="flex-1">{a.label}</span>
+                        <Plus className="w-3 h-3 opacity-50" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </>
             )}

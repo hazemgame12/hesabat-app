@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { getPendingDocLink, linkPendingDoc } from "@/hooks/usePendingDocLink";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -351,6 +352,13 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
     setReturnSourceId(null);
     setEditorOpen(true);
   };
+
+  // Auto-open create dialog if navigated here from Document Review Panel
+  useEffect(() => {
+    if (getPendingDocLink()?.field === "invoiceId") openCreate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openEdit = (id: string) => {
     setEditId(id);
     setEditorReturn(false);
@@ -1584,7 +1592,11 @@ export function InvoiceWorkspace({ kind }: { kind: Kind }) {
           relatedSourceId={returnSourceId}
           postableAccounts={postable}
           onClose={() => { setEditorOpen(false); setEditId(null); }}
-          onSaved={() => {
+          onSaved={(savedId) => {
+            if (savedId && getPendingDocLink()?.field === "invoiceId") {
+              void linkPendingDoc(savedId);
+              toast({ title: "تم ربط المستند بالفاتورة تلقائياً" });
+            }
             invalidateInvoices();
             setEditorOpen(false);
             setEditId(null);

@@ -1,4 +1,5 @@
-import React, { useMemo, useRef, useState, useCallback } from "react";
+import React, { useMemo, useRef, useState, useCallback, useEffect } from "react";
+import { getPendingDocLink, linkPendingDoc } from "@/hooks/usePendingDocLink";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
 import { useTranslation } from "react-i18next";
 import {
@@ -28,6 +29,7 @@ import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePaginatedQuery } from "@/hooks/use-paginated-query";
 import { PaginationBar } from "@/components/ui/pagination-bar";
+import { DocumentsSection } from "@/components/documents/DocumentsSection";
 import {
   FileText,
   Plus,
@@ -167,6 +169,13 @@ export function Journal() {
     setEditingId(null);
     setMode("editor");
   };
+
+  // Auto-open create if user navigated here from Document Review Panel
+  useEffect(() => {
+    if (getPendingDocLink()?.field === "journalEntryId") openCreate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openEntry = (id: string) => {
     setEditingId(id);
     setMode("editor");
@@ -321,16 +330,25 @@ export function Journal() {
   };
 
   if (mode === "editor") {
+    const pd = getPendingDocLink();
     return (
-      <JournalEditor
-        entryId={editingId}
-        onBack={backToList}
-        canCreate={canCreate}
-        canUpdate={canUpdate}
-        canPost={canPost}
-        canSubmit={canSubmit}
-        canApprove={canApprove}
-      />
+      <>
+        {pd?.field === "journalEntryId" && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center gap-2 text-sm text-amber-700 shrink-0">
+            <span>📎</span>
+            <span>بعد حفظ القيد سيتم ربط المستند <strong className="font-bold">{pd.docName}</strong> تلقائياً</span>
+          </div>
+        )}
+        <JournalEditor
+          entryId={editingId}
+          onBack={backToList}
+          canCreate={canCreate}
+          canUpdate={canUpdate}
+          canPost={canPost}
+          canSubmit={canSubmit}
+          canApprove={canApprove}
+        />
+      </>
     );
   }
 
@@ -801,7 +819,12 @@ function JournalEditor({
       createEntry.mutate(
         { data },
         {
-          onSuccess: (res) => {
+          onSuccess: async (res) => {
+            const pd = getPendingDocLink();
+            if (pd?.field === "journalEntryId") {
+              await linkPendingDoc(res.id);
+              toast({ title: "تم ربط المستند بالقيد تلقائياً" });
+            }
             invalidate();
             toast({ title: t("journal.toast.added") });
             if (then) then(res.id);
@@ -1253,6 +1276,11 @@ function JournalEditor({
             </div>
           )}
         </div>
+
+        {/* documents from inbox */}
+        {entryId && (
+          <DocumentsSection entityType="journal" entityId={entryId} readOnly={readOnly} />
+        )}
 
         {/* attachments */}
         <div className="bg-card border rounded-2xl shadow-sm overflow-hidden">

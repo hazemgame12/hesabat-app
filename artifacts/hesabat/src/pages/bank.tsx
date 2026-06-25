@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { getPendingDocLink, linkPendingDoc } from "@/hooks/usePendingDocLink";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
@@ -62,6 +63,7 @@ import {
   AlertCircle,
   RefreshCw,
   Wrench,
+  Paperclip,
 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
@@ -78,6 +80,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
+import { DocumentsSection } from "@/components/documents/DocumentsSection";
 
 type AccountType = "bank" | "cash" | "credit_card" | "loan";
 type MovementType =
@@ -1060,6 +1063,7 @@ function MovementsTab({
   const [bulkUnposting, setBulkUnposting] = useState(false);
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const [isGridView, toggleGridView] = useGridView("bank-movements");
+  const [docsMovementId, setDocsMovementId] = useState<string | null>(null);
 
   const { data: costCenters = [] } = useListCostCenters();
 
@@ -1455,8 +1459,8 @@ function MovementsTab({
                     const isDeletable =
                       !m.isCleared && !m.reconciliationId && m.type !== "transfer";
                     return (
+                      <React.Fragment key={m.id}>
                       <tr
-                        key={m.id}
                         className={`group border-b border-border/50 hover:bg-muted/30 transition-colors ${selectedIds.has(m.id) ? "bg-destructive/5" : ""}`}
                       >
                         {/* Checkbox */}
@@ -1743,6 +1747,13 @@ function MovementsTab({
                                       <CheckCircle2 className="w-4 h-4" />
                                     </button>
                                   )}
+                                  <button
+                                    onClick={() => setDocsMovementId(docsMovementId === m.id ? null : m.id)}
+                                    className={`p-1.5 rounded-md transition-opacity ${docsMovementId === m.id ? "bg-primary/10 text-primary" : "opacity-0 group-hover:opacity-100 hover:bg-primary/10 text-primary"}`}
+                                    title={t("documents.sectionTitle", "مستندات الوارد")}
+                                  >
+                                    <Paperclip className="w-4 h-4" />
+                                  </button>
                                   {!(m as BankMovement & { paymentId?: string | null }).paymentId && (
                                     <button
                                       onClick={() => setToClassify(m)}
@@ -1784,6 +1795,17 @@ function MovementsTab({
                           </div>
                         </td>
                       </tr>
+                      {docsMovementId === m.id && (
+                        <tr>
+                          <td colSpan={9} className="px-4 pb-4 pt-1 bg-muted/20">
+                            <DocumentsSection
+                              entityType="bank-movement"
+                              entityId={m.id}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   });
                 })()}
@@ -1822,7 +1844,10 @@ function MovementsTab({
           t={t}
           createMovement={createMovement}
           onClose={() => setModalOpen(false)}
-          onSaved={() => {
+          onSaved={(id) => {
+            if (id && getPendingDocLink()?.field === "bankMovementId") {
+              void linkPendingDoc(id);
+            }
             invalidate();
             setModalOpen(false);
           }}
@@ -1953,7 +1978,7 @@ function MovementModal({
   t: (k: string, o?: any) => string;
   createMovement: ReturnType<typeof useCreateBankMovement>;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (id?: string) => void;
 }) {
   const { toast } = useToast();
   const account = accounts.find((a) => a.id === bankAccountId);
@@ -2025,9 +2050,9 @@ function MovementModal({
         },
       },
       {
-        onSuccess: () => {
+        onSuccess: (res: any) => {
           toast({ title: t("bank.toast.movementAdded") });
-          onSaved();
+          onSaved(res?.id);
         },
         onError: (err: any) =>
           toast({
