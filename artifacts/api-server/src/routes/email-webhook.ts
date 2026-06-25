@@ -34,7 +34,7 @@ interface PostmarkInbound {
 router.post("/webhook/email-inbound", async (req, res) => {
   const key = ((req.query as Record<string, string>).key) ?? "";
   if (!WEBHOOK_TOKEN || key !== WEBHOOK_TOKEN) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "Unauthorized", v: "20250625" });
     return;
   }
 

@@ -75,7 +75,7 @@ echo "✅ API files copied"
 
 echo ""
 echo "🔨 Building Hesabat frontend..."
-BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hesabat run build
+PORT=3000 BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hesabat run build
 test -f "$APP_DIR/artifacts/hesabat/dist/public/index.html" || { echo "❌ Hesabat build produced no index.html — aborting before copy/restart"; exit 1; }
 echo "✅ Hesabat frontend built"
 
