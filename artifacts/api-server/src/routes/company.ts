@@ -47,6 +47,13 @@ import { subscriptionPlansTable } from "@workspace/db";
 
 const router = Router();
 
+const INBOUND_EMAIL_DOMAIN = process.env.INBOUND_EMAIL_DOMAIN ?? "inbox.hesabat.com";
+
+function getInboxEmail(token: string | null | undefined): string | null {
+  if (!token) return null;
+  return `${token}@${INBOUND_EMAIL_DOMAIN}`;
+}
+
 function toCompany(row: Company) {
   return {
     id: row.id,
@@ -63,6 +70,7 @@ function toCompany(row: Company) {
     branchCode: row.branchCode,
     eInvoiceEnabled: row.eInvoiceEnabled,
     lockedThrough: row.lockedThrough ?? null,
+    inboxEmail: getInboxEmail(row.inboxToken),
   };
 }
 
@@ -77,10 +85,20 @@ async function loadCompany(companyId: string): Promise<Company | undefined> {
 
 router.get("/company", requireAuth, async (req, res) => {
   try {
-    const company = await loadCompany(req.auth!.companyId);
+    let company = await loadCompany(req.auth!.companyId);
     if (!company) {
       res.status(404).json({ error: "الشركة غير موجودة" });
       return;
+    }
+    // Lazy-init inbox token on first access
+    if (!company.inboxToken) {
+      const token = crypto.randomBytes(24).toString("hex");
+      const [updated] = await db
+        .update(companiesTable)
+        .set({ inboxToken: token })
+        .where(eq(companiesTable.id, company.id))
+        .returning();
+      if (updated) company = updated;
     }
     res.json(toCompany(company));
   } catch (err) {
@@ -88,6 +106,30 @@ router.get("/company", requireAuth, async (req, res) => {
     res.status(500).json({ error: "حدث خطأ في الخادم" });
   }
 });
+
+router.post(
+  "/company/regenerate-inbox-token",
+  requireAuth,
+  requireCapability("company:manage"),
+  async (req, res) => {
+    try {
+      const token = crypto.randomBytes(24).toString("hex");
+      const [updated] = await db
+        .update(companiesTable)
+        .set({ inboxToken: token })
+        .where(eq(companiesTable.id, req.auth!.companyId))
+        .returning();
+      if (!updated) {
+        res.status(404).json({ error: "الشركة غير موجودة" });
+        return;
+      }
+      res.json({ inboxEmail: getInboxEmail(updated.inboxToken) });
+    } catch (err) {
+      req.log.error({ err }, "Failed to regenerate inbox token");
+      res.status(500).json({ error: "حدث خطأ في الخادم" });
+    }
+  },
+);
 
 router.patch(
   "/company",

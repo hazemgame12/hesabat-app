@@ -145,6 +145,7 @@
     "eInvoice": "E-Invoice",
     "support": "Support",
     "supportAdmin": "Support Dashboard",
+    "documents": "Document Inbox",
     "groups": {
       "accounting": "Accounting",
       "salesPurchases": "Sales & Purchases",
@@ -654,6 +655,23 @@
       "changing": "Changing...",
       "success": "Password changed successfully",
       "error": "Failed to change password"
+    },
+    "inbox": {
+      "title": "Document Inbox",
+      "subtitle": "Send invoices and documents directly to the inbox via email — saved automatically",
+      "label": "Inbox email address",
+      "howTitle": "How it works",
+      "howBody": "Send any file (PDF, image, Excel) to this address and it will appear instantly in your document inbox, ready to link to journal entries and invoices.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "regenerate": "Generate new address",
+      "regenerating": "Generating...",
+      "regenerateWarning": "This will invalidate the current address. Continue?",
+      "toast": {
+        "copied": "Email address copied",
+        "regenerated": "New inbox email generated",
+        "error": "An error occurred, please try again"
+      }
     }
   },
   "comingSoon": {

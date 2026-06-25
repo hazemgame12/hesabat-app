@@ -131,7 +131,42 @@ export async function ensurePayrollSchema(): Promise<void> {
       name: "ticket_comments.author_name",
       ddl: `ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS author_name TEXT`,
     },
+    {
+      name: "documents.sender_name",
+      ddl: `ALTER TABLE documents ADD COLUMN IF NOT EXISTS sender_name TEXT`,
+    },
+    {
+      name: "documents.file_hash",
+      ddl: `ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_hash TEXT`,
+    },
+    {
+      name: "companies.inbox_token",
+      ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS inbox_token TEXT`,
+    },
   ];
+
+  steps.push({
+    name: "documents table",
+    ddl: `
+      CREATE TABLE IF NOT EXISTS documents (
+        id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+        company_id        UUID        NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        display_name      TEXT        NOT NULL,
+        original_name     TEXT        NOT NULL,
+        file_path         TEXT        NOT NULL,
+        mime_type         TEXT        NOT NULL,
+        size_bytes        INTEGER     NOT NULL,
+        source            TEXT        NOT NULL DEFAULT 'manual',
+        sender_email      TEXT,
+        email_subject     TEXT,
+        uploaded_by       UUID        REFERENCES users(id) ON DELETE SET NULL,
+        invoice_id        UUID,
+        journal_entry_id  UUID,
+        bank_movement_id  UUID,
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+  });
 
   let ok = 0;
   let skipped = 0;

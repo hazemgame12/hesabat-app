@@ -39,9 +39,11 @@ import fiscalYearsRouter from "./fiscal-years";
 import importRouter from "./import";
 import supportRouter from "./support";
 import adminSupportRouter from "./admin/support";
+import documentsRouter from "./documents";
 import superAdminAuthRouter from "./super-admin-auth";
 import superAdminRouter from "./super-admin";
 import deployWebhookRouter from "./deploy-webhook";
+import emailWebhookRouter from "./email-webhook";
 
 const router: IRouter = Router();
 
@@ -76,6 +78,7 @@ router.use(fiscalYearsRouter);
 router.use(importRouter);
 router.use(supportRouter);
 router.use(adminSupportRouter);
+router.use(documentsRouter);
 // HG website public routes must be mounted BEFORE superAdminRouter.
 // superAdminRouter has a global router.use(requireSuperAdmin) that
 // intercepts ALL requests and returns 401 for unauthenticated users.
@@ -90,6 +93,7 @@ router.use(uploadsRouter);
 router.use(socialPostsRouter);
 router.use(aiRouter);
 router.use(deployWebhookRouter);
+router.use(emailWebhookRouter);
 router.use(superAdminAuthRouter);
 router.use(superAdminRouter);
 

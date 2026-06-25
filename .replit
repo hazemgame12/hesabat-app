@@ -51,6 +51,7 @@ packages = ["rsync"]
 
 [userenv.shared]
 RESEND_API_KEY = "re_3SGAhFKU_E5ayzGJkB5WG2K2fEUbyAHpt"
+INBOUND_EMAIL_DOMAIN = "inbox.hesabat.com"
 
 [userenv.development]
 SMTP_FROM = "onboarding@resend.dev"

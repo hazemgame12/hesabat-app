@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/hooks/use-toast";
-import { Building2, Upload, Globe, Coins, ImageOff, Lock } from "lucide-react";
+import { Building2, Upload, Globe, Coins, ImageOff, Lock, Mail, Copy, RefreshCw } from "lucide-react";
 
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -76,6 +76,8 @@ export function CompanyProfile() {
   const updateCompany = useUpdateCompany();
   const [uploading, setUploading] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [inboxCopied, setInboxCopied] = React.useState(false);
+  const [inboxRegenerating, setInboxRegenerating] = React.useState(false);
 
   const changePasswordSchema = z.object({
     currentPassword: z.string().min(1, "passwordRequired"),
@@ -90,6 +92,38 @@ export function CompanyProfile() {
     resolver: zodResolver(changePasswordSchema),
   });
   const [pwLoading, setPwLoading] = React.useState(false);
+
+  const inboxEmail = (company as any)?.inboxEmail as string | null | undefined;
+
+  const onCopyInbox = async () => {
+    if (!inboxEmail) return;
+    try {
+      await navigator.clipboard.writeText(inboxEmail);
+      setInboxCopied(true);
+      toast({ title: t("company.inbox.toast.copied") });
+      setTimeout(() => setInboxCopied(false), 2000);
+    } catch {
+      toast({ variant: "destructive", title: t("company.inbox.toast.error") });
+    }
+  };
+
+  const onRegenerateInbox = async () => {
+    if (!window.confirm(t("company.inbox.regenerateWarning"))) return;
+    setInboxRegenerating(true);
+    try {
+      const res = await fetch("/api/company/regenerate-inbox-token", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error();
+      await queryClient.invalidateQueries({ queryKey: getGetCompanyQueryKey() });
+      toast({ title: t("company.inbox.toast.regenerated") });
+    } catch {
+      toast({ variant: "destructive", title: t("company.inbox.toast.error") });
+    } finally {
+      setInboxRegenerating(false);
+    }
+  };
 
   const onChangePassword = async (data: z.infer<typeof changePasswordSchema>) => {
     setPwLoading(true);
@@ -447,6 +481,66 @@ export function CompanyProfile() {
               </Button>
             </div>
           </form>
+        </Card>
+
+        {/* Document Inbox */}
+        <Card className="p-6 flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Mail className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-bold text-foreground">{t("company.inbox.title")}</h3>
+              <p className="text-sm text-muted-foreground">{t("company.inbox.subtitle")}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {t("company.inbox.label")}
+            </Label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 flex items-center h-11 px-3 rounded-lg border bg-muted/40 font-mono text-sm select-all overflow-x-auto whitespace-nowrap dir-ltr text-start">
+                {inboxEmail ?? <span className="text-muted-foreground text-xs">{t("common.loading")}</span>}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 shrink-0"
+                disabled={!inboxEmail}
+                onClick={onCopyInbox}
+                title={t("company.inbox.copy")}
+              >
+                {inboxCopied ? (
+                  <span className="text-success text-xs font-bold">✓</span>
+                ) : (
+                  <Copy className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-primary/5 border border-primary/10 p-3 flex flex-col gap-1">
+            <p className="text-xs font-semibold text-primary">{t("company.inbox.howTitle")}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t("company.inbox.howBody")}</p>
+          </div>
+
+          {canEdit && (
+            <div className="flex justify-end pt-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive gap-2"
+                disabled={inboxRegenerating}
+                onClick={onRegenerateInbox}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${inboxRegenerating ? "animate-spin" : ""}`} />
+                {inboxRegenerating ? t("company.inbox.regenerating") : t("company.inbox.regenerate")}
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </div>
