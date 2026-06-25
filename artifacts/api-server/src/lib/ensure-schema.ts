@@ -111,6 +111,26 @@ export async function ensurePayrollSchema(): Promise<void> {
           ADD COLUMN IF NOT EXISTS payroll_tax    NUMERIC(18,2) NOT NULL DEFAULT 0,
           ADD COLUMN IF NOT EXISTS cost_center_id UUID REFERENCES cost_centers(id) ON DELETE SET NULL`,
     },
+    {
+      name: "ticket_comments.is_admin_reply",
+      ddl: `ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS is_admin_reply BOOLEAN NOT NULL DEFAULT FALSE`,
+    },
+    {
+      name: "ticket_comments.is_read_by_user",
+      ddl: `ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS is_read_by_user BOOLEAN NOT NULL DEFAULT TRUE`,
+    },
+    {
+      name: "ticket_comments.is_read_by_admin",
+      ddl: `ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS is_read_by_admin BOOLEAN NOT NULL DEFAULT TRUE`,
+    },
+    {
+      name: "ticket_comments.user_id nullable",
+      ddl: `ALTER TABLE ticket_comments ALTER COLUMN user_id DROP NOT NULL`,
+    },
+    {
+      name: "ticket_comments.author_name",
+      ddl: `ALTER TABLE ticket_comments ADD COLUMN IF NOT EXISTS author_name TEXT`,
+    },
   ];
 
   let ok = 0;
