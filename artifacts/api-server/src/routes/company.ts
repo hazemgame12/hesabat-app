@@ -47,7 +47,7 @@ import { subscriptionPlansTable } from "@workspace/db";
 
 const router = Router();
 
-const INBOUND_EMAIL_DOMAIN = process.env.INBOUND_EMAIL_DOMAIN ?? "inbox.hesabat.com";
+const INBOUND_EMAIL_DOMAIN = process.env.INBOUND_EMAIL_DOMAIN ?? "hesabat.hg-audit.com";
 
 function getInboxEmail(token: string | null | undefined): string | null {
   if (!token) return null;
@@ -136,8 +136,11 @@ router.get("/company", requireAuth, async (req, res) => {
       res.status(404).json({ error: "الشركة غير موجودة" });
       return;
     }
-    // Lazy-init inbox token on first access (name-based slug)
-    if (!company.inboxToken) {
+    // Init or migrate inbox token:
+    // - missing → create name-based slug
+    // - old format (pure hex, no dashes) → migrate to name-based slug
+    const isOldHexToken = company.inboxToken && /^[0-9a-f]+$/.test(company.inboxToken);
+    if (!company.inboxToken || isOldHexToken) {
       const token = await generateInboxSlug(company.name);
       const [updated] = await db
         .update(companiesTable)
