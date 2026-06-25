@@ -106,6 +106,8 @@ cp "$APP_DIR/artifacts/api-server/dist/pino-worker.mjs"        "$HG_DIR/dist/pin
 cp "$APP_DIR/artifacts/api-server/dist/pino-file.mjs"          "$HG_DIR/dist/pino-file.mjs"          2>/dev/null || true
 cp "$APP_DIR/artifacts/api-server/dist/pino-pretty.mjs"        "$HG_DIR/dist/pino-pretty.mjs"        2>/dev/null || true
 cp "$APP_DIR/artifacts/api-server/dist/thread-stream-worker.mjs" "$HG_DIR/dist/thread-stream-worker.mjs" 2>/dev/null || true
+# Propagate .env to hg-api working dir so load-env.ts picks it up on restart
+cp "$APP_DIR/.env" "$HG_DIR/.env" 2>/dev/null || true
 echo "✅ API files copied"
 
 echo ""
