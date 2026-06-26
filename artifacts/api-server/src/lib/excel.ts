@@ -59,6 +59,8 @@ export interface ExcelColumn<Row> {
 }
 
 // Builds a single-sheet workbook from rows and streams it as an .xlsx download.
+// Optional `titleRows` inserts merged header rows above the column-header row.
+// Each element is a string that fills the full width of the sheet.
 export async function exportWorkbook<Row>(
   res: Response,
   opts: {
@@ -66,6 +68,7 @@ export async function exportWorkbook<Row>(
     fileName: string; // without extension
     columns: ExcelColumn<Row>[];
     rows: Row[];
+    titleRows?: string[];
   },
 ): Promise<void> {
   const wb = new ExcelJS.Workbook();
@@ -75,7 +78,29 @@ export async function exportWorkbook<Row>(
     key: c.header,
     width: c.width ?? 18,
   }));
-  ws.getRow(1).font = { bold: true };
+
+  const colCount = opts.columns.length;
+
+  if (opts.titleRows && opts.titleRows.length > 0) {
+    // Insert merged title rows before the column-header row.
+    ws.spliceRows(1, 0, ...opts.titleRows.map(() => [] as string[]));
+    opts.titleRows.forEach((text, i) => {
+      const rowNo = i + 1;
+      const cell = ws.getRow(rowNo).getCell(1);
+      cell.value = text;
+      cell.font = { bold: i === 0, size: i === 0 ? 13 : 11 };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: false };
+      if (colCount > 1) {
+        ws.mergeCells(rowNo, 1, rowNo, colCount);
+      }
+      ws.getRow(rowNo).height = i === 0 ? 20 : 16;
+    });
+  }
+
+  // The column-header row is now after titleRows.
+  const headerRowNo = (opts.titleRows?.length ?? 0) + 1;
+  ws.getRow(headerRowNo).font = { bold: true };
+
   for (const row of opts.rows) {
     ws.addRow(opts.columns.map((c) => c.value(row) ?? ""));
   }

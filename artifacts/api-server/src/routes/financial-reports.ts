@@ -40,6 +40,37 @@ async function loadBaseCurrency(companyId: string): Promise<string> {
   return (company?.baseCurrency || "EGP").toUpperCase();
 }
 
+// Builds the merged title rows prepended to every Excel export.
+// Format:  [company name, sub-info line (if any), report+period line]
+async function buildExcelTitleRows(
+  companyId: string,
+  reportLabel: string,
+  periodLabel: string,
+): Promise<string[]> {
+  const [co] = await db
+    .select({
+      name: companiesTable.name,
+      tradeName: companiesTable.tradeName,
+      taxRegistrationNumber: companiesTable.taxRegistrationNumber,
+    })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+
+  const rows: string[] = [];
+
+  rows.push(co?.name ?? "");
+
+  const sub: string[] = [];
+  if (co?.tradeName) sub.push(co.tradeName);
+  if (co?.taxRegistrationNumber) sub.push(`س.ت/ض: ${co.taxRegistrationNumber}`);
+  if (sub.length) rows.push(sub.join("  ·  "));
+
+  rows.push(`${reportLabel}  —  ${periodLabel}`);
+
+  return rows;
+}
+
 type ResolveCurrencyResult =
   | { ok: true; info: CurrencyInfo }
   | { ok: false };
@@ -368,10 +399,18 @@ router.get(
       return;
     }
     try {
-      const report = await computeTrialBalance(req.auth!.companyId, from, to);
+      const [report, titleRows] = await Promise.all([
+        computeTrialBalance(req.auth!.companyId, from, to),
+        buildExcelTitleRows(
+          req.auth!.companyId,
+          "ميزان المراجعة",
+          `${from ?? "البداية"} → ${to ?? todayStr()}`,
+        ),
+      ]);
       await exportWorkbook(res, {
         sheetName: "TrialBalance",
         fileName: "trial-balance",
+        titleRows,
         columns: [
           { header: "الكود", value: (r: TrialBalanceRow) => r.code },
           { header: "الحساب", value: (r: TrialBalanceRow) => r.nameAr, width: 32 },
@@ -532,7 +571,14 @@ router.get(
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
     try {
-      const r = await computeIncomeStatement(req.auth!.companyId, from, to);
+      const [r, titleRows] = await Promise.all([
+        computeIncomeStatement(req.auth!.companyId, from, to),
+        buildExcelTitleRows(
+          req.auth!.companyId,
+          "قائمة الأرباح والخسائر",
+          `${from ?? "البداية"} → ${to ?? todayStr()}`,
+        ),
+      ]);
       type ExpRow = { section: string; code: string; name: string; amount: number };
       const rows: ExpRow[] = [
         ...r.revenue.map((l) => ({
@@ -551,6 +597,7 @@ router.get(
       await exportWorkbook(res, {
         sheetName: "IncomeStatement",
         fileName: "income-statement",
+        titleRows,
         columns: [
           { header: "البند", value: (x: ExpRow) => x.section },
           { header: "الكود", value: (x: ExpRow) => x.code },
@@ -696,7 +743,14 @@ router.get(
   async (req, res) => {
     const asOf = (req.query["asOf"] as string | undefined) || null;
     try {
-      const r = await computeBalanceSheet(req.auth!.companyId, asOf);
+      const [r, titleRows] = await Promise.all([
+        computeBalanceSheet(req.auth!.companyId, asOf),
+        buildExcelTitleRows(
+          req.auth!.companyId,
+          "الميزانية العمومية",
+          `حتى ${asOf ?? todayStr()}`,
+        ),
+      ]);
       type ExpRow = { section: string; code: string; name: string; amount: number };
       const rows: ExpRow[] = [
         ...r.assets.map((l) => ({
@@ -727,6 +781,7 @@ router.get(
       await exportWorkbook(res, {
         sheetName: "BalanceSheet",
         fileName: "balance-sheet",
+        titleRows,
         columns: [
           { header: "البند", value: (x: ExpRow) => x.section, width: 16 },
           { header: "الكود", value: (x: ExpRow) => x.code },
