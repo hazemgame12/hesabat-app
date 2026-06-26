@@ -48,17 +48,14 @@ const MASTHEAD_CSS = `
 `;
 
 function mastheadHtml(company: Company | undefined, title: string): string {
-  if (!company) {
-    return `<h1 class="rpt-title" style="margin:0 0 8px">${esc(title)}</h1>`;
-  }
-  const rawLogo = company.logoUrl ?? null;
+  const rawLogo = company?.logoUrl ?? null;
   const logoSrc = rawLogo
     ? rawLogo.startsWith("http")
       ? rawLogo
       : `${window.location.origin}${rawLogo}`
     : null;
-  return `<div class="masthead">
-  <div class="co-block">
+  const coBlock = company
+    ? `<div class="co-block">
     ${logoSrc ? `<img class="co-logo" src="${esc(logoSrc)}" alt="" />` : ""}
     <div>
       <div class="co-name">${esc(company.name ?? "")}</div>
@@ -67,7 +64,10 @@ function mastheadHtml(company: Company | undefined, title: string): string {
       ${company.address ? `<div class="co-sub">${esc(company.address)}</div>` : ""}
       ${company.phone ? `<div class="co-sub" dir="ltr">${esc(company.phone)}</div>` : ""}
     </div>
-  </div>
+  </div>`
+    : `<div class="co-block"></div>`;
+  return `<div class="masthead">
+  ${coBlock}
   <div class="rpt-title">${esc(title)}</div>
 </div>`;
 }
