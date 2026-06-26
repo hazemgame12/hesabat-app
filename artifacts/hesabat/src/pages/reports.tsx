@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   useGetTrialBalance,
@@ -15,6 +15,7 @@ import {
   useGetInventorySummary,
   usePreviewRevaluation,
   useGetAuditLog,
+  useGetJournalEntry,
   getGetGeneralLedgerQueryKey,
   getGetPartyStatementQueryKey,
   useListAccounts,
@@ -34,7 +35,7 @@ import {
   type RevaluationLine,
   type AuditLogEntry,
 } from "@workspace/api-client-react";
-import { FileBarChart } from "lucide-react";
+import { FileBarChart, ExternalLink, X } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tabs,
@@ -108,6 +109,17 @@ export function Reports() {
   const lang = i18n.language;
   const [category, setCategory] = useState<CategoryKey>("financial");
   const [tab, setTab] = useState<TabKey>("trialBalance");
+  const [drillGL, setDrillGL] = useState<{
+    accountId: string;
+    from: string;
+    to: string;
+  } | null>(null);
+
+  function drillToGL(accountId: string, from: string, to: string) {
+    setDrillGL({ accountId, from, to });
+    setCategory("financial");
+    setTab("generalLedger");
+  }
 
   const fmt = (n: number) =>
     new Intl.NumberFormat(lang, {
@@ -139,11 +151,32 @@ export function Reports() {
   function renderTab(k: TabKey) {
     switch (k) {
       case "trialBalance":
-        return <TrialBalanceTab fmt={fmt} lang={lang} cc={cc} />;
+        return (
+          <TrialBalanceTab
+            fmt={fmt}
+            lang={lang}
+            cc={cc}
+            onDrillAccount={drillToGL}
+          />
+        );
       case "incomeStatement":
-        return <IncomeStatementTab fmt={fmt} lang={lang} cc={cc} />;
+        return (
+          <IncomeStatementTab
+            fmt={fmt}
+            lang={lang}
+            cc={cc}
+            onDrillAccount={drillToGL}
+          />
+        );
       case "balanceSheet":
-        return <BalanceSheetTab fmt={fmt} lang={lang} cc={cc} />;
+        return (
+          <BalanceSheetTab
+            fmt={fmt}
+            lang={lang}
+            cc={cc}
+            onDrillAccount={drillToGL}
+          />
+        );
       case "generalLedger":
         return (
           <GeneralLedgerTab
@@ -151,6 +184,9 @@ export function Reports() {
             lang={lang}
             leafAccounts={leafAccounts}
             cc={cc}
+            initialAccountId={drillGL?.accountId}
+            initialFrom={drillGL?.from}
+            initialTo={drillGL?.to}
           />
         );
       case "cashFlow":
@@ -474,10 +510,12 @@ export function TrialBalanceTab({
   fmt,
   lang,
   cc,
+  onDrillAccount,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
+  onDrillAccount?: (accountId: string, from: string, to: string) => void;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -595,9 +633,20 @@ export function TrialBalanceTab({
               </thead>
               <tbody>
                 {data.rows.map((r) => (
-                  <tr key={r.accountId} className="border-t border-border">
-                    <td className="px-4 py-2.5 font-mono text-xs">{r.code}</td>
-                    <td className="px-4 py-2.5">{displayName(r, lang)}</td>
+                  <tr key={r.accountId} className="border-t border-border hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{r.code}</td>
+                    <td className="px-4 py-2.5">
+                      {onDrillAccount ? (
+                        <button
+                          type="button"
+                          onClick={() => onDrillAccount(r.accountId, from, to)}
+                          className="text-start hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
+                        >
+                          {displayName(r, lang)}
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                        </button>
+                      ) : displayName(r, lang)}
+                    </td>
                     <td className="px-4 py-2.5 text-end tabular-nums border-s border-border">
                       {r.openingDebit ? fmt(r.openingDebit) : "—"}
                     </td>
@@ -673,12 +722,18 @@ export function PnlSection({
   total,
   fmt,
   lang,
+  onDrillAccount,
+  drillFrom,
+  drillTo,
 }: {
   title: string;
   lines: PnlLine[];
   total: number;
   fmt: Fmt;
   lang: string;
+  onDrillAccount?: (accountId: string, from: string, to: string) => void;
+  drillFrom?: string;
+  drillTo?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -694,12 +749,29 @@ export function PnlSection({
             </tr>
           ) : (
             lines.map((l) => (
-              <tr key={l.accountId} className="border-t border-border">
+              <tr key={l.accountId} className="border-t border-border hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-2.5">
                   <span className="font-mono text-xs text-muted-foreground me-2">
                     {l.code}
                   </span>
-                  {displayName(l, lang)}
+                  {onDrillAccount ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onDrillAccount(
+                          l.accountId,
+                          drillFrom ?? startOfYear(),
+                          drillTo ?? today(),
+                        )
+                      }
+                      className="hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
+                    >
+                      {displayName(l, lang)}
+                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                    </button>
+                  ) : (
+                    displayName(l, lang)
+                  )}
                 </td>
                 <td className="px-4 py-2.5 text-end tabular-nums">
                   {fmt(l.amount)}
@@ -723,10 +795,12 @@ export function IncomeStatementTab({
   fmt,
   lang,
   cc,
+  onDrillAccount,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
+  onDrillAccount?: (accountId: string, from: string, to: string) => void;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -760,6 +834,9 @@ export function IncomeStatementTab({
             total={data.totalRevenue}
             fmt={fmt}
             lang={lang}
+            onDrillAccount={onDrillAccount}
+            drillFrom={from}
+            drillTo={to}
           />
           <PnlSection
             title={t("reportsPage.incomeStatement.expenses")}
@@ -767,6 +844,9 @@ export function IncomeStatementTab({
             total={data.totalExpenses}
             fmt={fmt}
             lang={lang}
+            onDrillAccount={onDrillAccount}
+            drillFrom={from}
+            drillTo={to}
           />
           <div
             className={`rounded-2xl px-6 py-5 flex items-center justify-between font-bold text-lg ${
@@ -793,10 +873,12 @@ export function BalanceSheetTab({
   fmt,
   lang,
   cc,
+  onDrillAccount,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
+  onDrillAccount?: (accountId: string, from: string, to: string) => void;
 }) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
@@ -835,6 +917,9 @@ export function BalanceSheetTab({
             total={data.totalAssets}
             fmt={fmt}
             lang={lang}
+            onDrillAccount={onDrillAccount}
+            drillFrom={startOfYear()}
+            drillTo={asOf}
           />
           <div className="grid gap-4">
             <PnlSection
@@ -843,6 +928,9 @@ export function BalanceSheetTab({
               total={data.totalLiabilities}
               fmt={fmt}
               lang={lang}
+              onDrillAccount={onDrillAccount}
+              drillFrom={startOfYear()}
+              drillTo={asOf}
             />
             <Card>
               <div className="px-4 py-3 bg-muted/50 font-bold">
@@ -851,12 +939,25 @@ export function BalanceSheetTab({
               <table className="w-full text-sm">
                 <tbody>
                   {data.equity.map((l) => (
-                    <tr key={l.accountId} className="border-t border-border">
+                    <tr key={l.accountId} className="border-t border-border hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-2.5">
                         <span className="font-mono text-xs text-muted-foreground me-2">
                           {l.code}
                         </span>
-                        {displayName(l, lang)}
+                        {onDrillAccount ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onDrillAccount(l.accountId, startOfYear(), asOf)
+                            }
+                            className="hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
+                          >
+                            {displayName(l, lang)}
+                            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                          </button>
+                        ) : (
+                          displayName(l, lang)
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-end tabular-nums">
                         {fmt(l.amount)}
@@ -906,16 +1007,32 @@ export function GeneralLedgerTab({
   lang,
   leafAccounts,
   cc,
+  initialAccountId,
+  initialFrom,
+  initialTo,
 }: {
   fmt: Fmt;
   lang: string;
   leafAccounts: Account[];
   cc: CurrencyControls;
+  initialAccountId?: string;
+  initialFrom?: string;
+  initialTo?: string;
 }) {
   const { t } = useTranslation();
-  const [accountId, setAccountId] = useState<string>("");
-  const [from, setFrom] = useState(startOfYear());
-  const [to, setTo] = useState(today());
+  const [accountId, setAccountId] = useState<string>(initialAccountId ?? "");
+  const [from, setFrom] = useState(initialFrom ?? startOfYear());
+  const [to, setTo] = useState(initialTo ?? today());
+  const [jeModalId, setJeModalId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialAccountId) {
+      setAccountId(initialAccountId);
+      if (initialFrom) setFrom(initialFrom);
+      if (initialTo) setTo(initialTo);
+    }
+  }, [initialAccountId, initialFrom, initialTo]);
+
   const glParams = {
     accountId,
     from: from || undefined,
@@ -1028,14 +1145,24 @@ export function GeneralLedgerTab({
                 </tr>
               ) : (
                 data.entries.map((e, i) => (
-                  <tr key={i} className="border-t border-border">
-                    <td className="px-4 py-2.5">{e.date}</td>
-                    <td className="px-4 py-2.5">#{e.entryNo}</td>
-                    <td className="px-4 py-2.5">{e.description}</td>
-                    <td className="px-4 py-2.5 text-end tabular-nums">
+                  <tr
+                    key={i}
+                    className="border-t border-border hover:bg-primary/5 transition-colors cursor-pointer"
+                    onClick={() => setJeModalId(e.entryId)}
+                  >
+                    <td className="px-4 py-2.5 tabular-nums">{e.date}</td>
+                    <td className="px-4 py-2.5">
+                      <span className="font-mono text-primary font-semibold">
+                        #{e.entryNo}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                      {e.description}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums text-rose-600">
                       {e.debit ? fmt(e.debit) : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums">
+                    <td className="px-4 py-2.5 text-end tabular-nums text-emerald-600">
                       {e.credit ? fmt(e.credit) : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-end tabular-nums font-semibold">
@@ -1059,6 +1186,13 @@ export function GeneralLedgerTab({
           </Card>
         </>
       )}
+      {jeModalId && (
+        <JournalEntryModal
+          entryId={jeModalId}
+          onClose={() => setJeModalId(null)}
+          fmt={fmt}
+        />
+      )}
     </div>
   );
 }
@@ -1070,6 +1204,7 @@ function PartyStatementTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
     "customer",
   );
   const [partyId, setPartyId] = useState<string>("");
+  const [jeModalId, setJeModalId] = useState<string | null>(null);
   const [from, setFrom] = useState(startOfYear());
   const [to, setTo] = useState(today());
 
@@ -1204,13 +1339,19 @@ function PartyStatementTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
                 </tr>
               ) : (
                 data.entries.map((e, i) => (
-                  <tr key={i} className="border-t border-border">
-                    <td className="px-4 py-2.5">{e.date}</td>
-                    <td className="px-4 py-2.5">{e.description}</td>
-                    <td className="px-4 py-2.5 text-end tabular-nums">
+                  <tr
+                    key={i}
+                    className="border-t border-border hover:bg-primary/5 transition-colors cursor-pointer"
+                    onClick={() => setJeModalId(e.entryId)}
+                  >
+                    <td className="px-4 py-2.5 tabular-nums">{e.date}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                      {e.description}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums text-rose-600">
                       {e.debit ? fmt(e.debit) : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums">
+                    <td className="px-4 py-2.5 text-end tabular-nums text-emerald-600">
                       {e.credit ? fmt(e.credit) : "—"}
                     </td>
                     <td className="px-4 py-2.5 text-end tabular-nums font-semibold">
@@ -1233,6 +1374,151 @@ function PartyStatementTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
           </table>
         </Card>
       )}
+      {jeModalId && (
+        <JournalEntryModal
+          entryId={jeModalId}
+          onClose={() => setJeModalId(null)}
+          fmt={fmt}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---- Journal Entry Modal ----
+function JournalEntryModal({
+  entryId,
+  onClose,
+  fmt,
+}: {
+  entryId: string;
+  onClose: () => void;
+  fmt: Fmt;
+}) {
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+  const { data, isLoading } = useGetJournalEntry(entryId);
+  const { data: accounts = [] } = useListAccounts();
+  const accountMap = useMemo(
+    () => new Map(accounts.map((a: Account) => [a.id, a])),
+    [accounts],
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col border border-border"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between px-6 py-4 border-b border-border shrink-0">
+          <div>
+            {data ? (
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-bold text-lg">
+                    {t("reportsPage.je.title")} #{data.entryNo}
+                  </h2>
+                  <span className="text-sm text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                    {data.date}
+                  </span>
+                </div>
+                {data.reference && (
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {data.reference}
+                  </p>
+                )}
+              </>
+            ) : (
+              <h2 className="font-bold text-lg">{t("reportsPage.je.title")}</h2>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-4">
+          {isLoading ? (
+            <Loading />
+          ) : !data ? (
+            <Empty />
+          ) : (
+            <>
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-muted-foreground">
+                  <tr>
+                    <th className="text-start px-4 py-3 font-semibold">
+                      {t("reportsPage.table.account")}
+                    </th>
+                    <th className="text-start px-4 py-3 font-semibold">
+                      {t("reportsPage.table.description")}
+                    </th>
+                    <th className="text-end px-4 py-3 font-semibold">
+                      {t("reportsPage.table.debit")}
+                    </th>
+                    <th className="text-end px-4 py-3 font-semibold">
+                      {t("reportsPage.table.credit")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.lines.map((line, i) => {
+                    const acc = accountMap.get(line.accountId);
+                    return (
+                      <tr key={i} className="border-t border-border">
+                        <td className="px-4 py-2.5">
+                          {acc && (
+                            <span className="font-mono text-xs text-muted-foreground me-2">
+                              {acc.code}
+                            </span>
+                          )}
+                          {acc
+                            ? displayName(acc, lang)
+                            : line.accountId.slice(0, 8)}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                          {line.description ?? "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-end tabular-nums text-rose-600">
+                          {line.debitBase ? fmt(line.debitBase) : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-end tabular-nums text-emerald-600">
+                          {line.creditBase ? fmt(line.creditBase) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/30 font-bold">
+                    <td colSpan={2} className="px-4 py-3">
+                      {t("reportsPage.table.total")}
+                    </td>
+                    <td className="px-4 py-3 text-end tabular-nums text-rose-600">
+                      {fmt(data.totalDebitBase)}
+                    </td>
+                    <td className="px-4 py-3 text-end tabular-nums text-emerald-600">
+                      {fmt(data.totalCreditBase)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+              {data.notes && (
+                <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3 px-4">
+                  {data.notes}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

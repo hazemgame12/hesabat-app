@@ -744,6 +744,7 @@ router.get(
 
 // ---- General ledger (one account, running balance) --------------------------
 type LedgerEntry = {
+  entryId: string;
   date: string;
   entryNo: number;
   ref: string | null;
@@ -779,6 +780,7 @@ async function computeGeneralLedger(
 
   const lines = await db
     .select({
+      entryId: journalEntriesTable.id,
       date: journalEntriesTable.date,
       entryNo: journalEntriesTable.entryNo,
       ref: journalEntriesTable.reference,
@@ -819,6 +821,7 @@ async function computeGeneralLedger(
       (entries.length === 0 ? opening : running) + movement(debit, credit);
     running = round2(running);
     entries.push({
+      entryId: l.entryId,
       date: l.date,
       entryNo: l.entryNo,
       ref: l.ref ?? null,

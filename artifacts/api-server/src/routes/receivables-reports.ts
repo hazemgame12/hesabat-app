@@ -89,6 +89,7 @@ router.get(
       // All posted lines on the subsidiary account, ordered by date.
       const lines = await db
         .select({
+          entryId: journalEntriesTable.id,
           date: journalEntriesTable.date,
           ref: journalEntriesTable.reference,
           description: journalEntryLinesTable.description,
@@ -115,6 +116,7 @@ router.get(
 
       let opening = 0;
       const entries: {
+        entryId: string;
         date: string;
         ref: string | null;
         description: string;
@@ -135,6 +137,7 @@ router.get(
           (entries.length === 0 ? opening : running) + movement(debit, credit);
         running = round2(running);
         entries.push({
+          entryId: l.entryId,
           date: l.date,
           ref: l.ref ?? null,
           description: l.description ?? "",

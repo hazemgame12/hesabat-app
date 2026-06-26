@@ -2300,6 +2300,9 @@
       "openingBalance": "رصيد افتتاحي",
       "closingBalance": "رصيد ختامي"
     },
+    "je": {
+      "title": "تفاصيل القيد"
+    },
     "aging": {
       "current": "حالية",
       "d30": "1-30 يوم",

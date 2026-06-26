@@ -2270,6 +2270,7 @@ export interface Payment {
 }
 
 export interface PartyStatementEntry {
+  entryId: string;
   date: string;
   /** @nullable */
   ref?: string | null;
@@ -2527,6 +2528,7 @@ export interface BalanceSheet {
 }
 
 export interface GeneralLedgerEntry {
+  entryId: string;
   date: string;
   entryNo: number;
   /** @nullable */

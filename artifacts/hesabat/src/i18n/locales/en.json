@@ -2300,6 +2300,9 @@
       "openingBalance": "Opening balance",
       "closingBalance": "Closing balance"
     },
+    "je": {
+      "title": "Journal Entry"
+    },
     "aging": {
       "current": "Current",
       "d30": "1-30 days",

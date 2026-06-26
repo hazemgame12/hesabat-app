@@ -6798,8 +6798,10 @@ components:
 
     PartyStatementEntry:
       type: object
-      required: [date, description, debit, credit, balance]
+      required: [entryId, date, description, debit, credit, balance]
       properties:
+        entryId:
+          type: string
         date:
           type: string
         ref:
@@ -7309,8 +7311,10 @@ components:
 
     GeneralLedgerEntry:
       type: object
-      required: [date, entryNo, description, debit, credit, balance]
+      required: [entryId, date, entryNo, description, debit, credit, balance]
       properties:
+        entryId:
+          type: string
         date:
           type: string
         entryNo:
