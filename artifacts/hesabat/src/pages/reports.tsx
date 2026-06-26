@@ -35,7 +35,7 @@ import {
   type RevaluationLine,
   type AuditLogEntry,
 } from "@workspace/api-client-react";
-import { FileBarChart, ExternalLink, X } from "lucide-react";
+import { FileBarChart, ExternalLink, X, ChevronsUpDown, Check } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tabs,
@@ -50,7 +50,90 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { TaxReports } from "@/components/reports/TaxReports";
+
+// ── Searchable combobox for long lists (accounts / parties) ──────────────────
+function SearchableSelect({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  searchPlaceholder,
+  emptyText,
+  className,
+}: {
+  value: string;
+  onValueChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  className?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const selected = options.find((o) => o.value === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className={`flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background hover:bg-accent/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ""}`}
+        >
+          <span className="truncate text-start">
+            {selected ? selected.label : <span className="text-muted-foreground">{placeholder}</span>}
+          </span>
+          <ChevronsUpDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] p-0"
+        align="start"
+        side="bottom"
+        avoidCollisions={false}
+        sideOffset={4}
+      >
+        <Command>
+          <CommandInput placeholder={searchPlaceholder ?? "بحث…"} />
+          <CommandList className="max-h-64 overflow-y-auto">
+            <CommandEmpty>{emptyText ?? "لا توجد نتائج"}</CommandEmpty>
+            <CommandGroup>
+              {options.map((opt) => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.label}
+                  onSelect={() => {
+                    onValueChange(opt.value);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={`me-2 h-4 w-4 shrink-0 ${opt.value === value ? "opacity-100" : "opacity-0"}`}
+                  />
+                  <span className="truncate">{opt.label}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 type TabKey =
   | "trialBalance"
@@ -1053,20 +1136,16 @@ export function GeneralLedgerTab({
           <span className="text-muted-foreground">
             {t("reportsPage.filters.account")}
           </span>
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger>
-              <SelectValue
-                placeholder={t("reportsPage.filters.selectAccount")}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {leafAccounts.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.code} · {displayName(a, lang)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={accountId}
+            onValueChange={setAccountId}
+            options={leafAccounts.map((a) => ({
+              value: a.id,
+              label: `${a.code} · ${displayName(a, lang)}`,
+            }))}
+            placeholder={t("reportsPage.filters.selectAccount")}
+            searchPlaceholder={t("reportsPage.filters.searchAccount")}
+          />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">
@@ -1256,18 +1335,16 @@ function PartyStatementTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
           <span className="text-muted-foreground">
             {t("reportsPage.filters.party")}
           </span>
-          <Select value={partyId} onValueChange={setPartyId}>
-            <SelectTrigger>
-              <SelectValue placeholder={t("reportsPage.filters.selectParty")} />
-            </SelectTrigger>
-            <SelectContent>
-              {parties.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {displayName(p, lang)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableSelect
+            value={partyId}
+            onValueChange={setPartyId}
+            options={parties.map((p) => ({
+              value: p.id,
+              label: displayName(p, lang),
+            }))}
+            placeholder={t("reportsPage.filters.selectParty")}
+            searchPlaceholder={t("reportsPage.filters.searchParty")}
+          />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-muted-foreground">
