@@ -2422,6 +2422,16 @@
       "adjValue": "Adjustments",
       "closingQty": "Closing Qty",
       "closingValue": "Closing Value"
+    },
+    "comparison": {
+      "enable": "Compare periods",
+      "currentPeriod": "Current period",
+      "priorPeriod": "Prior period",
+      "currentDate": "Current date",
+      "priorDate": "Prior date",
+      "change": "Change",
+      "current": "Current",
+      "prior": "Prior"
     }
   },
   "superAdmin": {

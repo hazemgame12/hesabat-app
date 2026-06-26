@@ -2422,6 +2422,16 @@
       "adjValue": "تسويات",
       "closingQty": "كمية آخر المدة",
       "closingValue": "قيمة آخر المدة"
+    },
+    "comparison": {
+      "enable": "مقارنة بفترة أخرى",
+      "currentPeriod": "الفترة الحالية",
+      "priorPeriod": "فترة المقارنة",
+      "currentDate": "التاريخ الحالي",
+      "priorDate": "تاريخ المقارنة",
+      "change": "التغيير",
+      "current": "الحالي",
+      "prior": "مقارنة"
     }
   },
   "superAdmin": {

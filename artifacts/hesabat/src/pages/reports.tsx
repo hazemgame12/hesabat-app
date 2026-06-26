@@ -44,7 +44,7 @@ import {
   reportCurrencyParam,
   openExport,
 } from "./reports-utils";
-import { FileBarChart, ExternalLink, X, ChevronsUpDown, Check, Paperclip, Download } from "lucide-react";
+import { FileBarChart, ExternalLink, X, ChevronsUpDown, Check, Paperclip, Download, Columns2, TrendingUp, TrendingDown } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tabs,
@@ -694,6 +694,9 @@ export function PnlSection({
   title,
   lines,
   total,
+  compLines,
+  compTotal,
+  showComparison,
   fmt,
   lang,
   onDrillAccount,
@@ -703,6 +706,9 @@ export function PnlSection({
   title: string;
   lines: PnlLine[];
   total: number;
+  compLines?: PnlLine[];
+  compTotal?: number;
+  showComparison?: boolean;
   fmt: Fmt;
   lang: string;
   onDrillAccount?: (accountId: string, from: string, to: string) => void;
@@ -710,58 +716,113 @@ export function PnlSection({
   drillTo?: string;
 }) {
   const { t } = useTranslation();
+  const compMap = new Map(compLines?.map((l) => [l.accountId, l.amount]) ?? []);
+  const cols = showComparison ? 4 : 2;
+
   return (
-    <Card>
-      <div className="px-4 py-3 bg-muted/50 font-bold">{title}</div>
+    <div className="rounded-2xl border border-border overflow-hidden shadow-sm">
+      <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-900/60 border-b border-border">
+        <span className="font-bold text-sm tracking-wide text-foreground">{title}</span>
+      </div>
       <table className="w-full text-sm">
         <tbody>
           {lines.length === 0 ? (
             <tr>
-              <td className="px-4 py-3 text-muted-foreground" colSpan={2}>
+              <td className="px-5 py-4 text-muted-foreground" colSpan={cols}>
                 {t("reportsPage.noData")}
               </td>
             </tr>
           ) : (
-            lines.map((l) => (
-              <tr key={l.accountId} className="border-t border-border hover:bg-muted/30 transition-colors">
-                <td className="px-4 py-2.5">
-                  <span className="font-mono text-xs text-muted-foreground me-2">
-                    {l.code}
-                  </span>
-                  {onDrillAccount ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onDrillAccount(
-                          l.accountId,
-                          drillFrom ?? startOfYear(),
-                          drillTo ?? today(),
-                        )
-                      }
-                      className="hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
-                    >
-                      {displayName(l, lang)}
-                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
-                    </button>
-                  ) : (
-                    displayName(l, lang)
+            lines.map((l) => {
+              const compAmt = compMap.get(l.accountId);
+              const delta =
+                showComparison && compAmt !== undefined ? l.amount - compAmt : null;
+              return (
+                <tr
+                  key={l.accountId}
+                  className="border-t border-border/50 hover:bg-muted/20 transition-colors"
+                >
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-mono text-[11px] text-muted-foreground/70 w-14 shrink-0">
+                        {l.code}
+                      </span>
+                      {onDrillAccount ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onDrillAccount(
+                              l.accountId,
+                              drillFrom ?? startOfYear(),
+                              drillTo ?? today(),
+                            )
+                          }
+                          className="hover:text-primary hover:underline transition-colors inline-flex items-center gap-1 group/btn text-start"
+                        >
+                          <span>{displayName(l, lang)}</span>
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover/btn:opacity-50 transition-opacity shrink-0" />
+                        </button>
+                      ) : (
+                        displayName(l, lang)
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 text-end tabular-nums font-mono w-36">
+                    {fmt(l.amount)}
+                  </td>
+                  {showComparison && (
+                    <>
+                      <td className="px-5 py-3 text-end tabular-nums font-mono text-muted-foreground w-36">
+                        {compAmt !== undefined ? fmt(compAmt) : "—"}
+                      </td>
+                      <td
+                        className={`px-5 py-3 text-end tabular-nums text-xs font-semibold w-28 ${
+                          delta !== null
+                            ? delta >= 0
+                              ? "text-emerald-600"
+                              : "text-rose-600"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {delta !== null
+                          ? `${delta >= 0 ? "+" : ""}${fmt(delta)}`
+                          : "—"}
+                      </td>
+                    </>
                   )}
-                </td>
-                <td className="px-4 py-2.5 text-end tabular-nums">
-                  {fmt(l.amount)}
-                </td>
-              </tr>
-            ))
+                </tr>
+              );
+            })
           )}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-border bg-muted/30 font-bold">
-            <td className="px-4 py-3">{t("reportsPage.table.total")}</td>
-            <td className="px-4 py-3 text-end tabular-nums">{fmt(total)}</td>
+          <tr className="border-t-2 border-primary/20 bg-slate-50 dark:bg-slate-900/60 font-bold">
+            <td className="px-5 py-3.5">{t("reportsPage.table.total")}</td>
+            <td className="px-5 py-3.5 text-end tabular-nums font-mono">{fmt(total)}</td>
+            {showComparison && (
+              <>
+                <td className="px-5 py-3.5 text-end tabular-nums font-mono text-muted-foreground">
+                  {compTotal !== undefined ? fmt(compTotal) : "—"}
+                </td>
+                <td
+                  className={`px-5 py-3.5 text-end tabular-nums text-xs font-semibold ${
+                    compTotal !== undefined
+                      ? total - compTotal >= 0
+                        ? "text-emerald-600"
+                        : "text-rose-600"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {compTotal !== undefined
+                    ? `${total - compTotal >= 0 ? "+" : ""}${fmt(total - compTotal)}`
+                    : "—"}
+                </td>
+              </>
+            )}
           </tr>
         </tfoot>
       </table>
-    </Card>
+    </div>
   );
 }
 
@@ -779,33 +840,90 @@ export function IncomeStatementTab({
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
   const [to, setTo] = useState(today());
+  const [showComparison, setShowComparison] = useState(false);
+  const [compFrom, setCompFrom] = useState(
+    `${parseInt(startOfYear().slice(0, 4)) - 1}${startOfYear().slice(4)}`,
+  );
+  const [compTo, setCompTo] = useState(
+    `${parseInt(today().slice(0, 4)) - 1}${today().slice(4)}`,
+  );
+
   const { data, isLoading } = useGetIncomeStatement({
     from: from || undefined,
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
   });
+  const { data: compData, isLoading: compLoading } = useGetIncomeStatement(
+    { from: compFrom || undefined, to: compTo || undefined, reportCurrency: reportCurrencyParam(cc) },
+    { query: { enabled: showComparison } as any },
+  );
 
   const profit = (data?.netProfit ?? 0) >= 0;
+  const netDelta =
+    showComparison && compData != null
+      ? (data?.netProfit ?? 0) - compData.netProfit
+      : null;
 
   return (
-    <div>
-      <div className="flex flex-wrap items-end gap-3">
-        <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
-        <div className="mb-4">
+    <div className="flex flex-col gap-5">
+      {/* Controls */}
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            {showComparison
+              ? t("reportsPage.comparison.currentPeriod")
+              : t("reportsPage.filters.from")}
+          </span>
+          <DateRange from={from} to={to} onFrom={setFrom} onTo={setTo} />
+        </div>
+        {showComparison && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {t("reportsPage.comparison.priorPeriod")}
+            </span>
+            <DateRange from={compFrom} to={compTo} onFrom={setCompFrom} onTo={setCompTo} />
+          </div>
+        )}
+        <div className="flex items-end gap-2 mb-4">
           <ReportCurrencySelect cc={cc} />
+          <button
+            onClick={() => setShowComparison(!showComparison)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+              showComparison
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-background text-muted-foreground border-border hover:border-primary hover:text-foreground"
+            }`}
+          >
+            <Columns2 className="w-4 h-4" />
+            {t("reportsPage.comparison.enable")}
+          </button>
         </div>
       </div>
-      {isLoading ? (
+
+      {isLoading || (showComparison && compLoading) ? (
         <Loading />
       ) : !data ? (
         <Empty />
       ) : (
-        <div className="grid gap-4">
+        <div className="flex flex-col gap-4">
           <CurrencyHeader info={data.currencyInfo} fmt={fmt} />
+
+          {showComparison && (
+            <div className="flex text-xs font-bold text-muted-foreground uppercase tracking-wide px-5 py-1">
+              <div className="flex-1">{t("reportsPage.table.account")}</div>
+              <div className="w-36 text-end">{t("reportsPage.comparison.current")}</div>
+              <div className="w-36 text-end">{t("reportsPage.comparison.prior")}</div>
+              <div className="w-28 text-end">{t("reportsPage.comparison.change")}</div>
+            </div>
+          )}
+
           <PnlSection
             title={t("reportsPage.incomeStatement.revenue")}
             lines={data.revenue}
             total={data.totalRevenue}
+            compLines={compData?.revenue}
+            compTotal={compData?.totalRevenue}
+            showComparison={showComparison}
             fmt={fmt}
             lang={lang}
             onDrillAccount={onDrillAccount}
@@ -816,25 +934,60 @@ export function IncomeStatementTab({
             title={t("reportsPage.incomeStatement.expenses")}
             lines={data.expenses}
             total={data.totalExpenses}
+            compLines={compData?.expenses}
+            compTotal={compData?.totalExpenses}
+            showComparison={showComparison}
             fmt={fmt}
             lang={lang}
             onDrillAccount={onDrillAccount}
             drillFrom={from}
             drillTo={to}
           />
+
+          {/* Net profit row */}
           <div
-            className={`rounded-2xl px-6 py-5 flex items-center justify-between font-bold text-lg ${
+            className={`rounded-2xl px-6 py-5 border font-bold ${
               profit
-                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                : "bg-red-50 text-red-800 border border-red-200"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                : "bg-rose-50 border-rose-200 text-rose-800"
             }`}
           >
-            <span>
-              {profit
-                ? t("reportsPage.incomeStatement.netProfit")
-                : t("reportsPage.incomeStatement.netLoss")}
-            </span>
-            <span className="tabular-nums">{fmt(Math.abs(data.netProfit))}</span>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                {profit ? (
+                  <TrendingUp className="w-5 h-5" />
+                ) : (
+                  <TrendingDown className="w-5 h-5" />
+                )}
+                <span className="text-base">
+                  {profit
+                    ? t("reportsPage.incomeStatement.netProfit")
+                    : t("reportsPage.incomeStatement.netLoss")}
+                </span>
+              </div>
+              <div className="flex items-center gap-5">
+                <span className="tabular-nums font-mono text-base">
+                  {fmt(Math.abs(data.netProfit))}
+                </span>
+                {showComparison && compData && (
+                  <span className="tabular-nums font-mono text-sm opacity-65">
+                    {fmt(Math.abs(compData.netProfit))}
+                  </span>
+                )}
+                {netDelta !== null && (
+                  <span
+                    className={`tabular-nums font-mono text-sm px-2.5 py-1 rounded-lg ${
+                      netDelta >= 0
+                        ? "bg-emerald-200/80 text-emerald-900"
+                        : "bg-rose-200/80 text-rose-900"
+                    }`}
+                  >
+                    {netDelta >= 0 ? "+" : ""}
+                    {fmt(netDelta)}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -856,118 +1009,255 @@ export function BalanceSheetTab({
 }) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
+  const [showComparison, setShowComparison] = useState(false);
+  const [compAsOf, setCompAsOf] = useState(
+    `${parseInt(today().slice(0, 4)) - 1}${today().slice(4)}`,
+  );
+
   const { data, isLoading } = useGetBalanceSheet({
     asOf: asOf || undefined,
     reportCurrency: reportCurrencyParam(cc),
   });
+  const { data: compData, isLoading: compLoading } = useGetBalanceSheet(
+    { asOf: compAsOf || undefined, reportCurrency: reportCurrencyParam(cc) },
+    { query: { enabled: showComparison } as any },
+  );
 
   return (
-    <div>
-      <div className="flex flex-wrap items-end gap-3 mb-4">
+    <div className="flex flex-col gap-5">
+      {/* Controls */}
+      <div className="flex flex-wrap items-end gap-4">
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-muted-foreground">
-            {t("reportsPage.filters.asOf")}
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            {showComparison
+              ? t("reportsPage.comparison.currentDate")
+              : t("reportsPage.filters.asOf")}
           </span>
           <input
             type="date"
             value={asOf}
             onChange={(e) => setAsOf(e.target.value)}
-            className="border border-border rounded-lg px-3 py-2 bg-background"
+            className="border border-border rounded-xl px-3 py-2 bg-background text-sm"
           />
         </label>
-        <ReportCurrencySelect cc={cc} />
+        {showComparison && (
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              {t("reportsPage.comparison.priorDate")}
+            </span>
+            <input
+              type="date"
+              value={compAsOf}
+              onChange={(e) => setCompAsOf(e.target.value)}
+              className="border border-border rounded-xl px-3 py-2 bg-background text-sm"
+            />
+          </label>
+        )}
+        <div className="flex items-end gap-2 mb-1">
+          <ReportCurrencySelect cc={cc} />
+          <button
+            onClick={() => setShowComparison(!showComparison)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+              showComparison
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-background text-muted-foreground border-border hover:border-primary hover:text-foreground"
+            }`}
+          >
+            <Columns2 className="w-4 h-4" />
+            {t("reportsPage.comparison.enable")}
+          </button>
+        </div>
       </div>
-      {isLoading ? (
+
+      {isLoading || (showComparison && compLoading) ? (
         <Loading />
       ) : !data ? (
         <Empty />
       ) : (
         <>
           <CurrencyHeader info={data.currencyInfo} fmt={fmt} />
-          <div className="grid md:grid-cols-2 gap-4">
-          <PnlSection
-            title={t("reportsPage.balanceSheet.assets")}
-            lines={data.assets}
-            total={data.totalAssets}
-            fmt={fmt}
-            lang={lang}
-            onDrillAccount={onDrillAccount}
-            drillFrom={startOfYear()}
-            drillTo={asOf}
-          />
-          <div className="grid gap-4">
+
+          {showComparison && (
+            <div className="flex text-xs font-bold text-muted-foreground uppercase tracking-wide px-5 py-1">
+              <div className="flex-1">{t("reportsPage.table.account")}</div>
+              <div className="w-36 text-end">{asOf}</div>
+              <div className="w-36 text-end">{compAsOf}</div>
+              <div className="w-28 text-end">{t("reportsPage.comparison.change")}</div>
+            </div>
+          )}
+
+          <div className={`grid gap-4 ${showComparison ? "" : "md:grid-cols-2"}`}>
             <PnlSection
-              title={t("reportsPage.balanceSheet.liabilities")}
-              lines={data.liabilities}
-              total={data.totalLiabilities}
+              title={t("reportsPage.balanceSheet.assets")}
+              lines={data.assets}
+              total={data.totalAssets}
+              compLines={compData?.assets}
+              compTotal={compData?.totalAssets}
+              showComparison={showComparison}
               fmt={fmt}
               lang={lang}
               onDrillAccount={onDrillAccount}
               drillFrom={startOfYear()}
               drillTo={asOf}
             />
-            <Card>
-              <div className="px-4 py-3 bg-muted/50 font-bold">
-                {t("reportsPage.balanceSheet.equity")}
-              </div>
-              <table className="w-full text-sm">
-                <tbody>
-                  {data.equity.map((l) => (
-                    <tr key={l.accountId} className="border-t border-border hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-2.5">
-                        <span className="font-mono text-xs text-muted-foreground me-2">
-                          {l.code}
-                        </span>
-                        {onDrillAccount ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onDrillAccount(l.accountId, startOfYear(), asOf)
-                            }
-                            className="hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
+            <div className="flex flex-col gap-4">
+              <PnlSection
+                title={t("reportsPage.balanceSheet.liabilities")}
+                lines={data.liabilities}
+                total={data.totalLiabilities}
+                compLines={compData?.liabilities}
+                compTotal={compData?.totalLiabilities}
+                showComparison={showComparison}
+                fmt={fmt}
+                lang={lang}
+                onDrillAccount={onDrillAccount}
+                drillFrom={startOfYear()}
+                drillTo={asOf}
+              />
+
+              {/* Equity section */}
+              <div className="rounded-2xl border border-border overflow-hidden shadow-sm">
+                <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-900/60 border-b border-border">
+                  <span className="font-bold text-sm tracking-wide">
+                    {t("reportsPage.balanceSheet.equity")}
+                  </span>
+                </div>
+                <table className="w-full text-sm">
+                  <tbody>
+                    {data.equity.map((l) => {
+                      const compAmt = showComparison
+                        ? compData?.equity.find((x) => x.accountId === l.accountId)?.amount
+                        : undefined;
+                      const delta = compAmt !== undefined ? l.amount - compAmt : null;
+                      return (
+                        <tr
+                          key={l.accountId}
+                          className="border-t border-border/50 hover:bg-muted/20 transition-colors"
+                        >
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-mono text-[11px] text-muted-foreground/70 w-14 shrink-0">
+                                {l.code}
+                              </span>
+                              {onDrillAccount ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onDrillAccount(l.accountId, startOfYear(), asOf)
+                                  }
+                                  className="hover:text-primary hover:underline inline-flex items-center gap-1 group/btn text-start"
+                                >
+                                  <span>{displayName(l, lang)}</span>
+                                  <ExternalLink className="w-3 h-3 opacity-0 group-hover/btn:opacity-50 transition-opacity shrink-0" />
+                                </button>
+                              ) : (
+                                displayName(l, lang)
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-end tabular-nums font-mono w-36">
+                            {fmt(l.amount)}
+                          </td>
+                          {showComparison && (
+                            <>
+                              <td className="px-5 py-3 text-end tabular-nums font-mono text-muted-foreground w-36">
+                                {compAmt !== undefined ? fmt(compAmt) : "—"}
+                              </td>
+                              <td
+                                className={`px-5 py-3 text-end tabular-nums text-xs font-semibold w-28 ${
+                                  delta !== null
+                                    ? delta >= 0
+                                      ? "text-emerald-600"
+                                      : "text-rose-600"
+                                    : "text-muted-foreground"
+                                }`}
+                              >
+                                {delta !== null
+                                  ? `${delta >= 0 ? "+" : ""}${fmt(delta)}`
+                                  : "—"}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-t border-border/50">
+                      <td className="px-5 py-2.5 italic text-muted-foreground text-xs" colSpan={showComparison ? 1 : 1}>
+                        {t("reportsPage.balanceSheet.netResult")}
+                      </td>
+                      <td className="px-5 py-2.5 text-end tabular-nums font-mono">
+                        {fmt(data.netResult)}
+                      </td>
+                      {showComparison && (
+                        <>
+                          <td className="px-5 py-2.5 text-end tabular-nums font-mono text-muted-foreground">
+                            {compData ? fmt(compData.netResult) : "—"}
+                          </td>
+                          <td
+                            className={`px-5 py-2.5 text-end tabular-nums text-xs font-semibold ${
+                              compData
+                                ? data.netResult - compData.netResult >= 0
+                                  ? "text-emerald-600"
+                                  : "text-rose-600"
+                                : "text-muted-foreground"
+                            }`}
                           >
-                            {displayName(l, lang)}
-                            <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
-                          </button>
-                        ) : (
-                          displayName(l, lang)
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-end tabular-nums">
-                        {fmt(l.amount)}
-                      </td>
+                            {compData
+                              ? `${data.netResult - compData.netResult >= 0 ? "+" : ""}${fmt(data.netResult - compData.netResult)}`
+                              : "—"}
+                          </td>
+                        </>
+                      )}
                     </tr>
-                  ))}
-                  <tr className="border-t border-border">
-                    <td className="px-4 py-2.5 italic text-muted-foreground">
-                      {t("reportsPage.balanceSheet.netResult")}
-                    </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums">
-                      {fmt(data.netResult)}
-                    </td>
-                  </tr>
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-border bg-muted/30 font-bold">
-                    <td className="px-4 py-3">
-                      {t("reportsPage.balanceSheet.totalEquity")}
-                    </td>
-                    <td className="px-4 py-3 text-end tabular-nums">
-                      {fmt(data.totalEquity)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </Card>
-            <div className="rounded-2xl px-6 py-4 flex items-center justify-between font-bold bg-muted/40 border border-border">
-              <span>
-                {t("reportsPage.balanceSheet.totalLiabilitiesAndEquity")}
-              </span>
-              <span className="tabular-nums">
-                {fmt(data.totalLiabilitiesAndEquity)}
-              </span>
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-primary/20 bg-slate-50 dark:bg-slate-900/60 font-bold">
+                      <td className="px-5 py-3.5">
+                        {t("reportsPage.balanceSheet.totalEquity")}
+                      </td>
+                      <td className="px-5 py-3.5 text-end tabular-nums font-mono">
+                        {fmt(data.totalEquity)}
+                      </td>
+                      {showComparison && (
+                        <>
+                          <td className="px-5 py-3.5 text-end tabular-nums font-mono text-muted-foreground">
+                            {compData ? fmt(compData.totalEquity) : "—"}
+                          </td>
+                          <td
+                            className={`px-5 py-3.5 text-end tabular-nums text-xs font-semibold ${
+                              compData
+                                ? data.totalEquity - compData.totalEquity >= 0
+                                  ? "text-emerald-600"
+                                  : "text-rose-600"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {compData
+                              ? `${data.totalEquity - compData.totalEquity >= 0 ? "+" : ""}${fmt(data.totalEquity - compData.totalEquity)}`
+                              : "—"}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Balance check */}
+              <div className="rounded-2xl px-6 py-4 flex items-center justify-between font-bold bg-muted/40 border border-border">
+                <span>{t("reportsPage.balanceSheet.totalLiabilitiesAndEquity")}</span>
+                <div className="flex items-center gap-6">
+                  <span className="tabular-nums font-mono">
+                    {fmt(data.totalLiabilitiesAndEquity)}
+                  </span>
+                  {showComparison && compData && (
+                    <span className="tabular-nums font-mono text-muted-foreground text-sm">
+                      {fmt(compData.totalLiabilitiesAndEquity)}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
           </div>
         </>
       )}
