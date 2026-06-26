@@ -152,6 +152,17 @@ export function ReportsFinancial() {
   const lang = i18n.language;
   const [tab, setTab] = useState<TabKey>("trialBalance");
   const [preset, setPreset] = useState<PeriodPreset>("year");
+
+  const [drillGL, setDrillGL] = useState<{
+    accountId: string;
+    from: string;
+    to: string;
+  } | null>(null);
+
+  function drillToGL(accountId: string, from: string, to: string) {
+    setDrillGL({ accountId, from, to });
+    setTab("generalLedger");
+  }
   const period = periodRange(preset);
 
   const fmt = (n: number) =>
@@ -338,13 +349,13 @@ export function ReportsFinancial() {
 
         <div className="mt-6">
           <TabsContent value="trialBalance">
-            <TrialBalanceTab fmt={fmt} lang={lang} cc={cc} />
+            <TrialBalanceTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} />
           </TabsContent>
           <TabsContent value="incomeStatement">
-            <IncomeStatementTab fmt={fmt} lang={lang} cc={cc} />
+            <IncomeStatementTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} />
           </TabsContent>
           <TabsContent value="balanceSheet">
-            <BalanceSheetTab fmt={fmt} lang={lang} cc={cc} />
+            <BalanceSheetTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} />
           </TabsContent>
           <TabsContent value="generalLedger">
             <GeneralLedgerTab
@@ -352,10 +363,13 @@ export function ReportsFinancial() {
               lang={lang}
               leafAccounts={leafAccounts}
               cc={cc}
+              initialAccountId={drillGL?.accountId}
+              initialFrom={drillGL?.from}
+              initialTo={drillGL?.to}
             />
           </TabsContent>
           <TabsContent value="cashFlow">
-            <CashFlowTab fmt={fmt} lang={lang} />
+            <CashFlowTab fmt={fmt} lang={lang} onDrillAccount={drillToGL} />
           </TabsContent>
           <TabsContent value="cashForecast">
             <CashForecastTab fmt={fmt} />
