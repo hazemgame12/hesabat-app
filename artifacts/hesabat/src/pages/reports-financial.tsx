@@ -34,6 +34,8 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   type CurrencyControls,
   reportCurrencyParam,
+} from "./reports-utils";
+import {
   ReportCurrencySelect,
   TrialBalanceTab,
   IncomeStatementTab,
