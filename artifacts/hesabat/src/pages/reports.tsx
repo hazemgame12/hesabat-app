@@ -35,7 +35,7 @@ import {
   type RevaluationLine,
   type AuditLogEntry,
 } from "@workspace/api-client-react";
-import { FileBarChart, ExternalLink, X, ChevronsUpDown, Check } from "lucide-react";
+import { FileBarChart, ExternalLink, X, ChevronsUpDown, Check, Paperclip, Download } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tabs,
@@ -273,7 +273,7 @@ export function Reports() {
           />
         );
       case "cashFlow":
-        return <CashFlowTab fmt={fmt} lang={lang} />;
+        return <CashFlowTab fmt={fmt} lang={lang} onDrillAccount={drillToGL} />;
       case "cashForecast":
         return <CashForecastTab fmt={fmt} />;
       case "salesByItem":
@@ -1592,6 +1592,33 @@ function JournalEntryModal({
                   {data.notes}
                 </p>
               )}
+              {data.attachments.length > 0 && (
+                <div className="mt-4 border-t border-border pt-3 px-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold mb-2">
+                    <Paperclip className="w-4 h-4 text-muted-foreground" />
+                    <span>{t("reportsPage.je.attachments")}</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {data.attachments.map((att) => (
+                      <a
+                        key={att.id}
+                        href={`/api/journal/${entryId}/attachments/${att.id}/download`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline group"
+                      >
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{att.fileName}</span>
+                        {att.size && (
+                          <span className="text-xs text-muted-foreground">
+                            ({Math.round(att.size / 1024)} KB)
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1832,7 +1859,15 @@ export function TotalRow({
 }
 
 // ---- Cash flow statement ----
-export function CashFlowTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
+export function CashFlowTab({
+  fmt,
+  lang,
+  onDrillAccount,
+}: {
+  fmt: Fmt;
+  lang: string;
+  onDrillAccount?: (accountId: string, from: string, to: string) => void;
+}) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
   const [to, setTo] = useState(today());
@@ -1857,12 +1892,21 @@ export function CashFlowTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
             </tr>
           ) : (
             lines.map((l) => (
-              <tr key={l.accountId} className="border-t border-border">
+              <tr key={l.accountId} className="border-t border-border hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-2.5">
                   <span className="font-mono text-xs text-muted-foreground me-2">
                     {l.code}
                   </span>
-                  {displayName(l, lang)}
+                  {onDrillAccount ? (
+                    <button
+                      type="button"
+                      onClick={() => onDrillAccount(l.accountId, from, to)}
+                      className="hover:text-primary hover:underline transition-colors inline-flex items-center gap-1.5 group"
+                    >
+                      {displayName(l, lang)}
+                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity shrink-0" />
+                    </button>
+                  ) : displayName(l, lang)}
                 </td>
                 <td className="px-4 py-2.5 text-end tabular-nums">
                   {fmt(l.amount)}
