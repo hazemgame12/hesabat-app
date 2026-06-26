@@ -1,4 +1,4 @@
-import type { TrialBalance, Currency } from "@workspace/api-client-react";
+import type { TrialBalance, IncomeStatement, BalanceSheet, Currency, Company } from "@workspace/api-client-react";
 
 export type Fmt = (n: number) => string;
 
@@ -33,6 +33,45 @@ export function esc(v: string | number): string {
     .replace(/'/g, "&#39;");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared masthead helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MASTHEAD_CSS = `
+  .masthead { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1e3a5f; padding-bottom:14px; margin-bottom:16px; }
+  .co-block { display:flex; gap:10px; align-items:flex-start; }
+  .co-logo { width:60px; height:60px; object-fit:contain; }
+  .co-name { font-size:17px; font-weight:800; color:#1e293b; line-height:1.2; }
+  .co-sub { font-size:11px; color:#64748b; margin-top:2px; }
+  .rpt-title { font-size:20px; font-weight:800; color:#1e40af; text-align:end; line-height:1.3; }
+  .rpt-meta { font-size:11px; color:#64748b; margin-bottom:14px; }
+`;
+
+function mastheadHtml(company: Company | undefined, title: string): string {
+  if (!company) {
+    return `<h1 class="rpt-title" style="margin:0 0 8px">${esc(title)}</h1>`;
+  }
+  const rawLogo = company.logoUrl ?? null;
+  const logoSrc = rawLogo
+    ? rawLogo.startsWith("http")
+      ? rawLogo
+      : `${window.location.origin}${rawLogo}`
+    : null;
+  return `<div class="masthead">
+  <div class="co-block">
+    ${logoSrc ? `<img class="co-logo" src="${esc(logoSrc)}" alt="" />` : ""}
+    <div>
+      <div class="co-name">${esc(company.name ?? "")}</div>
+      ${company.tradeName ? `<div class="co-sub">${esc(company.tradeName)}</div>` : ""}
+      ${company.taxRegistrationNumber ? `<div class="co-sub">س.ت/ض: ${esc(company.taxRegistrationNumber)}</div>` : ""}
+      ${company.address ? `<div class="co-sub">${esc(company.address)}</div>` : ""}
+      ${company.phone ? `<div class="co-sub" dir="ltr">${esc(company.phone)}</div>` : ""}
+    </div>
+  </div>
+  <div class="rpt-title">${esc(title)}</div>
+</div>`;
+}
+
 export function buildTrialBalancePdfHtml(
   data: TrialBalance,
   fmt: Fmt,
@@ -40,6 +79,7 @@ export function buildTrialBalancePdfHtml(
   from: string,
   to: string,
   labels: Record<string, string>,
+  company?: Company,
 ): string {
   const rtl = !lang.startsWith("en");
   const cell = (v: number) => (v ? esc(fmt(v)) : "—");
@@ -58,15 +98,13 @@ export function buildTrialBalancePdfHtml(
     )
     .join("");
   return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${esc(lang)}">
-<head><meta charset="utf-8"><title>${labels.title}</title>
+<head><meta charset="utf-8"><title>${esc(labels.title)}</title>
 <style>
   * { box-sizing: border-box; }
-  body { font-family: 'Cairo','Segoe UI',Tahoma,Arial,sans-serif; margin: 24px; color: #1f2937; }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  .meta { font-size: 12px; color: #6b7280; margin-bottom: 16px; }
+  body { font-family: 'Cairo','Segoe UI',Tahoma,Arial,sans-serif; margin: 28px; color: #1f2937; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th, td { border: 1px solid #d1d5db; padding: 6px 8px; }
-  thead th { background: #f3f4f6; text-align: center; }
+  thead th { background: #f3f4f6; text-align: center; font-weight: 700; }
   td.code { font-family: monospace; }
   td.num, th.num { text-align: ${rtl ? "left" : "right"}; font-variant-numeric: tabular-nums; white-space: nowrap; }
   tfoot td { font-weight: 700; background: #f9fafb; }
@@ -74,10 +112,11 @@ export function buildTrialBalancePdfHtml(
   .ok { background: #d1fae5; color: #047857; }
   .bad { background: #fee2e2; color: #b91c1c; }
   @media print { body { margin: 0; } }
+  ${MASTHEAD_CSS}
 </style></head>
 <body onload="window.print()">
-  <h1>${esc(labels.title)}</h1>
-  <div class="meta">${esc(labels.periodLabel)}: ${esc(from || "—")} ← ${esc(to || "—")} · ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
+  ${mastheadHtml(company, labels.title)}
+  <div class="rpt-meta">${esc(labels.periodLabel)}: ${esc(from || "—")} → ${esc(to || "—")} &nbsp;·&nbsp; ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
   <table>
     <thead>
       <tr>
@@ -107,6 +146,145 @@ export function buildTrialBalancePdfHtml(
     </tfoot>
   </table>
   <span class="badge ${data.balanced ? "ok" : "bad"}">${esc(data.balanced ? labels.balanced : labels.unbalanced)}</span>
+</body></html>`;
+}
+
+export function buildIncomeStatementPdfHtml(
+  data: IncomeStatement,
+  fmt: Fmt,
+  lang: string,
+  from: string,
+  to: string,
+  labels: Record<string, string>,
+  company?: Company,
+): string {
+  const rtl = !lang.startsWith("en");
+  const numCell = (v: number) =>
+    `<td class="num">${esc(fmt(v))}</td>`;
+  const sectionRows = (
+    lines: { code: string; nameAr: string; nameEn?: string | null; amount: number }[],
+  ) =>
+    lines
+      .map(
+        (l) => `<tr>
+        <td class="code">${esc(l.code)}</td>
+        <td>${esc(displayName(l, lang))}</td>
+        ${numCell(l.amount)}
+      </tr>`,
+      )
+      .join("");
+  const profit = data.netProfit >= 0;
+
+  return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${esc(lang)}">
+<head><meta charset="utf-8"><title>${esc(labels.title)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Cairo','Segoe UI',Tahoma,Arial,sans-serif; margin: 28px; color: #1f2937; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 8px; }
+  thead th { background: #f3f4f6; font-weight: 700; }
+  td.code { font-family: monospace; width: 80px; }
+  td.num, th.num { text-align: ${rtl ? "left" : "right"}; font-variant-numeric: tabular-nums; white-space: nowrap; width: 130px; }
+  tfoot td { font-weight: 700; background: #f9fafb; }
+  .net { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 6px; font-weight: 700; font-size: 14px; margin-top: 4px; }
+  .profit { background: #d1fae5; color: #047857; border: 1px solid #6ee7b7; }
+  .loss   { background: #fee2e2; color: #b91c1c;  border: 1px solid #fca5a5; }
+  .num-val { font-family: monospace; font-variant-numeric: tabular-nums; }
+  @media print { body { margin: 0; } }
+  ${MASTHEAD_CSS}
+</style></head>
+<body onload="window.print()">
+  ${mastheadHtml(company, labels.title)}
+  <div class="rpt-meta">${esc(labels.periodLabel)}: ${esc(from || "—")} → ${esc(to || "—")} &nbsp;·&nbsp; ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
+
+  <table>
+    <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(labels.revenue)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>
+    <tbody>${sectionRows(data.revenue)}</tbody>
+    <tfoot><tr><td class="code"></td><td>${esc(labels.totalRevenue)}</td><td class="num">${esc(fmt(data.totalRevenue))}</td></tr></tfoot>
+  </table>
+
+  <table>
+    <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(labels.expenses)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>
+    <tbody>${sectionRows(data.expenses)}</tbody>
+    <tfoot><tr><td class="code"></td><td>${esc(labels.totalExpenses)}</td><td class="num">${esc(fmt(data.totalExpenses))}</td></tr></tfoot>
+  </table>
+
+  <div class="net ${profit ? "profit" : "loss"}">
+    <span>${esc(profit ? labels.netProfit : labels.netLoss)}</span>
+    <span class="num-val">${esc(fmt(Math.abs(data.netProfit)))}</span>
+  </div>
+</body></html>`;
+}
+
+export function buildBalanceSheetPdfHtml(
+  data: BalanceSheet,
+  fmt: Fmt,
+  lang: string,
+  asOf: string,
+  labels: Record<string, string>,
+  company?: Company,
+): string {
+  const rtl = !lang.startsWith("en");
+  const numCell = (v: number) =>
+    `<td class="num">${esc(fmt(v))}</td>`;
+  const sectionRows = (
+    lines: { code: string; nameAr: string; nameEn?: string | null; amount: number }[],
+  ) =>
+    lines
+      .map(
+        (l) => `<tr>
+        <td class="code">${esc(l.code)}</td>
+        <td>${esc(displayName(l, lang))}</td>
+        ${numCell(l.amount)}
+      </tr>`,
+      )
+      .join("");
+
+  return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${esc(lang)}">
+<head><meta charset="utf-8"><title>${esc(labels.title)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Cairo','Segoe UI',Tahoma,Arial,sans-serif; margin: 28px; color: #1f2937; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 8px; }
+  thead th { background: #f3f4f6; font-weight: 700; }
+  td.code { font-family: monospace; width: 80px; }
+  td.num, th.num { text-align: ${rtl ? "left" : "right"}; font-variant-numeric: tabular-nums; white-space: nowrap; width: 130px; }
+  tfoot td { font-weight: 700; background: #f9fafb; }
+  .total-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 6px; font-weight: 700; font-size: 13px; background: #f3f4f6; border: 1px solid #d1d5db; }
+  .num-val { font-family: monospace; font-variant-numeric: tabular-nums; }
+  @media print { body { margin: 0; } }
+  ${MASTHEAD_CSS}
+</style></head>
+<body onload="window.print()">
+  ${mastheadHtml(company, labels.title)}
+  <div class="rpt-meta">${esc(labels.asOfLabel)}: ${esc(asOf || "—")} &nbsp;·&nbsp; ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
+
+  <table>
+    <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(labels.assets)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>
+    <tbody>${sectionRows(data.assets)}</tbody>
+    <tfoot><tr><td class="code"></td><td>${esc(labels.totalAssets)}</td><td class="num">${esc(fmt(data.totalAssets))}</td></tr></tfoot>
+  </table>
+
+  <table>
+    <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(labels.liabilities)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>
+    <tbody>${sectionRows(data.liabilities)}</tbody>
+    <tfoot><tr><td class="code"></td><td>${esc(labels.totalLiabilities)}</td><td class="num">${esc(fmt(data.totalLiabilities))}</td></tr></tfoot>
+  </table>
+
+  <table>
+    <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(labels.equity)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>
+    <tbody>
+      ${sectionRows(data.equity)}
+      <tr><td class="code"></td><td><em>${esc(labels.netResult)}</em></td>${numCell(data.netResult)}</tr>
+    </tbody>
+    <tfoot><tr><td class="code"></td><td>${esc(labels.totalEquity)}</td><td class="num">${esc(fmt(data.totalEquity))}</td></tr></tfoot>
+  </table>
+
+  <div class="total-row">
+    <span>${esc(labels.totalLiabilitiesAndEquity)}</span>
+    <span class="num-val">${esc(fmt(data.totalLiabilitiesAndEquity))}</span>
+  </div>
 </body></html>`;
 }
 

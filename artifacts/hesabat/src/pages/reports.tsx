@@ -23,6 +23,7 @@ import {
   useListSuppliers,
   useListCurrencies,
   useGetCompany,
+  type Company,
   type Account,
   type CurrencyInfo,
   type PnlLine,
@@ -41,6 +42,8 @@ import {
   startOfYear,
   esc,
   buildTrialBalancePdfHtml,
+  buildIncomeStatementPdfHtml,
+  buildBalanceSheetPdfHtml,
   reportCurrencyParam,
   openExport,
 } from "./reports-utils";
@@ -242,6 +245,7 @@ export function Reports() {
             lang={lang}
             cc={cc}
             onDrillAccount={drillToGL}
+            company={company}
           />
         );
       case "incomeStatement":
@@ -251,6 +255,7 @@ export function Reports() {
             lang={lang}
             cc={cc}
             onDrillAccount={drillToGL}
+            company={company}
           />
         );
       case "balanceSheet":
@@ -260,6 +265,7 @@ export function Reports() {
             lang={lang}
             cc={cc}
             onDrillAccount={drillToGL}
+            company={company}
           />
         );
       case "generalLedger":
@@ -485,11 +491,13 @@ export function TrialBalanceTab({
   lang,
   cc,
   onDrillAccount,
+  company,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
   onDrillAccount?: (accountId: string, from: string, to: string) => void;
+  company?: Company;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -524,7 +532,7 @@ export function TrialBalanceTab({
       total: t("reportsPage.table.total"),
       balanced: t("reportsPage.trialBalance.balanced"),
       unbalanced: t("reportsPage.trialBalance.unbalanced"),
-    });
+    }, company);
     // Render in an isolated window so the browser shapes Arabic correctly,
     // then trigger the native print → "Save as PDF" dialog.
     const w = window.open("", "_blank");
@@ -831,11 +839,13 @@ export function IncomeStatementTab({
   lang,
   cc,
   onDrillAccount,
+  company,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
   onDrillAccount?: (accountId: string, from: string, to: string) => void;
+  company?: Company;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -863,6 +873,35 @@ export function IncomeStatementTab({
     showComparison && compData != null
       ? (data?.netProfit ?? 0) - compData.netProfit
       : null;
+
+  const exportIsExcel = () => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    const rc = reportCurrencyParam(cc);
+    if (rc) qs.set("reportCurrency", rc);
+    window.open(`/api/reports/income-statement/export?${qs.toString()}`, "_blank");
+  };
+  const exportIsPdf = () => {
+    if (!data) return;
+    const html = buildIncomeStatementPdfHtml(data, fmt, lang, from, to, {
+      title: t("reportsPage.tabs.incomeStatement"),
+      periodLabel: t("reportsPage.trialBalance.periodLabel"),
+      preparedAt: t("reportsPage.trialBalance.preparedAt"),
+      code: t("reportsPage.table.code"),
+      amount: t("reportsPage.table.amount"),
+      revenue: t("reportsPage.incomeStatement.revenue"),
+      totalRevenue: t("reportsPage.incomeStatement.totalRevenue"),
+      expenses: t("reportsPage.incomeStatement.expenses"),
+      totalExpenses: t("reportsPage.incomeStatement.totalExpenses"),
+      netProfit: t("reportsPage.incomeStatement.netProfit"),
+      netLoss: t("reportsPage.incomeStatement.netLoss"),
+    }, company);
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -898,6 +937,22 @@ export function IncomeStatementTab({
             {t("reportsPage.comparison.enable")}
           </button>
         </div>
+        {data && (
+          <div className="flex items-end gap-2 mb-4">
+            <button
+              onClick={exportIsExcel}
+              className="px-4 py-2 rounded-xl text-sm font-semibold border border-border bg-card hover:bg-muted transition-colors"
+            >
+              {t("reportsPage.export.excel")}
+            </button>
+            <button
+              onClick={exportIsPdf}
+              className="px-4 py-2 rounded-xl text-sm font-semibold border border-border bg-card hover:bg-muted transition-colors"
+            >
+              {t("reportsPage.export.pdf")}
+            </button>
+          </div>
+        )}
       </div>
 
       {isLoading || (showComparison && compLoading) ? (
@@ -1001,11 +1056,13 @@ export function BalanceSheetTab({
   lang,
   cc,
   onDrillAccount,
+  company,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
   onDrillAccount?: (accountId: string, from: string, to: string) => void;
+  company?: Company;
 }) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
@@ -1022,6 +1079,36 @@ export function BalanceSheetTab({
     { asOf: compAsOf || undefined, reportCurrency: reportCurrencyParam(cc) },
     { query: { enabled: showComparison } as any },
   );
+
+  const exportBsExcel = () => {
+    const qs = new URLSearchParams();
+    if (asOf) qs.set("asOf", asOf);
+    const rc = reportCurrencyParam(cc);
+    if (rc) qs.set("reportCurrency", rc);
+    window.open(`/api/reports/balance-sheet/export?${qs.toString()}`, "_blank");
+  };
+  const exportBsPdf = () => {
+    if (!data) return;
+    const html = buildBalanceSheetPdfHtml(data, fmt, lang, asOf, {
+      title: t("reportsPage.tabs.balanceSheet"),
+      asOfLabel: t("reportsPage.filters.asOf"),
+      preparedAt: t("reportsPage.trialBalance.preparedAt"),
+      code: t("reportsPage.table.code"),
+      amount: t("reportsPage.table.amount"),
+      assets: t("reportsPage.balanceSheet.assets"),
+      totalAssets: t("reportsPage.balanceSheet.totalAssets"),
+      liabilities: t("reportsPage.balanceSheet.liabilities"),
+      totalLiabilities: t("reportsPage.balanceSheet.totalLiabilities"),
+      equity: t("reportsPage.balanceSheet.equity"),
+      netResult: t("reportsPage.balanceSheet.netResult"),
+      totalEquity: t("reportsPage.balanceSheet.totalEquity"),
+      totalLiabilitiesAndEquity: t("reportsPage.balanceSheet.totalLiabilitiesAndEquity"),
+    }, company);
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+  };
 
   return (
     <div className="flex flex-col gap-5">
@@ -1067,6 +1154,22 @@ export function BalanceSheetTab({
             {t("reportsPage.comparison.enable")}
           </button>
         </div>
+        {data && (
+          <div className="flex items-end gap-2 mb-1">
+            <button
+              onClick={exportBsExcel}
+              className="px-4 py-2 rounded-xl text-sm font-semibold border border-border bg-card hover:bg-muted transition-colors"
+            >
+              {t("reportsPage.export.excel")}
+            </button>
+            <button
+              onClick={exportBsPdf}
+              className="px-4 py-2 rounded-xl text-sm font-semibold border border-border bg-card hover:bg-muted transition-colors"
+            >
+              {t("reportsPage.export.pdf")}
+            </button>
+          </div>
+        )}
       </div>
 
       {isLoading || (showComparison && compLoading) ? (
@@ -1351,6 +1454,22 @@ export function GeneralLedgerTab({
           />
         </label>
         <ReportCurrencySelect cc={cc} />
+        {data && accountId && (
+          <button
+            onClick={() => {
+              const qs = new URLSearchParams();
+              if (accountId) qs.set("accountId", accountId);
+              if (from) qs.set("from", from);
+              if (to) qs.set("to", to);
+              const rc = reportCurrencyParam(cc);
+              if (rc) qs.set("reportCurrency", rc);
+              window.open(`/api/reports/general-ledger/export?${qs.toString()}`, "_blank");
+            }}
+            className="px-4 py-2 rounded-xl text-sm font-semibold border border-border bg-card hover:bg-muted transition-colors self-end"
+          >
+            {t("reportsPage.export.excel")}
+          </button>
+        )}
       </div>
       {!accountId ? (
         <Empty />
