@@ -1013,6 +1013,7 @@
       "quantity": "Quantity",
       "unitCost": "Unit cost",
       "value": "Value",
+      "notes": "Notes",
       "entry": "Entry"
     },
     "validation": {
@@ -1037,6 +1038,34 @@
       "movementAdded": "Movement recorded — entry #{{no}}",
       "movementAddedNoEntry": "Movement recorded",
       "movementError": "Failed to record movement"
+    },
+    "kpi": {
+      "totalItems": "Total items",
+      "activeItems": "{{count}} active",
+      "stockValue": "Stock value",
+      "currentPage": "Current page",
+      "monthlyReceipts": "Receipts this month",
+      "thisMonth": "Current month",
+      "zeroStock": "Out-of-stock items",
+      "activeZero": "Active items with zero qty"
+    },
+    "searchPlaceholder": "Search by name or code…",
+    "movSearchPlaceholder": "Search by item or notes…",
+    "movementsCount": "movement(s)",
+    "filter": {
+      "all": "All",
+      "allCategories": "All categories",
+      "allStatus": "All statuses",
+      "clear": "Clear filters",
+      "noResults": "No matching results"
+    },
+    "deleteConfirm": {
+      "title": "Delete item",
+      "desc": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+    },
+    "bulkDeleteConfirm": {
+      "title": "Delete {{count}} items",
+      "desc": "Are you sure you want to delete the selected items? This action cannot be undone."
     }
   },
   "customers": {

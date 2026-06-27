@@ -1013,6 +1013,7 @@
       "quantity": "الكمية",
       "unitCost": "تكلفة الوحدة",
       "value": "القيمة",
+      "notes": "الملاحظات",
       "entry": "القيد"
     },
     "validation": {
@@ -1037,6 +1038,34 @@
       "movementAdded": "تم تسجيل الحركة — قيد رقم {{no}}",
       "movementAddedNoEntry": "تم تسجيل الحركة",
       "movementError": "تعذّر تسجيل الحركة"
+    },
+    "kpi": {
+      "totalItems": "إجمالي الأصناف",
+      "activeItems": "{{count}} نشط",
+      "stockValue": "قيمة المخزون",
+      "currentPage": "الصفحة الحالية",
+      "monthlyReceipts": "استلامات هذا الشهر",
+      "thisMonth": "الشهر الحالي",
+      "zeroStock": "أصناف منتهية",
+      "activeZero": "أصناف نشطة بكمية صفر"
+    },
+    "searchPlaceholder": "ابحث بالاسم أو الكود…",
+    "movSearchPlaceholder": "ابحث بالصنف أو الملاحظات…",
+    "movementsCount": "حركة",
+    "filter": {
+      "all": "الكل",
+      "allCategories": "كل التصنيفات",
+      "allStatus": "كل الحالات",
+      "clear": "مسح الفلتر",
+      "noResults": "لا توجد نتائج مطابقة"
+    },
+    "deleteConfirm": {
+      "title": "حذف الصنف",
+      "desc": "هل أنت متأكد من حذف «{{name}}»؟ لا يمكن التراجع عن هذا الإجراء."
+    },
+    "bulkDeleteConfirm": {
+      "title": "حذف {{count}} صنف",
+      "desc": "هل أنت متأكد من حذف الأصناف المحددة؟ لا يمكن التراجع عن هذا الإجراء."
     }
   },
   "customers": {
