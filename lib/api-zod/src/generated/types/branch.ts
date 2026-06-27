@@ -6,14 +6,15 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CostCenterUpdate {
+export interface Branch {
+  id: string;
   /** @nullable */
   code?: string | null;
-  /** @minLength 1 */
-  nameAr?: string;
+  nameAr: string;
   /** @nullable */
   nameEn?: string | null;
   /** @nullable */
   budget?: number | null;
-  isActive?: boolean;
+  isActive: boolean;
+  createdAt: string;
 }

@@ -1350,13 +1350,13 @@ export type CostCenterType = typeof CostCenterType[keyof typeof CostCenterType];
 
 
 export const CostCenterType = {
-  project: 'project',
   cost_center: 'cost_center',
-  branch: 'branch',
 } as const;
 
 export interface CostCenter {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -1367,41 +1367,132 @@ export interface CostCenter {
   createdAt: string;
 }
 
-export type CostCenterInputType = typeof CostCenterInputType[keyof typeof CostCenterInputType];
-
-
-export const CostCenterInputType = {
-  project: 'project',
-  cost_center: 'cost_center',
-  branch: 'branch',
-} as const;
-
 export interface CostCenterInput {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
-  type: CostCenterInputType;
   /** @nullable */
   budget?: number | null;
   isActive?: boolean;
 }
 
-export type CostCenterUpdateType = typeof CostCenterUpdateType[keyof typeof CostCenterUpdateType];
-
-
-export const CostCenterUpdateType = {
-  project: 'project',
-  cost_center: 'cost_center',
-  branch: 'branch',
-} as const;
-
 export interface CostCenterUpdate {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
   nameEn?: string | null;
-  type?: CostCenterUpdateType;
+  /** @nullable */
+  budget?: number | null;
+  isActive?: boolean;
+}
+
+export type ProjectStatus = typeof ProjectStatus[keyof typeof ProjectStatus];
+
+
+export const ProjectStatus = {
+  active: 'active',
+  completed: 'completed',
+  on_hold: 'on_hold',
+  cancelled: 'cancelled',
+} as const;
+
+export interface Project {
+  id: string;
+  /** @nullable */
+  code?: string | null;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  status: ProjectStatus;
+  /** @nullable */
+  budget?: number | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export type ProjectInputStatus = typeof ProjectInputStatus[keyof typeof ProjectInputStatus];
+
+
+export const ProjectInputStatus = {
+  active: 'active',
+  completed: 'completed',
+  on_hold: 'on_hold',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ProjectInput {
+  /** @nullable */
+  code?: string | null;
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  status?: ProjectInputStatus;
+  /** @nullable */
+  budget?: number | null;
+  isActive?: boolean;
+}
+
+export type ProjectUpdateStatus = typeof ProjectUpdateStatus[keyof typeof ProjectUpdateStatus];
+
+
+export const ProjectUpdateStatus = {
+  active: 'active',
+  completed: 'completed',
+  on_hold: 'on_hold',
+  cancelled: 'cancelled',
+} as const;
+
+export interface ProjectUpdate {
+  /** @nullable */
+  code?: string | null;
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
+  status?: ProjectUpdateStatus;
+  /** @nullable */
+  budget?: number | null;
+  isActive?: boolean;
+}
+
+export interface Branch {
+  id: string;
+  /** @nullable */
+  code?: string | null;
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @nullable */
+  budget?: number | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface BranchInput {
+  /** @nullable */
+  code?: string | null;
+  /** @minLength 1 */
+  nameAr: string;
+  /** @nullable */
+  nameEn?: string | null;
+  /** @nullable */
+  budget?: number | null;
+  isActive?: boolean;
+}
+
+export interface BranchUpdate {
+  /** @nullable */
+  code?: string | null;
+  /** @minLength 1 */
+  nameAr?: string;
+  /** @nullable */
+  nameEn?: string | null;
   /** @nullable */
   budget?: number | null;
   isActive?: boolean;

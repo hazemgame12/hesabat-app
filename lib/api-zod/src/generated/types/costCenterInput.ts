@@ -5,14 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CostCenterInputType } from './costCenterInputType';
 
 export interface CostCenterInput {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
-  type: CostCenterInputType;
   /** @nullable */
   budget?: number | null;
   isActive?: boolean;

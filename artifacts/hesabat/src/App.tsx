@@ -84,7 +84,7 @@ function ProtectedRoutes() {
           <Redirect to="/settings/taxes" />
         </Route>
         <Route path="/cost-centers">
-          <Redirect to="/settings/cost-centers" />
+          <Redirect to="/settings/accounting-dimensions" />
         </Route>
         <Route path="/currencies">
           <Redirect to="/settings/currencies" />

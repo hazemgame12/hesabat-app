@@ -17,7 +17,11 @@ tags:
   - name: taxes
     description: VAT and withholding taxes
   - name: costCenters
-    description: Cost centers, projects, and branches
+    description: Cost centers
+  - name: projects
+    description: Projects
+  - name: branches
+    description: Branches
   - name: journal
     description: Journal entries and lines
   - name: assets
@@ -716,7 +720,7 @@ paths:
     delete:
       operationId: deleteCostCenter
       tags: [costCenters]
-      summary: Delete a cost center
+      summary: Deactivate a cost center
       parameters:
         - name: id
           in: path
@@ -726,6 +730,202 @@ paths:
       responses:
         "200":
           description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects for the current company
+      responses:
+        "200":
+          description: Projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projects/{id}:
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Deactivate a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /branches:
+    get:
+      operationId: listBranches
+      tags: [branches]
+      summary: List all branches for the current company
+      responses:
+        "200":
+          description: Branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Branch"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createBranch
+      tags: [branches]
+      summary: Create a branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /branches/{id}:
+    patch:
+      operationId: updateBranch
+      tags: [branches]
+      summary: Update a branch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BranchUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Branch"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteBranch
+      tags: [branches]
+      summary: Deactivate a branch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deactivated
           content:
             application/json:
               schema:
@@ -5793,13 +5993,15 @@ components:
       properties:
         id:
           type: string
+        code:
+          type: ["string", "null"]
         nameAr:
           type: string
         nameEn:
           type: ["string", "null"]
         type:
           type: string
-          enum: [project, cost_center, branch]
+          enum: [cost_center]
         budget:
           type: ["number", "null"]
         isActive:
@@ -5809,16 +6011,15 @@ components:
 
     CostCenterInput:
       type: object
-      required: [nameAr, type]
+      required: [nameAr]
       properties:
+        code:
+          type: ["string", "null"]
         nameAr:
           type: string
           minLength: 1
         nameEn:
           type: ["string", "null"]
-        type:
-          type: string
-          enum: [project, cost_center, branch]
         budget:
           type: ["number", "null"]
         isActive:
@@ -5827,14 +6028,122 @@ components:
     CostCenterUpdate:
       type: object
       properties:
+        code:
+          type: ["string", "null"]
         nameAr:
           type: string
           minLength: 1
         nameEn:
           type: ["string", "null"]
-        type:
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+
+    Project:
+      type: object
+      required: [id, nameAr, status, isActive, createdAt]
+      properties:
+        id:
           type: string
-          enum: [project, cost_center, branch]
+        code:
+          type: ["string", "null"]
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, completed, on_hold, cancelled]
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    ProjectInput:
+      type: object
+      required: [nameAr]
+      properties:
+        code:
+          type: ["string", "null"]
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, completed, on_hold, cancelled]
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+
+    ProjectUpdate:
+      type: object
+      properties:
+        code:
+          type: ["string", "null"]
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [active, completed, on_hold, cancelled]
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+
+    Branch:
+      type: object
+      required: [id, nameAr, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        code:
+          type: ["string", "null"]
+        nameAr:
+          type: string
+        nameEn:
+          type: ["string", "null"]
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    BranchInput:
+      type: object
+      required: [nameAr]
+      properties:
+        code:
+          type: ["string", "null"]
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
+        budget:
+          type: ["number", "null"]
+        isActive:
+          type: boolean
+
+    BranchUpdate:
+      type: object
+      properties:
+        code:
+          type: ["string", "null"]
+        nameAr:
+          type: string
+          minLength: 1
+        nameEn:
+          type: ["string", "null"]
         budget:
           type: ["number", "null"]
         isActive:

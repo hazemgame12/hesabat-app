@@ -6,7 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CostCenterUpdate {
+export interface BranchUpdate {
   /** @nullable */
   code?: string | null;
   /** @minLength 1 */

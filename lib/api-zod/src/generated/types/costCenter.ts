@@ -9,6 +9,8 @@ import type { CostCenterType } from './costCenterType';
 
 export interface CostCenter {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
