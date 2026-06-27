@@ -105,6 +105,9 @@ export const journalEntryLinesTable = pgTable("journal_entry_lines", {
   costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
     onDelete: "set null",
   }),
+  // ✨ NEW: Accounting dimensions
+  projectId: uuid("project_id"),
+  branchId: uuid("branch_id"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
