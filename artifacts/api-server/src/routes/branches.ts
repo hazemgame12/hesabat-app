@@ -10,6 +10,7 @@ const router = Router();
 function toBranch(row: Branch) {
   return {
     id: row.id,
+    code: row.code ?? null,
     nameAr: row.nameAr,
     nameEn: row.nameEn,
     budget: row.budget === null ? null : Number(row.budget),
@@ -52,6 +53,7 @@ router.post(
         .insert(branchesTable)
         .values({
           companyId: req.auth!.companyId,
+          code: parsed.data.code ? parsed.data.code.trim() : null,
           nameAr: parsed.data.nameAr,
           nameEn: parsed.data.nameEn ?? null,
           budget:
@@ -62,7 +64,11 @@ router.post(
         })
         .returning();
       res.status(201).json(toBranch(row as Branch));
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        res.status(400).json({ error: "الكود مستخدم بالفعل في هذه الشركة" });
+        return;
+      }
       req.log.error({ err }, "Failed to create branch");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
@@ -85,6 +91,7 @@ router.patch(
       return;
     }
     const updates: Record<string, unknown> = {};
+    if (parsed.data.code !== undefined) updates["code"] = parsed.data.code ? parsed.data.code.trim() : null;
     if (parsed.data.nameAr !== undefined) updates["nameAr"] = parsed.data.nameAr;
     if (parsed.data.nameEn !== undefined) updates["nameEn"] = parsed.data.nameEn;
     if (parsed.data.budget !== undefined) {
@@ -114,7 +121,11 @@ router.patch(
         return;
       }
       res.json(toBranch(row as Branch));
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        res.status(400).json({ error: "الكود مستخدم بالفعل في هذه الشركة" });
+        return;
+      }
       req.log.error({ err }, "Failed to update branch");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }

@@ -1235,7 +1235,9 @@
       "addError": "Could not add cost center",
       "editError": "Could not update cost center",
       "deleteError": "Could not deactivate cost center"
-    }
+    },
+    "code": "Code",
+    "codePlaceholder": "e.g. CC-001"
   },
   "projects": {
     "title": "Projects",
@@ -1281,7 +1283,9 @@
       "addError": "Could not add project",
       "editError": "Could not update project",
       "deleteError": "Could not deactivate project"
-    }
+    },
+    "code": "Code",
+    "codePlaceholder": "e.g. PRJ-001"
   },
   "branches": {
     "title": "Branches",
@@ -1320,7 +1324,9 @@
       "addError": "Could not add branch",
       "editError": "Could not update branch",
       "deleteError": "Could not deactivate branch"
-    }
+    },
+    "code": "Code",
+    "codePlaceholder": "e.g. BR-001"
   },
   "openingBalances": {
     "title": "Opening Balances",

@@ -8,6 +8,8 @@
 
 export interface Branch {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;

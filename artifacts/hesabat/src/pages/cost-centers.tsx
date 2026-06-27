@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const centerSchema = z.object({
+  code: z.string().optional(),
   nameAr: z.string().min(1, "nameRequired"),
   nameEn: z.string().optional(),
   budget: z.string().optional(),
@@ -74,12 +75,13 @@ export function CostCenters({ embedded = false }: { embedded?: boolean }) {
   const isActive = watch("isActive");
 
   const openCreateModal = () => {
-    reset({ nameAr: "", nameEn: "", budget: "", isActive: true });
+    reset({ code: "", nameAr: "", nameEn: "", budget: "", isActive: true });
     setModalMode("create");
   };
 
   const openEditModal = (c: CostCenter) => {
     reset({
+      code: c.code ?? "",
       nameAr: c.nameAr,
       nameEn: c.nameEn ?? "",
       budget: c.budget === null || c.budget === undefined ? "" : String(c.budget),
@@ -97,6 +99,7 @@ export function CostCenters({ embedded = false }: { embedded?: boolean }) {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListCostCentersQueryKey() });
 
   const centerGridColumns: GridColumn<CostCenter>[] = [
+    { key: "code", header: t("costCenters.code") ?? "الكود", type: "text", editable: canUpdate, width: "120px" },
     { key: "nameAr", header: t("costCenters.nameAr") ?? "الاسم (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
     { key: "nameEn", header: t("costCenters.nameEn") ?? "Name (EN)", type: "text", editable: canUpdate },
     { key: "budget", header: t("costCenters.budget"), type: "number", editable: canUpdate, align: "end",
@@ -116,6 +119,7 @@ export function CostCenters({ embedded = false }: { embedded?: boolean }) {
       const ctr = centers.find((c) => c.id === id); if (!ctr) continue;
       const budgetRaw = patch.budget !== undefined ? patch.budget : ctr.budget;
       const data = {
+        code: patch.code !== undefined ? (String(patch.code).trim() || null) : ctr.code ?? null,
         nameAr: String(patch.nameAr ?? ctr.nameAr),
         nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : ctr.nameEn ?? null,
         budget: budgetRaw === null || budgetRaw === undefined || String(budgetRaw) === "" ? null : Number(budgetRaw),
@@ -136,6 +140,7 @@ export function CostCenters({ embedded = false }: { embedded?: boolean }) {
       if (!String(p.nameAr ?? "").trim()) continue;
       const trimmed = String(p.budget ?? "").trim();
       const data = {
+        code: p.code ? String(p.code).trim() : null,
         nameAr: String(p.nameAr).trim(),
         nameEn: p.nameEn ? String(p.nameEn) : null,
         budget: trimmed === "" ? null : Number(trimmed),
@@ -149,6 +154,7 @@ export function CostCenters({ embedded = false }: { embedded?: boolean }) {
   const onSubmit = (form: CenterForm) => {
     const trimmed = (form.budget ?? "").trim();
     const data = {
+      code: form.code ? form.code.trim() : null,
       nameAr: form.nameAr,
       nameEn: form.nameEn || null,
       budget: trimmed === "" ? null : Number(trimmed),
@@ -311,6 +317,13 @@ export function CostCenters({ embedded = false }: { embedded?: boolean }) {
             </div>
 
             <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">
+                  {t("costCenters.code")}<span className="text-xs font-medium text-muted-foreground ms-2">{t("costCenters.optional")}</span>
+                </label>
+                <input dir="ltr" placeholder={t("costCenters.codePlaceholder")} className="bg-background border rounded-xl h-11 px-4 text-sm font-mono text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("code")} />
+              </div>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold text-foreground">{t("costCenters.nameAr")}</label>
                 <input dir="rtl" placeholder={t("costCenters.namePlaceholder")} className="bg-background border rounded-xl h-11 px-4 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("nameAr")} />

@@ -1355,6 +1355,8 @@ export const CostCenterType = {
 
 export interface CostCenter {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -1366,6 +1368,8 @@ export interface CostCenter {
 }
 
 export interface CostCenterInput {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr: string;
   /** @nullable */
@@ -1376,6 +1380,8 @@ export interface CostCenterInput {
 }
 
 export interface CostCenterUpdate {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
@@ -1397,6 +1403,8 @@ export const ProjectStatus = {
 
 export interface Project {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -1418,6 +1426,8 @@ export const ProjectInputStatus = {
 } as const;
 
 export interface ProjectInput {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr: string;
   /** @nullable */
@@ -1439,6 +1449,8 @@ export const ProjectUpdateStatus = {
 } as const;
 
 export interface ProjectUpdate {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
@@ -1451,6 +1463,8 @@ export interface ProjectUpdate {
 
 export interface Branch {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
@@ -1461,6 +1475,8 @@ export interface Branch {
 }
 
 export interface BranchInput {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr: string;
   /** @nullable */
@@ -1471,6 +1487,8 @@ export interface BranchInput {
 }
 
 export interface BranchUpdate {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */

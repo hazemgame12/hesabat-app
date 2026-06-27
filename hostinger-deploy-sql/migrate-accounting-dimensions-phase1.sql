@@ -17,15 +17,18 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS branches (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  code TEXT NOT NULL,
+  code TEXT,
   name_ar TEXT NOT NULL,
   name_en TEXT,
-  location TEXT,
+  budget NUMERIC(16,2),
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(company_id, code)
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS branches_company_id_code_idx
+  ON branches (company_id, code)
+  WHERE code IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_branches_company_id ON branches(company_id);
 
@@ -33,23 +36,21 @@ CREATE INDEX IF NOT EXISTS idx_branches_company_id ON branches(company_id);
 CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  code TEXT NOT NULL,
+  code TEXT,
   name_ar TEXT NOT NULL,
   name_en TEXT,
-  description TEXT,
-  start_date DATE,
-  end_date DATE,
   status TEXT NOT NULL DEFAULT 'active',
-  budget NUMERIC(18,2),
-  customer_id UUID REFERENCES customers_suppliers(id) ON DELETE SET NULL,
+  budget NUMERIC(16,2),
   is_active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(company_id, code)
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS projects_company_id_code_idx
+  ON projects (company_id, code)
+  WHERE code IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_projects_company_id ON projects(company_id);
-CREATE INDEX IF NOT EXISTS idx_projects_customer_id ON projects(customer_id);
 
 -- ============================================================================
 -- 2. ALTER EXISTING TABLES - ADD COLUMNS WITH FOREIGN KEYS

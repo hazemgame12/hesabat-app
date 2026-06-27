@@ -9,6 +9,8 @@ import type { ProjectStatus } from './projectStatus';
 
 export interface Project {
   id: string;
+  /** @nullable */
+  code?: string | null;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;

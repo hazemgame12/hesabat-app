@@ -12,6 +12,7 @@ const COST_CENTER_TYPE = "cost_center";
 function toCostCenter(row: CostCenter) {
   return {
     id: row.id,
+    code: row.code ?? null,
     nameAr: row.nameAr,
     nameEn: row.nameEn,
     type: row.type,
@@ -60,6 +61,7 @@ router.post(
         .insert(costCentersTable)
         .values({
           companyId: req.auth!.companyId,
+          code: parsed.data.code ? parsed.data.code.trim() : null,
           nameAr: parsed.data.nameAr,
           nameEn: parsed.data.nameEn ?? null,
           type: COST_CENTER_TYPE,
@@ -71,7 +73,11 @@ router.post(
         })
         .returning();
       res.status(201).json(toCostCenter(row as CostCenter));
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        res.status(400).json({ error: "الكود مستخدم بالفعل في هذه الشركة" });
+        return;
+      }
       req.log.error({ err }, "Failed to create cost center");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
@@ -94,6 +100,7 @@ router.patch(
       return;
     }
     const updates: Record<string, unknown> = {};
+    if (parsed.data.code !== undefined) updates["code"] = parsed.data.code ? parsed.data.code.trim() : null;
     if (parsed.data.nameAr !== undefined) updates["nameAr"] = parsed.data.nameAr;
     if (parsed.data.nameEn !== undefined) updates["nameEn"] = parsed.data.nameEn;
     if (parsed.data.budget !== undefined)
@@ -122,7 +129,11 @@ router.patch(
         return;
       }
       res.json(toCostCenter(row as CostCenter));
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        res.status(400).json({ error: "الكود مستخدم بالفعل في هذه الشركة" });
+        return;
+      }
       req.log.error({ err }, "Failed to update cost center");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
@@ -188,6 +199,7 @@ router.get(
         sheetName: "CostCenters",
         fileName: "cost-centers-export",
         columns: [
+          { header: "code", value: (r) => r.code ?? "" },
           { header: "nameAr", value: (r) => r.nameAr },
           { header: "nameEn", value: (r) => r.nameEn ?? "" },
           {
@@ -232,6 +244,7 @@ router.post(
       }
 
       type Row = {
+        code: string | null;
         nameAr: string;
         nameEn: string | null;
         budget: string | null;
@@ -242,7 +255,8 @@ router.post(
         const nameAr = sheet.str(row, "nameAr");
         const budgetRaw = sheet.has("budget") ? sheet.str(row, "budget") : "";
         const nameEn = sheet.str(row, "nameEn");
-        if (!nameAr && !budgetRaw && !nameEn) continue; // skip blank rows
+        const codeRaw = sheet.has("code") ? sheet.str(row, "code").trim() : "";
+        if (!nameAr && !budgetRaw && !nameEn && !codeRaw) continue; // skip blank rows
         if (!nameAr) {
           res.status(400).json({ error: `السطر ${rowNo}: nameAr مطلوب` });
           return;
@@ -257,6 +271,7 @@ router.post(
           activeRaw === "غير نشط"
         );
         parsed.push({
+          code: codeRaw || null,
           nameAr,
           nameEn: nameEn || null,
           budget: budgetRaw ? String(sheet.num(row, "budget")) : null,
@@ -272,6 +287,7 @@ router.post(
         for (const r of parsed) {
           await tx.insert(costCentersTable).values({
             companyId,
+            code: r.code,
             nameAr: r.nameAr,
             nameEn: r.nameEn,
             type: COST_CENTER_TYPE,

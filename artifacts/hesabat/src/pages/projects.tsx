@@ -40,6 +40,7 @@ const STATUS_STYLE: Record<ProjectStatus, string> = {
 };
 
 const projectSchema = z.object({
+  code: z.string().optional(),
   nameAr: z.string().min(1, "nameRequired"),
   nameEn: z.string().optional(),
   status: z.enum(PROJECT_STATUSES).default("active"),
@@ -84,12 +85,13 @@ export function Projects({ embedded = false }: { embedded?: boolean }) {
   const isActive = watch("isActive");
 
   const openCreateModal = () => {
-    reset({ nameAr: "", nameEn: "", status: "active", budget: "", isActive: true });
+    reset({ code: "", nameAr: "", nameEn: "", status: "active", budget: "", isActive: true });
     setModalMode("create");
   };
 
   const openEditModal = (project: Project) => {
     reset({
+      code: project.code ?? "",
       nameAr: project.nameAr,
       nameEn: project.nameEn ?? "",
       status: project.status as ProjectStatus,
@@ -108,6 +110,7 @@ export function Projects({ embedded = false }: { embedded?: boolean }) {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListProjectsQueryKey() });
 
   const projectGridColumns: GridColumn<Project>[] = [
+    { key: "code", header: t("projects.code"), type: "text", editable: canUpdate, width: "120px" },
     { key: "nameAr", header: t("projects.nameAr"), type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
     { key: "nameEn", header: t("projects.nameEn"), type: "text", editable: canUpdate },
     { key: "status", header: t("projects.status"), type: "select", editable: canUpdate, width: "140px",
@@ -131,6 +134,7 @@ export function Projects({ embedded = false }: { embedded?: boolean }) {
       const project = projects.find((item) => item.id === id); if (!project) continue;
       const budgetRaw = patch.budget !== undefined ? patch.budget : project.budget;
       const data = {
+        code: patch.code !== undefined ? (String(patch.code).trim() || null) : project.code ?? null,
         nameAr: String(patch.nameAr ?? project.nameAr),
         nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : project.nameEn ?? null,
         status: String(patch.status ?? project.status) as ProjectStatus,
@@ -152,6 +156,7 @@ export function Projects({ embedded = false }: { embedded?: boolean }) {
       if (!String(p.nameAr ?? "").trim()) continue;
       const trimmed = String(p.budget ?? "").trim();
       const data = {
+        code: p.code ? String(p.code).trim() : null,
         nameAr: String(p.nameAr).trim(),
         nameEn: p.nameEn ? String(p.nameEn) : null,
         status: (p.status ?? "active") as ProjectStatus,
@@ -166,6 +171,7 @@ export function Projects({ embedded = false }: { embedded?: boolean }) {
   const onSubmit = (form: ProjectForm) => {
     const trimmed = (form.budget ?? "").trim();
     const data = {
+      code: form.code ? form.code.trim() : null,
       nameAr: form.nameAr,
       nameEn: form.nameEn || null,
       status: form.status,
@@ -295,6 +301,13 @@ export function Projects({ embedded = false }: { embedded?: boolean }) {
             </div>
 
             <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">
+                  {t("projects.code")}<span className="text-xs font-medium text-muted-foreground ms-2">{t("projects.optional")}</span>
+                </label>
+                <input dir="ltr" placeholder={t("projects.codePlaceholder")} className="bg-background border rounded-xl h-11 px-4 text-sm font-mono text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("code")} />
+              </div>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold text-foreground">{t("projects.nameAr")}</label>
                 <input dir="rtl" placeholder={t("projects.namePlaceholder")} className="bg-background border rounded-xl h-11 px-4 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("nameAr")} />

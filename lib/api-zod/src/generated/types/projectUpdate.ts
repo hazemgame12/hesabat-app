@@ -8,6 +8,8 @@
 import type { ProjectUpdateStatus } from './projectUpdateStatus';
 
 export interface ProjectUpdate {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */

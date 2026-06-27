@@ -10,6 +10,7 @@ const router = Router();
 function toProject(row: Project) {
   return {
     id: row.id,
+    code: row.code ?? null,
     nameAr: row.nameAr,
     nameEn: row.nameEn,
     status: row.status,
@@ -53,6 +54,7 @@ router.post(
         .insert(projectsTable)
         .values({
           companyId: req.auth!.companyId,
+          code: parsed.data.code ? parsed.data.code.trim() : null,
           nameAr: parsed.data.nameAr,
           nameEn: parsed.data.nameEn ?? null,
           status: parsed.data.status ?? "active",
@@ -64,7 +66,11 @@ router.post(
         })
         .returning();
       res.status(201).json(toProject(row as Project));
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        res.status(400).json({ error: "الكود مستخدم بالفعل في هذه الشركة" });
+        return;
+      }
       req.log.error({ err }, "Failed to create project");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }
@@ -87,6 +93,7 @@ router.patch(
       return;
     }
     const updates: Record<string, unknown> = {};
+    if (parsed.data.code !== undefined) updates["code"] = parsed.data.code ? parsed.data.code.trim() : null;
     if (parsed.data.nameAr !== undefined) updates["nameAr"] = parsed.data.nameAr;
     if (parsed.data.nameEn !== undefined) updates["nameEn"] = parsed.data.nameEn;
     if (parsed.data.status !== undefined) updates["status"] = parsed.data.status;
@@ -117,7 +124,11 @@ router.patch(
         return;
       }
       res.json(toProject(row as Project));
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        res.status(400).json({ error: "الكود مستخدم بالفعل في هذه الشركة" });
+        return;
+      }
       req.log.error({ err }, "Failed to update project");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }

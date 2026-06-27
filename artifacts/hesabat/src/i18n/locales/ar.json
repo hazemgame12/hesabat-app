@@ -1235,7 +1235,9 @@
       "addError": "تعذّر إضافة مركز التكلفة",
       "editError": "تعذّر تعديل مركز التكلفة",
       "deleteError": "تعذّر إلغاء تفعيل مركز التكلفة"
-    }
+    },
+    "code": "الكود",
+    "codePlaceholder": "مثال: CC-001"
   },
   "projects": {
     "title": "المشاريع",
@@ -1281,7 +1283,9 @@
       "addError": "تعذّر إضافة المشروع",
       "editError": "تعذّر تعديل المشروع",
       "deleteError": "تعذّر إلغاء تفعيل المشروع"
-    }
+    },
+    "code": "الكود",
+    "codePlaceholder": "مثال: PRJ-001"
   },
   "branches": {
     "title": "الفروع",
@@ -1320,7 +1324,9 @@
       "addError": "تعذّر إضافة الفرع",
       "editError": "تعذّر تعديل الفرع",
       "deleteError": "تعذّر إلغاء تفعيل الفرع"
-    }
+    },
+    "code": "الكود",
+    "codePlaceholder": "مثال: BR-001"
   },
   "openingBalances": {
     "title": "الأرصدة الافتتاحية",

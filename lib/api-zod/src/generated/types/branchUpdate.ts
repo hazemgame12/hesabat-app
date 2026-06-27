@@ -7,6 +7,8 @@
  */
 
 export interface BranchUpdate {
+  /** @nullable */
+  code?: string | null;
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
