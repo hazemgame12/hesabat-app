@@ -84,6 +84,9 @@ export const bankMovementsTable = pgTable("bank_movements", {
   costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
     onDelete: "set null",
   }),
+  // ✨ NEW: Accounting dimensions
+  projectId: uuid("project_id"),
+  branchId: uuid("branch_id"),
   // The other bank account for transfers.
   transferAccountId: uuid("transfer_account_id").references(
     () => bankAccountsTable.id,
