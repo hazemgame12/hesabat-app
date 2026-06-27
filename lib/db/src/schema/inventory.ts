@@ -13,6 +13,9 @@ import { z } from "zod/v4";
 import { companiesTable } from "./companies";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
+import { costCentersTable } from "./cost-centers";
+import { projectsTable } from "./projects";
+import { branchesTable } from "./branches";
 
 // A stock item in the single warehouse. quantityOnHand and averageCost are
 // maintained server-side on every movement (weighted-average valuation).
@@ -78,6 +81,16 @@ export const inventoryMovementsTable = pgTable("inventory_movements", {
   counterpartAccountId: uuid("counterpart_account_id")
     .notNull()
     .references(() => accountsTable.id, { onDelete: "restrict" }),
+  // ✨ Accounting dimensions with explicit foreign keys
+  costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
+    onDelete: "set null",
+  }),
+  projectId: uuid("project_id").references(() => projectsTable.id, {
+    onDelete: "set null",
+  }),
+  branchId: uuid("branch_id").references(() => branchesTable.id, {
+    onDelete: "set null",
+  }),
   notes: text("notes"),
   journalEntryId: uuid("journal_entry_id").references(
     () => journalEntriesTable.id,
