@@ -41,16 +41,17 @@ export interface CountryInfo {
   nameAr: string;
   nameEn: string;
   defaultCurrency: CurrencyCode;
+  dialCode: string;
 }
 
 export const COUNTRY_INFO: Record<CountryCode, CountryInfo> = {
-  EG: { code: "EG", nameAr: "مصر", nameEn: "Egypt", defaultCurrency: "EGP" },
-  SA: { code: "SA", nameAr: "المملكة العربية السعودية", nameEn: "Saudi Arabia", defaultCurrency: "SAR" },
-  AE: { code: "AE", nameAr: "الإمارات العربية المتحدة", nameEn: "United Arab Emirates", defaultCurrency: "AED" },
-  KW: { code: "KW", nameAr: "الكويت", nameEn: "Kuwait", defaultCurrency: "KWD" },
-  QA: { code: "QA", nameAr: "قطر", nameEn: "Qatar", defaultCurrency: "QAR" },
-  BH: { code: "BH", nameAr: "البحرين", nameEn: "Bahrain", defaultCurrency: "BHD" },
-  OM: { code: "OM", nameAr: "عُمان", nameEn: "Oman", defaultCurrency: "OMR" },
+  EG: { code: "EG", nameAr: "مصر", nameEn: "Egypt", defaultCurrency: "EGP", dialCode: "+20" },
+  SA: { code: "SA", nameAr: "المملكة العربية السعودية", nameEn: "Saudi Arabia", defaultCurrency: "SAR", dialCode: "+966" },
+  AE: { code: "AE", nameAr: "الإمارات العربية المتحدة", nameEn: "United Arab Emirates", defaultCurrency: "AED", dialCode: "+971" },
+  KW: { code: "KW", nameAr: "الكويت", nameEn: "Kuwait", defaultCurrency: "KWD", dialCode: "+965" },
+  QA: { code: "QA", nameAr: "قطر", nameEn: "Qatar", defaultCurrency: "QAR", dialCode: "+974" },
+  BH: { code: "BH", nameAr: "البحرين", nameEn: "Bahrain", defaultCurrency: "BHD", dialCode: "+973" },
+  OM: { code: "OM", nameAr: "عُمان", nameEn: "Oman", defaultCurrency: "OMR", dialCode: "+968" },
 };
 
 export function isCurrency(value: string): value is CurrencyCode {
