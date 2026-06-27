@@ -87,7 +87,9 @@
       "submitting": "Registering...",
       "haveAccount": "Already have an account?",
       "login": "Sign in",
-      "errorGeneric": "An error occurred during registration"
+      "errorGeneric": "An error occurred during registration",
+      "phone": "Phone number",
+      "phonePlaceholder": "e.g. +201012345678"
     },
     "accept": {
       "loading": "Loading...",
@@ -110,7 +112,9 @@
       "passwordMin": "Password must be at least 8 characters",
       "passwordMismatch": "Passwords do not match",
       "companyNameRequired": "Company name is required",
-      "fullNameRequired": "Full name is required"
+      "fullNameRequired": "Full name is required",
+      "phoneRequired": "Phone number is required",
+      "phoneInvalid": "Invalid phone number"
     }
   },
   "nav": {
