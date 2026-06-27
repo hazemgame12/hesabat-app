@@ -18,6 +18,8 @@ import { usersTable } from "./users";
 import { accountsTable } from "./accounts";
 import { taxesTable } from "./taxes";
 import { costCentersTable } from "./cost-centers";
+import { projectsTable } from "./projects";
+import { branchesTable } from "./branches";
 
 export const journalEntriesTable = pgTable(
   "journal_entries",
@@ -106,8 +108,12 @@ export const journalEntryLinesTable = pgTable("journal_entry_lines", {
     onDelete: "set null",
   }),
   // ✨ NEW: Accounting dimensions
-  projectId: uuid("project_id"),
-  branchId: uuid("branch_id"),
+  projectId: uuid("project_id").references(() => projectsTable.id, {
+    onDelete: "set null",
+  }),
+  branchId: uuid("branch_id").references(() => branchesTable.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
