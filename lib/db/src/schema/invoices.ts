@@ -190,6 +190,9 @@ export const invoiceLinesTable = pgTable("invoice_lines", {
   costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
     onDelete: "set null",
   }),
+  // ✨ NEW: Accounting dimensions
+  projectId: uuid("project_id"),
+  branchId: uuid("branch_id"),
   // Fixed-asset registration fields (used when lineType = 'fixed_asset').
   assetNameAr: text("asset_name_ar"),
   assetNameEn: text("asset_name_en"),
