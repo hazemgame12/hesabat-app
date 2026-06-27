@@ -34,6 +34,7 @@ import { Check, Globe, Clock, ArrowLeft } from "lucide-react";
 const signupSchema = z.object({
   companyName: z.string().min(1, "companyNameRequired"),
   name: z.string().min(1, "fullNameRequired"),
+  phone: z.string().min(5, "phoneRequired").regex(/^\d[\d\s\-().]{4,18}$/, "phoneInvalid"),
   email: z.string().email("emailInvalid"),
   password: z.string().min(8, "passwordMin"),
   country: z.enum(COUNTRIES),
@@ -93,9 +94,15 @@ export function Signup() {
   const country = watch("country");
   const baseCurrency = watch("baseCurrency");
 
+  const [phonePrefix, setPhonePrefix] = React.useState<string>(
+    COUNTRY_INFO[initialCountry]?.dialCode ?? "+20"
+  );
+
   const onSubmit = (data: z.infer<typeof signupSchema>) => {
     setErrorMsg(null);
-    const payload = { ...data };
+    const localPhone = data.phone.replace(/^\s+|\s+$/g, "");
+    const fullPhone = `${phonePrefix}${localPhone}`;
+    const payload = { ...data, phone: fullPhone };
     if (urlPlanId) {
       (payload as any).planId = urlPlanId;
     }
@@ -198,6 +205,33 @@ export function Signup() {
             </div>
 
             <div className="flex flex-col gap-2">
+              <Label htmlFor="phone">{t("auth.signup.phone")}</Label>
+              <div className="flex gap-2" dir="ltr">
+                <select
+                  value={phonePrefix}
+                  onChange={(e) => setPhonePrefix(e.target.value)}
+                  className="rounded-lg border border-input bg-background px-2 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary/30 text-primary shrink-0"
+                  style={{ minWidth: "72px" }}
+                >
+                  {COUNTRIES.map((c) => (
+                    <option key={c} value={COUNTRY_INFO[c].dialCode}>
+                      {COUNTRY_INFO[c].dialCode} {c}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  id="phone"
+                  type="tel"
+                  dir="ltr"
+                  placeholder="1012345678"
+                  className="text-start focus-visible:ring-primary flex-1"
+                  {...register("phone")}
+                />
+              </div>
+              {errors.phone && <span className="text-xs text-destructive">{t(`auth.validation.${errors.phone.message}`)}</span>}
+            </div>
+
+            <div className="flex flex-col gap-2">
               <Label htmlFor="email">{t("auth.signup.email")}</Label>
               <Input
                 id="email"
@@ -229,8 +263,9 @@ export function Signup() {
                   value={country}
                   onValueChange={(v) => {
                     setValue("country", v as typeof country);
-                    const def = COUNTRY_INFO[v as keyof typeof COUNTRY_INFO]?.defaultCurrency;
-                    if (def) setValue("baseCurrency", def);
+                    const info = COUNTRY_INFO[v as keyof typeof COUNTRY_INFO];
+                    if (info?.defaultCurrency) setValue("baseCurrency", info.defaultCurrency);
+                    if (info?.dialCode) setPhonePrefix(info.dialCode);
                   }}
                 >
                   <SelectTrigger>
