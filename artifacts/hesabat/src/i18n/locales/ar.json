@@ -87,7 +87,9 @@
       "submitting": "جاري التسجيل...",
       "haveAccount": "لديك حساب بالفعل؟",
       "login": "تسجيل الدخول",
-      "errorGeneric": "حدث خطأ أثناء التسجيل"
+      "errorGeneric": "حدث خطأ أثناء التسجيل",
+      "phone": "رقم التليفون",
+      "phonePlaceholder": "مثال: 01012345678"
     },
     "accept": {
       "loading": "جاري التحميل...",
@@ -110,7 +112,9 @@
       "passwordMin": "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
       "passwordMismatch": "كلمتا المرور غير متطابقتين",
       "companyNameRequired": "اسم الشركة مطلوب",
-      "fullNameRequired": "الاسم الكامل مطلوب"
+      "fullNameRequired": "الاسم الكامل مطلوب",
+      "phoneRequired": "رقم التليفون مطلوب",
+      "phoneInvalid": "رقم التليفون غير صحيح"
     }
   },
   "nav": {
