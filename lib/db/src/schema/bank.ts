@@ -14,6 +14,8 @@ import { usersTable } from "./users";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
 import { costCentersTable } from "./cost-centers";
+import { projectsTable } from "./projects";
+import { branchesTable } from "./branches";
 
 // A cash drawer or bank/credit-card/loan account. Each is linked to an existing
 // leaf chart-of-accounts account (re-validated to the company on write). The
@@ -85,8 +87,12 @@ export const bankMovementsTable = pgTable("bank_movements", {
     onDelete: "set null",
   }),
   // ✨ NEW: Accounting dimensions
-  projectId: uuid("project_id"),
-  branchId: uuid("branch_id"),
+  projectId: uuid("project_id").references(() => projectsTable.id, {
+    onDelete: "set null",
+  }),
+  branchId: uuid("branch_id").references(() => branchesTable.id, {
+    onDelete: "set null",
+  }),
   // The other bank account for transfers.
   transferAccountId: uuid("transfer_account_id").references(
     () => bankAccountsTable.id,
