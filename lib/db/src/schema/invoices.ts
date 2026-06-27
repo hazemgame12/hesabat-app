@@ -24,6 +24,8 @@ import { inventoryItemsTable } from "./inventory";
 import { fixedAssetsTable } from "./fixed-assets";
 import { journalEntriesTable } from "./journal-entries";
 import { bankMovementsTable } from "./bank";
+import { projectsTable } from "./projects";
+import { branchesTable } from "./branches";
 
 // A sales (customer) or purchase (supplier) invoice. A single table with a
 // `kind` discriminator backs both flows because they share the same line model
@@ -191,8 +193,12 @@ export const invoiceLinesTable = pgTable("invoice_lines", {
     onDelete: "set null",
   }),
   // ✨ NEW: Accounting dimensions
-  projectId: uuid("project_id"),
-  branchId: uuid("branch_id"),
+  projectId: uuid("project_id").references(() => projectsTable.id, {
+    onDelete: "set null",
+  }),
+  branchId: uuid("branch_id").references(() => branchesTable.id, {
+    onDelete: "set null",
+  }),
   // Fixed-asset registration fields (used when lineType = 'fixed_asset').
   assetNameAr: text("asset_name_ar"),
   assetNameEn: text("asset_name_en"),
