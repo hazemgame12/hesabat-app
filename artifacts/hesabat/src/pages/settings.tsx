@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { CompanyProfile } from "@/pages/company";
 import { Team } from "@/pages/team";
-import { CostCenters } from "@/pages/cost-centers";
+import { AccountingDimensions } from "@/pages/accounting-dimensions";
 import { Currencies } from "@/pages/currencies";
 import { Taxes } from "@/pages/taxes";
 import { FiscalYears } from "@/pages/fiscal-years";
@@ -30,12 +30,13 @@ type SettingsTab = {
   icon: React.ComponentType<{ className?: string }>;
   component: React.ComponentType;
   requires?: Capability;
+  requiresAny?: Capability[];
 };
 
 const TABS: SettingsTab[] = [
   { key: "company",      labelKey: "settings.tabs.company",      icon: Building2,    component: CompanyProfile },
   { key: "team",         labelKey: "settings.tabs.team",         icon: ShieldCheck,  component: Team,          requires: "team:manage" },
-  { key: "cost-centers", labelKey: "settings.tabs.costCenters",  icon: Boxes,        component: CostCenters,   requires: "costCenters:read" },
+  { key: "accounting-dimensions", labelKey: "settings.tabs.accountingDimensions", icon: Boxes, component: AccountingDimensions, requiresAny: ["costCenters:read", "projects:read", "branches:read"] },
   { key: "currencies",   labelKey: "settings.tabs.currencies",   icon: Coins,        component: Currencies,    requires: "currencies:read" },
   { key: "taxes",        labelKey: "settings.tabs.taxes",        icon: Percent,      component: Taxes,         requires: "taxes:read" },
   { key: "fiscal-years", labelKey: "settings.tabs.fiscalYears",  icon: CalendarRange,component: FiscalYears,   requires: "fiscalyear:read" },
@@ -58,16 +59,21 @@ export function Settings() {
 
   const unreadCount = unreadData?.count ?? 0;
 
-  const tabs = TABS.filter((tab) => !tab.requires || hasCapability(role, tab.requires));
-  const currentKey = location.split("/")[2] || tabs[0]?.key;
+  const tabs = TABS.filter(
+    (tab) =>
+      (!tab.requires || hasCapability(role, tab.requires)) &&
+      (!tab.requiresAny || tab.requiresAny.some((cap) => hasCapability(role, cap))),
+  );
+  const rawKey = location.split("/")[2] || tabs[0]?.key;
+  const currentKey = rawKey === "cost-centers" ? "accounting-dimensions" : rawKey;
   const active = tabs.find((tab) => tab.key === currentKey) ?? tabs[0];
   const ActiveComponent = active?.component;
 
   React.useEffect(() => {
-    if (active && currentKey !== active.key) {
+    if (active && rawKey !== active.key) {
       setLocation(`/settings/${active.key}`, { replace: true });
     }
-  }, [currentKey, active, setLocation]);
+  }, [rawKey, active, setLocation]);
 
   return (
     <div className="flex min-h-screen">

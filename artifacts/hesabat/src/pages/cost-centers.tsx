@@ -13,7 +13,7 @@ import { GridTable, GridToggle, useGridView, type GridColumn } from "@/component
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExcelToolbar } from "@/components/ExcelToolbar";
-import { Boxes, Plus, X, Check, ChevronDown, Building2, Trash2, Edit2 } from "lucide-react";
+import { Boxes, Plus, X, Check, Building2, Trash2, Edit2 } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,19 +30,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const CENTER_TYPES = ["project", "cost_center", "branch"] as const;
-type CenterType = (typeof CENTER_TYPES)[number];
-
-const TYPE_STYLE: Record<CenterType, string> = {
-  project: "text-primary bg-primary/10",
-  cost_center: "text-amber-600 bg-amber-500/10",
-  branch: "text-secondary-foreground bg-secondary/40",
-};
-
 const centerSchema = z.object({
   nameAr: z.string().min(1, "nameRequired"),
   nameEn: z.string().optional(),
-  type: z.enum(CENTER_TYPES),
   budget: z.string().optional(),
   isActive: z.boolean().default(true),
 });
@@ -55,7 +45,7 @@ function displayName(e: { nameAr: string; nameEn?: string | null }, lang: string
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-export function CostCenters() {
+export function CostCenters({ embedded = false }: { embedded?: boolean }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const queryClient = useQueryClient();
@@ -79,12 +69,12 @@ export function CostCenters() {
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<CenterForm>({
     resolver: zodResolver(centerSchema),
-    defaultValues: { type: "project", isActive: true },
+    defaultValues: { isActive: true },
   });
   const isActive = watch("isActive");
 
   const openCreateModal = () => {
-    reset({ nameAr: "", nameEn: "", type: "project", budget: "", isActive: true });
+    reset({ nameAr: "", nameEn: "", budget: "", isActive: true });
     setModalMode("create");
   };
 
@@ -92,7 +82,6 @@ export function CostCenters() {
     reset({
       nameAr: c.nameAr,
       nameEn: c.nameEn ?? "",
-      type: c.type as CenterType,
       budget: c.budget === null || c.budget === undefined ? "" : String(c.budget),
       isActive: c.isActive,
     });
@@ -110,10 +99,6 @@ export function CostCenters() {
   const centerGridColumns: GridColumn<CostCenter>[] = [
     { key: "nameAr", header: t("costCenters.nameAr") ?? "الاسم (ع)", type: "text", editable: canUpdate, validate: (v) => !v ? "مطلوب" : null },
     { key: "nameEn", header: t("costCenters.nameEn") ?? "Name (EN)", type: "text", editable: canUpdate },
-    { key: "type", header: t("costCenters.typeLabel"), type: "select", editable: canUpdate, width: "120px",
-      options: CENTER_TYPES.map((tp) => ({ value: tp, label: t(`costCenters.types.${tp}`) })),
-      render: (v) => <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${TYPE_STYLE[v as CenterType]}`}>{t(`costCenters.types.${v as string}`)}</span>
-    },
     { key: "budget", header: t("costCenters.budget"), type: "number", editable: canUpdate, align: "end",
       render: (v) => <span className="font-sans tabular-nums">{v === null || v === undefined ? t("costCenters.noBudget") : fmt(Number(v))}</span>
     },
@@ -133,7 +118,6 @@ export function CostCenters() {
       const data = {
         nameAr: String(patch.nameAr ?? ctr.nameAr),
         nameEn: patch.nameEn !== undefined ? (String(patch.nameEn) || null) : ctr.nameEn ?? null,
-        type: String(patch.type ?? ctr.type) as CenterType,
         budget: budgetRaw === null || budgetRaw === undefined || String(budgetRaw) === "" ? null : Number(budgetRaw),
         isActive: patch.isActive !== undefined ? Boolean(patch.isActive) : ctr.isActive,
       };
@@ -154,7 +138,6 @@ export function CostCenters() {
       const data = {
         nameAr: String(p.nameAr).trim(),
         nameEn: p.nameEn ? String(p.nameEn) : null,
-        type: (p.type ?? "cost") as CenterType,
         budget: trimmed === "" ? null : Number(trimmed),
         isActive: true,
       };
@@ -168,7 +151,6 @@ export function CostCenters() {
     const data = {
       nameAr: form.nameAr,
       nameEn: form.nameEn || null,
-      type: form.type,
       budget: trimmed === "" ? null : Number(trimmed),
       isActive: form.isActive ?? true,
     };
@@ -195,30 +177,59 @@ export function CostCenters() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center justify-between px-8 pt-7 pb-1">
-        <div>
-          <h2 className="text-base font-extrabold text-foreground">{t("costCenters.title")}</h2>
-          <p className="text-sm text-muted-foreground">{t("costCenters.subtitle")}</p>
+      {!embedded && (
+        <div className="flex items-center justify-between px-8 pt-7 pb-1">
+          <div>
+            <h2 className="text-base font-extrabold text-foreground">{t("costCenters.title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("costCenters.subtitle")}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
+            <ExcelToolbar
+              exportPath="/api/cost-centers/export"
+              importPath="/api/cost-centers/import"
+              canImport={canCreate}
+              invalidateKeys={[getListCostCentersQueryKey()]}
+            />
+            {canCreate && (
+              <button
+                onClick={openCreateModal}
+                className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+              >
+                <Plus className="w-4 h-4" />
+                {t("costCenters.addCenter")}
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
-          <ExcelToolbar
-            exportPath="/api/cost-centers/export"
-            importPath="/api/cost-centers/import"
-            canImport={canCreate}
-            invalidateKeys={[getListCostCentersQueryKey()]}
-          />
-          {canCreate && (
-            <button
-              onClick={openCreateModal}
-              className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
-            >
-              <Plus className="w-4 h-4" />
-              {t("costCenters.addCenter")}
-            </button>
-          )}
+      )}
+
+      {embedded && (
+        <div className="flex items-center justify-between px-8 pt-2 pb-1">
+          <div>
+            <h3 className="text-base font-extrabold text-foreground">{t("costCenters.title")}</h3>
+            <p className="text-sm text-muted-foreground">{t("costCenters.subtitle")}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
+            <ExcelToolbar
+              exportPath="/api/cost-centers/export"
+              importPath="/api/cost-centers/import"
+              canImport={canCreate}
+              invalidateKeys={[getListCostCentersQueryKey()]}
+            />
+            {canCreate && (
+              <button
+                onClick={openCreateModal}
+                className="flex items-center gap-2 bg-primary text-primary-foreground shadow-md shadow-primary/20 px-4 py-2 rounded-full text-sm font-bold hover:opacity-90 transition-opacity"
+              >
+                <Plus className="w-4 h-4" />
+                {t("costCenters.addCenter")}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="p-8 flex flex-col gap-6 max-w-6xl mx-auto w-full">
         {isLoading ? (
@@ -241,7 +252,7 @@ export function CostCenters() {
               onSave={handleCenterGridSave}
               onDeleteRows={handleCenterGridDelete}
               onCreateRows={canCreate ? handleCenterGridCreate : undefined}
-              newRowTemplate={() => ({ type: "cost" as CenterType, isActive: true })}
+              newRowTemplate={() => ({ isActive: true })}
               selectedIds={selectedCenterIds}
               onSelectionChange={setSelectedCenterIds}
               emptyMessage={t("costCenters.noCenters")}
@@ -255,7 +266,6 @@ export function CostCenters() {
                   <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0"><Building2 className="w-5 h-5" /></div>
                   <div className="flex-1">
                     <p className="font-bold text-foreground">{displayName(c, lang)}</p>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${TYPE_STYLE[c.type as CenterType]}`}>{t(`costCenters.types.${c.type}`)}</span>
                   </div>
                   {(canUpdate || canDelete) && (
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -301,18 +311,6 @@ export function CostCenters() {
             </div>
 
             <div className="p-6 flex flex-col gap-5 overflow-y-auto">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold text-foreground">{t("costCenters.typeLabel")}</label>
-                <div className="relative">
-                  <select className="w-full appearance-none bg-background border rounded-xl h-11 ps-4 pe-10 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("type")}>
-                    {CENTER_TYPES.map((tp) => (
-                      <option key={tp} value={tp}>{t(`costCenters.types.${tp}`)}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                </div>
-              </div>
-
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold text-foreground">{t("costCenters.nameAr")}</label>
                 <input dir="rtl" placeholder={t("costCenters.namePlaceholder")} className="bg-background border rounded-xl h-11 px-4 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("nameAr")} />

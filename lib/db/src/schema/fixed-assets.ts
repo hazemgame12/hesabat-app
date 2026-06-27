@@ -16,6 +16,8 @@ import { companiesTable } from "./companies";
 import { accountsTable } from "./accounts";
 import { journalEntriesTable } from "./journal-entries";
 import { costCentersTable } from "./cost-centers";
+import { projectsTable } from "./projects";
+import { branchesTable } from "./branches";
 
 export const fixedAssetsTable = pgTable("fixed_assets", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -47,12 +49,16 @@ export const fixedAssetsTable = pgTable("fixed_assets", {
   expenseAccountId: uuid("expense_account_id")
     .notNull()
     .references(() => accountsTable.id, { onDelete: "restrict" }),
-  // ✨ NEW: Accounting dimensions
+  // ✨ Accounting dimensions with explicit foreign keys
   costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
     onDelete: "set null",
   }),
-  projectId: uuid("project_id"),
-  branchId: uuid("branch_id"),
+  projectId: uuid("project_id").references(() => projectsTable.id, {
+    onDelete: "set null",
+  }),
+  branchId: uuid("branch_id").references(() => branchesTable.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -83,12 +89,16 @@ export const assetDepreciationEntriesTable = pgTable(
       .references(() => fixedAssetsTable.id, { onDelete: "cascade" }),
     period: text("period").notNull(), // 'YYYY-MM'
     amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
-    // ✨ NEW: Accounting dimensions
+    // ✨ Accounting dimensions with explicit foreign keys
     costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
       onDelete: "set null",
     }),
-    projectId: uuid("project_id"),
-    branchId: uuid("branch_id"),
+    projectId: uuid("project_id").references(() => projectsTable.id, {
+      onDelete: "set null",
+    }),
+    branchId: uuid("branch_id").references(() => branchesTable.id, {
+      onDelete: "set null",
+    }),
     journalEntryId: uuid("journal_entry_id").references(
       () => journalEntriesTable.id,
       { onDelete: "set null" },

@@ -10,7 +10,5 @@ export type CostCenterType = typeof CostCenterType[keyof typeof CostCenterType];
 
 
 export const CostCenterType = {
-  project: 'project',
   cost_center: 'cost_center',
-  branch: 'branch',
 } as const;

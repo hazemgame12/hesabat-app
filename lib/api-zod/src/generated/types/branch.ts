@@ -6,12 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CostCenterInput {
-  /** @minLength 1 */
+export interface Branch {
+  id: string;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
   /** @nullable */
   budget?: number | null;
-  isActive?: boolean;
+  isActive: boolean;
+  createdAt: string;
 }

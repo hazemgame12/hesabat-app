@@ -432,7 +432,7 @@ export const ListCostCentersResponseItem = zod.object({
   "id": zod.string(),
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
-  "type": zod.enum(['project', 'cost_center', 'branch']),
+  "type": zod.enum(['cost_center']),
   "budget": zod.number().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
@@ -449,7 +449,6 @@ export const ListCostCentersResponse = zod.array(ListCostCentersResponseItem)
 export const CreateCostCenterBody = zod.object({
   "nameAr": zod.string().min(1),
   "nameEn": zod.string().nullish(),
-  "type": zod.enum(['project', 'cost_center', 'branch']),
   "budget": zod.number().nullish(),
   "isActive": zod.boolean().optional()
 })
@@ -468,7 +467,6 @@ export const UpdateCostCenterParams = zod.object({
 export const UpdateCostCenterBody = zod.object({
   "nameAr": zod.string().min(1).optional(),
   "nameEn": zod.string().nullish(),
-  "type": zod.enum(['project', 'cost_center', 'branch']).optional(),
   "budget": zod.number().nullish(),
   "isActive": zod.boolean().optional()
 })
@@ -477,7 +475,7 @@ export const UpdateCostCenterResponse = zod.object({
   "id": zod.string(),
   "nameAr": zod.string(),
   "nameEn": zod.string().nullish(),
-  "type": zod.enum(['project', 'cost_center', 'branch']),
+  "type": zod.enum(['cost_center']),
   "budget": zod.number().nullish(),
   "isActive": zod.boolean(),
   "createdAt": zod.string()
@@ -485,13 +483,151 @@ export const UpdateCostCenterResponse = zod.object({
 
 
 /**
- * @summary Delete a cost center
+ * @summary Deactivate a cost center
  */
 export const DeleteCostCenterParams = zod.object({
   "id": zod.coerce.string()
 })
 
 export const DeleteCostCenterResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List all projects for the current company
+ */
+export const ListProjectsResponseItem = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "status": zod.enum(['active', 'completed', 'on_hold', 'cancelled']),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListProjectsResponse = zod.array(ListProjectsResponseItem)
+
+
+/**
+ * @summary Create a project
+ */
+
+
+
+export const CreateProjectBody = zod.object({
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "status": zod.enum(['active', 'completed', 'on_hold', 'cancelled']).optional(),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a project
+ */
+export const UpdateProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const UpdateProjectBody = zod.object({
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "status": zod.enum(['active', 'completed', 'on_hold', 'cancelled']).optional(),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateProjectResponse = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "status": zod.enum(['active', 'completed', 'on_hold', 'cancelled']),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Deactivate a project
+ */
+export const DeleteProjectParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteProjectResponse = zod.object({
+  "status": zod.string()
+})
+
+
+/**
+ * @summary List all branches for the current company
+ */
+export const ListBranchesResponseItem = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListBranchesResponse = zod.array(ListBranchesResponseItem)
+
+
+/**
+ * @summary Create a branch
+ */
+
+
+
+export const CreateBranchBody = zod.object({
+  "nameAr": zod.string().min(1),
+  "nameEn": zod.string().nullish(),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Update a branch
+ */
+export const UpdateBranchParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+
+
+
+export const UpdateBranchBody = zod.object({
+  "nameAr": zod.string().min(1).optional(),
+  "nameEn": zod.string().nullish(),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateBranchResponse = zod.object({
+  "id": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "budget": zod.number().nullish(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Deactivate a branch
+ */
+export const DeleteBranchParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteBranchResponse = zod.object({
   "status": zod.string()
 })
 
@@ -2893,6 +3029,7 @@ export const GetPartyStatementResponse = zod.object({
   "openingBalance": zod.number(),
   "closingBalance": zod.number(),
   "entries": zod.array(zod.object({
+  "entryId": zod.string(),
   "date": zod.string(),
   "ref": zod.string().nullish(),
   "description": zod.string(),
@@ -3404,6 +3541,7 @@ export const GetGeneralLedgerResponse = zod.object({
   "openingBalance": zod.number(),
   "closingBalance": zod.number(),
   "entries": zod.array(zod.object({
+  "entryId": zod.string(),
   "date": zod.string(),
   "entryNo": zod.number(),
   "ref": zod.string().nullish(),

@@ -7,6 +7,7 @@
  */
 
 export interface PartyStatementEntry {
+  entryId: string;
   date: string;
   /** @nullable */
   ref?: string | null;
