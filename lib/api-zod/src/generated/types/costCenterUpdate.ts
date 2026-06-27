@@ -5,14 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CostCenterUpdateType } from './costCenterUpdateType';
 
 export interface CostCenterUpdate {
   /** @minLength 1 */
   nameAr?: string;
   /** @nullable */
   nameEn?: string | null;
-  type?: CostCenterUpdateType;
   /** @nullable */
   budget?: number | null;
   isActive?: boolean;

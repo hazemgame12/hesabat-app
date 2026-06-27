@@ -7,6 +7,7 @@
  */
 
 export interface GeneralLedgerEntry {
+  entryId: string;
   date: string;
   entryNo: number;
   /** @nullable */

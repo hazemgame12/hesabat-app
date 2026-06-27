@@ -6,9 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CostCenterInput {
+export interface BranchUpdate {
   /** @minLength 1 */
-  nameAr: string;
+  nameAr?: string;
   /** @nullable */
   nameEn?: string | null;
   /** @nullable */

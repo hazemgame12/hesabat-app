@@ -32,6 +32,8 @@ export * from "./accounts";
 export * from "./invitations";
 export * from "./taxes";
 export * from "./cost-centers";
+export * from "./projects";
+export * from "./branches";
 export * from "./currencies";
 export * from "./exchange-rates";
 export * from "./revaluations";

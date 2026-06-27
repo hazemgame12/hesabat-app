@@ -5,13 +5,16 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ProjectStatus } from './projectStatus';
 
-export interface CostCenterInput {
-  /** @minLength 1 */
+export interface Project {
+  id: string;
   nameAr: string;
   /** @nullable */
   nameEn?: string | null;
+  status: ProjectStatus;
   /** @nullable */
   budget?: number | null;
-  isActive?: boolean;
+  isActive: boolean;
+  createdAt: string;
 }

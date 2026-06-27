@@ -7,8 +7,7 @@ import { requireCapability } from "../middleware/require-capability";
 import { exportWorkbook, handleXlsxUpload, parseSheet } from "../lib/excel";
 
 const router = Router();
-
-const CENTER_TYPES = ["project", "cost_center", "branch"] as const;
+const COST_CENTER_TYPE = "cost_center";
 
 function toCostCenter(row: CostCenter) {
   return {
@@ -31,7 +30,12 @@ router.get(
       const rows = await db
         .select()
         .from(costCentersTable)
-        .where(eq(costCentersTable.companyId, req.auth!.companyId))
+        .where(
+          and(
+            eq(costCentersTable.companyId, req.auth!.companyId),
+            eq(costCentersTable.type, COST_CENTER_TYPE),
+          ),
+        )
         .orderBy(asc(costCentersTable.createdAt));
       res.json(rows.map(toCostCenter));
     } catch (err) {
@@ -58,7 +62,7 @@ router.post(
           companyId: req.auth!.companyId,
           nameAr: parsed.data.nameAr,
           nameEn: parsed.data.nameEn ?? null,
-          type: parsed.data.type,
+          type: COST_CENTER_TYPE,
           budget:
             parsed.data.budget === undefined || parsed.data.budget === null
               ? null
@@ -92,7 +96,6 @@ router.patch(
     const updates: Record<string, unknown> = {};
     if (parsed.data.nameAr !== undefined) updates["nameAr"] = parsed.data.nameAr;
     if (parsed.data.nameEn !== undefined) updates["nameEn"] = parsed.data.nameEn;
-    if (parsed.data.type !== undefined) updates["type"] = parsed.data.type;
     if (parsed.data.budget !== undefined)
       updates["budget"] =
         parsed.data.budget === null ? null : String(parsed.data.budget);
@@ -110,6 +113,7 @@ router.patch(
           and(
             eq(costCentersTable.id, id),
             eq(costCentersTable.companyId, req.auth!.companyId),
+            eq(costCentersTable.type, COST_CENTER_TYPE),
           ),
         )
         .returning();
@@ -136,16 +140,18 @@ router.delete(
       return;
     }
     try {
-      const deleted = await db
-        .delete(costCentersTable)
+      const [deleted] = await db
+        .update(costCentersTable)
+        .set({ isActive: false })
         .where(
           and(
             eq(costCentersTable.id, id),
             eq(costCentersTable.companyId, req.auth!.companyId),
+            eq(costCentersTable.type, COST_CENTER_TYPE),
           ),
         )
         .returning({ id: costCentersTable.id });
-      if (deleted.length === 0) {
+      if (!deleted) {
         res.status(404).json({ error: "مركز التكلفة غير موجود" });
         return;
       }
@@ -171,7 +177,12 @@ router.get(
       const rows = await db
         .select()
         .from(costCentersTable)
-        .where(eq(costCentersTable.companyId, companyId))
+        .where(
+          and(
+            eq(costCentersTable.companyId, companyId),
+            eq(costCentersTable.type, COST_CENTER_TYPE),
+          ),
+        )
         .orderBy(asc(costCentersTable.createdAt));
       await exportWorkbook(res, {
         sheetName: "CostCenters",
@@ -179,7 +190,6 @@ router.get(
         columns: [
           { header: "nameAr", value: (r) => r.nameAr },
           { header: "nameEn", value: (r) => r.nameEn ?? "" },
-          { header: "type", value: (r) => r.type },
           {
             header: "budget",
             value: (r) => (r.budget === null ? "" : Number(r.budget)),
@@ -216,7 +226,7 @@ router.post(
       }
       if (!sheet.has("nameAr")) {
         res.status(400).json({
-          error: "صيغة الملف غير صحيحة. الأعمدة المطلوبة: nameAr, type",
+          error: "صيغة الملف غير صحيحة. الأعمدة المطلوبة: nameAr",
         });
         return;
       }
@@ -224,26 +234,17 @@ router.post(
       type Row = {
         nameAr: string;
         nameEn: string | null;
-        type: (typeof CENTER_TYPES)[number];
         budget: string | null;
         isActive: boolean;
       };
       const parsed: Row[] = [];
       for (const { rowNo, row } of sheet.rows) {
         const nameAr = sheet.str(row, "nameAr");
-        const typeRaw = sheet.str(row, "type");
         const budgetRaw = sheet.has("budget") ? sheet.str(row, "budget") : "";
         const nameEn = sheet.str(row, "nameEn");
-        if (!nameAr && !typeRaw && !budgetRaw && !nameEn) continue; // skip blank rows
+        if (!nameAr && !budgetRaw && !nameEn) continue; // skip blank rows
         if (!nameAr) {
           res.status(400).json({ error: `السطر ${rowNo}: nameAr مطلوب` });
-          return;
-        }
-        const type = (typeRaw || "cost_center") as (typeof CENTER_TYPES)[number];
-        if (!CENTER_TYPES.includes(type)) {
-          res.status(400).json({
-            error: `السطر ${rowNo}: نوع مركز التكلفة ${typeRaw} غير صحيح`,
-          });
           return;
         }
         const activeRaw = sheet.has("isActive")
@@ -258,7 +259,6 @@ router.post(
         parsed.push({
           nameAr,
           nameEn: nameEn || null,
-          type,
           budget: budgetRaw ? String(sheet.num(row, "budget")) : null,
           isActive,
         });
@@ -274,7 +274,7 @@ router.post(
             companyId,
             nameAr: r.nameAr,
             nameEn: r.nameEn,
-            type: r.type,
+            type: COST_CENTER_TYPE,
             budget: r.budget,
             isActive: r.isActive,
           });
