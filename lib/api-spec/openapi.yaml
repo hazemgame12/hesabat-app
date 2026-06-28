@@ -5120,10 +5120,13 @@ components:
           type: string
         costCenterId:
           type: ["string", "null"]
+          format: uuid
         projectId:
           type: ["string", "null"]
+          format: uuid
         branchId:
           type: ["string", "null"]
+          format: uuid
         accumulatedDepreciation:
           type: number
         netBookValue:

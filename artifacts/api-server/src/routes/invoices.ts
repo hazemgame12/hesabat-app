@@ -3226,6 +3226,22 @@ router.post(
             });
             return;
           }
+          const firstCostCenterId = rows[0]?.costCenterId ?? null;
+          const firstProjectId = rows[0]?.projectId ?? null;
+          const firstBranchId = rows[0]?.branchId ?? null;
+          const headerDimsMismatch = rows.some(
+            (r) =>
+              (r.costCenterId ?? null) !== firstCostCenterId ||
+              (r.projectId ?? null) !== firstProjectId ||
+              (r.branchId ?? null) !== firstBranchId,
+          );
+          if (headerDimsMismatch) {
+            res.status(400).json({
+              error:
+                `الفاتورة ${i + 1}: يجب أن تكون أبعاد رأس الفاتورة (costCenterId/projectId/branchId) موحّدة بين كل السطور`,
+            });
+            return;
+          }
         }
       }
 

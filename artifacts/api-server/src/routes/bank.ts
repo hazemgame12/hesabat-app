@@ -1134,7 +1134,6 @@ router.get(
           {
             header: "الفرع",
             value: (r) => r.branchName ?? "",
-            width: 22,
           },
           {
             header: "شرح القيد",
@@ -1533,6 +1532,7 @@ router.post(
             amount: String(r.amount),
             currency: bank.currency,
             exchangeRate: "1",
+            costCenterId: r.costCenterId ?? null,
             projectId: r.projectId ?? null,
             branchId: r.branchId ?? null,
             notes: r.notes ?? null,
