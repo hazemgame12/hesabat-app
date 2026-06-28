@@ -17,9 +17,16 @@ console.log(`[startup] Booting server on port ${port}...`);
 
 const host = "0.0.0.0";
 
-ensurePayrollSchema()
-  .then(() => console.log("[startup] ✓ Payroll schema ensured"))
-  .catch((e) => console.error("[startup] ensurePayrollSchema error:", e));
+// Await schema migrations BEFORE accepting requests.
+// Drizzle SELECT * includes new columns (project_id, branch_id, etc.) that must
+// exist in the DB before the first request arrives. Fire-and-forget caused a race.
+try {
+  await ensurePayrollSchema();
+  console.log("[startup] ✓ Payroll schema ensured");
+} catch (e) {
+  console.error("[startup] ensurePayrollSchema error:", e);
+  // Don't crash — DB might still be usable for most routes.
+}
 
 app.listen(port, host, () => {
   console.log(`[startup] ✓ Server listening on ${host}:${port}`);
