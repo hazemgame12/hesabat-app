@@ -969,7 +969,7 @@ export function Inventory() {
                 <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("costCenterId")}>
                   <option value="">{t("inventory.movement.noCenter")}</option>
                   {costCenters.map((c) => (
-                    <option key={c.id} value={c.id}>{c.nameAr}</option>
+                    <option key={c.id} value={c.id}>{displayName(c, lang)}</option>
                   ))}
                 </select>
               </div>
@@ -979,7 +979,7 @@ export function Inventory() {
                 <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("projectId")}>
                   <option value="">{t("inventory.movement.noProject")}</option>
                   {projects.map((p) => (
-                    <option key={p.id} value={p.id}>{p.nameAr}</option>
+                    <option key={p.id} value={p.id}>{displayName(p, lang)}</option>
                   ))}
                 </select>
               </div>
@@ -989,7 +989,7 @@ export function Inventory() {
                 <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("branchId")}>
                   <option value="">{t("inventory.movement.noBranch")}</option>
                   {branches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.nameAr}</option>
+                    <option key={b.id} value={b.id}>{displayName(b, lang)}</option>
                   ))}
                 </select>
               </div>
