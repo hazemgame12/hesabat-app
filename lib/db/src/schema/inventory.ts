@@ -81,7 +81,11 @@ export const inventoryMovementsTable = pgTable("inventory_movements", {
   counterpartAccountId: uuid("counterpart_account_id")
     .notNull()
     .references(() => accountsTable.id, { onDelete: "restrict" }),
-  // ✨ Accounting dimensions with explicit foreign keys
+  notes: text("notes"),
+  journalEntryId: uuid("journal_entry_id").references(
+    () => journalEntriesTable.id,
+    { onDelete: "set null" },
+  ),
   costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
     onDelete: "set null",
   }),
@@ -91,11 +95,6 @@ export const inventoryMovementsTable = pgTable("inventory_movements", {
   branchId: uuid("branch_id").references(() => branchesTable.id, {
     onDelete: "set null",
   }),
-  notes: text("notes"),
-  journalEntryId: uuid("journal_entry_id").references(
-    () => journalEntriesTable.id,
-    { onDelete: "set null" },
-  ),
   createdBy: uuid("created_by"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

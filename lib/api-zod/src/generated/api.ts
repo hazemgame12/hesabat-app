@@ -33,7 +33,8 @@ export const SignupBody = zod.object({
   "password": zod.string().min(signupBodyPasswordMin),
   "country": zod.enum(['EG', 'SA', 'AE', 'KW', 'QA', 'BH', 'OM']).optional(),
   "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'USD']).optional(),
-  "planId": zod.string().nullish()
+  "planId": zod.string().nullish(),
+  "phone": zod.string().nullish()
 })
 
 

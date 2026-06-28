@@ -10,6 +10,9 @@ import {
   useListEmployees,
   useListAccounts,
   useGetCurrentUser,
+  useListCostCenters,
+  useListProjects,
+  useListBranches,
   getListAdvancesQueryKey,
   getListCustodiesQueryKey,
   getListJournalEntriesQueryKey,
@@ -90,6 +93,9 @@ type CustodyForm = {
   receiptDate: string;
   description: string;
   status: "open" | "settled" | "closed";
+  costCenterId: string;
+  projectId: string;
+  branchId: string;
 };
 
 function emptyCustodyForm(): CustodyForm {
@@ -100,6 +106,9 @@ function emptyCustodyForm(): CustodyForm {
     receiptDate: today(),
     description: "",
     status: "open",
+    costCenterId: "",
+    projectId: "",
+    branchId: "",
   };
 }
 
@@ -121,6 +130,9 @@ export function Advances() {
   const custodies = paginatedCustodies?.data ?? [];
   const { data: employees = [] } = useListEmployees();
   const { data: accounts = [] } = useListAccounts();
+  const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const postableAccounts = useMemo(
     () => accounts.filter((a: Account) => !a.isGroup),
     [accounts],
@@ -302,6 +314,9 @@ export function Advances() {
       receiptDate: c.receiptDate,
       description: c.description ?? "",
       status: c.status,
+      costCenterId: (c as any).costCenterId ?? "",
+      projectId: (c as any).projectId ?? "",
+      branchId: (c as any).branchId ?? "",
     });
     setCusToEdit(c);
     setCusModalMode("edit");
@@ -323,6 +338,9 @@ export function Advances() {
       receiptDate: cusForm.receiptDate,
       description: cusForm.description.trim() || null,
       status: cusForm.status,
+      costCenterId: cusForm.costCenterId || null,
+      projectId: cusForm.projectId || null,
+      branchId: cusForm.branchId || null,
     };
     const onError = (err: any) =>
       toast({
@@ -1157,6 +1175,45 @@ export function Advances() {
                   <option value="closed">
                     {t("advances.custodyStatus.closed")}
                   </option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>{t("invoices.costCenter")}</label>
+                <select
+                  className={inputCls}
+                  value={cusForm.costCenterId}
+                  onChange={(e) => setCusForm((f) => ({ ...f, costCenterId: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {costCenters.map((c: any) => (
+                    <option key={c.id} value={c.id}>{displayName(c, lang)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>{t("dimensions.project")}</label>
+                <select
+                  className={inputCls}
+                  value={cusForm.projectId}
+                  onChange={(e) => setCusForm((f) => ({ ...f, projectId: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {projects.map((p: any) => (
+                    <option key={p.id} value={p.id}>{displayName(p, lang)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>{t("dimensions.branch")}</label>
+                <select
+                  className={inputCls}
+                  value={cusForm.branchId}
+                  onChange={(e) => setCusForm((f) => ({ ...f, branchId: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {branches.map((b: any) => (
+                    <option key={b.id} value={b.id}>{displayName(b, lang)}</option>
+                  ))}
                 </select>
               </div>
               <div className="flex flex-col gap-1.5 col-span-2">

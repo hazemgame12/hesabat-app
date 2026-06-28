@@ -49,7 +49,6 @@ export const fixedAssetsTable = pgTable("fixed_assets", {
   expenseAccountId: uuid("expense_account_id")
     .notNull()
     .references(() => accountsTable.id, { onDelete: "restrict" }),
-  // ✨ Accounting dimensions with explicit foreign keys
   costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
     onDelete: "set null",
   }),
@@ -89,16 +88,6 @@ export const assetDepreciationEntriesTable = pgTable(
       .references(() => fixedAssetsTable.id, { onDelete: "cascade" }),
     period: text("period").notNull(), // 'YYYY-MM'
     amount: numeric("amount", { precision: 18, scale: 2 }).notNull(),
-    // ✨ Accounting dimensions with explicit foreign keys
-    costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
-      onDelete: "set null",
-    }),
-    projectId: uuid("project_id").references(() => projectsTable.id, {
-      onDelete: "set null",
-    }),
-    branchId: uuid("branch_id").references(() => branchesTable.id, {
-      onDelete: "set null",
-    }),
     journalEntryId: uuid("journal_entry_id").references(
       () => journalEntriesTable.id,
       { onDelete: "set null" },

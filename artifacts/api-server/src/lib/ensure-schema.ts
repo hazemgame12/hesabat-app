@@ -145,6 +145,72 @@ export async function ensurePayrollSchema(): Promise<void> {
     },
   ];
 
+  // ── Accounting Dimensions Engine (branches, projects, cost_centers.code) ──
+  steps.push(
+    {
+      name: "branches table",
+      ddl: `
+        CREATE TABLE IF NOT EXISTS branches (
+          id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+          company_id  UUID        NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+          code        TEXT,
+          name_ar     TEXT        NOT NULL,
+          name_en     TEXT,
+          budget      NUMERIC(16,2),
+          is_active   BOOLEAN     NOT NULL DEFAULT TRUE,
+          created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`,
+    },
+    {
+      name: "branches code unique index",
+      ddl: `CREATE UNIQUE INDEX IF NOT EXISTS branches_company_id_code_idx ON branches (company_id, code) WHERE code IS NOT NULL`,
+    },
+    {
+      name: "projects table",
+      ddl: `
+        CREATE TABLE IF NOT EXISTS projects (
+          id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+          company_id  UUID        NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+          code        TEXT,
+          name_ar     TEXT        NOT NULL,
+          name_en     TEXT,
+          status      TEXT        NOT NULL DEFAULT 'active',
+          budget      NUMERIC(16,2),
+          is_active   BOOLEAN     NOT NULL DEFAULT TRUE,
+          created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`,
+    },
+    {
+      name: "projects code unique index",
+      ddl: `CREATE UNIQUE INDEX IF NOT EXISTS projects_company_id_code_idx ON projects (company_id, code) WHERE code IS NOT NULL`,
+    },
+    {
+      name: "cost_centers.code",
+      ddl: `ALTER TABLE cost_centers ADD COLUMN IF NOT EXISTS code TEXT`,
+    },
+    {
+      name: "cost_centers code unique index",
+      ddl: `CREATE UNIQUE INDEX IF NOT EXISTS cost_centers_company_id_code_idx ON cost_centers (company_id, code) WHERE code IS NOT NULL`,
+    },
+    { name: "journal_entry_lines.project_id",  ddl: `ALTER TABLE journal_entry_lines  ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
+    { name: "journal_entry_lines.branch_id",   ddl: `ALTER TABLE journal_entry_lines  ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
+    { name: "invoice_lines.project_id",        ddl: `ALTER TABLE invoice_lines         ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
+    { name: "invoice_lines.branch_id",         ddl: `ALTER TABLE invoice_lines         ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
+    { name: "bank_movements.project_id",       ddl: `ALTER TABLE bank_movements        ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
+    { name: "bank_movements.branch_id",        ddl: `ALTER TABLE bank_movements        ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
+    { name: "inventory_movements.cost_center_id", ddl: `ALTER TABLE inventory_movements ADD COLUMN IF NOT EXISTS cost_center_id UUID REFERENCES cost_centers(id) ON DELETE SET NULL` },
+    { name: "inventory_movements.project_id",  ddl: `ALTER TABLE inventory_movements   ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
+    { name: "inventory_movements.branch_id",   ddl: `ALTER TABLE inventory_movements   ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
+    { name: "fixed_assets.cost_center_id",     ddl: `ALTER TABLE fixed_assets          ADD COLUMN IF NOT EXISTS cost_center_id UUID REFERENCES cost_centers(id) ON DELETE SET NULL` },
+    { name: "fixed_assets.project_id",         ddl: `ALTER TABLE fixed_assets          ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
+    { name: "fixed_assets.branch_id",          ddl: `ALTER TABLE fixed_assets          ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
+    { name: "asset_depreciation_entries.cost_center_id", ddl: `ALTER TABLE asset_depreciation_entries ADD COLUMN IF NOT EXISTS cost_center_id UUID REFERENCES cost_centers(id) ON DELETE SET NULL` },
+    { name: "asset_depreciation_entries.project_id",     ddl: `ALTER TABLE asset_depreciation_entries ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
+    { name: "asset_depreciation_entries.branch_id",      ddl: `ALTER TABLE asset_depreciation_entries ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
+  );
+
   steps.push({
     name: "documents table",
     ddl: `

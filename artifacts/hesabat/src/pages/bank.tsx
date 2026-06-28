@@ -1056,7 +1056,7 @@ function MovementsTab({
   const [toLinkPayment, setToLinkPayment] = useState<BankMovement | null>(null);
   const [toDelete, setToDelete] = useState<BankMovement | null>(null);
   const [inlineClassify, setInlineClassify] = useState<
-    Record<string, { counterpartAccountId: string; costCenterId: string; description: string; exchangeRate: string }>
+    Record<string, { counterpartAccountId: string; costCenterId: string; projectId: string; branchId: string; description: string; exchangeRate: string }>
   >({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -1068,6 +1068,8 @@ function MovementsTab({
   const [docsMovementId, setDocsMovementId] = useState<string | null>(null);
 
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
 
   const movementGridColumns = useMemo<GridColumn<BankMovement>[]>(() => [
     { key: "date", header: t("bank.movementsTable.date"), type: "readonly" },
@@ -1093,6 +1095,8 @@ function MovementsTab({
     },
     { key: "counterpartAccountName", header: t("bank.movementsTable.counterpart"), type: "readonly" },
     { key: "costCenterName", header: t("bank.movementsTable.costCenter"), type: "readonly" },
+    { key: "projectName", header: t("dimensions.project"), type: "readonly" },
+    { key: "branchName", header: t("dimensions.branch"), type: "readonly" },
     { key: "description", header: t("bank.movementsTable.journalDescription"), type: "readonly" },
     {
       key: "status", header: t("bank.movementsTable.status"), type: "readonly", align: "center",
@@ -1432,6 +1436,12 @@ function MovementsTab({
                   <th className="text-start px-3 py-2.5 w-40">
                     {t("bank.movementsTable.costCenter")}
                   </th>
+                  <th className="text-start px-3 py-2.5 w-36">
+                    {t("dimensions.project")}
+                  </th>
+                  <th className="text-start px-3 py-2.5 w-36">
+                    {t("dimensions.branch")}
+                  </th>
                   <th className="text-start px-3 py-2.5 w-48">
                     {t("bank.movementsTable.journalDescription")}
                   </th>
@@ -1556,6 +1566,8 @@ function MovementsTab({
                                   [m.id]: {
                                     counterpartAccountId: e.target.value,
                                     costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                    projectId: prev[m.id]?.projectId ?? m.projectId ?? "",
+                                    branchId: prev[m.id]?.branchId ?? m.branchId ?? "",
                                     description: prev[m.id]?.description ?? m.description ?? "",
                                     exchangeRate: prev[m.id]?.exchangeRate ?? String(m.exchangeRate),
                                   },
@@ -1593,6 +1605,8 @@ function MovementsTab({
                                     counterpartAccountId:
                                       prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
                                     costCenterId: e.target.value,
+                                    projectId: prev[m.id]?.projectId ?? m.projectId ?? "",
+                                    branchId: prev[m.id]?.branchId ?? m.branchId ?? "",
                                     description: prev[m.id]?.description ?? m.description ?? "",
                                     exchangeRate: prev[m.id]?.exchangeRate ?? String(m.exchangeRate),
                                   },
@@ -1613,6 +1627,70 @@ function MovementsTab({
                           )}
                         </td>
 
+                        {/* Project */}
+                        <td className="px-3 py-2">
+                          {isPending ? (
+                            <select
+                              className="w-full text-xs px-2 py-1.5 rounded-md border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                              value={inline?.projectId ?? m.projectId ?? ""}
+                              onChange={(e) =>
+                                setInlineClassify((prev) => ({
+                                  ...prev,
+                                  [m.id]: {
+                                    counterpartAccountId: prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
+                                    costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                    projectId: e.target.value,
+                                    branchId: prev[m.id]?.branchId ?? m.branchId ?? "",
+                                    description: prev[m.id]?.description ?? m.description ?? "",
+                                    exchangeRate: prev[m.id]?.exchangeRate ?? String(m.exchangeRate),
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="">{t("dimensions.noProject")}</option>
+                              {projects.map((p) => (
+                                <option key={p.id} value={p.id}>{p.nameAr}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {m.projectName ?? "—"}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Branch */}
+                        <td className="px-3 py-2">
+                          {isPending ? (
+                            <select
+                              className="w-full text-xs px-2 py-1.5 rounded-md border border-border/70 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
+                              value={inline?.branchId ?? m.branchId ?? ""}
+                              onChange={(e) =>
+                                setInlineClassify((prev) => ({
+                                  ...prev,
+                                  [m.id]: {
+                                    counterpartAccountId: prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
+                                    costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                    projectId: prev[m.id]?.projectId ?? m.projectId ?? "",
+                                    branchId: e.target.value,
+                                    description: prev[m.id]?.description ?? m.description ?? "",
+                                    exchangeRate: prev[m.id]?.exchangeRate ?? String(m.exchangeRate),
+                                  },
+                                }))
+                              }
+                            >
+                              <option value="">{t("dimensions.noBranch")}</option>
+                              {branches.map((b) => (
+                                <option key={b.id} value={b.id}>{b.nameAr}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {m.branchName ?? "—"}
+                            </span>
+                          )}
+                        </td>
+
                         {/* Journal Description */}
                         <td className="px-3 py-2">
                           {isPending ? (
@@ -1629,6 +1707,8 @@ function MovementsTab({
                                       counterpartAccountId:
                                         prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
                                       costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                      projectId: prev[m.id]?.projectId ?? m.projectId ?? "",
+                                      branchId: prev[m.id]?.branchId ?? m.branchId ?? "",
                                       description: e.target.value,
                                       exchangeRate: prev[m.id]?.exchangeRate ?? String(m.exchangeRate),
                                     },
@@ -1658,6 +1738,8 @@ function MovementsTab({
                                           counterpartAccountId:
                                             prev[m.id]?.counterpartAccountId ?? m.counterpartAccountId ?? "",
                                           costCenterId: prev[m.id]?.costCenterId ?? m.costCenterId ?? "",
+                                          projectId: prev[m.id]?.projectId ?? m.projectId ?? "",
+                                          branchId: prev[m.id]?.branchId ?? m.branchId ?? "",
                                           description: prev[m.id]?.description ?? m.description ?? "",
                                           exchangeRate: e.target.value,
                                         },
@@ -1718,6 +1800,8 @@ function MovementsTab({
                                             data: {
                                               counterpartAccountId: cid,
                                               costCenterId: inline?.costCenterId || null,
+                                              projectId: inline?.projectId || null,
+                                              branchId: inline?.branchId || null,
                                               description: inline?.description?.trim() || null,
                                               exchangeRate: m.currency !== baseCurrency
                                                 ? (Number(inline?.exchangeRate ?? m.exchangeRate) || 1)
@@ -1993,6 +2077,13 @@ function MovementModal({
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [reference, setReference] = useState("");
+  const [costCenterId, setCostCenterId] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [branchId, setBranchId] = useState("");
+
+  const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
 
   const isTransfer = type === "transfer";
   const isIn = IN_TYPES.has(type);
@@ -2049,6 +2140,9 @@ function MovementModal({
           description: description.trim() || null,
           notes: notes.trim() || null,
           reference: reference.trim() || null,
+          costCenterId: costCenterId || null,
+          projectId: projectId || null,
+          branchId: branchId || null,
         },
       },
       {
@@ -2230,6 +2324,37 @@ function MovementModal({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
+          {!isTransfer && (
+            <div className="col-span-2 grid grid-cols-3 gap-3">
+              <div>
+                <label className={labelCls}>{t("bank.classify.costCenter")}</label>
+                <select className={inputCls} value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>
+                  <option value="">—</option>
+                  {costCenters.map((c: any) => (
+                    <option key={c.id} value={c.id}>{displayName(c, lang)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>{t("dimensions.project")}</label>
+                <select className={inputCls} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                  <option value="">—</option>
+                  {projects.map((p: any) => (
+                    <option key={p.id} value={p.id}>{displayName(p, lang)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>{t("dimensions.branch")}</label>
+                <select className={inputCls} value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+                  <option value="">—</option>
+                  {(branches as any[]).map((b: any) => (
+                    <option key={b.id} value={b.id}>{displayName(b, lang)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
           <div className="col-span-2">
             <label className={labelCls}>{t("bank.movement.notes")}</label>
             <textarea

@@ -3,6 +3,8 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 import path from "path";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -69,6 +71,42 @@ router.post(
       env: { ...process.env, FORCE_COLOR: "0" },
     });
     proc.unref();
+  },
+);
+
+// Admin schema-check endpoint — returns DB column info for dimension tables.
+// Protected by ADMIN_SECRET bearer token; no user session needed.
+router.get(
+  "/webhook/schema-check",
+  async (req, res) => {
+    const token = (req.headers["x-admin-secret"] ?? "") as string;
+    const secret = WEBHOOK_SECRET;
+    // timingSafeEqual throws if buffer lengths differ — check first
+    const authed =
+      secret.length > 0 &&
+      token.length === secret.length &&
+      timingSafeEqual(Buffer.from(token), Buffer.from(secret));
+    if (!authed) {
+      res.status(401).json({ error: "Unauthorized", tokenLen: token.length, secretLen: secret.length });
+      return;
+    }
+    try {
+      // Quick connectivity test
+      const ping = await db.execute(sql`SELECT current_database() AS db, now() AS ts`);
+      const pingRow = (ping.rows ?? ping)[0] as any;
+
+      // Dimension columns
+      const cols = await db.execute(sql`
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE table_name IN ('cost_centers','branches','projects')
+          AND column_name IN ('code','is_active','name_ar')
+        ORDER BY table_name, column_name
+      `);
+      res.json({ db: pingRow?.db, ts: pingRow?.ts, columns: cols.rows ?? cols });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
   },
 );
 
