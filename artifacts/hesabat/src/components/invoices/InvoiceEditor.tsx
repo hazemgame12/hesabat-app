@@ -10,6 +10,8 @@ import {
   useListInventoryItems,
   useListTaxes,
   useListCostCenters,
+  useListProjects,
+  useListBranches,
   useListCurrencies,
   useGetCompany,
   type Account,
@@ -40,6 +42,8 @@ type LineDraft = {
   taxId: string;
   whtTaxId: string;
   costCenterId: string;
+  projectId: string;
+  branchId: string;
   assetNameAr: string;
   assetUsefulLifeMonths: string;
   assetSalvageValue: string;
@@ -65,6 +69,8 @@ function emptyLine(): LineDraft {
     taxId: "",
     whtTaxId: "",
     costCenterId: "",
+    projectId: "",
+    branchId: "",
     assetNameAr: "",
     assetUsefulLifeMonths: "",
     assetSalvageValue: "",
@@ -113,6 +119,8 @@ export function InvoiceEditor({
   const { data: items = [] } = useListInventoryItems();
   const { data: taxes = [] } = useListTaxes();
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const { data: currencies = [] } = useListCurrencies();
 
   const currencyOptions = useMemo(() => {
@@ -158,6 +166,8 @@ export function InvoiceEditor({
   const [partyId, setPartyId] = useState("");
   const [relatedInvoiceId, setRelatedInvoiceId] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [branchId, setBranchId] = useState("");
   const [notes, setNotes] = useState("");
   const [currency, setCurrency] = useState(baseCurrency);
   const [exchangeRate, setExchangeRate] = useState("1");
@@ -224,6 +234,8 @@ export function InvoiceEditor({
       setPartyId(detail.partyId ?? "");
       setRelatedInvoiceId(detail.relatedInvoiceId ?? "");
       setCostCenterId(detail.costCenterId ?? "");
+      setProjectId(detail.projectId ?? "");
+      setBranchId(detail.branchId ?? "");
       setNotes(detail.notes ?? "");
       setCurrency(detail.currency ?? baseCurrency);
       setExchangeRate(
@@ -243,6 +255,8 @@ export function InvoiceEditor({
           taxId: l.taxId ?? "",
           whtTaxId: l.whtTaxId ?? "",
           costCenterId: l.costCenterId ?? "",
+          projectId: l.projectId ?? "",
+          branchId: l.branchId ?? "",
           assetNameAr: l.assetNameAr ?? "",
           assetUsefulLifeMonths:
             l.assetUsefulLifeMonths != null ? String(l.assetUsefulLifeMonths) : "",
@@ -418,6 +432,8 @@ export function InvoiceEditor({
       taxId: l.taxId || null,
       whtTaxId: l.whtTaxId || null,
       costCenterId: l.costCenterId || null,
+      projectId: l.projectId || null,
+      branchId: l.branchId || null,
       assetNameAr:
         l.lineType === "fixed_asset" ? l.assetNameAr.trim() || null : null,
       assetUsefulLifeMonths:
@@ -441,6 +457,8 @@ export function InvoiceEditor({
       customerId: isSalesSide ? partyId : null,
       supplierId: !isSalesSide ? partyId : null,
       costCenterId: costCenterId || null,
+      projectId: projectId || null,
+      branchId: branchId || null,
       currency: currency || baseCurrency,
       exchangeRate: currency === baseCurrency ? 1 : Number(exchangeRate) || 1,
       notes: notes.trim() || null,
@@ -618,6 +636,38 @@ export function InvoiceEditor({
                   {costCenters.map((c) => (
                     <option key={c.id} value={c.id}>
                       {displayName(c, lang)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>{t("dimensions.project")}</label>
+                <select
+                  className={inputCls}
+                  value={projectId}
+                  disabled={disabled}
+                  onChange={(e) => setProjectId(e.target.value)}
+                >
+                  <option value="">{t("invoices.none")}</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {displayName(p, lang)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>{t("dimensions.branch")}</label>
+                <select
+                  className={inputCls}
+                  value={branchId}
+                  disabled={disabled}
+                  onChange={(e) => setBranchId(e.target.value)}
+                >
+                  <option value="">{t("invoices.none")}</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {displayName(b, lang)}
                     </option>
                   ))}
                 </select>
@@ -905,6 +955,20 @@ export function InvoiceEditor({
                                 </select>
                               </div>
                             )}
+                            <div>
+                              <label className={labelCls}>{t("dimensions.project")}</label>
+                              <select className={inputCls} value={l.projectId} disabled={disabled} onChange={(e) => updateLine(idx, { projectId: e.target.value })}>
+                                <option value="">{t("invoices.none")}</option>
+                                {projects.map((p) => <option key={p.id} value={p.id}>{displayName(p, lang)}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelCls}>{t("dimensions.branch")}</label>
+                              <select className={inputCls} value={l.branchId} disabled={disabled} onChange={(e) => updateLine(idx, { branchId: e.target.value })}>
+                                <option value="">{t("invoices.none")}</option>
+                                {branches.map((b) => <option key={b.id} value={b.id}>{displayName(b, lang)}</option>)}
+                              </select>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -939,6 +1003,20 @@ export function InvoiceEditor({
                               <select className={inputCls} value={l.assetExpenseAccountId} disabled={disabled} onChange={(e) => updateLine(idx, { assetExpenseAccountId: e.target.value })}>
                                 <option value="">{t("invoices.selectAccount")}</option>
                                 {postableAccounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelCls}>{t("dimensions.project")}</label>
+                              <select className={inputCls} value={l.projectId} disabled={disabled} onChange={(e) => updateLine(idx, { projectId: e.target.value })}>
+                                <option value="">{t("invoices.none")}</option>
+                                {projects.map((p) => <option key={p.id} value={p.id}>{displayName(p, lang)}</option>)}
+                              </select>
+                            </div>
+                            <div>
+                              <label className={labelCls}>{t("dimensions.branch")}</label>
+                              <select className={inputCls} value={l.branchId} disabled={disabled} onChange={(e) => updateLine(idx, { branchId: e.target.value })}>
+                                <option value="">{t("invoices.none")}</option>
+                                {branches.map((b) => <option key={b.id} value={b.id}>{displayName(b, lang)}</option>)}
                               </select>
                             </div>
                           </div>

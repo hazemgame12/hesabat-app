@@ -16,6 +16,8 @@ import {
   useListAccounts,
   useListTaxes,
   useListCostCenters,
+  useListProjects,
+  useListBranches,
   useListCurrencies,
   useGetCurrentUser,
   useGetCompany,
@@ -87,6 +89,8 @@ type LineDraft = {
   credit: string;
   taxId: string;
   costCenterId: string;
+  projectId: string;
+  branchId: string;
 };
 
 function emptyLine(baseCurrency: string): LineDraft {
@@ -100,6 +104,8 @@ function emptyLine(baseCurrency: string): LineDraft {
     credit: "",
     taxId: "",
     costCenterId: "",
+    projectId: "",
+    branchId: "",
   };
 }
 
@@ -617,6 +623,8 @@ function JournalEditor({
   const { data: accounts = [] } = useListAccounts();
   const { data: taxes = [] } = useListTaxes();
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const { data: currencies = [] } = useListCurrencies();
   const currencyOptions = useMemo(() => {
     const opts: { code: string; rate: string }[] = [{ code: baseCurrency, rate: "1" }];
@@ -670,6 +678,8 @@ function JournalEditor({
           credit: l.credit ? String(l.credit) : "",
           taxId: l.taxId ?? "",
           costCenterId: l.costCenterId ?? "",
+          projectId: l.projectId ?? "",
+          branchId: l.branchId ?? "",
         })),
       );
       setHydrated(true);
@@ -780,6 +790,8 @@ function JournalEditor({
       credit: toNum(l.credit),
       taxId: l.taxId || null,
       costCenterId: l.costCenterId || null,
+      projectId: l.projectId || null,
+      branchId: l.branchId || null,
     })),
   });
 
@@ -1091,6 +1103,8 @@ function JournalEditor({
                   <th className="text-end font-bold px-3 py-2 w-[120px] bg-muted/60">{t("journal.colCreditBase")}</th>
                   <th className="text-start font-bold px-3 py-2 min-w-[130px]">{t("journal.colTax")}</th>
                   <th className="text-start font-bold px-3 py-2 min-w-[140px]">{t("journal.colCostCenter")}</th>
+                  <th className="text-start font-bold px-3 py-2 min-w-[140px]">{t("dimensions.project")}</th>
+                  <th className="text-start font-bold px-3 py-2 min-w-[140px]">{t("dimensions.branch")}</th>
                   <th className="px-2 py-2 w-[40px]"></th>
                 </tr>
               </thead>
@@ -1214,6 +1228,36 @@ function JournalEditor({
                           {costCenters.map((c) => (
                             <option key={c.id} value={c.id}>
                               {displayName(c, lang)}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <select
+                          value={l.projectId}
+                          disabled={readOnly}
+                          onChange={(e) => updateLine(l.key, { projectId: e.target.value })}
+                          className="w-full bg-background border rounded-lg h-9 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
+                        >
+                          <option value="">{t("invoices.none")}</option>
+                          {projects.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {displayName(p, lang)}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <select
+                          value={l.branchId}
+                          disabled={readOnly}
+                          onChange={(e) => updateLine(l.key, { branchId: e.target.value })}
+                          className="w-full bg-background border rounded-lg h-9 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
+                        >
+                          <option value="">{t("invoices.none")}</option>
+                          {branches.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {displayName(b, lang)}
                             </option>
                           ))}
                         </select>

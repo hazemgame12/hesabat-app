@@ -75,55 +75,55 @@ async function validateAccounts(
     if (!acc) return "أحد الحسابات المحددة غير موجود";
     if (acc.isGroup) return "لا يمكن الترحيل إلى حساب رئيسي";
   }
+  return null;
+}
 
-  async function validateDimensions(
-    ids: {
-      costCenterId?: string | null;
-      projectId?: string | null;
-      branchId?: string | null;
-    },
-    companyId: string,
-  ): Promise<string | null> {
-    if (ids.costCenterId) {
-      const [row] = await db
-        .select({ id: costCentersTable.id })
-        .from(costCentersTable)
-        .where(
-          and(
-            eq(costCentersTable.id, ids.costCenterId),
-            eq(costCentersTable.companyId, companyId),
-          ),
-        )
-        .limit(1);
-      if (!row) return "مركز التكلفة المحدد غير موجود";
-    }
-    if (ids.projectId) {
-      const [row] = await db
-        .select({ id: projectsTable.id })
-        .from(projectsTable)
-        .where(
-          and(
-            eq(projectsTable.id, ids.projectId),
-            eq(projectsTable.companyId, companyId),
-          ),
-        )
-        .limit(1);
-      if (!row) return "المشروع المحدد غير موجود";
-    }
-    if (ids.branchId) {
-      const [row] = await db
-        .select({ id: branchesTable.id })
-        .from(branchesTable)
-        .where(
-          and(
-            eq(branchesTable.id, ids.branchId),
-            eq(branchesTable.companyId, companyId),
-          ),
-        )
-        .limit(1);
-      if (!row) return "الفرع المحدد غير موجود";
-    }
-    return null;
+async function validateDimensions(
+  ids: {
+    costCenterId?: string | null;
+    projectId?: string | null;
+    branchId?: string | null;
+  },
+  companyId: string,
+): Promise<string | null> {
+  if (ids.costCenterId) {
+    const [row] = await db
+      .select({ id: costCentersTable.id })
+      .from(costCentersTable)
+      .where(
+        and(
+          eq(costCentersTable.id, ids.costCenterId),
+          eq(costCentersTable.companyId, companyId),
+        ),
+      )
+      .limit(1);
+    if (!row) return "مركز التكلفة المحدد غير موجود";
+  }
+  if (ids.projectId) {
+    const [row] = await db
+      .select({ id: projectsTable.id })
+      .from(projectsTable)
+      .where(
+        and(
+          eq(projectsTable.id, ids.projectId),
+          eq(projectsTable.companyId, companyId),
+        ),
+      )
+      .limit(1);
+    if (!row) return "المشروع المحدد غير موجود";
+  }
+  if (ids.branchId) {
+    const [row] = await db
+      .select({ id: branchesTable.id })
+      .from(branchesTable)
+      .where(
+        and(
+          eq(branchesTable.id, ids.branchId),
+          eq(branchesTable.companyId, companyId),
+        ),
+      )
+      .limit(1);
+    if (!row) return "الفرع المحدد غير موجود";
   }
   return null;
 }
