@@ -10,6 +10,7 @@ import {
   type Project,
 } from "@workspace/api-client-react";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { FolderKanban, Plus, X, Check, ChevronDown, Trash2, Edit2 } from "lucide-react";
@@ -208,6 +209,12 @@ export function Projects({ embedded = false }: { embedded?: boolean }) {
         </div>
         <div className="flex items-center gap-2">
           <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
+          <ExcelToolbar
+            exportPath="/api/projects/export"
+            importPath="/api/projects/import"
+            canImport={canCreate}
+            invalidateKeys={[getListProjectsQueryKey()]}
+          />
           {canCreate && (
             <button
               onClick={openCreateModal}
