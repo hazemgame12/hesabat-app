@@ -52,6 +52,7 @@ import {
   buildTransferLines,
   type BankMovementType,
 } from "../lib/bank-posting";
+import { resolvePostingDimensions } from "../lib/posting-dimensions";
 import { exportWorkbook, parseSheet } from "../lib/excel";
 import { z } from "zod/v4";
 import { safeAudit } from "../lib/audit";
@@ -1499,6 +1500,8 @@ router.post(
               amountBase: r.amount,
               description: r.description ?? null,
               costCenterId: r.costCenterId ?? null,
+              projectId: r.projectId ?? null,
+              branchId: r.branchId ?? null,
             }),
           });
           await tx.insert(bankMovementsTable).values({
@@ -1751,6 +1754,9 @@ router.post(
               gainAccountId,
               lossAccountId,
               description: d.description ?? null,
+              costCenterId: d.costCenterId ?? null,
+              projectId: d.projectId ?? null,
+              branchId: d.branchId ?? null,
             }),
           });
 
@@ -1773,6 +1779,7 @@ router.post(
                   ? String(realizedGainLoss) : null,
                 transferAccountId: dest.id,
                 transferGroupId,
+                costCenterId: d.costCenterId ?? null,
                 projectId: d.projectId ?? null,
                 branchId: d.branchId ?? null,
                 description: d.description ?? null,
@@ -1792,6 +1799,7 @@ router.post(
                 exchangeRate: String(destRate),
                 transferAccountId: bank.id,
                 transferGroupId,
+                costCenterId: d.costCenterId ?? null,
                 projectId: d.projectId ?? null,
                 branchId: d.branchId ?? null,
                 description: d.description ?? null,
@@ -1859,6 +1867,8 @@ router.post(
             amountBase,
             description: d.description ?? null,
             costCenterId,
+            projectId,
+            branchId,
           }),
         });
         const [row] = await tx
@@ -2078,6 +2088,8 @@ router.patch(
               amountBase,
               description: description ?? null,
               costCenterId,
+              projectId,
+              branchId,
             }),
           });
           if (movement.journalEntryId) {
@@ -3717,6 +3729,7 @@ router.post(
               : `دفعة إلى ${partyName}`,
           debit: kind === "collection" ? amountBase : 0,
           credit: kind === "collection" ? 0 : amountBase,
+          ...resolvePostingDimensions(movement),
         };
         const partyLine = {
           accountId: partyAccountId,
@@ -3726,6 +3739,7 @@ router.post(
               : `دفعة إلى ${partyName}`,
           debit: kind === "collection" ? 0 : partyBase,
           credit: kind === "collection" ? partyBase : 0,
+          ...resolvePostingDimensions(movement),
         };
         const lines = [cashLine, partyLine];
 
@@ -3740,6 +3754,7 @@ router.post(
               description: "أرباح فروق العملة",
               debit: 0,
               credit: fxGain,
+              ...resolvePostingDimensions(movement),
             });
           } else {
             lines.push({
@@ -3747,6 +3762,7 @@ router.post(
               description: "خسائر فروق العملة",
               debit: -fxGain,
               credit: 0,
+              ...resolvePostingDimensions(movement),
             });
           }
         }
@@ -4281,6 +4297,7 @@ router.post(
             gainAccountId,
             lossAccountId,
             description: outMov.description ?? inMov.description ?? null,
+            ...resolvePostingDimensions(outMov, inMov),
           }),
         });
 
@@ -4294,6 +4311,9 @@ router.post(
             counterpartAccountId: null,
             destinationAmount: outMov.currency !== inMov.currency ? String(Number(inMov.amount)) : null,
             realizedGainLoss: null,
+            costCenterId: outMov.costCenterId ?? inMov.costCenterId ?? null,
+            projectId: outMov.projectId ?? inMov.projectId ?? null,
+            branchId: outMov.branchId ?? inMov.branchId ?? null,
           })
           .where(eq(bankMovementsTable.id, outMovementId));
 
@@ -4305,6 +4325,9 @@ router.post(
             transferGroupId,
             journalEntryId: entry.id,
             counterpartAccountId: null,
+            costCenterId: outMov.costCenterId ?? inMov.costCenterId ?? null,
+            projectId: outMov.projectId ?? inMov.projectId ?? null,
+            branchId: outMov.branchId ?? inMov.branchId ?? null,
           })
           .where(eq(bankMovementsTable.id, inMovementId));
       });

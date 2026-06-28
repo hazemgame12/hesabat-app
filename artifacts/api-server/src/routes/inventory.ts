@@ -715,12 +715,18 @@ router.post(
             description: `${typeLabel} - ${itemLabel}`,
             debit: inventoryIsDebit ? postAmount : 0,
             credit: inventoryIsDebit ? 0 : postAmount,
+            costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
           };
           const counterLine = {
             accountId: d.counterpartAccountId,
             description: `${typeLabel} - ${itemLabel}`,
             debit: inventoryIsDebit ? 0 : postAmount,
             credit: inventoryIsDebit ? postAmount : 0,
+            costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
           };
           const entry = await createDraftJournalEntry(tx, {
             companyId,

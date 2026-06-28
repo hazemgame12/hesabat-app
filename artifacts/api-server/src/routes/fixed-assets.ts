@@ -511,6 +511,9 @@ router.post(
         description?: string | null;
         debit: number;
         credit: number;
+        costCenterId?: string | null;
+        projectId?: string | null;
+        branchId?: string | null;
       }[] = [];
       const depRecords: { assetId: string; amount: number }[] = [];
       let skipped = 0;
@@ -548,12 +551,18 @@ router.post(
           description: `إهلاك ${label} - ${period}`,
           debit: amount,
           credit: 0,
+          costCenterId: a.costCenterId,
+          projectId: a.projectId,
+          branchId: a.branchId,
         });
         lines.push({
           accountId: a.accumulatedAccountId,
           description: `مجمع إهلاك ${label} - ${period}`,
           debit: 0,
           credit: amount,
+          costCenterId: a.costCenterId,
+          projectId: a.projectId,
+          branchId: a.branchId,
         });
         depRecords.push({ assetId: a.id, amount });
         totalAmount = round2(totalAmount + amount);

@@ -1,4 +1,5 @@
 import type { DraftPostingLine } from "./journal-posting";
+import { resolvePostingDimensions, type PostingDimensions } from "./posting-dimensions";
 
 // All movement kinds tracked by the Banks & Cash module. A `transfer` is special:
 // it moves money between two of the company's own bank/cash accounts and is posted
@@ -41,24 +42,24 @@ export function buildMovementLines(opts: {
   counterpartAccountId: string;
   amountBase: number;
   description?: string | null;
-  // Optional cost-center tag, applied to the counterpart (P&L) line only.
-  costCenterId?: string | null;
-}): DraftPostingLine[] {
+} & PostingDimensions): DraftPostingLine[] {
   const { direction, bankChartAccountId, counterpartAccountId, amountBase } =
     opts;
   const desc = opts.description ?? null;
+  const dimensions = resolvePostingDimensions(opts);
   const bankLine: DraftPostingLine = {
     accountId: bankChartAccountId,
     description: desc,
     debit: direction === "in" ? amountBase : 0,
     credit: direction === "in" ? 0 : amountBase,
+    ...dimensions,
   };
   const counterLine: DraftPostingLine = {
     accountId: counterpartAccountId,
     description: desc,
     debit: direction === "in" ? 0 : amountBase,
     credit: direction === "in" ? amountBase : 0,
-    costCenterId: opts.costCenterId ?? null,
+    ...dimensions,
   };
   return [bankLine, counterLine];
 }
@@ -90,7 +91,7 @@ export function buildTransferLines(opts: {
   gainAccountId?: string | null;
   lossAccountId?: string | null;
   description?: string | null;
-}): DraftPostingLine[] {
+} & PostingDimensions): DraftPostingLine[] {
   const {
     srcBankChartAccountId,
     destBankChartAccountId,
@@ -102,6 +103,7 @@ export function buildTransferLines(opts: {
     lossAccountId,
   } = opts;
   const desc = opts.description ?? null;
+  const dimensions = resolvePostingDimensions(opts);
 
   const lines: DraftPostingLine[] = [
     // DR destination bank account
@@ -110,6 +112,7 @@ export function buildTransferLines(opts: {
       description: desc,
       debit: destAmountBase,
       credit: 0,
+      ...dimensions,
     },
     // CR source bank account (transfer amount + fees)
     {
@@ -117,6 +120,7 @@ export function buildTransferLines(opts: {
       description: desc,
       debit: 0,
       credit: srcAmountBase + feesBase,
+      ...dimensions,
     },
   ];
 
@@ -127,6 +131,7 @@ export function buildTransferLines(opts: {
       description: "رسوم تحويل",
       debit: feesBase,
       credit: 0,
+      ...dimensions,
     });
   }
 
@@ -140,6 +145,7 @@ export function buildTransferLines(opts: {
         description: "أرباح فروق العملة",
         debit: 0,
         credit: fxDiff,
+        ...dimensions,
       });
     } else if (fxDiff < 0 && lossAccountId) {
       // Destination received less than source sent (in base) → FX loss
@@ -148,6 +154,7 @@ export function buildTransferLines(opts: {
         description: "خسائر فروق العملة",
         debit: -fxDiff,
         credit: 0,
+        ...dimensions,
       });
     }
   }
