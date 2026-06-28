@@ -40,6 +40,7 @@ import {
   resolvePostingDimensions,
   type PostingDimensions,
 } from "../lib/posting-dimensions";
+import { pushPartyLines } from "../lib/invoice-posting";
 import { exportWorkbook } from "../lib/excel";
 import { handleXlsxUpload, parseSheet, cellStr, cellNum } from "../lib/excel";
 import ExcelJS from "exceljs";
@@ -386,48 +387,6 @@ function toDetail(
     notes: inv.notes,
     lines: lines.map(toLine),
   };
-}
-
-function pushPartyLines(
-  entryLines: {
-    accountId: string;
-    description: string | null;
-    debit: number;
-    credit: number;
-    taxId?: string | null;
-    costCenterId?: string | null;
-    projectId?: string | null;
-    branchId?: string | null;
-  }[],
-  opts: {
-    side: "sales" | "purchase";
-    accountId: string;
-    description: string;
-    amounts: Map<
-      string,
-      {
-        amount: number;
-        costCenterId: string | null;
-        projectId: string | null;
-        branchId: string | null;
-      }
-    >;
-  },
-) {
-  const partyLines = [...opts.amounts.values()].map((bucket) => ({
-    accountId: opts.accountId,
-    description: opts.description,
-    debit: opts.side === "sales" ? bucket.amount : 0,
-    credit: opts.side === "sales" ? 0 : bucket.amount,
-    costCenterId: bucket.costCenterId,
-    projectId: bucket.projectId,
-    branchId: bucket.branchId,
-  }));
-  if (opts.side === "sales") {
-    entryLines.unshift(...partyLines);
-    return;
-  }
-  entryLines.push(...partyLines);
 }
 
 // Resolves the party (customer or supplier) for an invoice kind and returns its

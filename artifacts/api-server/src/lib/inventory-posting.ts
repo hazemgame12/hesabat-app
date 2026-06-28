@@ -70,3 +70,67 @@ export function computeMovement(
     inventoryIsDebit: qty > 0,
   };
 }
+
+export type InventoryPostingLineOpts = {
+  inventoryAccountId: string;
+  counterpartAccountId: string;
+  typeLabel: string;
+  itemLabel: string;
+  postAmount: number;
+  inventoryIsDebit: boolean;
+  costCenterId?: string | null;
+  projectId?: string | null;
+  branchId?: string | null;
+};
+
+export type InventoryPostingPair = {
+  accountId: string;
+  description: string;
+  debit: number;
+  credit: number;
+  costCenterId: string | null;
+  projectId: string | null;
+  branchId: string | null;
+}[];
+
+/**
+ * Builds the two balanced posting lines for a single inventory movement (an
+ * inventory account line + its counterpart). Dimensions are stamped on both
+ * lines from the movement. Pure function — no DB access.
+ */
+export function buildInventoryPostingLines(
+  opts: InventoryPostingLineOpts,
+): InventoryPostingPair {
+  const {
+    inventoryAccountId,
+    counterpartAccountId,
+    typeLabel,
+    itemLabel,
+    postAmount,
+    inventoryIsDebit,
+    costCenterId = null,
+    projectId = null,
+    branchId = null,
+  } = opts;
+  const description = `${typeLabel} - ${itemLabel}`;
+  return [
+    {
+      accountId: inventoryAccountId,
+      description,
+      debit: inventoryIsDebit ? postAmount : 0,
+      credit: inventoryIsDebit ? 0 : postAmount,
+      costCenterId: costCenterId ?? null,
+      projectId: projectId ?? null,
+      branchId: branchId ?? null,
+    },
+    {
+      accountId: counterpartAccountId,
+      description,
+      debit: inventoryIsDebit ? 0 : postAmount,
+      credit: inventoryIsDebit ? postAmount : 0,
+      costCenterId: costCenterId ?? null,
+      projectId: projectId ?? null,
+      branchId: branchId ?? null,
+    },
+  ];
+}
