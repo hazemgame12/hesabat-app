@@ -196,6 +196,8 @@ export async function ensurePayrollSchema(): Promise<void> {
     },
     { name: "journal_entry_lines.project_id",  ddl: `ALTER TABLE journal_entry_lines  ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
     { name: "journal_entry_lines.branch_id",   ddl: `ALTER TABLE journal_entry_lines  ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
+    { name: "invoices.project_id",             ddl: `ALTER TABLE invoices               ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
+    { name: "invoices.branch_id",              ddl: `ALTER TABLE invoices               ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
     { name: "invoice_lines.project_id",        ddl: `ALTER TABLE invoice_lines         ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
     { name: "invoice_lines.branch_id",         ddl: `ALTER TABLE invoice_lines         ADD COLUMN IF NOT EXISTS branch_id   UUID REFERENCES branches(id)  ON DELETE SET NULL` },
     { name: "bank_movements.project_id",       ddl: `ALTER TABLE bank_movements        ADD COLUMN IF NOT EXISTS project_id  UUID REFERENCES projects(id)  ON DELETE SET NULL` },
