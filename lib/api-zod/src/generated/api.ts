@@ -735,9 +735,9 @@ export const GetJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
-  "projectId": zod.string().nullish(),
-  "branchId": zod.string().nullish()
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -813,9 +813,9 @@ export const UpdateJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
-  "projectId": zod.string().nullish(),
-  "branchId": zod.string().nullish()
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -874,9 +874,9 @@ export const PostJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
-  "projectId": zod.string().nullish(),
-  "branchId": zod.string().nullish()
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -923,9 +923,9 @@ export const SubmitJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
-  "projectId": zod.string().nullish(),
-  "branchId": zod.string().nullish()
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -972,9 +972,9 @@ export const ApproveJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
-  "projectId": zod.string().nullish(),
-  "branchId": zod.string().nullish()
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -1021,9 +1021,9 @@ export const RejectJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
-  "projectId": zod.string().nullish(),
-  "branchId": zod.string().nullish()
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),

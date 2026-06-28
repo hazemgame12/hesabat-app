@@ -6264,10 +6264,13 @@ components:
           type: ["string", "null"]
         costCenterId:
           type: ["string", "null"]
+          format: uuid
         projectId:
           type: ["string", "null"]
+          format: uuid
         branchId:
           type: ["string", "null"]
+          format: uuid
 
     JournalEntryAttachment:
       type: object

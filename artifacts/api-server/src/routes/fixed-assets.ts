@@ -755,6 +755,7 @@ router.post(
       };
 
       type Row = {
+        rowNo: number;
         nameAr: string;
         nameEn: string | null;
         category: string | null;
@@ -838,6 +839,7 @@ router.post(
         }
         try {
           parsed.push({
+            rowNo,
             nameAr,
             nameEn: sheet.str(row, "nameEn") || null,
             category: sheet.str(row, "category") || null,
@@ -888,7 +890,7 @@ router.post(
             companyId,
           );
           if (dimErr) {
-            throw new ImportRowError(dimErr);
+            throw new ImportRowError(`السطر ${r.rowNo}: ${dimErr}`);
           }
           await tx.insert(fixedAssetsTable).values({
             companyId,
