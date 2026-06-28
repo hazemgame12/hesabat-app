@@ -728,7 +728,7 @@ router.post(
             reference: `${typeLabel} ${item.code}`,
             notes: d.notes ?? null,
             createdBy: req.auth!.userId,
-            lines: [invLine!, counterLine!],
+            lines: [invLine, counterLine],
           });
           journalEntryId = entry.id;
         }

@@ -42,9 +42,9 @@ export function buildDepreciationLines(
     branchId = null,
   } = opts;
   const dims = {
-    costCenterId: costCenterId ?? null,
-    projectId: projectId ?? null,
-    branchId: branchId ?? null,
+    costCenterId,
+    projectId,
+    branchId,
   };
   const rounded = round2(amount);
   return [
