@@ -7,6 +7,9 @@ import {
   useListInventoryMovements,
   useCreateInventoryMovement,
   useListAccounts,
+  useListCostCenters,
+  useListProjects,
+  useListBranches,
   useGetCurrentUser,
   getListInventoryItemsQueryKey,
   getListInventoryMovementsQueryKey,
@@ -72,6 +75,9 @@ const movementSchema = z.object({
   inventoryAccountId: z.string().optional(),
   counterpartAccountId: z.string().min(1, "counterpartRequired"),
   notes: z.string().optional(),
+  costCenterId: z.string().optional(),
+  projectId: z.string().optional(),
+  branchId: z.string().optional(),
 });
 type MovementForm = z.input<typeof movementSchema>;
 
@@ -143,6 +149,9 @@ export function Inventory() {
   const { data: movements = [], isLoading: movementsLoading } = useListInventoryMovements();
   const { data: accounts = [] } = useListAccounts();
   const postableAccounts = useMemo(() => accounts.filter((a: Account) => !a.isGroup), [accounts]);
+  const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
 
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
@@ -377,6 +386,9 @@ export function Inventory() {
       quantity: qty, unitCost: form.type === "receipt" ? Number(form.unitCost) : null,
       inventoryAccountId: form.inventoryAccountId || null,
       counterpartAccountId: form.counterpartAccountId, notes: form.notes || null,
+      costCenterId: form.costCenterId || null,
+      projectId: form.projectId || null,
+      branchId: form.branchId || null,
     };
     createMovement.mutate({ data: payload }, {
       onSuccess: (mov) => {
@@ -950,6 +962,36 @@ export function Inventory() {
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <label className="text-sm font-bold text-foreground">{t("inventory.movement.notes")} <span className="text-xs font-medium text-muted-foreground ms-2">{t("inventory.optional")}</span></label>
                 <textarea rows={2} className="bg-background border rounded-xl px-4 py-3 text-sm text-start resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("notes")} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("inventory.movement.costCenter")} <span className="text-xs font-medium text-muted-foreground ms-2">{t("inventory.optional")}</span></label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("costCenterId")}>
+                  <option value="">{t("inventory.movement.noCenter")}</option>
+                  {costCenters.map((c) => (
+                    <option key={c.id} value={c.id}>{displayName(c, lang)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("inventory.movement.project")} <span className="text-xs font-medium text-muted-foreground ms-2">{t("inventory.optional")}</span></label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("projectId")}>
+                  <option value="">{t("inventory.movement.noProject")}</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{displayName(p, lang)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("inventory.movement.branch")} <span className="text-xs font-medium text-muted-foreground ms-2">{t("inventory.optional")}</span></label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("branchId")}>
+                  <option value="">{t("inventory.movement.noBranch")}</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{displayName(b, lang)}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

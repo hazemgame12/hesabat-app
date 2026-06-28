@@ -6,6 +6,9 @@ import {
   useDeleteAsset,
   useRunDepreciation,
   useListAccounts,
+  useListCostCenters,
+  useListProjects,
+  useListBranches,
   useGetCurrentUser,
   getListAssetsQueryKey,
   getListJournalEntriesQueryKey,
@@ -47,6 +50,9 @@ const assetSchema = z.object({
   accumulatedAccountId: z.string().min(1, "accountRequired"),
   expenseAccountId: z.string().min(1, "accountRequired"),
   status: z.enum(["active", "disposed"]).default("active"),
+  costCenterId: z.string().optional(),
+  projectId: z.string().optional(),
+  branchId: z.string().optional(),
 });
 
 type AssetForm = z.input<typeof assetSchema>;
@@ -77,6 +83,9 @@ export function FixedAssets() {
     () => accounts.filter((a: Account) => !a.isGroup),
     [accounts],
   );
+  const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const createAsset = useCreateAsset();
   const updateAsset = useUpdateAsset();
   const deleteAsset = useDeleteAsset();
@@ -123,6 +132,9 @@ export function FixedAssets() {
       accumulatedAccountId: "",
       expenseAccountId: "",
       status: "active",
+      costCenterId: "",
+      projectId: "",
+      branchId: "",
     });
     setModalMode("create");
   };
@@ -140,6 +152,9 @@ export function FixedAssets() {
       accumulatedAccountId: a.accumulatedAccountId,
       expenseAccountId: a.expenseAccountId,
       status: a.status,
+      costCenterId: a.costCenterId ?? "",
+      projectId: a.projectId ?? "",
+      branchId: a.branchId ?? "",
     });
     setAssetToEdit(a);
     setModalMode("edit");
@@ -266,6 +281,9 @@ export function FixedAssets() {
       assetAccountId: form.assetAccountId,
       accumulatedAccountId: form.accumulatedAccountId,
       expenseAccountId: form.expenseAccountId,
+      costCenterId: form.costCenterId || null,
+      projectId: form.projectId || null,
+      branchId: form.branchId || null,
     };
     if (modalMode === "create") {
       createAsset.mutate(
@@ -643,6 +661,36 @@ export function FixedAssets() {
                   ))}
                 </select>
                 {errors.expenseAccountId && <span className="text-xs text-destructive">{t(`assets.validation.${errors.expenseAccountId.message}`)}</span>}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("assets.costCenter")} <span className="text-xs font-medium text-muted-foreground ms-2">{t("assets.optional")}</span></label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("costCenterId")}>
+                  <option value="">{t("assets.noCenter")}</option>
+                  {costCenters.map((c) => (
+                    <option key={c.id} value={c.id}>{displayName(c, lang)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("assets.project")} <span className="text-xs font-medium text-muted-foreground ms-2">{t("assets.optional")}</span></label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("projectId")}>
+                  <option value="">{t("assets.noProject")}</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>{displayName(p, lang)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("assets.branch")} <span className="text-xs font-medium text-muted-foreground ms-2">{t("assets.optional")}</span></label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("branchId")}>
+                  <option value="">{t("assets.noBranch")}</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{displayName(b, lang)}</option>
+                  ))}
+                </select>
               </div>
 
               {modalMode === "edit" && (

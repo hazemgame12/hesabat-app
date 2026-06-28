@@ -14,6 +14,8 @@ import {
   accountsTable,
   taxesTable,
   costCentersTable,
+  projectsTable,
+  branchesTable,
   companiesTable,
   type JournalEntry,
   type JournalEntryLine,
@@ -136,6 +138,8 @@ type LineInput = {
   credit: number;
   taxId?: string | null;
   costCenterId?: string | null;
+  projectId?: string | null;
+  branchId?: string | null;
 };
 
 function toLine(row: JournalEntryLine) {
@@ -152,6 +156,8 @@ function toLine(row: JournalEntryLine) {
     creditBase: Number(row.creditBase),
     taxId: row.taxId,
     costCenterId: row.costCenterId,
+    projectId: row.projectId,
+    branchId: row.branchId,
   };
 }
 
@@ -224,6 +230,12 @@ async function validateLineRefs(
       lines.map((l) => l.costCenterId).filter((x): x is string => !!x),
     ),
   ];
+  const projectIds = [
+    ...new Set(lines.map((l) => l.projectId).filter((x): x is string => !!x)),
+  ];
+  const branchIds = [
+    ...new Set(lines.map((l) => l.branchId).filter((x): x is string => !!x)),
+  ];
 
   const accounts = await db
     .select({
@@ -281,6 +293,32 @@ async function validateLineRefs(
       );
     if (centers.length !== centerIds.length)
       return "أحد مراكز التكلفة المحددة غير موجود";
+  }
+  if (projectIds.length > 0) {
+    const rows = await db
+      .select({ id: projectsTable.id })
+      .from(projectsTable)
+      .where(
+        and(
+          eq(projectsTable.companyId, companyId),
+          inArray(projectsTable.id, projectIds),
+        ),
+      );
+    if (rows.length !== projectIds.length)
+      return "أحد المشاريع المحددة غير موجود";
+  }
+  if (branchIds.length > 0) {
+    const rows = await db
+      .select({ id: branchesTable.id })
+      .from(branchesTable)
+      .where(
+        and(
+          eq(branchesTable.companyId, companyId),
+          inArray(branchesTable.id, branchIds),
+        ),
+      );
+    if (rows.length !== branchIds.length)
+      return "أحد الفروع المحددة غير موجود";
   }
 
   return null;
@@ -582,6 +620,8 @@ router.post(
               creditBase: String(result.computed[i]!.creditBase),
               taxId: l.taxId ?? null,
               costCenterId: l.costCenterId ?? null,
+              projectId: l.projectId ?? null,
+              branchId: l.branchId ?? null,
             })),
           )
           .returning();
@@ -701,6 +741,8 @@ router.patch(
               creditBase: String(result.computed[i]!.creditBase),
               taxId: l.taxId ?? null,
               costCenterId: l.costCenterId ?? null,
+              projectId: l.projectId ?? null,
+              branchId: l.branchId ?? null,
             })),
           )
           .returning();
@@ -1274,6 +1316,8 @@ router.post(
               creditBase: l.debitBase,
               taxId: l.taxId,
               costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
             })),
           )
           .returning();
