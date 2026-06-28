@@ -7,6 +7,9 @@ import {
   inventoryMovementsTable,
   journalEntriesTable,
   accountsTable,
+  costCentersTable,
+  projectsTable,
+  branchesTable,
   companiesTable,
   type InventoryItem,
 } from "@workspace/db";
@@ -72,6 +75,57 @@ async function validateAccounts(
     if (!acc) return "أحد الحسابات المحددة غير موجود";
     if (acc.isGroup) return "لا يمكن الترحيل إلى حساب رئيسي";
   }
+  return null;
+}
+
+async function validateCostCenters(
+  ids: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const filtered = [...new Set(ids.filter((x): x is string => !!x))];
+  if (filtered.length === 0) return null;
+  const rows = await db
+    .select({ id: costCentersTable.id })
+    .from(costCentersTable)
+    .where(
+      and(
+        eq(costCentersTable.companyId, companyId),
+        inArray(costCentersTable.id, filtered),
+      ),
+    );
+  if (rows.length !== filtered.length) return "مركز التكلفة المحدد غير موجود";
+  return null;
+}
+
+async function validateProjects(
+  ids: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const filtered = [...new Set(ids.filter((x): x is string => !!x))];
+  if (filtered.length === 0) return null;
+  const rows = await db
+    .select({ id: projectsTable.id })
+    .from(projectsTable)
+    .where(
+      and(eq(projectsTable.companyId, companyId), inArray(projectsTable.id, filtered)),
+    );
+  if (rows.length !== filtered.length) return "المشروع المحدد غير موجود";
+  return null;
+}
+
+async function validateBranches(
+  ids: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const filtered = [...new Set(ids.filter((x): x is string => !!x))];
+  if (filtered.length === 0) return null;
+  const rows = await db
+    .select({ id: branchesTable.id })
+    .from(branchesTable)
+    .where(
+      and(eq(branchesTable.companyId, companyId), inArray(branchesTable.id, filtered)),
+    );
+  if (rows.length !== filtered.length) return "الفرع المحدد غير موجود";
   return null;
 }
 
@@ -544,6 +598,9 @@ router.get(
           totalValue: Number(r.m.totalValue),
           inventoryAccountId: r.m.inventoryAccountId,
           counterpartAccountId: r.m.counterpartAccountId,
+          costCenterId: r.m.costCenterId,
+          projectId: r.m.projectId,
+          branchId: r.m.branchId,
           notes: r.m.notes,
           journalEntryId: r.m.journalEntryId,
           journalEntryNo: r.entryNo ?? null,
@@ -617,6 +674,12 @@ router.post(
           companyId,
         );
         if (refErr) return { error: "account" as const, message: refErr };
+        const ccErr = await validateCostCenters([d.costCenterId], companyId);
+        if (ccErr) return { error: "account" as const, message: ccErr };
+        const projectErr = await validateProjects([d.projectId], companyId);
+        if (projectErr) return { error: "account" as const, message: projectErr };
+        const branchErr = await validateBranches([d.branchId], companyId);
+        if (branchErr) return { error: "account" as const, message: branchErr };
 
         const curQty = round4(Number(item.quantityOnHand));
         const curAvg = round4(Number(item.averageCost));
@@ -689,6 +752,9 @@ router.post(
             totalValue: String(totalValue),
             inventoryAccountId,
             counterpartAccountId: d.counterpartAccountId,
+            costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
             notes: d.notes ?? null,
             journalEntryId,
             createdBy: req.auth!.userId,
@@ -740,6 +806,9 @@ router.post(
         totalValue: Number(m.totalValue),
         inventoryAccountId: m.inventoryAccountId,
         counterpartAccountId: m.counterpartAccountId,
+        costCenterId: m.costCenterId,
+        projectId: m.projectId,
+        branchId: m.branchId,
         notes: m.notes,
         journalEntryId: m.journalEntryId,
         journalEntryNo: entryNo,

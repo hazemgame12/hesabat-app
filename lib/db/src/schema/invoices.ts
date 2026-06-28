@@ -68,6 +68,12 @@ export const invoicesTable = pgTable(
     costCenterId: uuid("cost_center_id").references(() => costCentersTable.id, {
       onDelete: "set null",
     }),
+    projectId: uuid("project_id").references(() => projectsTable.id, {
+      onDelete: "set null",
+    }),
+    branchId: uuid("branch_id").references(() => branchesTable.id, {
+      onDelete: "set null",
+    }),
     // Transaction currency (code). Null → company base currency.
     currency: text("currency"),
     exchangeRate: numeric("exchange_rate", { precision: 18, scale: 6 })

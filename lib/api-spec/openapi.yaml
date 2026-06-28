@@ -5118,6 +5118,12 @@ components:
           type: string
         expenseAccountId:
           type: string
+        costCenterId:
+          type: ["string", "null"]
+        projectId:
+          type: ["string", "null"]
+        branchId:
+          type: ["string", "null"]
         accumulatedDepreciation:
           type: number
         netBookValue:
@@ -5169,6 +5175,15 @@ components:
         expenseAccountId:
           type: string
           format: uuid
+        costCenterId:
+          type: ["string", "null"]
+          format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
+          type: ["string", "null"]
+          format: uuid
 
     FixedAssetUpdate:
       type: object
@@ -5206,6 +5221,15 @@ components:
           format: uuid
         expenseAccountId:
           type: string
+          format: uuid
+        costCenterId:
+          type: ["string", "null"]
+          format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
+          type: ["string", "null"]
           format: uuid
 
     RunDepreciationInput:
@@ -5378,6 +5402,12 @@ components:
           type: string
         counterpartAccountId:
           type: string
+        costCenterId:
+          type: ["string", "null"]
+        projectId:
+          type: ["string", "null"]
+        branchId:
+          type: ["string", "null"]
         notes:
           type: ["string", "null"]
         journalEntryId:
@@ -5410,6 +5440,15 @@ components:
           format: uuid
         counterpartAccountId:
           type: string
+          format: uuid
+        costCenterId:
+          type: ["string", "null"]
+          format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
+          type: ["string", "null"]
           format: uuid
         notes:
           type: ["string", "null"]
@@ -5488,6 +5527,10 @@ components:
           type: ["string", "null"]
         costCenterId:
           type: ["string", "null"]
+        projectId:
+          type: ["string", "null"]
+        branchId:
+          type: ["string", "null"]
         insuranceSalary:
           type: ["number", "null"]
         includeInsurance:
@@ -5526,6 +5569,12 @@ components:
         nationalId:
           type: ["string", "null"]
         costCenterId:
+          type: ["string", "null"]
+          format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
           type: ["string", "null"]
           format: uuid
         insuranceSalary:
@@ -6176,6 +6225,12 @@ components:
         costCenterId:
           type: ["string", "null"]
           format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
+          type: ["string", "null"]
+          format: uuid
 
     JournalEntryLine:
       type: object
@@ -6215,6 +6270,10 @@ components:
         taxId:
           type: ["string", "null"]
         costCenterId:
+          type: ["string", "null"]
+        projectId:
+          type: ["string", "null"]
+        branchId:
           type: ["string", "null"]
 
     JournalEntryAttachment:
@@ -6819,6 +6878,13 @@ components:
           type: ["string", "null"]
         costCenterId:
           type: ["string", "null"]
+          format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
+          type: ["string", "null"]
+          format: uuid
         assetNameAr:
           type: ["string", "null"]
         assetNameEn:
@@ -6874,6 +6940,10 @@ components:
           type: number
         costCenterId:
           type: ["string", "null"]
+        projectId:
+          type: ["string", "null"]
+        branchId:
+          type: ["string", "null"]
         assetNameAr:
           type: ["string", "null"]
         assetNameEn:
@@ -6908,6 +6978,13 @@ components:
           type: ["string", "null"]
         costCenterId:
           type: ["string", "null"]
+          format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
+          type: ["string", "null"]
+          format: uuid
         currency:
           type: ["string", "null"]
         exchangeRate:
@@ -6997,6 +7074,10 @@ components:
             notes:
               type: ["string", "null"]
             costCenterId:
+              type: ["string", "null"]
+            projectId:
+              type: ["string", "null"]
+            branchId:
               type: ["string", "null"]
             lines:
               type: array
@@ -7970,6 +8051,10 @@ components:
           type: ["string", "null"]
         costCenterId:
           type: ["string", "null"]
+        projectId:
+          type: ["string", "null"]
+        branchId:
+          type: ["string", "null"]
         costCenterName:
           type: ["string", "null"]
         transferAccountId:
@@ -8023,6 +8108,13 @@ components:
           type: ["string", "null"]
         costCenterId:
           type: ["string", "null"]
+          format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
+          type: ["string", "null"]
+          format: uuid
         description:
           type: ["string", "null"]
         notes:
@@ -8052,6 +8144,13 @@ components:
           type: ["string", "null"]
         costCenterId:
           type: ["string", "null"]
+          format: uuid
+        projectId:
+          type: ["string", "null"]
+          format: uuid
+        branchId:
+          type: ["string", "null"]
+          format: uuid
         transferAccountId:
           type: ["string", "null"]
         destinationAmount:

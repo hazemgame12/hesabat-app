@@ -661,6 +661,12 @@ export interface FixedAsset {
   assetAccountId: string;
   accumulatedAccountId: string;
   expenseAccountId: string;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   accumulatedDepreciation: number;
   netBookValue: number;
   createdAt: string;
@@ -692,6 +698,12 @@ export interface FixedAssetInput {
   assetAccountId: string;
   accumulatedAccountId: string;
   expenseAccountId: string;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
 }
 
 export type FixedAssetUpdateMethod = typeof FixedAssetUpdateMethod[keyof typeof FixedAssetUpdateMethod];
@@ -729,6 +741,12 @@ export interface FixedAssetUpdate {
   assetAccountId?: string;
   accumulatedAccountId?: string;
   expenseAccountId?: string;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
 }
 
 export interface RunDepreciationInput {
@@ -858,6 +876,12 @@ export interface InventoryMovement {
   inventoryAccountId: string;
   counterpartAccountId: string;
   /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   notes?: string | null;
   /** @nullable */
   journalEntryId?: string | null;
@@ -889,6 +913,12 @@ export interface InventoryMovementInput {
   /** @nullable */
   inventoryAccountId?: string | null;
   counterpartAccountId: string;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   /** @nullable */
   notes?: string | null;
 }
@@ -962,6 +992,10 @@ export interface Employee {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   insuranceSalary?: number | null;
   includeInsurance: boolean;
   baseSalary: number;
@@ -1002,6 +1036,10 @@ export interface EmployeeInput {
   nationalId?: string | null;
   /** @nullable */
   costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   /**
      * @minimum 0
      * @nullable
@@ -1514,6 +1552,10 @@ export interface JournalEntryLineInput {
   taxId?: string | null;
   /** @nullable */
   costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
 }
 
 export interface JournalEntryLine {
@@ -1532,6 +1574,10 @@ export interface JournalEntryLine {
   taxId?: string | null;
   /** @nullable */
   costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
 }
 
 export interface JournalEntryAttachment {
@@ -2069,6 +2115,10 @@ export interface InvoiceLineInput {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   assetNameAr?: string | null;
   /** @nullable */
   assetNameEn?: string | null;
@@ -2123,6 +2173,10 @@ export interface InvoiceLine {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   assetNameAr?: string | null;
   /** @nullable */
   assetNameEn?: string | null;
@@ -2163,6 +2217,10 @@ export interface InvoiceInput {
   supplierId?: string | null;
   /** @nullable */
   costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   /** @nullable */
   currency?: string | null;
   /** @minimum 0 */
@@ -2260,6 +2318,10 @@ export type InvoiceDetail = InvoiceSummary & ({
   notes?: string | null;
   /** @nullable */
   costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   lines: InvoiceLine[];
 });
 
@@ -2883,6 +2945,10 @@ export interface BankMovement {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   costCenterName?: string | null;
   /** @nullable */
   transferAccountId?: string | null;
@@ -2939,6 +3005,10 @@ export interface BankMovementUpdateInput {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   description?: string | null;
   /** @nullable */
   notes?: string | null;
@@ -2974,6 +3044,10 @@ export interface BankMovementInput {
   counterpartAccountId?: string | null;
   /** @nullable */
   costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   /** @nullable */
   transferAccountId?: string | null;
   /** @nullable */

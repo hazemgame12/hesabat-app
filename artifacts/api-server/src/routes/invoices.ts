@@ -14,6 +14,8 @@ import {
   fixedAssetsTable,
   companiesTable,
   costCentersTable,
+  projectsTable,
+  branchesTable,
   journalEntriesTable,
   paymentAllocationsTable,
   paymentsTable,
@@ -248,6 +250,53 @@ async function validateCostCenters(
   return null;
 }
 
+async function validateProjects(
+  projectIds: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const ids = [...new Set(projectIds.filter((x): x is string => !!x))];
+  if (ids.length === 0) return null;
+  const rows = await db
+    .select({ id: projectsTable.id })
+    .from(projectsTable)
+    .where(
+      and(eq(projectsTable.companyId, companyId), inArray(projectsTable.id, ids)),
+    );
+  if (rows.length !== ids.length) return "المشروع المحدد غير موجود";
+  return null;
+}
+
+async function validateBranches(
+  branchIds: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const ids = [...new Set(branchIds.filter((x): x is string => !!x))];
+  if (ids.length === 0) return null;
+  const rows = await db
+    .select({ id: branchesTable.id })
+    .from(branchesTable)
+    .where(
+      and(eq(branchesTable.companyId, companyId), inArray(branchesTable.id, ids)),
+    );
+  if (rows.length !== ids.length) return "الفرع المحدد غير موجود";
+  return null;
+}
+
+async function validateDimensions(
+  dimensions: {
+    costCenterIds?: (string | null | undefined)[];
+    projectIds?: (string | null | undefined)[];
+    branchIds?: (string | null | undefined)[];
+  },
+  companyId: string,
+): Promise<string | null> {
+  const ccErr = await validateCostCenters(dimensions.costCenterIds ?? [], companyId);
+  if (ccErr) return ccErr;
+  const projectErr = await validateProjects(dimensions.projectIds ?? [], companyId);
+  if (projectErr) return projectErr;
+  return validateBranches(dimensions.branchIds ?? [], companyId);
+}
+
 function isOverdue(inv: Invoice): boolean {
   if (inv.status !== "approved" && inv.status !== "partially_paid") return false;
   if (!inv.dueDate) return false;
@@ -320,6 +369,8 @@ function toLine(l: InvoiceLine) {
     whtAmount: Number(l.whtAmount),
     lineTotal: Number(l.lineTotal),
     costCenterId: l.costCenterId,
+    projectId: l.projectId,
+    branchId: l.branchId,
     assetNameAr: l.assetNameAr,
     assetNameEn: l.assetNameEn,
     assetUsefulLifeMonths: l.assetUsefulLifeMonths,
@@ -341,6 +392,8 @@ function toDetail(
     ...toListItem(inv, partyName, relatedCode),
     notes: inv.notes,
     costCenterId: inv.costCenterId,
+    projectId: inv.projectId,
+    branchId: inv.branchId,
     lines: lines.map(toLine),
   };
 }
@@ -1353,6 +1406,8 @@ type PreparedLine = {
   whtAmount: number;
   lineTotal: number;
   costCenterId: string | null;
+  projectId: string | null;
+  branchId: string | null;
   assetNameAr: string | null;
   assetNameEn: string | null;
   assetUsefulLifeMonths: number | null;
@@ -1374,6 +1429,8 @@ type IncomingLine = {
   taxId?: string | null;
   whtTaxId?: string | null;
   costCenterId?: string | null;
+  projectId?: string | null;
+  branchId?: string | null;
   assetNameAr?: string | null;
   assetNameEn?: string | null;
   assetUsefulLifeMonths?: number | null;
@@ -1440,6 +1497,8 @@ function prepareLines(
       whtAmount,
       lineTotal,
       costCenterId: l.costCenterId ?? null,
+      projectId: l.projectId ?? null,
+      branchId: l.branchId ?? null,
       assetNameAr: l.assetNameAr ?? null,
       assetNameEn: l.assetNameEn ?? null,
       assetUsefulLifeMonths: l.assetUsefulLifeMonths ?? null,
@@ -1540,12 +1599,16 @@ router.post(
         }
         relatedInvoiceId = rel.relatedInvoiceId;
       }
-      const ccErr = await validateCostCenters(
-        [d.costCenterId, ...prep.lines.map((l) => l.costCenterId)],
+      const dimensionErr = await validateDimensions(
+        {
+          costCenterIds: [d.costCenterId, ...prep.lines.map((l) => l.costCenterId)],
+          projectIds: [d.projectId, ...prep.lines.map((l) => l.projectId)],
+          branchIds: [d.branchId, ...prep.lines.map((l) => l.branchId)],
+        },
         companyId,
       );
-      if (ccErr) {
-        res.status(400).json({ error: ccErr });
+      if (dimensionErr) {
+        res.status(400).json({ error: dimensionErr });
         return;
       }
       const created = await db.transaction(async (tx) => {
@@ -1569,6 +1632,8 @@ router.post(
             customerId: side === "sales" ? party.id : null,
             supplierId: side === "purchase" ? party.id : null,
             costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
             currency: d.currency ?? null,
             exchangeRate: String(d.exchangeRate ?? 1),
             status: "draft",
@@ -1602,6 +1667,8 @@ router.post(
             whtAmount: String(l.whtAmount),
             lineTotal: String(l.lineTotal),
             costCenterId: l.costCenterId,
+            projectId: l.projectId,
+            branchId: l.branchId,
             assetNameAr: l.assetNameAr,
             assetNameEn: l.assetNameEn,
             assetUsefulLifeMonths: l.assetUsefulLifeMonths,
@@ -1729,12 +1796,16 @@ router.patch(
         }
         relatedInvoiceId = rel.relatedInvoiceId;
       }
-      const ccErr = await validateCostCenters(
-        [d.costCenterId, ...prep.lines.map((l) => l.costCenterId)],
+      const dimensionErr = await validateDimensions(
+        {
+          costCenterIds: [d.costCenterId, ...prep.lines.map((l) => l.costCenterId)],
+          projectIds: [d.projectId, ...prep.lines.map((l) => l.projectId)],
+          branchIds: [d.branchId, ...prep.lines.map((l) => l.branchId)],
+        },
         companyId,
       );
-      if (ccErr) {
-        res.status(400).json({ error: ccErr });
+      if (dimensionErr) {
+        res.status(400).json({ error: dimensionErr });
         return;
       }
       const updated = await db.transaction(async (tx) => {
@@ -1764,6 +1835,8 @@ router.patch(
             customerId: side === "sales" ? party.id : null,
             supplierId: side === "purchase" ? party.id : null,
             costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
             currency: d.currency ?? null,
             exchangeRate: String(d.exchangeRate ?? 1),
             notes: d.notes ?? null,
@@ -1803,6 +1876,8 @@ router.patch(
             whtAmount: String(l.whtAmount),
             lineTotal: String(l.lineTotal),
             costCenterId: l.costCenterId,
+            projectId: l.projectId,
+            branchId: l.branchId,
             assetNameAr: l.assetNameAr,
             assetNameEn: l.assetNameEn,
             assetUsefulLifeMonths: l.assetUsefulLifeMonths,
@@ -2064,6 +2139,8 @@ router.post(
             credit: number;
             taxId?: string | null;
             costCenterId?: string | null;
+            projectId?: string | null;
+            branchId?: string | null;
           }[] = [];
           let rPartyBase = 0;
           for (const l of rLines) {
@@ -2081,6 +2158,8 @@ router.post(
               credit: isSalesReturn ? 0 : lineTotalBase,
               taxId: l.taxId,
               costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
             });
             if (taxBase > 0) {
               rEntryLines.push({
@@ -2293,6 +2372,8 @@ router.post(
           credit: number;
           taxId?: string | null;
           costCenterId?: string | null;
+          projectId?: string | null;
+          branchId?: string | null;
         }[] = [];
         // Deferred stock writes (need the entry id first).
         const stockOps: {
@@ -2326,6 +2407,8 @@ router.post(
               credit: lineTotalBase,
               taxId: l.taxId,
               costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
             });
             if (taxBase > 0) {
               entryLines.push({
@@ -2366,6 +2449,8 @@ router.post(
                   debit: cogs,
                   credit: 0,
                   costCenterId: l.costCenterId,
+                  projectId: l.projectId,
+                  branchId: l.branchId,
                 });
                 entryLines.push({
                   accountId: item.inventoryAccountId!,
@@ -2394,6 +2479,8 @@ router.post(
               credit: 0,
               taxId: l.taxId,
               costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
             });
             if (taxBase > 0) {
               entryLines.push({
@@ -2496,6 +2583,9 @@ router.post(
             inventoryAccountId: op.inventoryAccountId,
             counterpartAccountId: op.counterpartAccountId,
             notes: `فاتورة #${inv.invoiceNo}`,
+            costCenterId: op.line.costCenterId ?? null,
+            projectId: op.line.projectId ?? null,
+            branchId: op.line.branchId ?? null,
             journalEntryId: entry.id,
             createdBy: req.auth!.userId,
           });
@@ -2527,6 +2617,9 @@ router.post(
               assetAccountId: op.line.accountId,
               accumulatedAccountId: op.line.assetAccumulatedAccountId!,
               expenseAccountId: op.line.assetExpenseAccountId!,
+              costCenterId: op.line.costCenterId ?? null,
+              projectId: op.line.projectId ?? null,
+              branchId: op.line.branchId ?? null,
             })
             .returning();
           await tx
@@ -2819,6 +2912,8 @@ router.post(
             customerId: targetKind === "sales" ? source.customerId : null,
             supplierId: targetKind === "purchase" ? source.supplierId : null,
             costCenterId: source.costCenterId ?? null,
+            projectId: source.projectId ?? null,
+            branchId: source.branchId ?? null,
             currency: source.currency ?? null,
             exchangeRate: source.exchangeRate,
             status: "draft",
@@ -2851,6 +2946,8 @@ router.post(
               taxAmount: l.taxAmount,
               lineTotal: l.lineTotal,
               costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
               assetNameAr: l.assetNameAr,
               assetNameEn: l.assetNameEn,
               assetUsefulLifeMonths: l.assetUsefulLifeMonths,

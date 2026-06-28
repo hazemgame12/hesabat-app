@@ -31,6 +31,10 @@ export interface InvoiceLineInput {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   assetNameAr?: string | null;
   /** @nullable */
   assetNameEn?: string | null;

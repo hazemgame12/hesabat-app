@@ -693,7 +693,9 @@ export const CreateJournalEntryBody = zod.object({
   "debit": zod.number().min(createJournalEntryBodyLinesItemDebitMin),
   "credit": zod.number().min(createJournalEntryBodyLinesItemCreditMin),
   "taxId": zod.string().uuid().nullish(),
-  "costCenterId": zod.string().uuid().nullish()
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })).min(createJournalEntryBodyLinesMin)
 })
 
@@ -733,7 +735,9 @@ export const GetJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish()
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -775,7 +779,9 @@ export const UpdateJournalEntryBody = zod.object({
   "debit": zod.number().min(updateJournalEntryBodyLinesItemDebitMin),
   "credit": zod.number().min(updateJournalEntryBodyLinesItemCreditMin),
   "taxId": zod.string().uuid().nullish(),
-  "costCenterId": zod.string().uuid().nullish()
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })).min(updateJournalEntryBodyLinesMin)
 })
 
@@ -807,7 +813,9 @@ export const UpdateJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish()
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -866,7 +874,9 @@ export const PostJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish()
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -913,7 +923,9 @@ export const SubmitJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish()
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -960,7 +972,9 @@ export const ApproveJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish()
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -1007,7 +1021,9 @@ export const RejectJournalEntryResponse = zod.object({
   "debitBase": zod.number(),
   "creditBase": zod.number(),
   "taxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish()
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish()
 })),
   "attachments": zod.array(zod.object({
   "id": zod.string(),
@@ -1312,6 +1328,9 @@ export const ListAssetsResponseItem = zod.object({
   "assetAccountId": zod.string(),
   "accumulatedAccountId": zod.string(),
   "expenseAccountId": zod.string(),
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "accumulatedDepreciation": zod.number(),
   "netBookValue": zod.number(),
   "createdAt": zod.string()
@@ -1342,7 +1361,10 @@ export const CreateAssetBody = zod.object({
   "method": zod.enum(['straight_line']).optional(),
   "assetAccountId": zod.string().uuid(),
   "accumulatedAccountId": zod.string().uuid(),
-  "expenseAccountId": zod.string().uuid()
+  "expenseAccountId": zod.string().uuid(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })
 
 
@@ -1394,7 +1416,10 @@ export const UpdateAssetBody = zod.object({
   "status": zod.enum(['active', 'disposed']).optional(),
   "assetAccountId": zod.string().uuid().optional(),
   "accumulatedAccountId": zod.string().uuid().optional(),
-  "expenseAccountId": zod.string().uuid().optional()
+  "expenseAccountId": zod.string().uuid().optional(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish()
 })
 
 export const UpdateAssetResponse = zod.object({
@@ -1412,6 +1437,9 @@ export const UpdateAssetResponse = zod.object({
   "assetAccountId": zod.string(),
   "accumulatedAccountId": zod.string(),
   "expenseAccountId": zod.string(),
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "accumulatedDepreciation": zod.number(),
   "netBookValue": zod.number(),
   "createdAt": zod.string()
@@ -1548,6 +1576,9 @@ export const ListInventoryMovementsResponseItem = zod.object({
   "totalValue": zod.number(),
   "inventoryAccountId": zod.string(),
   "counterpartAccountId": zod.string(),
+  "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "journalEntryId": zod.string().nullish(),
   "journalEntryNo": zod.number().nullish(),
@@ -1572,6 +1603,9 @@ export const CreateInventoryMovementBody = zod.object({
   "unitCost": zod.number().min(createInventoryMovementBodyUnitCostMin).nullish(),
   "inventoryAccountId": zod.string().uuid().nullish(),
   "counterpartAccountId": zod.string().uuid(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
   "notes": zod.string().nullish()
 })
 
@@ -1590,6 +1624,8 @@ export const ListEmployeesResponseItem = zod.object({
   "employeeType": zod.enum(['permanent', 'temporary']),
   "nationalId": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "insuranceSalary": zod.number().nullish(),
   "includeInsurance": zod.boolean(),
   "baseSalary": zod.number(),
@@ -1630,6 +1666,8 @@ export const CreateEmployeeBody = zod.object({
   "employeeType": zod.enum(['permanent', 'temporary']).optional(),
   "nationalId": zod.string().nullish(),
   "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
   "insuranceSalary": zod.number().min(createEmployeeBodyInsuranceSalaryMin).nullish(),
   "includeInsurance": zod.boolean().optional(),
   "baseSalary": zod.number().min(createEmployeeBodyBaseSalaryMin),
@@ -1662,6 +1700,8 @@ export const GetEmployeeResponse = zod.object({
   "employeeType": zod.enum(['permanent', 'temporary']),
   "nationalId": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "insuranceSalary": zod.number().nullish(),
   "includeInsurance": zod.boolean(),
   "baseSalary": zod.number(),
@@ -1729,6 +1769,8 @@ export const UpdateEmployeeResponse = zod.object({
   "employeeType": zod.enum(['permanent', 'temporary']),
   "nationalId": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "insuranceSalary": zod.number().nullish(),
   "includeInsurance": zod.boolean(),
   "baseSalary": zod.number(),
@@ -2531,7 +2573,9 @@ export const CreateInvoiceBody = zod.object({
   "dueDate": zod.string().nullish(),
   "customerId": zod.string().nullish(),
   "supplierId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().min(createInvoiceBodyExchangeRateMin).optional(),
   "notes": zod.string().nullish(),
@@ -2547,7 +2591,9 @@ export const CreateInvoiceBody = zod.object({
   "discount": zod.number().min(createInvoiceBodyLinesItemDiscountMin).optional(),
   "taxId": zod.string().nullish(),
   "whtTaxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
   "assetNameAr": zod.string().nullish(),
   "assetNameEn": zod.string().nullish(),
   "assetUsefulLifeMonths": zod.number().min(1).nullish(),
@@ -2600,6 +2646,8 @@ export const GetInvoiceResponse = zod.object({
 }).and(zod.object({
   "notes": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.string(),
   "lineNo": zod.number(),
@@ -2618,6 +2666,8 @@ export const GetInvoiceResponse = zod.object({
   "whtAmount": zod.number(),
   "lineTotal": zod.number(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "assetNameAr": zod.string().nullish(),
   "assetNameEn": zod.string().nullish(),
   "assetUsefulLifeMonths": zod.number().nullish(),
@@ -2656,7 +2706,9 @@ export const UpdateInvoiceBody = zod.object({
   "dueDate": zod.string().nullish(),
   "customerId": zod.string().nullish(),
   "supplierId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().min(updateInvoiceBodyExchangeRateMin).optional(),
   "notes": zod.string().nullish(),
@@ -2672,7 +2724,9 @@ export const UpdateInvoiceBody = zod.object({
   "discount": zod.number().min(updateInvoiceBodyLinesItemDiscountMin).optional(),
   "taxId": zod.string().nullish(),
   "whtTaxId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
   "assetNameAr": zod.string().nullish(),
   "assetNameEn": zod.string().nullish(),
   "assetUsefulLifeMonths": zod.number().min(1).nullish(),
@@ -2717,6 +2771,8 @@ export const UpdateInvoiceResponse = zod.object({
 }).and(zod.object({
   "notes": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.string(),
   "lineNo": zod.number(),
@@ -2735,6 +2791,8 @@ export const UpdateInvoiceResponse = zod.object({
   "whtAmount": zod.number(),
   "lineTotal": zod.number(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "assetNameAr": zod.string().nullish(),
   "assetNameEn": zod.string().nullish(),
   "assetUsefulLifeMonths": zod.number().nullish(),
@@ -2800,6 +2858,8 @@ export const ApproveInvoiceResponse = zod.object({
 }).and(zod.object({
   "notes": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.string(),
   "lineNo": zod.number(),
@@ -2818,6 +2878,8 @@ export const ApproveInvoiceResponse = zod.object({
   "whtAmount": zod.number(),
   "lineTotal": zod.number(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "assetNameAr": zod.string().nullish(),
   "assetNameEn": zod.string().nullish(),
   "assetUsefulLifeMonths": zod.number().nullish(),
@@ -2883,6 +2945,8 @@ export const RevertInvoiceResponse = zod.object({
 }).and(zod.object({
   "notes": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "lines": zod.array(zod.object({
   "id": zod.string(),
   "lineNo": zod.number(),
@@ -2901,6 +2965,8 @@ export const RevertInvoiceResponse = zod.object({
   "whtAmount": zod.number(),
   "lineTotal": zod.number(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "assetNameAr": zod.string().nullish(),
   "assetNameEn": zod.string().nullish(),
   "assetUsefulLifeMonths": zod.number().nullish(),
@@ -3831,6 +3897,8 @@ export const ListBankMovementsResponseItem = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -3862,7 +3930,9 @@ export const CreateBankMovementBody = zod.object({
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
   "counterpartAccountId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
   "transferAccountId": zod.string().nullish(),
   "destinationAmount": zod.number().nullish(),
   "bankFees": zod.number().nullish(),
@@ -3886,7 +3956,9 @@ export const UpdateBankMovementBody = zod.object({
   "currency": zod.string().nullish(),
   "exchangeRate": zod.number().optional(),
   "counterpartAccountId": zod.string().nullish(),
-  "costCenterId": zod.string().nullish(),
+  "costCenterId": zod.string().uuid().nullish(),
+  "projectId": zod.string().uuid().nullish(),
+  "branchId": zod.string().uuid().nullish(),
   "description": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "reference": zod.string().nullish()
@@ -3905,6 +3977,8 @@ export const UpdateBankMovementResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4017,6 +4091,8 @@ export const GetBankReconciliationResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4047,6 +4123,8 @@ export const GetBankReconciliationResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4120,6 +4198,8 @@ export const GetBankReconciliationReportResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4151,6 +4231,8 @@ export const GetBankReconciliationReportResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4229,6 +4311,8 @@ export const UploadBankStatementResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4259,6 +4343,8 @@ export const UploadBankStatementResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4333,6 +4419,8 @@ export const MatchBankReconciliationResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4363,6 +4451,8 @@ export const MatchBankReconciliationResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4467,6 +4557,8 @@ export const CompleteBankReconciliationResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),
@@ -4497,6 +4589,8 @@ export const CompleteBankReconciliationResponse = zod.object({
   "counterpartAccountId": zod.string().nullish(),
   "counterpartAccountName": zod.string().nullish(),
   "costCenterId": zod.string().nullish(),
+  "projectId": zod.string().nullish(),
+  "branchId": zod.string().nullish(),
   "costCenterName": zod.string().nullish(),
   "transferAccountId": zod.string().nullish(),
   "transferAccountName": zod.string().nullish(),

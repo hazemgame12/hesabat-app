@@ -13,5 +13,9 @@ export type InvoiceDetail = InvoiceSummary & ({
   notes?: string | null;
   /** @nullable */
   costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   lines: InvoiceLine[];
 });

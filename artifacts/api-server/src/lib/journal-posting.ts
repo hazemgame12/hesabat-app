@@ -66,6 +66,8 @@ export type DraftPostingLine = {
   credit: number;
   // Optional cost-center/project tag (caller must validate company ownership).
   costCenterId?: string | null;
+  projectId?: string | null;
+  branchId?: string | null;
 };
 
 export type CreateDraftEntryOptions = {
@@ -153,6 +155,8 @@ export async function createDraftJournalEntry(
       debitBase: String(computed[i]!.debit),
       creditBase: String(computed[i]!.credit),
       costCenterId: l.costCenterId ?? null,
+      projectId: l.projectId ?? null,
+      branchId: l.branchId ?? null,
     })),
   );
 

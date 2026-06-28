@@ -10,6 +10,8 @@ import {
   useListInventoryItems,
   useListTaxes,
   useListCostCenters,
+  useListProjects,
+  useListBranches,
   useListCurrencies,
   useGetCompany,
   type Account,
@@ -40,6 +42,8 @@ type LineDraft = {
   taxId: string;
   whtTaxId: string;
   costCenterId: string;
+  projectId: string;
+  branchId: string;
   assetNameAr: string;
   assetUsefulLifeMonths: string;
   assetSalvageValue: string;
@@ -65,6 +69,8 @@ function emptyLine(): LineDraft {
     taxId: "",
     whtTaxId: "",
     costCenterId: "",
+    projectId: "",
+    branchId: "",
     assetNameAr: "",
     assetUsefulLifeMonths: "",
     assetSalvageValue: "",
@@ -113,6 +119,8 @@ export function InvoiceEditor({
   const { data: items = [] } = useListInventoryItems();
   const { data: taxes = [] } = useListTaxes();
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const { data: currencies = [] } = useListCurrencies();
 
   const currencyOptions = useMemo(() => {
@@ -158,6 +166,8 @@ export function InvoiceEditor({
   const [partyId, setPartyId] = useState("");
   const [relatedInvoiceId, setRelatedInvoiceId] = useState("");
   const [costCenterId, setCostCenterId] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [branchId, setBranchId] = useState("");
   const [notes, setNotes] = useState("");
   const [currency, setCurrency] = useState(baseCurrency);
   const [exchangeRate, setExchangeRate] = useState("1");
@@ -224,6 +234,8 @@ export function InvoiceEditor({
       setPartyId(detail.partyId ?? "");
       setRelatedInvoiceId(detail.relatedInvoiceId ?? "");
       setCostCenterId(detail.costCenterId ?? "");
+      setProjectId(detail.projectId ?? "");
+      setBranchId(detail.branchId ?? "");
       setNotes(detail.notes ?? "");
       setCurrency(detail.currency ?? baseCurrency);
       setExchangeRate(
@@ -243,6 +255,8 @@ export function InvoiceEditor({
           taxId: l.taxId ?? "",
           whtTaxId: l.whtTaxId ?? "",
           costCenterId: l.costCenterId ?? "",
+          projectId: l.projectId ?? "",
+          branchId: l.branchId ?? "",
           assetNameAr: l.assetNameAr ?? "",
           assetUsefulLifeMonths:
             l.assetUsefulLifeMonths != null ? String(l.assetUsefulLifeMonths) : "",
@@ -418,6 +432,8 @@ export function InvoiceEditor({
       taxId: l.taxId || null,
       whtTaxId: l.whtTaxId || null,
       costCenterId: l.costCenterId || null,
+      projectId: l.projectId || null,
+      branchId: l.branchId || null,
       assetNameAr:
         l.lineType === "fixed_asset" ? l.assetNameAr.trim() || null : null,
       assetUsefulLifeMonths:
@@ -441,6 +457,8 @@ export function InvoiceEditor({
       customerId: isSalesSide ? partyId : null,
       supplierId: !isSalesSide ? partyId : null,
       costCenterId: costCenterId || null,
+      projectId: projectId || null,
+      branchId: branchId || null,
       currency: currency || baseCurrency,
       exchangeRate: currency === baseCurrency ? 1 : Number(exchangeRate) || 1,
       notes: notes.trim() || null,
@@ -623,6 +641,42 @@ export function InvoiceEditor({
                 </select>
               </div>
               <div>
+                <label className={labelCls}>{t("invoices.project")}</label>
+                <select
+                  className={inputCls}
+                  value={projectId}
+                  disabled={disabled}
+                  onChange={(e) => setProjectId(e.target.value)}
+                >
+                  <option value="">{t("invoices.none")}</option>
+                  {projects
+                  .filter((p) => p.isActive || p.status === "active")
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {displayName(p, lang)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>{t("invoices.branch")}</label>
+                <select
+                  className={inputCls}
+                  value={branchId}
+                  disabled={disabled}
+                  onChange={(e) => setBranchId(e.target.value)}
+                >
+                  <option value="">{t("invoices.none")}</option>
+                  {branches
+                  .filter((b) => b.isActive)
+                  .map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {displayName(b, lang)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className={labelCls}>{t("invoices.currency")}</label>
                 <select
                   className={inputCls}
@@ -687,7 +741,7 @@ export function InvoiceEditor({
               {/* ── Inline Excel-like table ── */}
               <div className="border rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[1020px] border-collapse">
+                  <table className="w-full text-sm min-w-[1260px] border-collapse">
                     <thead>
                       <tr className="bg-muted/50 text-[11px] font-bold text-muted-foreground border-b">
                         <th className="px-2 py-2 w-8 text-center">#</th>
@@ -700,6 +754,8 @@ export function InvoiceEditor({
                         <th className="px-2 py-2 w-28 text-start">{t("invoices.tax")}</th>
                         <th className="px-2 py-2 w-28 text-start">{t("invoices.whtTax")}</th>
                         <th className="px-2 py-2 w-28 text-start">{t("invoices.costCenter")}</th>
+                        <th className="px-2 py-2 w-28 text-start">{t("invoices.project")}</th>
+                        <th className="px-2 py-2 w-28 text-start">{t("invoices.branch")}</th>
                         <th className="px-2 py-2 w-24 text-end">{t("invoices.lineTotal")}</th>
                         {!disabled && <th className="w-8" />}
                       </tr>
@@ -849,6 +905,36 @@ export function InvoiceEditor({
                           ))}
                         </select>
                       </td>
+                      <td className="px-1 py-1">
+                        <select
+                          className="bg-transparent w-full h-8 px-1 text-xs focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
+                          value={l.projectId}
+                          disabled={disabled}
+                          onChange={(e) => updateLine(idx, { projectId: e.target.value })}
+                        >
+                          <option value="">{t("invoices.none")}</option>
+                          {projects
+                            .filter((p) => p.isActive || p.status === "active")
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>{displayName(p, lang)}</option>
+                            ))}
+                        </select>
+                      </td>
+                      <td className="px-1 py-1">
+                        <select
+                          className="bg-transparent w-full h-8 px-1 text-xs focus:outline-none focus:bg-background focus:ring-1 focus:ring-primary/30 rounded-md disabled:opacity-60"
+                          value={l.branchId}
+                          disabled={disabled}
+                          onChange={(e) => updateLine(idx, { branchId: e.target.value })}
+                        >
+                          <option value="">{t("invoices.none")}</option>
+                          {branches
+                            .filter((b) => b.isActive)
+                            .map((b) => (
+                              <option key={b.id} value={b.id}>{displayName(b, lang)}</option>
+                            ))}
+                        </select>
+                      </td>
                       {/* Total */}
                       <td className="px-2 py-1 text-end font-bold font-sans tabular-nums text-foreground whitespace-nowrap" dir="ltr">
                         {fmt(calc.total)}
@@ -872,7 +958,7 @@ export function InvoiceEditor({
                     {/* ── Expanded: inventory extra fields ── */}
                     {needsExpand && isExpanded && l.lineType === "inventory" && (
                       <tr className="border-b bg-muted/10">
-                        <td colSpan={disabled ? 11 : 12} className="px-4 py-3">
+                        <td colSpan={disabled ? 13 : 14} className="px-4 py-3">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                               <label className={labelCls}>{t("invoices.item")}</label>
@@ -913,7 +999,7 @@ export function InvoiceEditor({
                     {/* ── Expanded: fixed_asset extra fields ── */}
                     {needsExpand && isExpanded && l.lineType === "fixed_asset" && (
                       <tr className="border-b bg-muted/10">
-                        <td colSpan={disabled ? 11 : 12} className="px-4 py-3">
+                        <td colSpan={disabled ? 13 : 14} className="px-4 py-3">
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                               <label className={labelCls}>{t("invoices.assetName")}</label>

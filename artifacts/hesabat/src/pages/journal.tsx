@@ -16,6 +16,8 @@ import {
   useListAccounts,
   useListTaxes,
   useListCostCenters,
+  useListProjects,
+  useListBranches,
   useListCurrencies,
   useGetCurrentUser,
   useGetCompany,
@@ -87,6 +89,8 @@ type LineDraft = {
   credit: string;
   taxId: string;
   costCenterId: string;
+  projectId: string;
+  branchId: string;
 };
 
 function emptyLine(baseCurrency: string): LineDraft {
@@ -100,6 +104,8 @@ function emptyLine(baseCurrency: string): LineDraft {
     credit: "",
     taxId: "",
     costCenterId: "",
+    projectId: "",
+    branchId: "",
   };
 }
 
@@ -617,6 +623,8 @@ function JournalEditor({
   const { data: accounts = [] } = useListAccounts();
   const { data: taxes = [] } = useListTaxes();
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const { data: currencies = [] } = useListCurrencies();
   const currencyOptions = useMemo(() => {
     const opts: { code: string; rate: string }[] = [{ code: baseCurrency, rate: "1" }];
@@ -670,6 +678,8 @@ function JournalEditor({
           credit: l.credit ? String(l.credit) : "",
           taxId: l.taxId ?? "",
           costCenterId: l.costCenterId ?? "",
+          projectId: l.projectId ?? "",
+          branchId: l.branchId ?? "",
         })),
       );
       setHydrated(true);
@@ -780,6 +790,8 @@ function JournalEditor({
       credit: toNum(l.credit),
       taxId: l.taxId || null,
       costCenterId: l.costCenterId || null,
+      projectId: l.projectId || null,
+      branchId: l.branchId || null,
     })),
   });
 
@@ -1078,7 +1090,7 @@ function JournalEditor({
             <span className="text-xs text-muted-foreground">{t("journal.baseCurrencyNote")}</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[1100px]">
+            <table className="w-full text-sm min-w-[1380px]">
               <thead>
                 <tr className="bg-muted/40 text-muted-foreground text-[11px]">
                   <th className="text-start font-bold px-3 py-2 min-w-[160px]">{t("journal.colDescription")}</th>
@@ -1091,6 +1103,8 @@ function JournalEditor({
                   <th className="text-end font-bold px-3 py-2 w-[120px] bg-muted/60">{t("journal.colCreditBase")}</th>
                   <th className="text-start font-bold px-3 py-2 min-w-[130px]">{t("journal.colTax")}</th>
                   <th className="text-start font-bold px-3 py-2 min-w-[140px]">{t("journal.colCostCenter")}</th>
+                  <th className="text-start font-bold px-3 py-2 min-w-[140px]">{t("journal.colProject")}</th>
+                  <th className="text-start font-bold px-3 py-2 min-w-[140px]">{t("journal.colBranch")}</th>
                   <th className="px-2 py-2 w-[40px]"></th>
                 </tr>
               </thead>
@@ -1218,6 +1232,40 @@ function JournalEditor({
                           ))}
                         </select>
                       </td>
+                      <td className="px-2 py-1.5">
+                        <select
+                          value={l.projectId}
+                          disabled={readOnly}
+                          onChange={(e) => updateLine(l.key, { projectId: e.target.value })}
+                          className="w-full bg-background border rounded-lg h-9 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
+                        >
+                          <option value="">{t("journal.selectProject")}</option>
+                          {projects
+                            .filter((p) => p.isActive || p.status === "active")
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {displayName(p, lang)}
+                              </option>
+                            ))}
+                        </select>
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <select
+                          value={l.branchId}
+                          disabled={readOnly}
+                          onChange={(e) => updateLine(l.key, { branchId: e.target.value })}
+                          className="w-full bg-background border rounded-lg h-9 px-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
+                        >
+                          <option value="">{t("journal.selectBranch")}</option>
+                          {branches
+                            .filter((b) => b.isActive)
+                            .map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {displayName(b, lang)}
+                              </option>
+                            ))}
+                        </select>
+                      </td>
                       <td className="px-2 py-1.5 text-center">
                         {!readOnly && lines.length > 2 && (
                           <button
@@ -1240,7 +1288,7 @@ function JournalEditor({
                   </td>
                   <td className="px-3 py-3 text-end font-sans tabular-nums">{num(totals.debit)}</td>
                   <td className="px-3 py-3 text-end font-sans tabular-nums">{num(totals.credit)}</td>
-                  <td colSpan={3}></td>
+                  <td colSpan={5}></td>
                 </tr>
               </tfoot>
             </table>

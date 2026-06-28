@@ -22,5 +22,11 @@ export interface InventoryMovementInput {
   inventoryAccountId?: string | null;
   counterpartAccountId: string;
   /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   notes?: string | null;
 }

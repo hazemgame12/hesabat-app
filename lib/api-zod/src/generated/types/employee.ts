@@ -25,6 +25,10 @@ export interface Employee {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   insuranceSalary?: number | null;
   includeInsurance: boolean;
   baseSalary: number;

@@ -22,6 +22,10 @@ export interface InvoiceInput {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   currency?: string | null;
   /** @minimum 0 */
   exchangeRate?: number;

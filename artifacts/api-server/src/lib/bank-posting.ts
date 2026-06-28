@@ -43,6 +43,8 @@ export function buildMovementLines(opts: {
   description?: string | null;
   // Optional cost-center tag, applied to the counterpart (P&L) line only.
   costCenterId?: string | null;
+  projectId?: string | null;
+  branchId?: string | null;
 }): DraftPostingLine[] {
   const { direction, bankChartAccountId, counterpartAccountId, amountBase } =
     opts;
@@ -59,6 +61,8 @@ export function buildMovementLines(opts: {
     debit: direction === "in" ? 0 : amountBase,
     credit: direction === "in" ? amountBase : 0,
     costCenterId: opts.costCenterId ?? null,
+    projectId: opts.projectId ?? null,
+    branchId: opts.branchId ?? null,
   };
   return [bankLine, counterLine];
 }

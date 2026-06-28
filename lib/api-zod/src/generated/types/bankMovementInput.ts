@@ -20,6 +20,10 @@ export interface BankMovementInput {
   /** @nullable */
   costCenterId?: string | null;
   /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   transferAccountId?: string | null;
   /** @nullable */
   destinationAmount?: number | null;

@@ -6,6 +6,9 @@ import {
   useDeleteAsset,
   useRunDepreciation,
   useListAccounts,
+  useListCostCenters,
+  useListProjects,
+  useListBranches,
   useGetCurrentUser,
   getListAssetsQueryKey,
   getListJournalEntriesQueryKey,
@@ -46,6 +49,9 @@ const assetSchema = z.object({
   assetAccountId: z.string().min(1, "accountRequired"),
   accumulatedAccountId: z.string().min(1, "accountRequired"),
   expenseAccountId: z.string().min(1, "accountRequired"),
+  costCenterId: z.string().optional(),
+  projectId: z.string().optional(),
+  branchId: z.string().optional(),
   status: z.enum(["active", "disposed"]).default("active"),
 });
 
@@ -73,6 +79,9 @@ export function FixedAssets() {
   const { data: paginatedAssets, isLoading } = usePaginatedQuery<FixedAsset>("/api/assets", page);
   const assets = paginatedAssets?.data ?? [];
   const { data: accounts = [] } = useListAccounts();
+  const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const postableAccounts = useMemo(
     () => accounts.filter((a: Account) => !a.isGroup),
     [accounts],
@@ -122,6 +131,9 @@ export function FixedAssets() {
       assetAccountId: "",
       accumulatedAccountId: "",
       expenseAccountId: "",
+      costCenterId: "",
+      projectId: "",
+      branchId: "",
       status: "active",
     });
     setModalMode("create");
@@ -139,6 +151,9 @@ export function FixedAssets() {
       assetAccountId: a.assetAccountId,
       accumulatedAccountId: a.accumulatedAccountId,
       expenseAccountId: a.expenseAccountId,
+      costCenterId: a.costCenterId ?? "",
+      projectId: a.projectId ?? "",
+      branchId: a.branchId ?? "",
       status: a.status,
     });
     setAssetToEdit(a);
@@ -266,6 +281,9 @@ export function FixedAssets() {
       assetAccountId: form.assetAccountId,
       accumulatedAccountId: form.accumulatedAccountId,
       expenseAccountId: form.expenseAccountId,
+      costCenterId: form.costCenterId || null,
+      projectId: form.projectId || null,
+      branchId: form.branchId || null,
     };
     if (modalMode === "create") {
       createAsset.mutate(
@@ -643,6 +661,38 @@ export function FixedAssets() {
                   ))}
                 </select>
                 {errors.expenseAccountId && <span className="text-xs text-destructive">{t(`assets.validation.${errors.expenseAccountId.message}`)}</span>}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("assets.costCenter")}</label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("costCenterId")}>
+                  <option value="">{t("assets.none")}</option>
+                  {costCenters.filter((c) => c.isActive).map((c) => (
+                    <option key={c.id} value={c.id}>{displayName(c, lang)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("assets.project")}</label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("projectId")}>
+                  <option value="">{t("assets.none")}</option>
+                  {projects
+                    .filter((p) => p.isActive || p.status === "active")
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>{displayName(p, lang)}</option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="text-sm font-bold text-foreground">{t("assets.branch")}</label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...register("branchId")}>
+                  <option value="">{t("assets.none")}</option>
+                  {branches.filter((b) => b.isActive).map((b) => (
+                    <option key={b.id} value={b.id}>{displayName(b, lang)}</option>
+                  ))}
+                </select>
               </div>
 
               {modalMode === "edit" && (

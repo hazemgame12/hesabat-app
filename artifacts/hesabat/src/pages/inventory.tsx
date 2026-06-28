@@ -7,6 +7,9 @@ import {
   useListInventoryMovements,
   useCreateInventoryMovement,
   useListAccounts,
+  useListCostCenters,
+  useListProjects,
+  useListBranches,
   useGetCurrentUser,
   getListInventoryItemsQueryKey,
   getListInventoryMovementsQueryKey,
@@ -71,6 +74,9 @@ const movementSchema = z.object({
   unitCost: z.coerce.number().optional(),
   inventoryAccountId: z.string().optional(),
   counterpartAccountId: z.string().min(1, "counterpartRequired"),
+  costCenterId: z.string().optional(),
+  projectId: z.string().optional(),
+  branchId: z.string().optional(),
   notes: z.string().optional(),
 });
 type MovementForm = z.input<typeof movementSchema>;
@@ -142,6 +148,9 @@ export function Inventory() {
   const items = paginatedItems?.data ?? [];
   const { data: movements = [], isLoading: movementsLoading } = useListInventoryMovements();
   const { data: accounts = [] } = useListAccounts();
+  const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const postableAccounts = useMemo(() => accounts.filter((a: Account) => !a.isGroup), [accounts]);
 
   const createItem = useCreateInventoryItem();
@@ -228,7 +237,13 @@ export function Inventory() {
     formState: { errors: movErrors },
   } = useForm<MovementForm>({
     resolver: zodResolver(movementSchema),
-    defaultValues: { type: "receipt", date: today() },
+    defaultValues: {
+      type: "receipt",
+      date: today(),
+      costCenterId: "",
+      projectId: "",
+      branchId: "",
+    },
   });
   const movType = watchMov("type");
   const movItemId = watchMov("itemId");
@@ -352,7 +367,19 @@ export function Inventory() {
   };
 
   const openMovementModal = (presetItemId?: string) => {
-    resetMov({ itemId: presetItemId ?? "", date: today(), type: "receipt", quantity: undefined, unitCost: undefined, inventoryAccountId: "", counterpartAccountId: "", notes: "" });
+    resetMov({
+      itemId: presetItemId ?? "",
+      date: today(),
+      type: "receipt",
+      quantity: undefined,
+      unitCost: undefined,
+      inventoryAccountId: "",
+      counterpartAccountId: "",
+      costCenterId: "",
+      projectId: "",
+      branchId: "",
+      notes: "",
+    });
     setMovementModalOpen(true);
   };
 
@@ -376,7 +403,11 @@ export function Inventory() {
       type: form.type as "receipt" | "issue" | "adjustment",
       quantity: qty, unitCost: form.type === "receipt" ? Number(form.unitCost) : null,
       inventoryAccountId: form.inventoryAccountId || null,
-      counterpartAccountId: form.counterpartAccountId, notes: form.notes || null,
+      counterpartAccountId: form.counterpartAccountId,
+      costCenterId: form.costCenterId || null,
+      projectId: form.projectId || null,
+      branchId: form.branchId || null,
+      notes: form.notes || null,
     };
     createMovement.mutate({ data: payload }, {
       onSuccess: (mov) => {
@@ -945,6 +976,38 @@ export function Inventory() {
                 </select>
                 <span className="text-xs text-muted-foreground">{counterpartHint}</span>
                 {movErrors.counterpartAccountId && <span className="text-xs text-destructive">{t(`inventory.validation.${movErrors.counterpartAccountId.message}`)}</span>}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("inventory.movement.costCenter")}</label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("costCenterId")}>
+                  <option value="">{t("inventory.none")}</option>
+                  {costCenters.filter((c) => c.isActive).map((c) => (
+                    <option key={c.id} value={c.id}>{displayName(c, lang)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-bold text-foreground">{t("inventory.movement.project")}</label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("projectId")}>
+                  <option value="">{t("inventory.none")}</option>
+                  {projects
+                    .filter((p) => p.isActive || p.status === "active")
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>{displayName(p, lang)}</option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
+                <label className="text-sm font-bold text-foreground">{t("inventory.movement.branch")}</label>
+                <select className="bg-background border rounded-xl h-11 px-3 text-sm text-start focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" {...registerMov("branchId")}>
+                  <option value="">{t("inventory.none")}</option>
+                  {branches.filter((b) => b.isActive).map((b) => (
+                    <option key={b.id} value={b.id}>{displayName(b, lang)}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex flex-col gap-1.5 sm:col-span-2">

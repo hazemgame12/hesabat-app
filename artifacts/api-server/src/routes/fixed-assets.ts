@@ -6,6 +6,9 @@ import {
   fixedAssetsTable,
   assetDepreciationEntriesTable,
   accountsTable,
+  costCentersTable,
+  projectsTable,
+  branchesTable,
   companiesTable,
   type FixedAsset,
 } from "@workspace/db";
@@ -51,6 +54,9 @@ function toAsset(row: FixedAsset, accumulated: number) {
     assetAccountId: row.assetAccountId,
     accumulatedAccountId: row.accumulatedAccountId,
     expenseAccountId: row.expenseAccountId,
+    costCenterId: row.costCenterId,
+    projectId: row.projectId,
+    branchId: row.branchId,
     accumulatedDepreciation: acc,
     netBookValue: round2(cost - acc),
     createdAt: row.createdAt.toISOString(),
@@ -80,6 +86,68 @@ async function validateAssetAccounts(
     if (acc.isGroup) return "لا يمكن الترحيل إلى حساب رئيسي";
   }
   return null;
+}
+
+async function validateCostCenters(
+  ids: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const filtered = [...new Set(ids.filter((x): x is string => !!x))];
+  if (filtered.length === 0) return null;
+  const rows = await db
+    .select({ id: costCentersTable.id })
+    .from(costCentersTable)
+    .where(
+      and(
+        eq(costCentersTable.companyId, companyId),
+        inArray(costCentersTable.id, filtered),
+      ),
+    );
+  if (rows.length !== filtered.length) return "مركز التكلفة المحدد غير موجود";
+  return null;
+}
+
+async function validateProjects(
+  ids: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const filtered = [...new Set(ids.filter((x): x is string => !!x))];
+  if (filtered.length === 0) return null;
+  const rows = await db
+    .select({ id: projectsTable.id })
+    .from(projectsTable)
+    .where(
+      and(eq(projectsTable.companyId, companyId), inArray(projectsTable.id, filtered)),
+    );
+  if (rows.length !== filtered.length) return "المشروع المحدد غير موجود";
+  return null;
+}
+
+async function validateBranches(
+  ids: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const filtered = [...new Set(ids.filter((x): x is string => !!x))];
+  if (filtered.length === 0) return null;
+  const rows = await db
+    .select({ id: branchesTable.id })
+    .from(branchesTable)
+    .where(
+      and(eq(branchesTable.companyId, companyId), inArray(branchesTable.id, filtered)),
+    );
+  if (rows.length !== filtered.length) return "الفرع المحدد غير موجود";
+  return null;
+}
+
+async function validateDimensions(
+  dims: { costCenterId?: string | null; projectId?: string | null; branchId?: string | null },
+  companyId: string,
+): Promise<string | null> {
+  const ccErr = await validateCostCenters([dims.costCenterId], companyId);
+  if (ccErr) return ccErr;
+  const projectErr = await validateProjects([dims.projectId], companyId);
+  if (projectErr) return projectErr;
+  return validateBranches([dims.branchId], companyId);
 }
 
 // Sums depreciation taken per asset for the given asset ids (company-scoped).
@@ -179,6 +247,11 @@ router.post(
         res.status(400).json({ error: refErr });
         return;
       }
+      const dimErr = await validateDimensions(d, companyId);
+      if (dimErr) {
+        res.status(400).json({ error: dimErr });
+        return;
+      }
       // Generate the code and insert the row in one tx so a failed insert
       // unwinds the sequence increment (no burned/gapped codes).
       const row = await db.transaction(async (tx) => {
@@ -204,6 +277,9 @@ router.post(
             assetAccountId: d.assetAccountId,
             accumulatedAccountId: d.accumulatedAccountId,
             expenseAccountId: d.expenseAccountId,
+            costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
           })
           .returning();
         return r;
@@ -252,6 +328,9 @@ router.patch(
       updates["accumulatedAccountId"] = d.accumulatedAccountId;
     if (d.expenseAccountId !== undefined)
       updates["expenseAccountId"] = d.expenseAccountId;
+    if (d.costCenterId !== undefined) updates["costCenterId"] = d.costCenterId;
+    if (d.projectId !== undefined) updates["projectId"] = d.projectId;
+    if (d.branchId !== undefined) updates["branchId"] = d.branchId;
     if (Object.keys(updates).length === 0) {
       res.status(400).json({ error: "لا توجد بيانات للتحديث" });
       return;
@@ -286,6 +365,18 @@ router.patch(
       const refErr = await validateAssetAccounts(accountIds, companyId);
       if (refErr) {
         res.status(400).json({ error: refErr });
+        return;
+      }
+      const dimErr = await validateDimensions(
+        {
+          costCenterId: (updates["costCenterId"] as string | null | undefined) ?? existing.costCenterId,
+          projectId: (updates["projectId"] as string | null | undefined) ?? existing.projectId,
+          branchId: (updates["branchId"] as string | null | undefined) ?? existing.branchId,
+        },
+        companyId,
+      );
+      if (dimErr) {
+        res.status(400).json({ error: dimErr });
         return;
       }
       const [row] = await db
