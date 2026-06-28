@@ -578,7 +578,7 @@ export function TrialBalanceTab({
         <>
           <CurrencyHeader info={data.currencyInfo} fmt={fmt} />
           <Card>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto [direction:ltr]">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
@@ -732,6 +732,7 @@ export function PnlSection({
       <div className="px-5 py-3.5 bg-slate-50 dark:bg-slate-900/60 border-b border-border">
         <span className="font-bold text-sm tracking-wide text-foreground">{title}</span>
       </div>
+      <div className="overflow-x-auto [direction:ltr]">
       <table className="w-full text-sm">
         <tbody>
           {lines.length === 0 ? (
@@ -830,6 +831,7 @@ export function PnlSection({
           </tr>
         </tfoot>
       </table>
+      </div>
     </div>
   );
 }
@@ -1489,6 +1491,7 @@ export function GeneralLedgerTab({
               {t("reportsPage.ledger.openingBalance")}: {fmt(data.openingBalance)}
             </span>
           </div>
+          <div className="overflow-x-auto [direction:ltr]">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
@@ -1562,6 +1565,7 @@ export function GeneralLedgerTab({
               </tr>
             </tfoot>
           </table>
+          </div>
           </Card>
         </>
       )}
@@ -1684,6 +1688,7 @@ function PartyStatementTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
               {fmt(data.openingBalance)}
             </span>
           </div>
+          <div className="overflow-x-auto [direction:ltr]">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
@@ -1749,6 +1754,7 @@ function PartyStatementTab({ fmt, lang }: { fmt: Fmt; lang: string }) {
               </tr>
             </tfoot>
           </table>
+          </div>
         </Card>
       )}
       {jeModalId && (
@@ -1828,6 +1834,7 @@ function JournalEntryModal({
             <Empty />
           ) : (
             <>
+              <div className="overflow-x-auto [direction:ltr]">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
@@ -1887,6 +1894,7 @@ function JournalEntryModal({
                   </tr>
                 </tfoot>
               </table>
+              </div>
               {data.notes && (
                 <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3 px-4">
                   {data.notes}

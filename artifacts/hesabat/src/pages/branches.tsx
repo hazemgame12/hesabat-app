@@ -10,6 +10,7 @@ import {
   type Branch,
 } from "@workspace/api-client-react";
 import { GridTable, GridToggle, useGridView, type GridColumn } from "@/components/GridTable";
+import { ExcelToolbar } from "@/components/ExcelToolbar";
 import { hasCapability } from "@workspace/permissions";
 import { useQueryClient } from "@tanstack/react-query";
 import { GitBranch, Plus, X, Check, Trash2, Edit2 } from "lucide-react";
@@ -189,6 +190,12 @@ export function Branches({ embedded = false }: { embedded?: boolean }) {
         </div>
         <div className="flex items-center gap-2">
           <GridToggle isGrid={isGridView} onToggle={toggleGridView} />
+          <ExcelToolbar
+            exportPath="/api/branches/export"
+            importPath="/api/branches/import"
+            canImport={canCreate}
+            invalidateKeys={[getListBranchesQueryKey()]}
+          />
           {canCreate && (
             <button
               onClick={openCreateModal}

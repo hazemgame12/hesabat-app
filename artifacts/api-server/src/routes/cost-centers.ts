@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, sql } from "drizzle-orm";
 import { db, costCentersTable, type CostCenter } from "@workspace/db";
 import { CreateCostCenterBody, UpdateCostCenterBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
@@ -8,6 +8,29 @@ import { exportWorkbook, handleXlsxUpload, parseSheet } from "../lib/excel";
 
 const router = Router();
 const COST_CENTER_TYPE = "cost_center";
+const COST_CENTER_CODE_PREFIX = "CC";
+const CODE_PAD = 3;
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Executor = typeof db | Tx;
+
+async function generateNextCostCenterCode(
+  companyId: string,
+  exec: Executor = db,
+): Promise<string> {
+  const pattern = `^${COST_CENTER_CODE_PREFIX}-[0-9]+$`;
+  const [row] = await exec
+    .select({
+      lastNo: sql<number>`COALESCE(MAX(CASE WHEN ${costCentersTable.code} ~ ${pattern} THEN CAST(split_part(${costCentersTable.code}, '-', 2) AS integer) END), 0)`,
+    })
+    .from(costCentersTable)
+    .where(
+      and(
+        eq(costCentersTable.companyId, companyId),
+        eq(costCentersTable.type, COST_CENTER_TYPE),
+      ),
+    );
+  return `${COST_CENTER_CODE_PREFIX}-${String(Number(row?.lastNo ?? 0) + 1).padStart(CODE_PAD, "0")}`;
+}
 
 function toCostCenter(row: CostCenter) {
   return {
@@ -57,22 +80,32 @@ router.post(
       return;
     }
     try {
-      const [row] = await db
-        .insert(costCentersTable)
-        .values({
-          companyId: req.auth!.companyId,
-          code: parsed.data.code ? parsed.data.code.trim() : null,
-          nameAr: parsed.data.nameAr,
-          nameEn: parsed.data.nameEn ?? null,
-          type: COST_CENTER_TYPE,
-          budget:
-            parsed.data.budget === undefined || parsed.data.budget === null
-              ? null
-              : String(parsed.data.budget),
-          isActive: parsed.data.isActive ?? true,
-        })
-        .returning();
-      res.status(201).json(toCostCenter(row as CostCenter));
+      const companyId = req.auth!.companyId;
+      const manualCode = parsed.data.code?.trim();
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          const [row] = await db
+            .insert(costCentersTable)
+            .values({
+              companyId,
+              code: manualCode || (await generateNextCostCenterCode(companyId)),
+              nameAr: parsed.data.nameAr,
+              nameEn: parsed.data.nameEn ?? null,
+              type: COST_CENTER_TYPE,
+              budget:
+                parsed.data.budget === undefined || parsed.data.budget === null
+                  ? null
+                  : String(parsed.data.budget),
+              isActive: parsed.data.isActive ?? true,
+            })
+            .returning();
+          res.status(201).json(toCostCenter(row as CostCenter));
+          return;
+        } catch (err: any) {
+          if (err?.code === "23505" && !manualCode && attempt < 4) continue;
+          throw err;
+        }
+      }
     } catch (err: any) {
       if (err?.code === "23505") {
         res.status(400).json({ error: "الكود مستخدم بالفعل في هذه الشركة" });
@@ -285,9 +318,10 @@ router.post(
 
       await db.transaction(async (tx) => {
         for (const r of parsed) {
+          const code = r.code || (await generateNextCostCenterCode(companyId, tx));
           await tx.insert(costCentersTable).values({
             companyId,
-            code: r.code,
+            code,
             nameAr: r.nameAr,
             nameEn: r.nameEn,
             type: COST_CENTER_TYPE,
