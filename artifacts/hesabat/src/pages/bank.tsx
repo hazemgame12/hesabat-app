@@ -22,6 +22,8 @@ import {
   useCompleteBankReconciliation,
   useListAccounts,
   useListCostCenters,
+  useListProjects,
+  useListBranches,
   useGetCurrentUser,
   useListCustomers,
   useListSuppliers,
@@ -2305,9 +2307,13 @@ function ClassifyMovementModal({
   const [costCenterId, setCostCenterId] = useState(
     movement.costCenterId ?? "",
   );
+  const [projectId, setProjectId] = useState(movement.projectId ?? "");
+  const [branchId, setBranchId] = useState(movement.branchId ?? "");
   const [description, setDescription] = useState(movement.description ?? "");
   const [reference, setReference] = useState(movement.reference ?? "");
   const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const isIn = IN_TYPES.has(type);
 
   const selectableTypes = MOVEMENT_TYPES.filter(
@@ -2343,6 +2349,8 @@ function ClassifyMovementModal({
           exchangeRate: isForeignCurrency ? (Number(exchangeRate) || 1) : 1,
           counterpartAccountId,
           costCenterId: costCenterId || null,
+          projectId: projectId || null,
+          branchId: branchId || null,
           description: description.trim() || null,
           reference: reference.trim() || null,
         },
@@ -2492,6 +2500,36 @@ function ClassifyMovementModal({
               {costCenters.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nameAr}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-span-2 sm:col-span-1">
+            <label className={labelCls}>{t("bank.classify.project")}</label>
+            <select
+              className={inputCls}
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+            >
+              <option value="">{t("bank.classify.noProject")}</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nameAr}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-span-2 sm:col-span-1">
+            <label className={labelCls}>{t("bank.classify.branch")}</label>
+            <select
+              className={inputCls}
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+            >
+              <option value="">{t("bank.classify.noBranch")}</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.nameAr}
                 </option>
               ))}
             </select>

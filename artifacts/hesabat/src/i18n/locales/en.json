@@ -944,7 +944,13 @@
       "addError": "Failed to add asset",
       "editError": "Failed to update asset",
       "deleteError": "Failed to delete asset"
-    }
+    },
+    "costCenter": "Cost center",
+    "noCenter": "No cost center",
+    "project": "Project",
+    "noProject": "No project",
+    "branch": "Branch",
+    "noBranch": "No branch"
   },
   "inventory": {
     "title": "Inventory",
@@ -1015,7 +1021,13 @@
       "notesPlaceholder": "Movement description (optional)",
       "current": "On hand: {{qty}} {{unit}} · avg cost {{cost}}",
       "save": "Record movement",
-      "saving": "Recording…"
+      "saving": "Recording…",
+      "costCenter": "Cost center",
+      "noCenter": "No cost center",
+      "project": "Project",
+      "noProject": "No project",
+      "branch": "Branch",
+      "noBranch": "No branch"
     },
     "movementsTable": {
       "date": "Date",
@@ -1842,7 +1854,11 @@
       "noCostCenter": "No cost center",
       "saved": "Movement saved",
       "post": "Save & post entry",
-      "exchangeRateWarning": "Exchange rate is 1 — the base amount may be wrong, please set the correct rate"
+      "exchangeRateWarning": "Exchange rate is 1 — the base amount may be wrong, please set the correct rate",
+      "project": "Project",
+      "noProject": "No project",
+      "branch": "Branch",
+      "noBranch": "No branch"
     },
     "fxFix": {
       "auditBtn": "FX Audit",
@@ -3028,5 +3044,13 @@
       "reviewMonthly": "Review financial ratios monthly to catch trends early",
       "cashBuffer": "Maintain a cash buffer covering 3 months of expenses"
     }
+  },
+  "dimensions": {
+    "costCenter": "Cost center",
+    "noCostCenter": "No cost center",
+    "project": "Project",
+    "noProject": "No project",
+    "branch": "Branch",
+    "noBranch": "No branch"
   }
 }
