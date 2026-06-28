@@ -14,6 +14,8 @@ import {
   fixedAssetsTable,
   companiesTable,
   costCentersTable,
+  projectsTable,
+  branchesTable,
   journalEntriesTable,
   paymentAllocationsTable,
   paymentsTable,
@@ -248,6 +250,38 @@ async function validateCostCenters(
   return null;
 }
 
+async function validateProjects(
+  projectIds: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const ids = [...new Set(projectIds.filter((x): x is string => !!x))];
+  if (ids.length === 0) return null;
+  const rows = await db
+    .select({ id: projectsTable.id })
+    .from(projectsTable)
+    .where(
+      and(eq(projectsTable.companyId, companyId), inArray(projectsTable.id, ids)),
+    );
+  if (rows.length !== ids.length) return "المشروع المحدد غير موجود";
+  return null;
+}
+
+async function validateBranches(
+  branchIds: (string | null | undefined)[],
+  companyId: string,
+): Promise<string | null> {
+  const ids = [...new Set(branchIds.filter((x): x is string => !!x))];
+  if (ids.length === 0) return null;
+  const rows = await db
+    .select({ id: branchesTable.id })
+    .from(branchesTable)
+    .where(
+      and(eq(branchesTable.companyId, companyId), inArray(branchesTable.id, ids)),
+    );
+  if (rows.length !== ids.length) return "الفرع المحدد غير موجود";
+  return null;
+}
+
 function isOverdue(inv: Invoice): boolean {
   if (inv.status !== "approved" && inv.status !== "partially_paid") return false;
   if (!inv.dueDate) return false;
@@ -273,6 +307,9 @@ function toListItem(
     dueDate: inv.dueDate,
     partyId: inv.customerId ?? inv.supplierId,
     partyName,
+    costCenterId: inv.costCenterId,
+    projectId: inv.projectId,
+    branchId: inv.branchId,
     status: inv.status as
       | "draft"
       | "approved"
@@ -320,6 +357,8 @@ function toLine(l: InvoiceLine) {
     whtAmount: Number(l.whtAmount),
     lineTotal: Number(l.lineTotal),
     costCenterId: l.costCenterId,
+    projectId: l.projectId,
+    branchId: l.branchId,
     assetNameAr: l.assetNameAr,
     assetNameEn: l.assetNameEn,
     assetUsefulLifeMonths: l.assetUsefulLifeMonths,
@@ -340,7 +379,6 @@ function toDetail(
   return {
     ...toListItem(inv, partyName, relatedCode),
     notes: inv.notes,
-    costCenterId: inv.costCenterId,
     lines: lines.map(toLine),
   };
 }
@@ -1353,6 +1391,8 @@ type PreparedLine = {
   whtAmount: number;
   lineTotal: number;
   costCenterId: string | null;
+  projectId: string | null;
+  branchId: string | null;
   assetNameAr: string | null;
   assetNameEn: string | null;
   assetUsefulLifeMonths: number | null;
@@ -1374,6 +1414,8 @@ type IncomingLine = {
   taxId?: string | null;
   whtTaxId?: string | null;
   costCenterId?: string | null;
+  projectId?: string | null;
+  branchId?: string | null;
   assetNameAr?: string | null;
   assetNameEn?: string | null;
   assetUsefulLifeMonths?: number | null;
@@ -1440,6 +1482,8 @@ function prepareLines(
       whtAmount,
       lineTotal,
       costCenterId: l.costCenterId ?? null,
+      projectId: l.projectId ?? null,
+      branchId: l.branchId ?? null,
       assetNameAr: l.assetNameAr ?? null,
       assetNameEn: l.assetNameEn ?? null,
       assetUsefulLifeMonths: l.assetUsefulLifeMonths ?? null,
@@ -1548,6 +1592,22 @@ router.post(
         res.status(400).json({ error: ccErr });
         return;
       }
+      const projErr = await validateProjects(
+        [d.projectId, ...prep.lines.map((l) => l.projectId)],
+        companyId,
+      );
+      if (projErr) {
+        res.status(400).json({ error: projErr });
+        return;
+      }
+      const branchErr = await validateBranches(
+        [d.branchId, ...prep.lines.map((l) => l.branchId)],
+        companyId,
+      );
+      if (branchErr) {
+        res.status(400).json({ error: branchErr });
+        return;
+      }
       const created = await db.transaction(async (tx) => {
         const invoiceNo = await nextInvoiceNo(tx, companyId, d.kind);
         const code = await generateEntityCode(
@@ -1569,6 +1629,8 @@ router.post(
             customerId: side === "sales" ? party.id : null,
             supplierId: side === "purchase" ? party.id : null,
             costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
             currency: d.currency ?? null,
             exchangeRate: String(d.exchangeRate ?? 1),
             status: "draft",
@@ -1602,6 +1664,8 @@ router.post(
             whtAmount: String(l.whtAmount),
             lineTotal: String(l.lineTotal),
             costCenterId: l.costCenterId,
+            projectId: l.projectId,
+            branchId: l.branchId,
             assetNameAr: l.assetNameAr,
             assetNameEn: l.assetNameEn,
             assetUsefulLifeMonths: l.assetUsefulLifeMonths,
@@ -1737,6 +1801,22 @@ router.patch(
         res.status(400).json({ error: ccErr });
         return;
       }
+      const projErr = await validateProjects(
+        [d.projectId, ...prep.lines.map((l) => l.projectId)],
+        companyId,
+      );
+      if (projErr) {
+        res.status(400).json({ error: projErr });
+        return;
+      }
+      const branchErr = await validateBranches(
+        [d.branchId, ...prep.lines.map((l) => l.branchId)],
+        companyId,
+      );
+      if (branchErr) {
+        res.status(400).json({ error: branchErr });
+        return;
+      }
       const updated = await db.transaction(async (tx) => {
         // Lock + re-check draft status inside the tx so an approve that commits
         // between the pre-tx read and here can't be silently overwritten.
@@ -1764,6 +1844,8 @@ router.patch(
             customerId: side === "sales" ? party.id : null,
             supplierId: side === "purchase" ? party.id : null,
             costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
             currency: d.currency ?? null,
             exchangeRate: String(d.exchangeRate ?? 1),
             notes: d.notes ?? null,
@@ -1803,6 +1885,8 @@ router.patch(
             whtAmount: String(l.whtAmount),
             lineTotal: String(l.lineTotal),
             costCenterId: l.costCenterId,
+            projectId: l.projectId,
+            branchId: l.branchId,
             assetNameAr: l.assetNameAr,
             assetNameEn: l.assetNameEn,
             assetUsefulLifeMonths: l.assetUsefulLifeMonths,
@@ -2819,6 +2903,8 @@ router.post(
             customerId: targetKind === "sales" ? source.customerId : null,
             supplierId: targetKind === "purchase" ? source.supplierId : null,
             costCenterId: source.costCenterId ?? null,
+            projectId: source.projectId ?? null,
+            branchId: source.branchId ?? null,
             currency: source.currency ?? null,
             exchangeRate: source.exchangeRate,
             status: "draft",
@@ -2851,6 +2937,8 @@ router.post(
               taxAmount: l.taxAmount,
               lineTotal: l.lineTotal,
               costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
               assetNameAr: l.assetNameAr,
               assetNameEn: l.assetNameEn,
               assetUsefulLifeMonths: l.assetUsefulLifeMonths,
@@ -3019,6 +3107,8 @@ router.post(
         discount: number;
         taxName: string | null;
         costCenterId: string | null;
+        projectId: string | null;
+        branchId: string | null;
       };
       const groups = new Map<string, ImportRow[]>();
       const groupOrder: string[] = [];
@@ -3062,6 +3152,8 @@ router.post(
           discount: sheet.has("discount") ? sheet.num(row, "discount") : 0,
           taxName: sheet.has("tax") ? sheet.str(row, "tax") || null : null,
           costCenterId: sheet.has("costCenterId") ? sheet.str(row, "costCenterId") || null : null,
+          projectId: sheet.has("projectId") ? sheet.str(row, "projectId") || null : null,
+          branchId: sheet.has("branchId") ? sheet.str(row, "branchId") || null : null,
         });
       }
       if (groupOrder.length === 0) {
@@ -3104,6 +3196,36 @@ router.post(
               return;
             }
           }
+          const ccErr = await validateCostCenters(
+            rows.map((r) => r.costCenterId),
+            companyId,
+          );
+          if (ccErr) {
+            res.status(400).json({
+              error: `الفاتورة ${i + 1}: ${ccErr}`,
+            });
+            return;
+          }
+          const projErr = await validateProjects(
+            rows.map((r) => r.projectId),
+            companyId,
+          );
+          if (projErr) {
+            res.status(400).json({
+              error: `الفاتورة ${i + 1}: ${projErr}`,
+            });
+            return;
+          }
+          const branchErr = await validateBranches(
+            rows.map((r) => r.branchId),
+            companyId,
+          );
+          if (branchErr) {
+            res.status(400).json({
+              error: `الفاتورة ${i + 1}: ${branchErr}`,
+            });
+            return;
+          }
         }
       }
 
@@ -3128,6 +3250,8 @@ router.post(
               discount: r.discount,
               taxId: tax?.id ?? null,
               costCenterId: r.costCenterId,
+              projectId: r.projectId,
+              branchId: r.branchId,
             };
           });
           const prep = prepareLines(kind as "sales" | "purchase", incomingLines, taxRates);
@@ -3145,7 +3269,9 @@ router.post(
               dueDate: first.dueDate,
               customerId: kind === "sales" ? party.id : null,
               supplierId: kind === "purchase" ? party.id : null,
-              costCenterId: null,
+              costCenterId: first.costCenterId ?? null,
+              projectId: first.projectId ?? null,
+              branchId: first.branchId ?? null,
               currency: first.currency ?? baseCurrency,
               exchangeRate: String(first.exchangeRate),
               status: "draft",
@@ -3179,6 +3305,8 @@ router.post(
               whtAmount: String(l.whtAmount),
               lineTotal: String(l.lineTotal),
               costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
               assetNameAr: l.assetNameAr,
               assetNameEn: l.assetNameEn,
               assetUsefulLifeMonths: l.assetUsefulLifeMonths,

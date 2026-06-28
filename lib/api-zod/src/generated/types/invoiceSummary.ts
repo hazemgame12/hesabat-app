@@ -28,6 +28,12 @@ export interface InvoiceSummary {
   partyId?: string | null;
   /** @nullable */
   partyName?: string | null;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   status: InvoiceSummaryStatus;
   overdue?: boolean;
   /** @nullable */

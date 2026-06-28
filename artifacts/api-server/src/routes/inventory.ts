@@ -7,6 +7,9 @@ import {
   inventoryMovementsTable,
   journalEntriesTable,
   accountsTable,
+  costCentersTable,
+  projectsTable,
+  branchesTable,
   companiesTable,
   type InventoryItem,
 } from "@workspace/db";
@@ -71,6 +74,56 @@ async function validateAccounts(
     const acc = map.get(id);
     if (!acc) return "أحد الحسابات المحددة غير موجود";
     if (acc.isGroup) return "لا يمكن الترحيل إلى حساب رئيسي";
+  }
+
+  async function validateDimensions(
+    ids: {
+      costCenterId?: string | null;
+      projectId?: string | null;
+      branchId?: string | null;
+    },
+    companyId: string,
+  ): Promise<string | null> {
+    if (ids.costCenterId) {
+      const [row] = await db
+        .select({ id: costCentersTable.id })
+        .from(costCentersTable)
+        .where(
+          and(
+            eq(costCentersTable.id, ids.costCenterId),
+            eq(costCentersTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!row) return "مركز التكلفة المحدد غير موجود";
+    }
+    if (ids.projectId) {
+      const [row] = await db
+        .select({ id: projectsTable.id })
+        .from(projectsTable)
+        .where(
+          and(
+            eq(projectsTable.id, ids.projectId),
+            eq(projectsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!row) return "المشروع المحدد غير موجود";
+    }
+    if (ids.branchId) {
+      const [row] = await db
+        .select({ id: branchesTable.id })
+        .from(branchesTable)
+        .where(
+          and(
+            eq(branchesTable.id, ids.branchId),
+            eq(branchesTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!row) return "الفرع المحدد غير موجود";
+    }
+    return null;
   }
   return null;
 }
@@ -544,6 +597,9 @@ router.get(
           totalValue: Number(r.m.totalValue),
           inventoryAccountId: r.m.inventoryAccountId,
           counterpartAccountId: r.m.counterpartAccountId,
+          costCenterId: r.m.costCenterId,
+          projectId: r.m.projectId,
+          branchId: r.m.branchId,
           notes: r.m.notes,
           journalEntryId: r.m.journalEntryId,
           journalEntryNo: r.entryNo ?? null,
@@ -617,6 +673,15 @@ router.post(
           companyId,
         );
         if (refErr) return { error: "account" as const, message: refErr };
+        const dimErr = await validateDimensions(
+          {
+            costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
+          },
+          companyId,
+        );
+        if (dimErr) return { error: "account" as const, message: dimErr };
 
         const curQty = round4(Number(item.quantityOnHand));
         const curAvg = round4(Number(item.averageCost));
@@ -689,6 +754,9 @@ router.post(
             totalValue: String(totalValue),
             inventoryAccountId,
             counterpartAccountId: d.counterpartAccountId,
+            costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
             notes: d.notes ?? null,
             journalEntryId,
             createdBy: req.auth!.userId,
@@ -740,6 +808,9 @@ router.post(
         totalValue: Number(m.totalValue),
         inventoryAccountId: m.inventoryAccountId,
         counterpartAccountId: m.counterpartAccountId,
+        costCenterId: m.costCenterId,
+        projectId: m.projectId,
+        branchId: m.branchId,
         notes: m.notes,
         journalEntryId: m.journalEntryId,
         journalEntryNo: entryNo,

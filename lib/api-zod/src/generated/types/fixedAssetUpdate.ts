@@ -28,4 +28,10 @@ export interface FixedAssetUpdate {
   assetAccountId?: string;
   accumulatedAccountId?: string;
   expenseAccountId?: string;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
 }

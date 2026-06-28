@@ -11,7 +11,5 @@ import type { InvoiceSummary } from './invoiceSummary';
 export type InvoiceDetail = InvoiceSummary & ({
   /** @nullable */
   notes?: string | null;
-  /** @nullable */
-  costCenterId?: string | null;
   lines: InvoiceLine[];
 });

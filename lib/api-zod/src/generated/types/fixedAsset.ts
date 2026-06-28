@@ -26,6 +26,12 @@ export interface FixedAsset {
   assetAccountId: string;
   accumulatedAccountId: string;
   expenseAccountId: string;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
   accumulatedDepreciation: number;
   netBookValue: number;
   createdAt: string;

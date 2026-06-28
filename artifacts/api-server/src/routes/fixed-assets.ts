@@ -6,6 +6,9 @@ import {
   fixedAssetsTable,
   assetDepreciationEntriesTable,
   accountsTable,
+  costCentersTable,
+  projectsTable,
+  branchesTable,
   companiesTable,
   type FixedAsset,
 } from "@workspace/db";
@@ -51,6 +54,9 @@ function toAsset(row: FixedAsset, accumulated: number) {
     assetAccountId: row.assetAccountId,
     accumulatedAccountId: row.accumulatedAccountId,
     expenseAccountId: row.expenseAccountId,
+    costCenterId: row.costCenterId,
+    projectId: row.projectId,
+    branchId: row.branchId,
     accumulatedDepreciation: acc,
     netBookValue: round2(cost - acc),
     createdAt: row.createdAt.toISOString(),
@@ -78,6 +84,56 @@ async function validateAssetAccounts(
     const acc = map.get(id);
     if (!acc) return "أحد الحسابات المحددة غير موجود";
     if (acc.isGroup) return "لا يمكن الترحيل إلى حساب رئيسي";
+  }
+
+  async function validateDimensions(
+    ids: {
+      costCenterId?: string | null;
+      projectId?: string | null;
+      branchId?: string | null;
+    },
+    companyId: string,
+  ): Promise<string | null> {
+    if (ids.costCenterId) {
+      const [row] = await db
+        .select({ id: costCentersTable.id })
+        .from(costCentersTable)
+        .where(
+          and(
+            eq(costCentersTable.id, ids.costCenterId),
+            eq(costCentersTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!row) return "مركز التكلفة المحدد غير موجود";
+    }
+    if (ids.projectId) {
+      const [row] = await db
+        .select({ id: projectsTable.id })
+        .from(projectsTable)
+        .where(
+          and(
+            eq(projectsTable.id, ids.projectId),
+            eq(projectsTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!row) return "المشروع المحدد غير موجود";
+    }
+    if (ids.branchId) {
+      const [row] = await db
+        .select({ id: branchesTable.id })
+        .from(branchesTable)
+        .where(
+          and(
+            eq(branchesTable.id, ids.branchId),
+            eq(branchesTable.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      if (!row) return "الفرع المحدد غير موجود";
+    }
+    return null;
   }
   return null;
 }
@@ -179,6 +235,18 @@ router.post(
         res.status(400).json({ error: refErr });
         return;
       }
+      const dimErr = await validateDimensions(
+        {
+          costCenterId: d.costCenterId ?? null,
+          projectId: d.projectId ?? null,
+          branchId: d.branchId ?? null,
+        },
+        companyId,
+      );
+      if (dimErr) {
+        res.status(400).json({ error: dimErr });
+        return;
+      }
       // Generate the code and insert the row in one tx so a failed insert
       // unwinds the sequence increment (no burned/gapped codes).
       const row = await db.transaction(async (tx) => {
@@ -204,6 +272,9 @@ router.post(
             assetAccountId: d.assetAccountId,
             accumulatedAccountId: d.accumulatedAccountId,
             expenseAccountId: d.expenseAccountId,
+            costCenterId: d.costCenterId ?? null,
+            projectId: d.projectId ?? null,
+            branchId: d.branchId ?? null,
           })
           .returning();
         return r;
@@ -252,6 +323,9 @@ router.patch(
       updates["accumulatedAccountId"] = d.accumulatedAccountId;
     if (d.expenseAccountId !== undefined)
       updates["expenseAccountId"] = d.expenseAccountId;
+    if (d.costCenterId !== undefined) updates["costCenterId"] = d.costCenterId;
+    if (d.projectId !== undefined) updates["projectId"] = d.projectId;
+    if (d.branchId !== undefined) updates["branchId"] = d.branchId;
     if (Object.keys(updates).length === 0) {
       res.status(400).json({ error: "لا توجد بيانات للتحديث" });
       return;
@@ -286,6 +360,18 @@ router.patch(
       const refErr = await validateAssetAccounts(accountIds, companyId);
       if (refErr) {
         res.status(400).json({ error: refErr });
+        return;
+      }
+      const dimErr = await validateDimensions(
+        {
+          costCenterId: (updates["costCenterId"] as string | null | undefined) ?? existing.costCenterId,
+          projectId: (updates["projectId"] as string | null | undefined) ?? existing.projectId,
+          branchId: (updates["branchId"] as string | null | undefined) ?? existing.branchId,
+        },
+        companyId,
+      );
+      if (dimErr) {
+        res.status(400).json({ error: dimErr });
         return;
       }
       const [row] = await db
@@ -589,6 +675,9 @@ router.get(
             header: "expenseAccountCode",
             value: (r) => codeById.get(r.expenseAccountId) ?? "",
           },
+          { header: "costCenterId", value: (r) => r.costCenterId ?? "" },
+          { header: "projectId", value: (r) => r.projectId ?? "" },
+          { header: "branchId", value: (r) => r.branchId ?? "" },
           {
             header: "accumulatedDepreciation",
             value: (r) => round2(accMap.get(r.id) ?? 0),
@@ -678,6 +767,9 @@ router.post(
         assetAccountId: string;
         accumulatedAccountId: string;
         expenseAccountId: string;
+        costCenterId: string | null;
+        projectId: string | null;
+        branchId: string | null;
       };
       const parsed: Row[] = [];
       for (const { rowNo, row } of sheet.rows) {
@@ -762,6 +854,15 @@ router.post(
               "مجمع الإهلاك",
             ),
             expenseAccountId: resolveAccount(rowNo, expenseCode, "المصروف"),
+            costCenterId: sheet.has("costCenterId")
+              ? sheet.str(row, "costCenterId") || null
+              : null,
+            projectId: sheet.has("projectId")
+              ? sheet.str(row, "projectId") || null
+              : null,
+            branchId: sheet.has("branchId")
+              ? sheet.str(row, "branchId") || null
+              : null,
           });
         } catch (e) {
           if (e instanceof ImportRowError) {
@@ -778,6 +879,17 @@ router.post(
 
       await db.transaction(async (tx) => {
         for (const r of parsed) {
+          const dimErr = await validateDimensions(
+            {
+              costCenterId: r.costCenterId,
+              projectId: r.projectId,
+              branchId: r.branchId,
+            },
+            companyId,
+          );
+          if (dimErr) {
+            throw new ImportRowError(dimErr);
+          }
           await tx.insert(fixedAssetsTable).values({
             companyId,
             nameAr: r.nameAr,
@@ -792,11 +904,18 @@ router.post(
             assetAccountId: r.assetAccountId,
             accumulatedAccountId: r.accumulatedAccountId,
             expenseAccountId: r.expenseAccountId,
+            costCenterId: r.costCenterId,
+            projectId: r.projectId,
+            branchId: r.branchId,
           });
         }
       });
       res.json({ imported: parsed.length });
     } catch (err) {
+      if (err instanceof ImportRowError) {
+        res.status(400).json({ error: err.message });
+        return;
+      }
       req.log.error({ err }, "Failed to import fixed assets");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
     }

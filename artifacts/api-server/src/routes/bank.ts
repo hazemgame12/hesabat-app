@@ -14,6 +14,8 @@ import {
   accountsTable,
   companiesTable,
   costCentersTable,
+  projectsTable,
+  branchesTable,
   journalEntriesTable,
   journalEntryLinesTable,
   customersTable,
@@ -126,6 +128,30 @@ async function isCompanyCostCenter(
     )
     .limit(1);
   return !!cc;
+}
+
+async function isCompanyProject(
+  projectId: string,
+  companyId: string,
+): Promise<boolean> {
+  const [p] = await db
+    .select({ id: projectsTable.id })
+    .from(projectsTable)
+    .where(and(eq(projectsTable.id, projectId), eq(projectsTable.companyId, companyId)))
+    .limit(1);
+  return !!p;
+}
+
+async function isCompanyBranch(
+  branchId: string,
+  companyId: string,
+): Promise<boolean> {
+  const [b] = await db
+    .select({ id: branchesTable.id })
+    .from(branchesTable)
+    .where(and(eq(branchesTable.id, branchId), eq(branchesTable.companyId, companyId)))
+    .limit(1);
+  return !!b;
 }
 
 // xlsx statement uploads come through memory storage (parsed, never persisted).
@@ -335,6 +361,38 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
       );
     for (const c of ccs) costCenterMap.set(c.id, c.name);
   }
+  const projectIds = [
+    ...new Set(rows.map((r) => r.projectId).filter((x): x is string => !!x)),
+  ];
+  const projectMap = new Map<string, string>();
+  if (projectIds.length) {
+    const ps = await db
+      .select({ id: projectsTable.id, name: projectsTable.nameAr })
+      .from(projectsTable)
+      .where(
+        and(
+          eq(projectsTable.companyId, companyId),
+          inArray(projectsTable.id, projectIds),
+        ),
+      );
+    for (const p of ps) projectMap.set(p.id, p.name);
+  }
+  const branchIds = [
+    ...new Set(rows.map((r) => r.branchId).filter((x): x is string => !!x)),
+  ];
+  const branchMap = new Map<string, string>();
+  if (branchIds.length) {
+    const bs = await db
+      .select({ id: branchesTable.id, name: branchesTable.nameAr })
+      .from(branchesTable)
+      .where(
+        and(
+          eq(branchesTable.companyId, companyId),
+          inArray(branchesTable.id, branchIds),
+        ),
+      );
+    for (const b of bs) branchMap.set(b.id, b.name);
+  }
   // Look up linked payment IDs (movement → payment)
   const paymentMap = new Map<string, string>();
   {
@@ -373,6 +431,10 @@ async function serializeMovements(rows: BankMovement[], companyId: string) {
     costCenterName: r.costCenterId
       ? (costCenterMap.get(r.costCenterId) ?? null)
       : null,
+    projectId: r.projectId,
+    projectName: r.projectId ? (projectMap.get(r.projectId) ?? null) : null,
+    branchId: r.branchId,
+    branchName: r.branchId ? (branchMap.get(r.branchId) ?? null) : null,
     transferAccountId: r.transferAccountId,
     transferAccountName: r.transferAccountId
       ? (bankMap.get(r.transferAccountId) ?? null)
@@ -993,6 +1055,8 @@ router.get(
           counterpartCode: accountsTable.code,
           counterpartName: accountsTable.nameAr,
           costCenterName: costCentersTable.nameAr,
+          projectName: projectsTable.nameAr,
+          branchName: branchesTable.nameAr,
         })
         .from(bankMovementsTable)
         .leftJoin(
@@ -1007,6 +1071,20 @@ router.get(
           and(
             eq(costCentersTable.id, bankMovementsTable.costCenterId),
             eq(costCentersTable.companyId, companyId),
+          ),
+        )
+        .leftJoin(
+          projectsTable,
+          and(
+            eq(projectsTable.id, bankMovementsTable.projectId),
+            eq(projectsTable.companyId, companyId),
+          ),
+        )
+        .leftJoin(
+          branchesTable,
+          and(
+            eq(branchesTable.id, bankMovementsTable.branchId),
+            eq(branchesTable.companyId, companyId),
           ),
         )
         .where(
@@ -1048,6 +1126,14 @@ router.get(
           {
             header: "مركز التكلفة",
             value: (r) => r.costCenterName ?? "",
+          },
+          {
+            header: "المشروع",
+            value: (r) => r.projectName ?? "",
+          },
+          {
+            header: "الفرع",
+            value: (r) => r.branchName ?? "",
             width: 22,
           },
           {
@@ -1289,6 +1375,8 @@ const ImportBatchRowSchema = z.object({
   reference: z.string().nullish(),
   counterpartAccountId: z.string().nullish(),
   costCenterId: z.string().nullish(),
+  projectId: z.string().nullish(),
+  branchId: z.string().nullish(),
   description: z.string().nullish(),
 });
 const ImportBatchBodySchema = z.object({
@@ -1363,6 +1451,32 @@ router.post(
         return;
       }
     }
+    const uniqueProjectIds = [
+      ...new Set(
+        parsed.data.rows
+          .map((r) => r.projectId ?? null)
+          .filter((x): x is string => !!x),
+      ),
+    ];
+    for (const id of uniqueProjectIds) {
+      if (!(await isCompanyProject(id, companyId))) {
+        res.status(400).json({ error: `المشروع غير صحيح: ${id}` });
+        return;
+      }
+    }
+    const uniqueBranchIds = [
+      ...new Set(
+        parsed.data.rows
+          .map((r) => r.branchId ?? null)
+          .filter((x): x is string => !!x),
+      ),
+    ];
+    for (const id of uniqueBranchIds) {
+      if (!(await isCompanyBranch(id, companyId))) {
+        res.status(400).json({ error: `الفرع غير صحيح: ${id}` });
+        return;
+      }
+    }
     const baseCurrency = await loadBaseCurrency(companyId);
     let postedCount = 0;
     let pendingCount = 0;
@@ -1399,6 +1513,8 @@ router.post(
             exchangeRate: "1",
             counterpartAccountId,
             costCenterId: r.costCenterId ?? null,
+            projectId: r.projectId ?? null,
+            branchId: r.branchId ?? null,
             description: r.description ?? null,
             notes: r.notes ?? null,
             reference: r.reference ?? null,
@@ -1417,6 +1533,8 @@ router.post(
             amount: String(r.amount),
             currency: bank.currency,
             exchangeRate: "1",
+            projectId: r.projectId ?? null,
+            branchId: r.branchId ?? null,
             notes: r.notes ?? null,
             reference: r.reference ?? null,
             createdBy: req.auth!.userId,
@@ -1655,6 +1773,8 @@ router.post(
                   ? String(realizedGainLoss) : null,
                 transferAccountId: dest.id,
                 transferGroupId,
+                projectId: d.projectId ?? null,
+                branchId: d.branchId ?? null,
                 description: d.description ?? null,
                 notes: d.notes ?? null,
                 reference: d.reference ?? null,
@@ -1672,6 +1792,8 @@ router.post(
                 exchangeRate: String(destRate),
                 transferAccountId: bank.id,
                 transferGroupId,
+                projectId: d.projectId ?? null,
+                branchId: d.branchId ?? null,
                 description: d.description ?? null,
                 notes: d.notes ?? null,
                 reference: d.reference ?? null,
@@ -1704,6 +1826,16 @@ router.post(
       const costCenterId = d.costCenterId ?? null;
       if (costCenterId && !(await isCompanyCostCenter(costCenterId, companyId))) {
         res.status(400).json({ error: "مركز التكلفة غير صحيح" });
+        return;
+      }
+      const projectId = d.projectId ?? null;
+      if (projectId && !(await isCompanyProject(projectId, companyId))) {
+        res.status(400).json({ error: "المشروع غير صحيح" });
+        return;
+      }
+      const branchId = d.branchId ?? null;
+      if (branchId && !(await isCompanyBranch(branchId, companyId))) {
+        res.status(400).json({ error: "الفرع غير صحيح" });
         return;
       }
       const direction = MOVEMENT_DIRECTION[d.type as Exclude<BankMovementType, "transfer">];
@@ -1742,6 +1874,8 @@ router.post(
             exchangeRate: String(rate),
             counterpartAccountId: d.counterpartAccountId,
             costCenterId,
+            projectId,
+            branchId,
             description: d.description ?? null,
             notes: d.notes ?? null,
             reference: d.reference ?? null,
@@ -1889,6 +2023,18 @@ router.patch(
         res.status(400).json({ error: "مركز التكلفة غير صحيح" });
         return;
       }
+      const projectId =
+        d.projectId === undefined ? movement.projectId : d.projectId;
+      if (projectId && !(await isCompanyProject(projectId, companyId))) {
+        res.status(400).json({ error: "المشروع غير صحيح" });
+        return;
+      }
+      const branchId =
+        d.branchId === undefined ? movement.branchId : d.branchId;
+      if (branchId && !(await isCompanyBranch(branchId, companyId))) {
+        res.status(400).json({ error: "الفرع غير صحيح" });
+        return;
+      }
 
       const description =
         d.description === undefined ? movement.description : d.description;
@@ -1959,6 +2105,8 @@ router.patch(
             exchangeRate: String(effRate),
             counterpartAccountId,
             costCenterId,
+            projectId,
+            branchId,
             description,
             notes,
             reference,

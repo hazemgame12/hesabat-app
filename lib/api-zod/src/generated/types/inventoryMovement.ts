@@ -25,6 +25,12 @@ export interface InventoryMovement {
   /** @nullable */
   notes?: string | null;
   /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
   journalEntryId?: string | null;
   /** @nullable */
   journalEntryNo?: number | null;
