@@ -175,7 +175,8 @@
     "vendorPayments": "سندات الصرف",
     "financialReports": "التقارير المالية",
     "taxDeclarations": "الإقرارات الضريبية",
-    "financialAnalysis": "الموازنات والتحليل"
+    "financialAnalysis": "الموازنات والتحليل",
+    "reportsCenter": "مركز التقارير"
   },
   "support": {
     "title": "الدعم",
@@ -2577,6 +2578,34 @@
       "current": "الحالي",
       "prior": "مقارنة"
     }
+  },
+  "reportsCenter": {
+    "title": "مركز التقارير",
+    "subtitle": "اختر التقرير المناسب من الفئات أدناه",
+    "search": "بحث في التقارير...",
+    "favorites": "التقارير المفضلة",
+    "noFavorites": "لا توجد تقارير مفضلة",
+    "noResults": "لا توجد نتائج مطابقة",
+    "comingSoon": "قريباً",
+    "categories": {
+      "financial": "التقارير المالية",
+      "sales": "المبيعات والعملاء",
+      "purchases": "المشتريات والموردين",
+      "cashBank": "النقدية والبنوك",
+      "inventory": "المخزون",
+      "fixedAssets": "الأصول الثابتة",
+      "payroll": "الرواتب والموارد البشرية"
+    }
+  },
+  "dimensionFilters": {
+    "title": "تصفية حسب الأبعاد",
+    "costCenter": "مركز التكلفة",
+    "project": "المشروع",
+    "branch": "الفرع",
+    "allCostCenters": "جميع مراكز التكلفة",
+    "allProjects": "جميع المشاريع",
+    "allBranches": "جميع الفروع",
+    "applyFilter": "تطبيق"
   },
   "superAdmin": {
     "title": "لوحة التحكم",

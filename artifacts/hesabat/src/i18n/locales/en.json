@@ -175,7 +175,8 @@
     "vendorPayments": "Vendor Payments",
     "financialReports": "Financial Reports",
     "taxDeclarations": "Tax Declarations",
-    "financialAnalysis": "Budgets & Analysis"
+    "financialAnalysis": "Budgets & Analysis",
+    "reportsCenter": "Reports Center"
   },
   "support": {
     "title": "Support",
@@ -2577,6 +2578,34 @@
       "current": "Current",
       "prior": "Prior"
     }
+  },
+  "reportsCenter": {
+    "title": "Reports Center",
+    "subtitle": "Choose a report from the categories below",
+    "search": "Search reports...",
+    "favorites": "Favorite Reports",
+    "noFavorites": "No favorite reports yet",
+    "noResults": "No matching reports",
+    "comingSoon": "Coming Soon",
+    "categories": {
+      "financial": "Financial Reports",
+      "sales": "Sales & Customers",
+      "purchases": "Purchases & Suppliers",
+      "cashBank": "Cash & Bank",
+      "inventory": "Inventory",
+      "fixedAssets": "Fixed Assets",
+      "payroll": "Payroll & HR"
+    }
+  },
+  "dimensionFilters": {
+    "title": "Filter by Dimension",
+    "costCenter": "Cost Center",
+    "project": "Project",
+    "branch": "Branch",
+    "allCostCenters": "All Cost Centers",
+    "allProjects": "All Projects",
+    "allBranches": "All Branches",
+    "applyFilter": "Apply"
   },
   "superAdmin": {
     "title": "Super Admin",
