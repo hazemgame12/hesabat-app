@@ -104,9 +104,12 @@ function FilterSelect({
 export function DimensionFilters({
   value,
   onChange,
+  onBack,
 }: {
   value: DimensionFilterValues;
   onChange: (value: DimensionFilterValues) => void;
+  /** Optional back navigation callback rendered as a link above the filters. */
+  onBack?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -115,19 +118,45 @@ export function DimensionFilters({
   const { data: branches = [] } = useListBranches();
 
   return (
-    <div className="mb-6 rounded-3xl border border-border bg-card/90 p-4 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="rounded-2xl bg-primary/10 p-2 text-primary">
-          <Building2 className="h-4 w-4" />
+    <div className="rounded-3xl border border-border bg-card/90 p-4 shadow-sm no-print">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl bg-primary/10 p-2 text-primary">
+            <Building2 className="h-4 w-4" />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-foreground">
+              {t("dimensionFilters.title")}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {t("dimensionFilters.subtitle")}
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-sm font-bold text-foreground">
-            {t("dimensionFilters.title")}
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {t("dimensionFilters.subtitle")}
-          </p>
-        </div>
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <span className="inline-block rtl:rotate-180">
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </span>
+            {t("reportsPage.detail.backToReportsCenter")}
+          </button>
+        )}
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
         <FilterSelect
