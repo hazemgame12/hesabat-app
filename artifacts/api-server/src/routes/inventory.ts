@@ -22,7 +22,7 @@ import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { createDraftJournalEntry } from "../lib/journal-posting";
 import { generateEntityCode, todayDate } from "../lib/codes";
-import { computeMovement, round2, round4 } from "../lib/inventory-posting";
+import { computeMovement, round2, round4, buildInventoryPostingLines } from "../lib/inventory-posting";
 import { exportWorkbook, handleXlsxUpload, parseSheet } from "../lib/excel";
 
 const router = Router();
@@ -710,18 +710,17 @@ router.post(
               : d.type === "issue"
                 ? "صرف مخزون"
                 : "تسوية مخزون";
-          const invLine = {
-            accountId: inventoryAccountId,
-            description: `${typeLabel} - ${itemLabel}`,
-            debit: inventoryIsDebit ? postAmount : 0,
-            credit: inventoryIsDebit ? 0 : postAmount,
-          };
-          const counterLine = {
-            accountId: d.counterpartAccountId,
-            description: `${typeLabel} - ${itemLabel}`,
-            debit: inventoryIsDebit ? 0 : postAmount,
-            credit: inventoryIsDebit ? postAmount : 0,
-          };
+          const [invLine, counterLine] = buildInventoryPostingLines({
+            inventoryAccountId,
+            counterpartAccountId: d.counterpartAccountId,
+            typeLabel,
+            itemLabel,
+            postAmount,
+            inventoryIsDebit,
+            costCenterId: d.costCenterId,
+            projectId: d.projectId,
+            branchId: d.branchId,
+          });
           const entry = await createDraftJournalEntry(tx, {
             companyId,
             baseCurrency,

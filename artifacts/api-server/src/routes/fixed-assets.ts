@@ -22,6 +22,7 @@ import { requireCapability } from "../middleware/require-capability";
 import { createDraftJournalEntry } from "../lib/journal-posting";
 import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 import { generateEntityCode } from "../lib/codes";
+import { buildDepreciationLines } from "../lib/fixed-asset-posting";
 import {
   exportWorkbook,
   handleXlsxUpload,
@@ -511,6 +512,9 @@ router.post(
         description?: string | null;
         debit: number;
         credit: number;
+        costCenterId?: string | null;
+        projectId?: string | null;
+        branchId?: string | null;
       }[] = [];
       const depRecords: { assetId: string; amount: number }[] = [];
       let skipped = 0;
@@ -543,18 +547,18 @@ router.post(
         }
         const label =
           (a.nameAr || a.nameEn || "").slice(0, 120) || "أصل ثابت";
-        lines.push({
-          accountId: a.expenseAccountId,
-          description: `إهلاك ${label} - ${period}`,
-          debit: amount,
-          credit: 0,
+        const [expLine, accLine] = buildDepreciationLines({
+          expenseAccountId: a.expenseAccountId,
+          accumulatedAccountId: a.accumulatedAccountId,
+          label,
+          period,
+          amount,
+          costCenterId: a.costCenterId,
+          projectId: a.projectId,
+          branchId: a.branchId,
         });
-        lines.push({
-          accountId: a.accumulatedAccountId,
-          description: `مجمع إهلاك ${label} - ${period}`,
-          debit: 0,
-          credit: amount,
-        });
+        lines.push(expLine);
+        lines.push(accLine);
         depRecords.push({ assetId: a.id, amount });
         totalAmount = round2(totalAmount + amount);
       }
