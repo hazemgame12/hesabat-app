@@ -20,6 +20,7 @@ import {
   Search,
   ShieldCheck,
   Star,
+  TrendingDown,
   TrendingUp,
   Users,
   Wallet,
