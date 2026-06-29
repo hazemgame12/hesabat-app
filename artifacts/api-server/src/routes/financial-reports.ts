@@ -764,6 +764,7 @@ router.get(
     const asOf = (req.query["asOf"] as string | undefined) || null;
     const reportCurrency =
       (req.query["reportCurrency"] as string | undefined) || null;
+    const dimensions = readReportDimensionFilters(req.query);
     try {
       const companyId = req.auth!.companyId;
       // The balance sheet's as-of date drives the rate lookup.
