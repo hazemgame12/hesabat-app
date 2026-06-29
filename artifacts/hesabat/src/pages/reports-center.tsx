@@ -666,7 +666,7 @@ const REPORTS: ReportItem[] = [
     icon: TrendingDown,
     status: "linked",
   },
-
+];
 
 export function ReportsCenter() {
   const { t, i18n } = useTranslation();
