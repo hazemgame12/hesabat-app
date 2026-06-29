@@ -68,7 +68,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "Trial Balance",
     descriptionAr: "مراجعة الأرصدة الافتتاحية والحركة والختامية لكل حساب.",
     descriptionEn: "Review opening, movement, and closing balances by account.",
-    href: "/reports/financial?tab=trialBalance",
+    href: "/reports/financial/trial-balance",
     icon: Scale,
   },
   {
@@ -78,7 +78,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "General Ledger",
     descriptionAr: "متابعة الحركات التفصيلية والرصيد الجاري لكل حساب.",
     descriptionEn: "Inspect detailed movements and running balances for each account.",
-    href: "/reports/financial?tab=generalLedger",
+    href: "/reports/financial/general-ledger",
     icon: BookMarked,
   },
   {
@@ -88,7 +88,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "Account Statement",
     descriptionAr: "استخراج كشف حساب تفصيلي لفترة محددة.",
     descriptionEn: "Generate a detailed account statement for a selected period.",
-    href: "/reports/financial?tab=generalLedger",
+    href: "/reports/financial/account-statement",
     icon: FileSpreadsheet,
   },
   {
@@ -98,7 +98,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "Income Statement",
     descriptionAr: "تحليل الإيرادات والمصروفات وصافي الربح.",
     descriptionEn: "Analyze revenue, expenses, and net profit.",
-    href: "/reports/financial?tab=incomeStatement",
+    href: "/reports/financial/income-statement",
     icon: TrendingUp,
   },
   {
@@ -108,7 +108,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "Balance Sheet",
     descriptionAr: "عرض الأصول والالتزامات وحقوق الملكية حتى تاريخ معين.",
     descriptionEn: "View assets, liabilities, and equity as of a specific date.",
-    href: "/reports/financial?tab=balanceSheet",
+    href: "/reports/financial/balance-sheet",
     icon: ShieldCheck,
   },
   {
@@ -118,7 +118,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "Owners' Equity",
     descriptionAr: "متابعة رصيد حقوق الملكية ونتيجة الفترة.",
     descriptionEn: "Track owner equity balances and current period result.",
-    href: "/reports/financial?tab=balanceSheet",
+    href: "/reports/financial/balance-sheet",
     icon: Gem,
   },
   {
@@ -128,7 +128,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "Cash Flow",
     descriptionAr: "مراقبة التدفقات الداخلة والخارجة وصافي النقدية.",
     descriptionEn: "Monitor inflows, outflows, and net cash position.",
-    href: "/reports/financial?tab=cashFlow",
+    href: "/reports/financial/cash-flow",
     icon: Wallet,
   },
   {
@@ -138,7 +138,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "Cash Forecast",
     descriptionAr: "توقع السيولة المستقبلية عبر الفترات القادمة.",
     descriptionEn: "Forecast future liquidity across upcoming periods.",
-    href: "/reports/financial?tab=cashForecast",
+    href: "/reports/financial/cash-flow",
     icon: FileClock,
   },
   {
@@ -148,7 +148,7 @@ const REPORTS: ReportItem[] = [
     titleEn: "Currency Revaluation",
     descriptionAr: "حساب فروق إعادة تقييم الأرصدة متعددة العملات.",
     descriptionEn: "Calculate revaluation differences for foreign currency balances.",
-    href: "/reports/financial?tab=revaluation",
+    href: "/reports/financial",
     icon: ArrowRightLeft,
   },
   {

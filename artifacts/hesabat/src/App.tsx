@@ -29,6 +29,7 @@ import PrintPaymentPage from "@/pages/print-payment";
 import { PrintGuard } from "@/components/print/PrintGuard";
 import { Reports } from "@/pages/reports";
 import { ReportsFinancial } from "@/pages/reports-financial";
+import { ReportsFinancialDetail } from "@/pages/reports-financial-detail";
 import { ReportsCenter } from "@/pages/reports-center";
 import { ReportsTax } from "@/pages/reports-tax";
 import { ReportsAnalysis } from "@/pages/reports-analysis";
@@ -109,6 +110,12 @@ function ProtectedRoutes() {
         <Route path="/quotations" component={QuotationsPage} />
         <Route path="/purchase-orders" component={PurchaseOrdersPage} />
         <Route path="/revaluation" component={Revaluation} />
+        <Route path="/reports/financial/trial-balance" component={() => <ReportsFinancialDetail reportKey="trial-balance" />} />
+        <Route path="/reports/financial/general-ledger" component={() => <ReportsFinancialDetail reportKey="general-ledger" />} />
+        <Route path="/reports/financial/account-statement" component={() => <ReportsFinancialDetail reportKey="account-statement" />} />
+        <Route path="/reports/financial/income-statement" component={() => <ReportsFinancialDetail reportKey="income-statement" />} />
+        <Route path="/reports/financial/balance-sheet" component={() => <ReportsFinancialDetail reportKey="balance-sheet" />} />
+        <Route path="/reports/financial/cash-flow" component={() => <ReportsFinancialDetail reportKey="cash-flow" />} />
         <Route path="/reports/financial" component={ReportsFinancial} />
         <Route path="/reports/tax" component={ReportsTax} />
         <Route path="/reports/analysis" component={ReportsAnalysis} />
