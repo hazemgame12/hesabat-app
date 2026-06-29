@@ -103,9 +103,29 @@ async function resolveReportCurrency(
 
 const NO_RATE_ERROR = "لا يوجد سعر صرف لهذه العملة في هذا التاريخ";
 
+export type ReportDimensionFilters = {
+  costCenterId?: string | null;
+  projectId?: string | null;
+  branchId?: string | null;
+};
+
+export function readReportDimensionFilters(
+  query: Record<string, unknown>,
+): ReportDimensionFilters {
+  const read = (key: "costCenterId" | "projectId" | "branchId") => {
+    const value = query[key];
+    return typeof value === "string" && value ? value : null;
+  };
+  return {
+    costCenterId: read("costCenterId"),
+    projectId: read("projectId"),
+    branchId: read("branchId"),
+  };
+}
+
 // Validate optional from/to query dates: each must be YYYY-MM-DD (a real date)
 // and from must not be after to. Returns an error string, or null when valid.
-function validateDateRange(
+export function validateDateRange(
   from: string | null,
   to: string | null,
 ): string | null {
@@ -137,6 +157,7 @@ async function postedTotals(
   companyId: string,
   from: string | null,
   to: string | null,
+  dimensions?: ReportDimensionFilters,
 ) {
   const conds = [
     eq(journalEntriesTable.companyId, companyId),
@@ -144,6 +165,12 @@ async function postedTotals(
   ];
   if (from) conds.push(gte(journalEntriesTable.date, from));
   if (to) conds.push(lte(journalEntriesTable.date, to));
+  if (dimensions?.costCenterId)
+    conds.push(eq(journalEntryLinesTable.costCenterId, dimensions.costCenterId));
+  if (dimensions?.projectId)
+    conds.push(eq(journalEntryLinesTable.projectId, dimensions.projectId));
+  if (dimensions?.branchId)
+    conds.push(eq(journalEntryLinesTable.branchId, dimensions.branchId));
 
   const rows = await db
     .select({
@@ -171,7 +198,23 @@ async function postedTotals(
 
 // Sum posted debit/credit (base currency) per account STRICTLY BEFORE a date.
 // Used for the opening balance column of the trial balance.
-async function postedTotalsBefore(companyId: string, before: string) {
+async function postedTotalsBefore(
+  companyId: string,
+  before: string,
+  dimensions?: ReportDimensionFilters,
+) {
+  const conds = [
+    eq(journalEntriesTable.companyId, companyId),
+    eq(journalEntriesTable.status, "posted"),
+    lt(journalEntriesTable.date, before),
+  ];
+  if (dimensions?.costCenterId)
+    conds.push(eq(journalEntryLinesTable.costCenterId, dimensions.costCenterId));
+  if (dimensions?.projectId)
+    conds.push(eq(journalEntryLinesTable.projectId, dimensions.projectId));
+  if (dimensions?.branchId)
+    conds.push(eq(journalEntryLinesTable.branchId, dimensions.branchId));
+
   const rows = await db
     .select({
       accountId: journalEntryLinesTable.accountId,
@@ -183,13 +226,7 @@ async function postedTotalsBefore(companyId: string, before: string) {
       journalEntriesTable,
       eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
     )
-    .where(
-      and(
-        eq(journalEntriesTable.companyId, companyId),
-        eq(journalEntriesTable.status, "posted"),
-        lt(journalEntriesTable.date, before),
-      ),
-    )
+    .where(and(...conds))
     .groupBy(journalEntryLinesTable.accountId);
 
   const map = new Map<string, { debit: number; credit: number }>();
@@ -239,13 +276,14 @@ async function computeTrialBalance(
   companyId: string,
   from: string | null,
   to: string | null,
+  dimensions?: ReportDimensionFilters,
 ) {
   const [accounts, opening, period] = await Promise.all([
     loadAccounts(companyId),
     from
-      ? postedTotalsBefore(companyId, from)
+      ? postedTotalsBefore(companyId, from, dimensions)
       : Promise.resolve(new Map<string, { debit: number; credit: number }>()),
-    postedTotals(companyId, from, to),
+    postedTotals(companyId, from, to, dimensions),
   ]);
   const byId = new Map(accounts.map((a) => [a.id, a]));
   const accIds = new Set<string>([...opening.keys(), ...period.keys()]);
@@ -363,6 +401,7 @@ router.get(
     const to = (req.query["to"] as string | undefined) || null;
     const reportCurrency =
       (req.query["reportCurrency"] as string | undefined) || null;
+    const dimensions = readReportDimensionFilters(req.query);
     const dateErr = validateDateRange(from, to);
     if (dateErr) {
       res.status(400).json({ error: dateErr });
@@ -376,7 +415,7 @@ router.get(
         res.status(400).json({ error: NO_RATE_ERROR });
         return;
       }
-      let report = await computeTrialBalance(companyId, from, to);
+      let report = await computeTrialBalance(companyId, from, to, dimensions);
       if (ccy.info.rate !== 1) report = convertTrialBalance(report, ccy.info.rate);
       res.json({ ...report, currencyInfo: ccy.info });
     } catch (err) {
@@ -399,8 +438,9 @@ router.get(
       return;
     }
     try {
+      const dimensions = readReportDimensionFilters(req.query);
       const [report, titleRows] = await Promise.all([
-        computeTrialBalance(req.auth!.companyId, from, to),
+        computeTrialBalance(req.auth!.companyId, from, to, dimensions),
         buildExcelTitleRows(
           req.auth!.companyId,
           "ميزان المراجعة",
@@ -467,10 +507,11 @@ async function computeIncomeStatement(
   companyId: string,
   from: string | null,
   to: string | null,
+  dimensions?: ReportDimensionFilters,
 ) {
   const [accounts, totals] = await Promise.all([
     loadAccounts(companyId),
-    postedTotals(companyId, from, to),
+    postedTotals(companyId, from, to, dimensions),
   ]);
 
   const revenue: PnlLine[] = [];
@@ -545,6 +586,7 @@ router.get(
     const to = (req.query["to"] as string | undefined) || null;
     const reportCurrency =
       (req.query["reportCurrency"] as string | undefined) || null;
+    const dimensions = readReportDimensionFilters(req.query);
     try {
       const companyId = req.auth!.companyId;
       const ccy = await resolveReportCurrency(companyId, reportCurrency, to);
@@ -552,7 +594,7 @@ router.get(
         res.status(400).json({ error: NO_RATE_ERROR });
         return;
       }
-      let report = await computeIncomeStatement(companyId, from, to);
+      let report = await computeIncomeStatement(companyId, from, to, dimensions);
       if (ccy.info.rate !== 1)
         report = convertIncomeStatement(report, ccy.info.rate);
       res.json({ ...report, currencyInfo: ccy.info });
@@ -571,8 +613,9 @@ router.get(
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
     try {
+      const dimensions = readReportDimensionFilters(req.query);
       const [r, titleRows] = await Promise.all([
-        computeIncomeStatement(req.auth!.companyId, from, to),
+        computeIncomeStatement(req.auth!.companyId, from, to, dimensions),
         buildExcelTitleRows(
           req.auth!.companyId,
           "قائمة الأرباح والخسائر",
@@ -616,10 +659,14 @@ router.get(
 // ---- Balance sheet ----------------------------------------------------------
 // Assets vs Liabilities + Equity. The net result of revenue/expense up to the
 // as-of date is folded into equity as "current period result".
-async function computeBalanceSheet(companyId: string, asOf: string | null) {
+async function computeBalanceSheet(
+  companyId: string,
+  asOf: string | null,
+  dimensions?: ReportDimensionFilters,
+) {
   const [accounts, totals] = await Promise.all([
     loadAccounts(companyId),
-    postedTotals(companyId, null, asOf),
+    postedTotals(companyId, null, asOf, dimensions),
   ]);
 
   const assets: PnlLine[] = [];
@@ -725,7 +772,7 @@ router.get(
         res.status(400).json({ error: NO_RATE_ERROR });
         return;
       }
-      let report = await computeBalanceSheet(companyId, asOf);
+      let report = await computeBalanceSheet(companyId, asOf, dimensions);
       if (ccy.info.rate !== 1)
         report = convertBalanceSheet(report, ccy.info.rate);
       res.json({ ...report, currencyInfo: ccy.info });
@@ -743,8 +790,9 @@ router.get(
   async (req, res) => {
     const asOf = (req.query["asOf"] as string | undefined) || null;
     try {
+      const dimensions = readReportDimensionFilters(req.query);
       const [r, titleRows] = await Promise.all([
-        computeBalanceSheet(req.auth!.companyId, asOf),
+        computeBalanceSheet(req.auth!.companyId, asOf, dimensions),
         buildExcelTitleRows(
           req.auth!.companyId,
           "الميزانية العمومية",
@@ -814,6 +862,7 @@ async function computeGeneralLedger(
   accountId: string,
   from: string | null,
   to: string | null,
+  dimensions?: ReportDimensionFilters,
 ) {
   const [acc] = await db
     .select({
@@ -853,6 +902,15 @@ async function computeGeneralLedger(
         eq(journalEntriesTable.companyId, companyId),
         eq(journalEntriesTable.status, "posted"),
         eq(journalEntryLinesTable.accountId, accountId),
+        dimensions?.costCenterId
+          ? eq(journalEntryLinesTable.costCenterId, dimensions.costCenterId)
+          : undefined,
+        dimensions?.projectId
+          ? eq(journalEntryLinesTable.projectId, dimensions.projectId)
+          : undefined,
+        dimensions?.branchId
+          ? eq(journalEntryLinesTable.branchId, dimensions.branchId)
+          : undefined,
       ),
     )
     .orderBy(journalEntriesTable.date, journalEntriesTable.entryNo);
@@ -937,13 +995,20 @@ router.get(
     const to = (req.query["to"] as string | undefined) || null;
     const reportCurrency =
       (req.query["reportCurrency"] as string | undefined) || null;
+    const dimensions = readReportDimensionFilters(req.query);
     if (typeof accountId !== "string" || !accountId) {
       res.status(400).json({ error: "الحساب مطلوب" });
       return;
     }
     try {
       const companyId = req.auth!.companyId;
-      const report = await computeGeneralLedger(companyId, accountId, from, to);
+      const report = await computeGeneralLedger(
+        companyId,
+        accountId,
+        from,
+        to,
+        dimensions,
+      );
       if (!report) {
         res.status(404).json({ error: "الحساب غير موجود" });
         return;
@@ -979,11 +1044,13 @@ router.get(
       return;
     }
     try {
+      const dimensions = readReportDimensionFilters(req.query);
       const report = await computeGeneralLedger(
         req.auth!.companyId,
         accountId,
         from,
         to,
+        dimensions,
       );
       if (!report) {
         res.status(404).json({ error: "الحساب غير موجود" });

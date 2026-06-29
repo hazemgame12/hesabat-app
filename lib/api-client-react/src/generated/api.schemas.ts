@@ -3389,17 +3389,26 @@ export type GetTrialBalanceParams = {
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
 };
 
 export type GetIncomeStatementParams = {
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
 };
 
 export type GetBalanceSheetParams = {
 asOf?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
 };
 
 export type GetGeneralLedgerParams = {
@@ -3407,6 +3416,9 @@ accountId: string;
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
 };
 
 export type GetCashFlowParams = {
