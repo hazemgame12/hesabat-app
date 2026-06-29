@@ -750,8 +750,9 @@ export function ReportsCenter() {
               <Icon className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-base font-bold text-foreground">{report.titleAr}</div>
-              <div className="text-sm text-muted-foreground">{report.titleEn}</div>
+              <div className="text-base font-bold text-foreground">
+                {lang.startsWith("ar") ? report.titleAr : report.titleEn}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
