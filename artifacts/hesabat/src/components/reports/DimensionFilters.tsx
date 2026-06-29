@@ -125,9 +125,7 @@ export function DimensionFilters({
             {t("dimensionFilters.title")}
           </h2>
           <p className="text-xs text-muted-foreground">
-            {lang.startsWith("ar")
-              ? "تخصيص التقارير المالية حسب الأبعاد المحاسبية"
-              : "Refine financial reports by accounting dimensions"}
+            {t("dimensionFilters.subtitle")}
           </p>
         </div>
       </div>

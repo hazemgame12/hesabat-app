@@ -2354,6 +2354,16 @@
   "reportsPage": {
     "title": "التقارير المالية",
     "subtitle": "تقارير مبنية على القيود المُرحَّلة فقط",
+    "detail": {
+      "accountStatementTitle": "كشف حساب",
+      "backToReportsCenter": "العودة إلى مركز التقارير",
+      "companyFallback": "الشركة",
+      "reportCurrency": "عملة التقرير",
+      "baseCurrency": "العملة الأساسية",
+      "noFilters": "كل الأبعاد",
+      "filterWithValue": "{{label}}: {{value}}",
+      "printButton": "طباعة / PDF"
+    },
     "tabs": {
       "trialBalance": "ميزان المراجعة",
       "incomeStatement": "الأرباح والخسائر",
@@ -2587,6 +2597,11 @@
     "noFavorites": "لا توجد تقارير مفضلة",
     "noResults": "لا توجد نتائج مطابقة",
     "comingSoon": "قريباً",
+    "status": {
+      "ready": "جاهز",
+      "linked": "مرتبط",
+      "comingSoon": "قريباً"
+    },
     "categories": {
       "financial": "التقارير المالية",
       "sales": "المبيعات والعملاء",
@@ -2594,11 +2609,13 @@
       "cashBank": "النقدية والبنوك",
       "inventory": "المخزون",
       "fixedAssets": "الأصول الثابتة",
-      "payroll": "الرواتب والموارد البشرية"
+      "payroll": "الرواتب / العهد / السلف",
+      "tax": "التقارير الضريبية"
     }
   },
   "dimensionFilters": {
     "title": "تصفية حسب الأبعاد",
+    "subtitle": "تخصيص التقارير المالية حسب الأبعاد المحاسبية",
     "costCenter": "مركز التكلفة",
     "project": "المشروع",
     "branch": "الفرع",
