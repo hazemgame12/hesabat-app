@@ -2457,6 +2457,16 @@
       "openingBalance": "رصيد افتتاحي",
       "closingBalance": "رصيد ختامي"
     },
+    "drill": {
+      "viewGeneralLedger": "عرض دفتر الأستاذ",
+      "openJournalEntry": "فتح تفاصيل القيد",
+      "selectedAccount": "الحساب المحدد",
+      "backToReport": "العودة للتقرير",
+      "sourceModule": "المصدر",
+      "postedAt": "تاريخ الترحيل",
+      "createdAt": "تاريخ الإنشاء",
+      "dimensions": "الأبعاد"
+    },
     "je": {
       "title": "تفاصيل القيد",
       "attachments": "المرفقات"

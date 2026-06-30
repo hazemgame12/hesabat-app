@@ -14,13 +14,14 @@
  * The old tab components are intentionally NOT imported here.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
   useGetCompany,
   useListCurrencies,
   useListAccounts,
+  useGetJournalEntry,
   useGetTrialBalance,
   useGetGeneralLedger,
   useGetIncomeStatement,
@@ -87,7 +88,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Download, ExternalLink, Paperclip, X } from "lucide-react";
 
 // ─── Route helpers ────────────────────────────────────────────────────────────
 
@@ -102,12 +103,21 @@ const REPORT_KEYS = [
 
 type FinancialReportKey = (typeof REPORT_KEYS)[number];
 
+type DrillToGeneralLedger = (accountId: string, params?: {
+  from?: string;
+  to?: string;
+}) => void;
+
 function getReportKey(pathname: string): FinancialReportKey {
   const parts = pathname.split("/").filter(Boolean);
   const key = parts[parts.length - 1];
   return REPORT_KEYS.includes(key as FinancialReportKey)
     ? (key as FinancialReportKey)
     : "trial-balance";
+}
+
+function parseQuery(location: string) {
+  return new URLSearchParams(location.split("?")[1] || "");
 }
 
 // ─── Shared table cell helpers ────────────────────────────────────────────────
@@ -119,6 +129,31 @@ const TD_CODE =
 const TD_NAME = "px-4 py-2.5";
 const TD_NUM =
   "px-4 py-2.5 text-end tabular-nums font-mono whitespace-nowrap";
+
+function AccountDrillLink({
+  accountId,
+  label,
+  onDrill,
+}: {
+  accountId?: string | null;
+  label: string;
+  onDrill?: DrillToGeneralLedger;
+}) {
+  const { t } = useTranslation();
+  if (!accountId || !onDrill) return <>{label}</>;
+  return (
+    <button
+      type="button"
+      onClick={() => onDrill(accountId)}
+      title={t("reportsPage.drill.viewGeneralLedger")}
+      aria-label={`${t("reportsPage.drill.viewGeneralLedger")}: ${label}`}
+      className="text-start text-primary hover:underline underline-offset-2 transition-colors inline-flex items-center gap-1.5 group cursor-pointer"
+    >
+      <span>{label}</span>
+      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-70 transition-opacity shrink-0" />
+    </button>
+  );
+}
 
 // ─── Searchable account dropdown ──────────────────────────────────────────────
 
@@ -255,12 +290,14 @@ function TrialBalanceDetail({
   fmt,
   lang,
   dimensionFilters,
+  onDrillToGeneralLedger,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  onDrillToGeneralLedger?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -437,7 +474,13 @@ function TrialBalanceDetail({
                   <td
                     className={`${TD_NAME} border-e border-border font-medium`}
                   >
-                    {displayName(r, lang)}
+                    <AccountDrillLink
+                      accountId={r.accountId}
+                      label={displayName(r, lang)}
+                      onDrill={(accountId) =>
+                        onDrillToGeneralLedger?.(accountId, { from, to })
+                      }
+                    />
                   </td>
                   <td
                     className={`${TD_NUM} border-e border-border text-slate-700 dark:text-slate-300`}
@@ -524,6 +567,9 @@ function GeneralLedgerDetail({
   leafAccounts,
   dimensionFilters,
   isAccountStatement = false,
+  initialAccountId,
+  initialFrom,
+  initialTo,
 }: {
   company?: Company;
   cc: CurrencyControls;
@@ -532,11 +578,32 @@ function GeneralLedgerDetail({
   leafAccounts: Account[];
   dimensionFilters: DimensionFilterQuery;
   isAccountStatement?: boolean;
+  initialAccountId?: string;
+  initialFrom?: string;
+  initialTo?: string;
 }) {
   const { t } = useTranslation();
-  const [accountId, setAccountId] = useState("");
-  const [from, setFrom] = useState(startOfYear());
-  const [to, setTo] = useState(today());
+  const [accountId, setAccountId] = useState(initialAccountId ?? "");
+  const [from, setFrom] = useState(initialFrom ?? startOfYear());
+  const [to, setTo] = useState(initialTo ?? today());
+  const [jeModalId, setJeModalId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nextAccountId =
+      initialAccountId &&
+      leafAccounts.some((account) => account.id === initialAccountId)
+        ? initialAccountId
+        : "";
+    setAccountId(nextAccountId);
+  }, [initialAccountId, leafAccounts]);
+
+  useEffect(() => {
+    if (initialFrom) setFrom(initialFrom);
+  }, [initialFrom]);
+
+  useEffect(() => {
+    if (initialTo) setTo(initialTo);
+  }, [initialTo]);
 
   const glParams = {
     accountId,
@@ -639,6 +706,17 @@ function GeneralLedgerDetail({
         <CurrencySelect cc={cc} />
       </ReportFilterRow>
 
+      {selectedAccount && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm">
+          <span className="text-muted-foreground me-2">
+            {t("reportsPage.drill.selectedAccount")}:
+          </span>
+          <span className="font-semibold">
+            {selectedAccount.code} · {displayName(selectedAccount, lang)}
+          </span>
+        </div>
+      )}
+
       {!accountId ? (
         <ReportEmpty message={t("reportsPage.filters.selectAccount")} />
       ) : isLoading ? (
@@ -697,10 +775,26 @@ function GeneralLedgerDetail({
                     className={`border-t border-border transition-colors hover:bg-primary/5 ${i % 2 === 1 ? "bg-muted/20" : ""}`}
                   >
                     <td className="px-4 py-2.5 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-                      {e.date}
+                      <button
+                        type="button"
+                        onClick={() => setJeModalId(e.entryId)}
+                        className="hover:underline underline-offset-2"
+                        title={t("reportsPage.drill.openJournalEntry")}
+                        aria-label={`${t("reportsPage.drill.openJournalEntry")} ${e.entryNo}`}
+                      >
+                        {e.date}
+                      </button>
                     </td>
                     <td className="px-4 py-2.5 font-mono text-primary font-semibold text-xs whitespace-nowrap">
-                      #{e.entryNo}
+                      <button
+                        type="button"
+                        onClick={() => setJeModalId(e.entryId)}
+                        className="hover:underline underline-offset-2"
+                        title={t("reportsPage.drill.openJournalEntry")}
+                        aria-label={`${t("reportsPage.drill.openJournalEntry")} ${e.entryNo}`}
+                      >
+                        #{e.entryNo}
+                      </button>
                     </td>
                     <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-[240px] truncate">
                       {e.description}
@@ -734,6 +828,14 @@ function GeneralLedgerDetail({
           </div>
         </ReportTableCard>
       )}
+      {jeModalId && (
+        <JournalEntryModal
+          entryId={jeModalId}
+          onClose={() => setJeModalId(null)}
+          fmt={fmt}
+          lang={lang}
+        />
+      )}
     </>
   );
 }
@@ -746,12 +848,14 @@ function IncomeStatementDetail({
   fmt,
   lang,
   dimensionFilters,
+  onDrillToGeneralLedger,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  onDrillToGeneralLedger?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -890,7 +994,15 @@ function IncomeStatementDetail({
                   className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                 >
                   <td className={TD_CODE}>{l.code}</td>
-                  <td className={TD_NAME}>{displayName(l, lang)}</td>
+                  <td className={TD_NAME}>
+                    <AccountDrillLink
+                      accountId={l.accountId}
+                      label={displayName(l, lang)}
+                      onDrill={(accountId) =>
+                        onDrillToGeneralLedger?.(accountId, { from, to })
+                      }
+                    />
+                  </td>
                   <td
                     className={`${TD_NUM} font-semibold text-emerald-700 dark:text-emerald-400`}
                   >
@@ -927,7 +1039,15 @@ function IncomeStatementDetail({
                   className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                 >
                   <td className={TD_CODE}>{l.code}</td>
-                  <td className={TD_NAME}>{displayName(l, lang)}</td>
+                  <td className={TD_NAME}>
+                    <AccountDrillLink
+                      accountId={l.accountId}
+                      label={displayName(l, lang)}
+                      onDrill={(accountId) =>
+                        onDrillToGeneralLedger?.(accountId, { from, to })
+                      }
+                    />
+                  </td>
                   <td
                     className={`${TD_NUM} font-semibold text-rose-700 dark:text-rose-400`}
                   >
@@ -963,12 +1083,14 @@ function BalanceSheetDetail({
   fmt,
   lang,
   dimensionFilters,
+  onDrillToGeneralLedger,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  onDrillToGeneralLedger?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
@@ -1104,7 +1226,15 @@ function BalanceSheetDetail({
                   className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                 >
                   <td className={TD_CODE}>{l.code}</td>
-                  <td className={TD_NAME}>{displayName(l, lang)}</td>
+                  <td className={TD_NAME}>
+                    <AccountDrillLink
+                      accountId={l.accountId}
+                      label={displayName(l, lang)}
+                      onDrill={(accountId) =>
+                        onDrillToGeneralLedger?.(accountId, { to: asOf })
+                      }
+                    />
+                  </td>
                   <td className={`${TD_NUM} font-semibold`}>
                     {fmt(l.amount)}
                   </td>
@@ -1140,7 +1270,15 @@ function BalanceSheetDetail({
                     className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                   >
                     <td className={TD_CODE}>{l.code}</td>
-                    <td className={TD_NAME}>{displayName(l, lang)}</td>
+                    <td className={TD_NAME}>
+                      <AccountDrillLink
+                        accountId={l.accountId}
+                        label={displayName(l, lang)}
+                        onDrill={(accountId) =>
+                          onDrillToGeneralLedger?.(accountId, { to: asOf })
+                        }
+                      />
+                    </td>
                     <td className={`${TD_NUM} font-semibold`}>
                       {fmt(l.amount)}
                     </td>
@@ -1174,7 +1312,15 @@ function BalanceSheetDetail({
                     className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                   >
                     <td className={TD_CODE}>{l.code}</td>
-                    <td className={TD_NAME}>{displayName(l, lang)}</td>
+                    <td className={TD_NAME}>
+                      <AccountDrillLink
+                        accountId={l.accountId}
+                        label={displayName(l, lang)}
+                        onDrill={(accountId) =>
+                          onDrillToGeneralLedger?.(accountId, { to: asOf })
+                        }
+                      />
+                    </td>
                     <td className={`${TD_NUM} font-semibold`}>
                       {fmt(l.amount)}
                     </td>
@@ -1216,11 +1362,13 @@ function CashFlowDetail({
   cc,
   fmt,
   lang,
+  onDrillToGeneralLedger,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
+  onDrillToGeneralLedger?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -1282,7 +1430,15 @@ function CashFlowDetail({
               className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
             >
               <td className={TD_CODE}>{l.code}</td>
-              <td className={TD_NAME}>{displayName(l, lang)}</td>
+              <td className={TD_NAME}>
+                <AccountDrillLink
+                  accountId={l.accountId}
+                  label={displayName(l, lang)}
+                  onDrill={(accountId) =>
+                    onDrillToGeneralLedger?.(accountId, { from, to })
+                  }
+                />
+              </td>
               <td className={`${TD_NUM} font-semibold`}>{fmt(l.amount)}</td>
             </tr>
           ))
@@ -1357,6 +1513,216 @@ function CashFlowDetail({
   );
 }
 
+function JournalEntryModal({
+  entryId,
+  onClose,
+  fmt,
+  lang,
+}: {
+  entryId: string;
+  onClose: () => void;
+  fmt: Fmt;
+  lang: string;
+}) {
+  const { t } = useTranslation();
+  const { data, isLoading } = useGetJournalEntry(entryId);
+  const { data: accounts = [] } = useListAccounts();
+  const accountMap = useMemo(
+    () => new Map((accounts as Account[]).map((a) => [a.id, a])),
+    [accounts],
+  );
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-border"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between px-6 py-4 border-b border-border shrink-0">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-bold text-lg">
+                {t("reportsPage.je.title")}
+                {data ? ` #${data.entryNo}` : ""}
+              </h2>
+              {data?.status && (
+                <span className="text-xs rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
+                  {data.status}
+                </span>
+              )}
+            </div>
+            {data && (
+              <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+                <span>
+                  {t("reportsPage.table.date")}: {data.date}
+                </span>
+                {data.reference && (
+                  <span>
+                    {t("reportsPage.table.reference")}: {data.reference}
+                  </span>
+                )}
+                {data.entryType && (
+                  <span>
+                    {t("reportsPage.drill.sourceModule")}: {data.entryType}
+                  </span>
+                )}
+                {data.postedAt && (
+                  <span>
+                    {t("reportsPage.drill.postedAt")}: {data.postedAt}
+                  </span>
+                )}
+                <span>
+                  {t("reportsPage.drill.createdAt")}: {data.createdAt}
+                </span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-xs text-primary hover:underline"
+            >
+              {t("reportsPage.drill.backToReport")}
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 p-4">
+          {isLoading ? (
+            <ReportLoading />
+          ) : !data ? (
+            <ReportEmpty />
+          ) : (
+            <>
+              <div className="overflow-x-auto [direction:ltr]">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-muted-foreground">
+                    <tr>
+                      <th className="text-start px-4 py-3 font-semibold">
+                        {t("reportsPage.table.account")}
+                      </th>
+                      <th className="text-start px-4 py-3 font-semibold">
+                        {t("reportsPage.table.description")}
+                      </th>
+                      <th className="text-start px-4 py-3 font-semibold">
+                        {t("reportsPage.drill.dimensions")}
+                      </th>
+                      <th className="text-end px-4 py-3 font-semibold">
+                        {t("reportsPage.table.debit")}
+                      </th>
+                      <th className="text-end px-4 py-3 font-semibold">
+                        {t("reportsPage.table.credit")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.lines.map((line, i) => {
+                      const acc = accountMap.get(line.accountId);
+                      const dimensions = [
+                        line.costCenterId
+                          ? `${t("dimensions.costCenter")}: ${line.costCenterId}`
+                          : null,
+                        line.projectId
+                          ? `${t("dimensions.project")}: ${line.projectId}`
+                          : null,
+                        line.branchId
+                          ? `${t("dimensions.branch")}: ${line.branchId}`
+                          : null,
+                      ].filter(Boolean);
+                      return (
+                        <tr key={i} className="border-t border-border">
+                          <td className="px-4 py-2.5">
+                            {acc && (
+                              <span className="font-mono text-xs text-muted-foreground me-2">
+                                {acc.code}
+                              </span>
+                            )}
+                            {acc
+                              ? displayName(acc, lang)
+                              : line.accountId.slice(0, 8)}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                            {line.description ?? "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                            {dimensions.length > 0
+                              ? dimensions.join(" · ")
+                              : "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-end tabular-nums text-rose-600">
+                            {line.debitBase ? fmt(line.debitBase) : "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-end tabular-nums text-emerald-600">
+                            {line.creditBase ? fmt(line.creditBase) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-border bg-muted/30 font-bold">
+                      <td colSpan={3} className="px-4 py-3">
+                        {t("reportsPage.table.total")}
+                      </td>
+                      <td className="px-4 py-3 text-end tabular-nums text-rose-600">
+                        {fmt(data.totalDebitBase)}
+                      </td>
+                      <td className="px-4 py-3 text-end tabular-nums text-emerald-600">
+                        {fmt(data.totalCreditBase)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              {data.notes && (
+                <p className="mt-4 text-sm text-muted-foreground border-t border-border pt-3 px-4">
+                  {data.notes}
+                </p>
+              )}
+              {data.attachments.length > 0 && (
+                <div className="mt-4 border-t border-border pt-3 px-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold mb-2">
+                    <Paperclip className="w-4 h-4 text-muted-foreground" />
+                    <span>{t("reportsPage.je.attachments")}</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {data.attachments.map((att) => (
+                      <a
+                        key={att.id}
+                        href={`/api/journal/${entryId}/attachments/${att.id}/download`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline group"
+                      >
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{att.fileName}</span>
+                        {att.size && (
+                          <span className="text-xs text-muted-foreground">
+                            ({Math.round(att.size / 1024)} KB)
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main routing component ───────────────────────────────────────────────────
 
 export function ReportsFinancialDetail() {
@@ -1365,13 +1731,13 @@ export function ReportsFinancialDetail() {
   const lang = i18n.language;
 
   const reportKey = getReportKey(location.split("?")[0] || "");
+  const query = useMemo(() => parseQuery(location), [location]);
 
-  const [dimensionFilters, setDimensionFilters] =
-    useState<DimensionFilterValues>({
-      costCenterId: "",
-      projectId: "",
-      branchId: "",
-    });
+  const [dimensionFilters, setDimensionFilters] = useState<DimensionFilterValues>({
+    costCenterId: query.get("costCenterId") ?? "",
+    projectId: query.get("projectId") ?? "",
+    branchId: query.get("branchId") ?? "",
+  });
 
   const dimensionQuery: DimensionFilterQuery = useMemo(
     () => ({
@@ -1385,7 +1751,9 @@ export function ReportsFinancialDetail() {
   const { data: company } = useGetCompany();
   const baseCurrency = (company?.baseCurrency ?? "EGP").toUpperCase();
   const { data: currencies = [] } = useListCurrencies();
-  const [reportCurrency, setReportCurrency] = useState("");
+  const [reportCurrency, setReportCurrency] = useState(
+    (query.get("currency") || query.get("reportCurrency") || "").toUpperCase(),
+  );
   const cc: CurrencyControls = {
     reportCurrency,
     setReportCurrency,
@@ -1398,6 +1766,25 @@ export function ReportsFinancialDetail() {
     () => (allAccounts as Account[]).filter((a) => !a.isGroup),
     [allAccounts],
   );
+
+  const queryAccountId = query.get("accountId") || "";
+  const initialAccountId = leafAccounts.some((a) => a.id === queryAccountId)
+    ? queryAccountId
+    : "";
+  const initialFrom = query.get("from") || undefined;
+  const initialTo = query.get("to") || undefined;
+
+  useEffect(() => {
+    const nextCurrency =
+      (query.get("currency") || query.get("reportCurrency") || "").toUpperCase();
+    if (nextCurrency) setReportCurrency(nextCurrency);
+
+    setDimensionFilters({
+      costCenterId: query.get("costCenterId") ?? "",
+      projectId: query.get("projectId") ?? "",
+      branchId: query.get("branchId") ?? "",
+    });
+  }, [query]);
 
   const fmt: Fmt = (n: number) =>
     new Intl.NumberFormat(lang, {
@@ -1413,6 +1800,19 @@ export function ReportsFinancialDetail() {
     dimensionFilters: dimensionQuery,
   };
 
+  const drillToGeneralLedger: DrillToGeneralLedger = (accountId, params) => {
+    const qs = new URLSearchParams();
+    qs.set("accountId", accountId);
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    const rc = reportCurrencyParam(cc);
+    if (rc) qs.set("currency", rc);
+    if (dimensionQuery.costCenterId) qs.set("costCenterId", dimensionQuery.costCenterId);
+    if (dimensionQuery.projectId) qs.set("projectId", dimensionQuery.projectId);
+    if (dimensionQuery.branchId) qs.set("branchId", dimensionQuery.branchId);
+    setLocation(`/reports/financial/general-ledger?${qs.toString()}`);
+  };
+
   return (
     <ReportShell>
       {/* Dimension filters — shared across all reports; also hosts back button */}
@@ -1423,25 +1823,51 @@ export function ReportsFinancialDetail() {
       />
 
       {reportKey === "trial-balance" && (
-        <TrialBalanceDetail {...commonProps} />
+        <TrialBalanceDetail
+          {...commonProps}
+          onDrillToGeneralLedger={drillToGeneralLedger}
+        />
       )}
       {reportKey === "general-ledger" && (
-        <GeneralLedgerDetail {...commonProps} leafAccounts={leafAccounts} />
+        <GeneralLedgerDetail
+          {...commonProps}
+          leafAccounts={leafAccounts}
+          initialAccountId={initialAccountId}
+          initialFrom={initialFrom}
+          initialTo={initialTo}
+        />
       )}
       {reportKey === "account-statement" && (
         <GeneralLedgerDetail
           {...commonProps}
           leafAccounts={leafAccounts}
           isAccountStatement
+          initialAccountId={initialAccountId}
+          initialFrom={initialFrom}
+          initialTo={initialTo}
         />
       )}
       {reportKey === "income-statement" && (
-        <IncomeStatementDetail {...commonProps} />
+        <IncomeStatementDetail
+          {...commonProps}
+          onDrillToGeneralLedger={drillToGeneralLedger}
+        />
       )}
       {reportKey === "balance-sheet" && (
-        <BalanceSheetDetail {...commonProps} />
+        <BalanceSheetDetail
+          {...commonProps}
+          onDrillToGeneralLedger={drillToGeneralLedger}
+        />
       )}
-      {reportKey === "cash-flow" && <CashFlowDetail company={company} cc={cc} fmt={fmt} lang={lang} />}
+      {reportKey === "cash-flow" && (
+        <CashFlowDetail
+          company={company}
+          cc={cc}
+          fmt={fmt}
+          lang={lang}
+          onDrillToGeneralLedger={drillToGeneralLedger}
+        />
+      )}
     </ReportShell>
   );
 }

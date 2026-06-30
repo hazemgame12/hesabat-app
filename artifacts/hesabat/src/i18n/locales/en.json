@@ -2457,6 +2457,16 @@
       "openingBalance": "Opening balance",
       "closingBalance": "Closing balance"
     },
+    "drill": {
+      "viewGeneralLedger": "View General Ledger",
+      "openJournalEntry": "Open Journal Entry",
+      "selectedAccount": "Selected Account",
+      "backToReport": "Back to Report",
+      "sourceModule": "Source",
+      "postedAt": "Posted At",
+      "createdAt": "Created At",
+      "dimensions": "Dimensions"
+    },
     "je": {
       "title": "Journal Entry",
       "attachments": "Attachments"
