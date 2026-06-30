@@ -2354,6 +2354,16 @@
   "reportsPage": {
     "title": "Financial Reports",
     "subtitle": "Reports built from posted journal entries only",
+    "detail": {
+      "accountStatementTitle": "Account Statement",
+      "backToReportsCenter": "Back to Reports Center",
+      "companyFallback": "Company",
+      "reportCurrency": "Report Currency",
+      "baseCurrency": "Base Currency",
+      "noFilters": "All dimensions",
+      "filterWithValue": "{{label}}: {{value}}",
+      "printButton": "PDF / Print"
+    },
     "tabs": {
       "trialBalance": "Trial Balance",
       "incomeStatement": "Income Statement",
@@ -2587,6 +2597,11 @@
     "noFavorites": "No favorite reports yet",
     "noResults": "No matching reports",
     "comingSoon": "Coming Soon",
+    "status": {
+      "ready": "Ready",
+      "linked": "Linked",
+      "comingSoon": "Coming Soon"
+    },
     "categories": {
       "financial": "Financial Reports",
       "sales": "Sales & Customers",
@@ -2594,11 +2609,13 @@
       "cashBank": "Cash & Bank",
       "inventory": "Inventory",
       "fixedAssets": "Fixed Assets",
-      "payroll": "Payroll & HR"
+      "payroll": "Payroll / Custody / Advances",
+      "tax": "Tax Reports"
     }
   },
   "dimensionFilters": {
     "title": "Filter by Dimension",
+    "subtitle": "Refine financial reports by accounting dimensions",
     "costCenter": "Cost Center",
     "project": "Project",
     "branch": "Branch",

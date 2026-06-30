@@ -110,13 +110,8 @@ function ProtectedRoutes() {
         <Route path="/quotations" component={QuotationsPage} />
         <Route path="/purchase-orders" component={PurchaseOrdersPage} />
         <Route path="/revaluation" component={Revaluation} />
-        <Route path="/reports/financial/trial-balance" component={() => <ReportsFinancialDetail reportKey="trial-balance" />} />
-        <Route path="/reports/financial/general-ledger" component={() => <ReportsFinancialDetail reportKey="general-ledger" />} />
-        <Route path="/reports/financial/account-statement" component={() => <ReportsFinancialDetail reportKey="account-statement" />} />
-        <Route path="/reports/financial/income-statement" component={() => <ReportsFinancialDetail reportKey="income-statement" />} />
-        <Route path="/reports/financial/balance-sheet" component={() => <ReportsFinancialDetail reportKey="balance-sheet" />} />
-        <Route path="/reports/financial/cash-flow" component={() => <ReportsFinancialDetail reportKey="cash-flow" />} />
         <Route path="/reports/financial" component={ReportsFinancial} />
+        <Route path="/reports/financial/:reportKey" component={ReportsFinancialDetail} />
         <Route path="/reports/tax" component={ReportsTax} />
         <Route path="/reports/analysis" component={ReportsAnalysis} />
         <Route path="/reports/center" component={ReportsCenter} />
