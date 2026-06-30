@@ -14,7 +14,7 @@
  * The old tab components are intentionally NOT imported here.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import {
@@ -101,6 +101,7 @@ const REPORT_KEYS = [
 ] as const;
 
 type FinancialReportKey = (typeof REPORT_KEYS)[number];
+type DrillToGeneralLedger = (accountId: string, from: string, to: string) => void;
 
 function getReportKey(pathname: string): FinancialReportKey {
   const parts = pathname.split("/").filter(Boolean);
@@ -108,6 +109,31 @@ function getReportKey(pathname: string): FinancialReportKey {
   return REPORT_KEYS.includes(key as FinancialReportKey)
     ? (key as FinancialReportKey)
     : "trial-balance";
+}
+
+function DrillableAccountName({
+  accountId,
+  label,
+  onDrillAccount,
+  from,
+  to,
+}: {
+  accountId?: string | null;
+  label: string;
+  onDrillAccount?: DrillToGeneralLedger;
+  from: string;
+  to: string;
+}) {
+  if (!accountId || !onDrillAccount) return <>{label}</>;
+  return (
+    <button
+      type="button"
+      onClick={() => onDrillAccount(accountId, from, to)}
+      className="text-primary hover:underline font-medium"
+    >
+      {label}
+    </button>
+  );
 }
 
 // ─── Shared table cell helpers ────────────────────────────────────────────────
@@ -255,12 +281,14 @@ function TrialBalanceDetail({
   fmt,
   lang,
   dimensionFilters,
+  onDrillAccount,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  onDrillAccount?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -437,7 +465,13 @@ function TrialBalanceDetail({
                   <td
                     className={`${TD_NAME} border-e border-border font-medium`}
                   >
-                    {displayName(r, lang)}
+                    <DrillableAccountName
+                      accountId={r.accountId}
+                      label={displayName(r, lang)}
+                      onDrillAccount={onDrillAccount}
+                      from={from}
+                      to={to}
+                    />
                   </td>
                   <td
                     className={`${TD_NUM} border-e border-border text-slate-700 dark:text-slate-300`}
@@ -534,9 +568,28 @@ function GeneralLedgerDetail({
   isAccountStatement?: boolean;
 }) {
   const { t } = useTranslation();
+  const [location] = useLocation();
+  const query = useMemo(
+    () => new URLSearchParams(location.split("?")[1] || ""),
+    [location],
+  );
   const [accountId, setAccountId] = useState("");
   const [from, setFrom] = useState(startOfYear());
   const [to, setTo] = useState(today());
+  const hasAccountParam = query.has("accountId");
+
+  useEffect(() => {
+    const nextAccountId = query.get("accountId")?.trim() ?? "";
+    const nextFrom = query.get("from")?.trim() ?? "";
+    const nextTo = query.get("to")?.trim() ?? "";
+    setAccountId(nextAccountId);
+    setFrom(nextFrom || startOfYear());
+    setTo(nextTo || today());
+  }, [query]);
+
+  const isValidAccount =
+    !accountId || leafAccounts.some((a) => a.id === accountId);
+  const hasInvalidAccountInUrl = hasAccountParam && !!accountId && !isValidAccount;
 
   const glParams = {
     accountId,
@@ -548,7 +601,7 @@ function GeneralLedgerDetail({
 
   const { data, isLoading } = useGetGeneralLedger(glParams, {
     query: {
-      enabled: !!accountId,
+      enabled: !!accountId && !hasInvalidAccountInUrl,
       queryKey: getGetGeneralLedgerQueryKey(glParams),
     },
   });
@@ -641,6 +694,12 @@ function GeneralLedgerDetail({
 
       {!accountId ? (
         <ReportEmpty message={t("reportsPage.filters.selectAccount")} />
+      ) : hasInvalidAccountInUrl ? (
+        <ReportEmpty
+          message={t("reportsPage.filters.invalidAccount", {
+            defaultValue: "Invalid account selection.",
+          })}
+        />
       ) : isLoading ? (
         <ReportLoading />
       ) : !data ? (
@@ -746,12 +805,14 @@ function IncomeStatementDetail({
   fmt,
   lang,
   dimensionFilters,
+  onDrillAccount,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  onDrillAccount?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -890,7 +951,15 @@ function IncomeStatementDetail({
                   className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                 >
                   <td className={TD_CODE}>{l.code}</td>
-                  <td className={TD_NAME}>{displayName(l, lang)}</td>
+                  <td className={TD_NAME}>
+                    <DrillableAccountName
+                      accountId={l.accountId}
+                      label={displayName(l, lang)}
+                      onDrillAccount={onDrillAccount}
+                      from={from}
+                      to={to}
+                    />
+                  </td>
                   <td
                     className={`${TD_NUM} font-semibold text-emerald-700 dark:text-emerald-400`}
                   >
@@ -927,7 +996,15 @@ function IncomeStatementDetail({
                   className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                 >
                   <td className={TD_CODE}>{l.code}</td>
-                  <td className={TD_NAME}>{displayName(l, lang)}</td>
+                  <td className={TD_NAME}>
+                    <DrillableAccountName
+                      accountId={l.accountId}
+                      label={displayName(l, lang)}
+                      onDrillAccount={onDrillAccount}
+                      from={from}
+                      to={to}
+                    />
+                  </td>
                   <td
                     className={`${TD_NUM} font-semibold text-rose-700 dark:text-rose-400`}
                   >
@@ -963,12 +1040,14 @@ function BalanceSheetDetail({
   fmt,
   lang,
   dimensionFilters,
+  onDrillAccount,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  onDrillAccount?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
@@ -1104,7 +1183,15 @@ function BalanceSheetDetail({
                   className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                 >
                   <td className={TD_CODE}>{l.code}</td>
-                  <td className={TD_NAME}>{displayName(l, lang)}</td>
+                  <td className={TD_NAME}>
+                    <DrillableAccountName
+                      accountId={l.accountId}
+                      label={displayName(l, lang)}
+                      onDrillAccount={onDrillAccount}
+                      from={startOfYear()}
+                      to={asOf}
+                    />
+                  </td>
                   <td className={`${TD_NUM} font-semibold`}>
                     {fmt(l.amount)}
                   </td>
@@ -1140,7 +1227,15 @@ function BalanceSheetDetail({
                     className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                   >
                     <td className={TD_CODE}>{l.code}</td>
-                    <td className={TD_NAME}>{displayName(l, lang)}</td>
+                    <td className={TD_NAME}>
+                      <DrillableAccountName
+                        accountId={l.accountId}
+                        label={displayName(l, lang)}
+                        onDrillAccount={onDrillAccount}
+                        from={startOfYear()}
+                        to={asOf}
+                      />
+                    </td>
                     <td className={`${TD_NUM} font-semibold`}>
                       {fmt(l.amount)}
                     </td>
@@ -1174,7 +1269,15 @@ function BalanceSheetDetail({
                     className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
                   >
                     <td className={TD_CODE}>{l.code}</td>
-                    <td className={TD_NAME}>{displayName(l, lang)}</td>
+                    <td className={TD_NAME}>
+                      <DrillableAccountName
+                        accountId={l.accountId}
+                        label={displayName(l, lang)}
+                        onDrillAccount={onDrillAccount}
+                        from={startOfYear()}
+                        to={asOf}
+                      />
+                    </td>
                     <td className={`${TD_NUM} font-semibold`}>
                       {fmt(l.amount)}
                     </td>
@@ -1216,11 +1319,13 @@ function CashFlowDetail({
   cc,
   fmt,
   lang,
+  onDrillAccount,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
+  onDrillAccount?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -1282,7 +1387,15 @@ function CashFlowDetail({
               className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
             >
               <td className={TD_CODE}>{l.code}</td>
-              <td className={TD_NAME}>{displayName(l, lang)}</td>
+              <td className={TD_NAME}>
+                <DrillableAccountName
+                  accountId={l.accountId}
+                  label={displayName(l, lang)}
+                  onDrillAccount={onDrillAccount}
+                  from={from}
+                  to={to}
+                />
+              </td>
               <td className={`${TD_NUM} font-semibold`}>{fmt(l.amount)}</td>
             </tr>
           ))
@@ -1365,13 +1478,26 @@ export function ReportsFinancialDetail() {
   const lang = i18n.language;
 
   const reportKey = getReportKey(location.split("?")[0] || "");
+  const query = useMemo(
+    () => new URLSearchParams(location.split("?")[1] || ""),
+    [location],
+  );
 
   const [dimensionFilters, setDimensionFilters] =
-    useState<DimensionFilterValues>({
-      costCenterId: "",
-      projectId: "",
-      branchId: "",
+    useState<DimensionFilterValues>(() => ({
+      costCenterId: query.get("costCenterId") ?? "",
+      projectId: query.get("projectId") ?? "",
+      branchId: query.get("branchId") ?? "",
+    }));
+
+  useEffect(() => {
+    if (reportKey !== "general-ledger") return;
+    setDimensionFilters({
+      costCenterId: query.get("costCenterId") ?? "",
+      projectId: query.get("projectId") ?? "",
+      branchId: query.get("branchId") ?? "",
     });
+  }, [query, reportKey]);
 
   const dimensionQuery: DimensionFilterQuery = useMemo(
     () => ({
@@ -1385,7 +1511,16 @@ export function ReportsFinancialDetail() {
   const { data: company } = useGetCompany();
   const baseCurrency = (company?.baseCurrency ?? "EGP").toUpperCase();
   const { data: currencies = [] } = useListCurrencies();
-  const [reportCurrency, setReportCurrency] = useState("");
+  const [reportCurrency, setReportCurrency] = useState(
+    () => query.get("currency") ?? "",
+  );
+
+  useEffect(() => {
+    if (reportKey !== "general-ledger") return;
+    const nextCurrency =
+      query.get("currency") ?? query.get("reportCurrency") ?? "";
+    setReportCurrency(nextCurrency);
+  }, [query, reportKey]);
   const cc: CurrencyControls = {
     reportCurrency,
     setReportCurrency,
@@ -1413,6 +1548,19 @@ export function ReportsFinancialDetail() {
     dimensionFilters: dimensionQuery,
   };
 
+  const drillToGeneralLedger: DrillToGeneralLedger = (accountId, from, to) => {
+    const qs = new URLSearchParams();
+    qs.set("accountId", accountId);
+    qs.set("from", from);
+    qs.set("to", to);
+    qs.set("currency", reportCurrencyParam(cc) || cc.baseCurrency);
+    if (dimensionQuery.costCenterId)
+      qs.set("costCenterId", dimensionQuery.costCenterId);
+    if (dimensionQuery.projectId) qs.set("projectId", dimensionQuery.projectId);
+    if (dimensionQuery.branchId) qs.set("branchId", dimensionQuery.branchId);
+    setLocation(`/reports/financial/general-ledger?${qs.toString()}`);
+  };
+
   return (
     <ReportShell>
       {/* Dimension filters — shared across all reports; also hosts back button */}
@@ -1423,7 +1571,7 @@ export function ReportsFinancialDetail() {
       />
 
       {reportKey === "trial-balance" && (
-        <TrialBalanceDetail {...commonProps} />
+        <TrialBalanceDetail {...commonProps} onDrillAccount={drillToGeneralLedger} />
       )}
       {reportKey === "general-ledger" && (
         <GeneralLedgerDetail {...commonProps} leafAccounts={leafAccounts} />
@@ -1436,12 +1584,26 @@ export function ReportsFinancialDetail() {
         />
       )}
       {reportKey === "income-statement" && (
-        <IncomeStatementDetail {...commonProps} />
+        <IncomeStatementDetail
+          {...commonProps}
+          onDrillAccount={drillToGeneralLedger}
+        />
       )}
       {reportKey === "balance-sheet" && (
-        <BalanceSheetDetail {...commonProps} />
+        <BalanceSheetDetail
+          {...commonProps}
+          onDrillAccount={drillToGeneralLedger}
+        />
       )}
-      {reportKey === "cash-flow" && <CashFlowDetail company={company} cc={cc} fmt={fmt} lang={lang} />}
+      {reportKey === "cash-flow" && (
+        <CashFlowDetail
+          company={company}
+          cc={cc}
+          fmt={fmt}
+          lang={lang}
+          onDrillAccount={drillToGeneralLedger}
+        />
+      )}
     </ReportShell>
   );
 }
