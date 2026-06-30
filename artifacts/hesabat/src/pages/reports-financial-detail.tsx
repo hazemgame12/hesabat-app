@@ -580,11 +580,11 @@ function GeneralLedgerDetail({
 
   useEffect(() => {
     const nextAccountId = query.get("accountId")?.trim() ?? "";
-    const nextFrom = query.get("from")?.trim() ?? "";
-    const nextTo = query.get("to")?.trim() ?? "";
+    const nextFrom = query.get("from")?.trim();
+    const nextTo = query.get("to")?.trim();
     setAccountId(nextAccountId);
-    setFrom(nextFrom || startOfYear());
-    setTo(nextTo || today());
+    setFrom(nextFrom && nextFrom.length > 0 ? nextFrom : startOfYear());
+    setTo(nextTo && nextTo.length > 0 ? nextTo : today());
   }, [query]);
 
   const isValidAccount =
@@ -695,11 +695,7 @@ function GeneralLedgerDetail({
       {!accountId ? (
         <ReportEmpty message={t("reportsPage.filters.selectAccount")} />
       ) : hasInvalidAccountInUrl ? (
-        <ReportEmpty
-          message={t("reportsPage.filters.invalidAccount", {
-            defaultValue: "Invalid account selection.",
-          })}
-        />
+        <ReportEmpty message={t("reportsPage.filters.invalidAccount")} />
       ) : isLoading ? (
         <ReportLoading />
       ) : !data ? (
@@ -1512,14 +1508,14 @@ export function ReportsFinancialDetail() {
   const baseCurrency = (company?.baseCurrency ?? "EGP").toUpperCase();
   const { data: currencies = [] } = useListCurrencies();
   const [reportCurrency, setReportCurrency] = useState(
-    () => query.get("currency") ?? "",
+    () => (query.get("currency") ?? query.get("reportCurrency") ?? "").toUpperCase(),
   );
 
   useEffect(() => {
     if (reportKey !== "general-ledger") return;
     const nextCurrency =
       query.get("currency") ?? query.get("reportCurrency") ?? "";
-    setReportCurrency(nextCurrency);
+    setReportCurrency(nextCurrency.toUpperCase());
   }, [query, reportKey]);
   const cc: CurrencyControls = {
     reportCurrency,

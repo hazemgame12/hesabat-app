@@ -2388,6 +2388,7 @@
       "account": "Account",
       "selectAccount": "Select account",
       "searchAccount": "Search account…",
+      "invalidAccount": "Invalid account selection.",
       "party": "Party",
       "selectParty": "Select party",
       "searchParty": "Search party…",

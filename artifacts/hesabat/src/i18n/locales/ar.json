@@ -2388,6 +2388,7 @@
       "account": "الحساب",
       "selectAccount": "اختر الحساب",
       "searchAccount": "ابحث عن حساب…",
+      "invalidAccount": "الحساب المحدد غير صالح.",
       "party": "الطرف",
       "selectParty": "اختر الطرف",
       "searchParty": "ابحث عن طرف…",
