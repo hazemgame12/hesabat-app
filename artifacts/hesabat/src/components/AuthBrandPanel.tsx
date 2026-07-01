@@ -1,36 +1,36 @@
 import { useTranslation } from "react-i18next";
 import {
-  BookOpen,
-  FileText,
-  Package,
+  Receipt,
   Users,
-  Building2,
-  Landmark,
-  BarChart3,
-  Layers,
+  Package,
+  Sparkles,
+  ShieldCheck,
+  Headphones,
+  Globe,
+  Cloud,
   Check,
 } from "lucide-react";
 
 const FEATURES_AR = [
-  { icon: BookOpen,   label: "شجرة حسابات متعددة المستويات" },
-  { icon: FileText,   label: "فواتير مبيعات وشراء إلكترونية" },
-  { icon: Package,    label: "مخزون بمتوسط التكلفة المرجح" },
-  { icon: Users,      label: "رواتب وموارد بشرية" },
-  { icon: Building2,  label: "أصول ثابتة وإهلاك" },
-  { icon: Landmark,   label: "بنوك وتسويات بنكية" },
-  { icon: BarChart3,  label: "تقارير مالية متكاملة" },
-  { icon: Layers,     label: "مراكز تكلفة، مشاريع، وفروع" },
+  { icon: Receipt,     label: "محاسبة وفوترة إلكترونية" },
+  { icon: Users,       label: "الموارد البشرية والرواتب" },
+  { icon: Package,     label: "المخزون والمستودعات" },
+  { icon: Sparkles,    label: "مساعد ذكي عربي/إنجليزي" },
+  { icon: ShieldCheck, label: "متوافق مع ضريبة القيمة المضافة" },
+  { icon: Headphones,  label: "دعم فني 24/7" },
+  { icon: Globe,       label: "تصميم عربي مع RTL" },
+  { icon: Cloud,       label: "سحابي من أي مكان" },
 ];
 
 const FEATURES_EN = [
-  { icon: BookOpen,   label: "Multi-level chart of accounts" },
-  { icon: FileText,   label: "Sales & purchase e-invoicing" },
-  { icon: Package,    label: "Inventory with weighted avg. cost" },
-  { icon: Users,      label: "Payroll & HR" },
-  { icon: Building2,  label: "Fixed assets & depreciation" },
-  { icon: Landmark,   label: "Bank accounts & reconciliation" },
-  { icon: BarChart3,  label: "Full financial statements" },
-  { icon: Layers,     label: "Cost centers, projects & branches" },
+  { icon: Receipt,     label: "Accounting & e-Invoicing" },
+  { icon: Users,       label: "Payroll & HR" },
+  { icon: Package,     label: "Inventory & Warehouses" },
+  { icon: Sparkles,    label: "AI assistant (AR/EN)" },
+  { icon: ShieldCheck, label: "VAT compliant" },
+  { icon: Headphones,  label: "24/7 Support" },
+  { icon: Globe,       label: "Arabic-first RTL design" },
+  { icon: Cloud,       label: "Cloud, from anywhere" },
 ];
 
 export function AuthBrandPanel() {
@@ -39,7 +39,7 @@ export function AuthBrandPanel() {
   const features = isEn ? FEATURES_EN : FEATURES_AR;
 
   return (
-    <div className="hidden lg:flex flex-col justify-between bg-white border-s border-border p-10 xl:p-14 relative overflow-hidden">
+    <div className="hidden md:flex flex-col justify-between bg-white border-s border-border p-10 xl:p-14 relative overflow-hidden">
       {/* Subtle background decoration */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -end-32 w-96 h-96 rounded-full bg-primary/5" />
