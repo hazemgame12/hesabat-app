@@ -15,6 +15,7 @@ import {
   Globe,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const navItems = [
   { labelKey: "superAdmin.nav.dashboard", icon: LayoutDashboard, href: "/super-admin" },
@@ -82,7 +83,8 @@ export function SuperAdminLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-border mt-auto">
+        <div className="p-4 border-t border-border mt-auto flex flex-col gap-2">
+          <LanguageSwitcher className="w-full justify-center" />
           <button
             onClick={handleLogout}
             className="flex items-center justify-center gap-2 w-full py-2 text-sm font-semibold text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
