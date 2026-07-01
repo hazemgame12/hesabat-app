@@ -5,7 +5,6 @@ import {
   journalEntryLinesTable,
 } from "@workspace/db";
 import { assertOpenPeriod } from "./fiscal-year";
-import type { PostingDimensions } from "./posting-dimensions";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -59,12 +58,16 @@ export async function allocateEntryNo(
 const BALANCE_TOLERANCE = 0.005;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-export type DraftPostingLine = PostingDimensions & {
+export type DraftPostingLine = {
   accountId: string;
   description?: string | null;
   // Amounts are already expressed in the company base currency.
   debit: number;
   credit: number;
+  // Optional dimension tags (caller must validate company ownership).
+  costCenterId?: string | null;
+  projectId?: string | null;
+  branchId?: string | null;
 };
 
 export type CreateDraftEntryOptions = {

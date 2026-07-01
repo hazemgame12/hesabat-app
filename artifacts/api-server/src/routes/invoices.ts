@@ -35,12 +35,6 @@ import {
   lockCompanyEntryNo,
 } from "../lib/journal-posting";
 import { computeMovement, round2, round4 } from "../lib/inventory-posting";
-import {
-  addAmountToPostingDimensionBuckets,
-  resolvePostingDimensions,
-  type PostingDimensions,
-} from "../lib/posting-dimensions";
-import { pushPartyLines } from "../lib/invoice-posting";
 import { exportWorkbook } from "../lib/excel";
 import { handleXlsxUpload, parseSheet, cellStr, cellNum } from "../lib/excel";
 import ExcelJS from "exceljs";
@@ -2157,34 +2151,13 @@ router.post(
             projectId?: string | null;
             branchId?: string | null;
           }[] = [];
-          const rHeaderDimensions: PostingDimensions = {
-            costCenterId: inv.costCenterId,
-            projectId: inv.projectId,
-            branchId: inv.branchId,
-          };
-          const rPartyAmounts = new Map<
-            string,
-            {
-              amount: number;
-              costCenterId: string | null;
-              projectId: string | null;
-              branchId: string | null;
-            }
-          >();
+          let rPartyBase = 0;
           for (const l of rLines) {
             const lineTotalBase = round2(Number(l.lineTotal) * rRate);
             const taxBase = round2(Number(l.taxAmount) * rRate);
             const whtBase = round2(Number(l.whtAmount) * rRate);
-            const lineDimensions = resolvePostingDimensions(
-              l,
-              rHeaderDimensions,
-            );
             // WHT reverses too: sales_return Cr WHT Receivable, purchase_return Dr WHT Payable.
-            addAmountToPostingDimensionBuckets(
-              rPartyAmounts,
-              lineTotalBase + taxBase - whtBase,
-              lineDimensions,
-            );
+            rPartyBase = round2(rPartyBase + lineTotalBase + taxBase - whtBase);
             // sales_return reverses a sale: Dr Revenue, Dr VAT, Cr AR.
             // purchase_return reverses a purchase: Cr Expense, Cr VAT, Dr AP.
             rEntryLines.push({
@@ -2193,7 +2166,9 @@ router.post(
               debit: isSalesReturn ? lineTotalBase : 0,
               credit: isSalesReturn ? 0 : lineTotalBase,
               taxId: l.taxId,
-              ...lineDimensions,
+              costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
             });
             if (taxBase > 0) {
               rEntryLines.push({
@@ -2202,7 +2177,6 @@ router.post(
                 debit: isSalesReturn ? taxBase : 0,
                 credit: isSalesReturn ? 0 : taxBase,
                 taxId: l.taxId,
-                ...lineDimensions,
               });
             }
             if (whtBase > 0) {
@@ -2214,16 +2188,17 @@ router.post(
                 debit: isSalesReturn ? 0 : whtBase,
                 credit: isSalesReturn ? whtBase : 0,
                 taxId: l.whtTaxId,
-                ...lineDimensions,
               });
             }
           }
-          pushPartyLines(rEntryLines, {
-            side: isSalesReturn ? "purchase" : "sales",
+          const rPartyLine = {
             accountId: rParty.accountId,
             description: `${docLabelAr(inv.kind)} #${inv.invoiceNo} - ${rParty.name}`,
-            amounts: rPartyAmounts,
-          });
+            debit: isSalesReturn ? 0 : rPartyBase,
+            credit: isSalesReturn ? rPartyBase : 0,
+          };
+          if (isSalesReturn) rEntryLines.push(rPartyLine);
+          else rEntryLines.unshift(rPartyLine);
 
           const rEntry = await createDraftJournalEntry(tx, {
             companyId,
@@ -2423,32 +2398,14 @@ router.post(
         const assetOps: { line: InvoiceLine; cost: number; salvage: number }[] =
           [];
 
-        const headerDimensions: PostingDimensions = {
-          costCenterId: inv.costCenterId,
-          projectId: inv.projectId,
-          branchId: inv.branchId,
-        };
-        const partyAmounts = new Map<
-          string,
-          {
-            amount: number;
-            costCenterId: string | null;
-            projectId: string | null;
-            branchId: string | null;
-          }
-        >();
+        let partyBase = 0; // accumulated AR/AP base amount (net of WHT)
 
         for (const l of lines) {
           const lineTotalBase = round2(Number(l.lineTotal) * rate);
           const taxBase = round2(Number(l.taxAmount) * rate);
           const whtBase = round2(Number(l.whtAmount) * rate);
-          const lineDimensions = resolvePostingDimensions(l, headerDimensions);
           // WHT reduces the amount owed by/to the party.
-          addAmountToPostingDimensionBuckets(
-            partyAmounts,
-            lineTotalBase + taxBase - whtBase,
-            lineDimensions,
-          );
+          partyBase = round2(partyBase + lineTotalBase + taxBase - whtBase);
 
           if (inv.kind === "sales") {
             // Revenue credited, VAT credited.
@@ -2458,7 +2415,9 @@ router.post(
               debit: 0,
               credit: lineTotalBase,
               taxId: l.taxId,
-              ...lineDimensions,
+              costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
             });
             if (taxBase > 0) {
               entryLines.push({
@@ -2467,7 +2426,6 @@ router.post(
                 debit: 0,
                 credit: taxBase,
                 taxId: l.taxId,
-                ...lineDimensions,
               });
             }
             // WHT: Dr WHT Receivable (customer withholds from you).
@@ -2478,7 +2436,6 @@ router.post(
                 debit: whtBase,
                 credit: 0,
                 taxId: l.whtTaxId,
-                ...lineDimensions,
               });
             }
             if (l.lineType === "inventory") {
@@ -2500,14 +2457,15 @@ router.post(
                   description: l.description,
                   debit: cogs,
                   credit: 0,
-                  ...lineDimensions,
+                  costCenterId: l.costCenterId,
+                  projectId: l.projectId,
+                  branchId: l.branchId,
                 });
                 entryLines.push({
                   accountId: item.inventoryAccountId!,
                   description: l.description,
                   debit: 0,
                   credit: cogs,
-                  ...lineDimensions,
                 });
               }
               stockOps.push({
@@ -2529,7 +2487,9 @@ router.post(
               debit: lineTotalBase,
               credit: 0,
               taxId: l.taxId,
-              ...lineDimensions,
+              costCenterId: l.costCenterId,
+              projectId: l.projectId,
+              branchId: l.branchId,
             });
             if (taxBase > 0) {
               entryLines.push({
@@ -2538,7 +2498,6 @@ router.post(
                 debit: taxBase,
                 credit: 0,
                 taxId: l.taxId,
-                ...lineDimensions,
               });
             }
             // WHT: Cr WHT Payable (you withhold from the supplier).
@@ -2549,7 +2508,6 @@ router.post(
                 debit: 0,
                 credit: whtBase,
                 taxId: l.whtTaxId,
-                ...lineDimensions,
               });
             }
             if (l.lineType === "inventory") {
@@ -2587,15 +2545,21 @@ router.post(
         }
 
         // Party AR/AP line.
-        pushPartyLines(entryLines, {
-          side: inv.kind === "sales" ? "sales" : "purchase",
-          accountId: party.accountId,
-          description:
-            inv.kind === "sales"
-              ? `فاتورة مبيعات #${inv.invoiceNo} - ${party.name}`
-              : `فاتورة مشتريات #${inv.invoiceNo} - ${party.name}`,
-          amounts: partyAmounts,
-        });
+        if (inv.kind === "sales") {
+          entryLines.unshift({
+            accountId: party.accountId,
+            description: `فاتورة مبيعات #${inv.invoiceNo} - ${party.name}`,
+            debit: partyBase,
+            credit: 0,
+          });
+        } else {
+          entryLines.push({
+            accountId: party.accountId,
+            description: `فاتورة مشتريات #${inv.invoiceNo} - ${party.name}`,
+            debit: 0,
+            credit: partyBase,
+          });
+        }
 
         const entry = await createDraftJournalEntry(tx, {
           companyId,
