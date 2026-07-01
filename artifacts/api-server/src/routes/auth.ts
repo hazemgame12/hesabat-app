@@ -185,7 +185,23 @@ router.get("/auth/me", requireAuth, async (req, res) => {
     trialEndsAt: company?.trialEndsAt?.toISOString() ?? null,
     planId: company?.planId ?? null,
     country: company?.country ?? null,
+    isImpersonating: auth.isImpersonating,
+    impersonatedByName: auth.impersonatedByName ?? null,
   });
+});
+
+// POST /auth/exit-impersonation — destroy the current impersonation session
+router.post("/auth/exit-impersonation", requireAuth, async (req, res) => {
+  if (!req.auth!.isImpersonating) {
+    res.status(400).json({ error: "Not in an impersonation session" });
+    return;
+  }
+  const token = req.cookies?.[SESSION_COOKIE] as string | undefined;
+  if (token) {
+    await destroySession(token);
+    clearSessionCookie(res);
+  }
+  res.json({ ok: true });
 });
 
 // ---- Password reset --------------------------------------------------------

@@ -5,11 +5,13 @@ import {
   sessionsTable,
   usersTable,
   companiesTable,
+  superAdminsTable,
 } from "@workspace/db";
 import { generateSessionToken, hashToken } from "./auth";
 
 export const SESSION_COOKIE = "hesabat_session";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
+const IMPERSONATION_TTL_MS = 1000 * 60 * 60 * 4; // 4 hours
 
 function isProd(): boolean {
   return process.env["NODE_ENV"] === "production";
@@ -22,6 +24,8 @@ export type AuthContext = {
   name: string;
   email: string;
   companyName: string;
+  isImpersonating: boolean;
+  impersonatedByName: string | null;
 };
 
 export async function createSession(userId: string): Promise<string> {
@@ -31,6 +35,24 @@ export async function createSession(userId: string): Promise<string> {
     userId,
     tokenHash: hashToken(token),
     expiresAt,
+    isImpersonating: false,
+  });
+  return token;
+}
+
+/** Create a short-lived impersonation session on behalf of a super admin. */
+export async function createImpersonationSession(
+  userId: string,
+  superAdminId: string,
+): Promise<string> {
+  const token = generateSessionToken();
+  const expiresAt = new Date(Date.now() + IMPERSONATION_TTL_MS);
+  await db.insert(sessionsTable).values({
+    userId,
+    tokenHash: hashToken(token),
+    expiresAt,
+    isImpersonating: true,
+    impersonatedBySuperAdminId: superAdminId,
   });
   return token;
 }
@@ -54,6 +76,8 @@ export async function resolveSession(
       email: usersTable.email,
       companyName: companiesTable.name,
       expiresAt: sessionsTable.expiresAt,
+      isImpersonating: sessionsTable.isImpersonating,
+      impersonatedBySuperAdminId: sessionsTable.impersonatedBySuperAdminId,
     })
     .from(sessionsTable)
     .innerJoin(usersTable, eq(sessionsTable.userId, usersTable.id))
@@ -69,6 +93,17 @@ export async function resolveSession(
       .where(eq(sessionsTable.tokenHash, tokenHash));
     return null;
   }
+
+  let impersonatedByName: string | null = null;
+  if (row.isImpersonating && row.impersonatedBySuperAdminId) {
+    const adminRows = await db
+      .select({ name: superAdminsTable.name })
+      .from(superAdminsTable)
+      .where(eq(superAdminsTable.id, row.impersonatedBySuperAdminId))
+      .limit(1);
+    impersonatedByName = adminRows[0]?.name ?? null;
+  }
+
   return {
     userId: row.userId,
     companyId: row.companyId,
@@ -76,6 +111,8 @@ export async function resolveSession(
     name: row.name,
     email: row.email,
     companyName: row.companyName,
+    isImpersonating: row.isImpersonating,
+    impersonatedByName,
   };
 }
 

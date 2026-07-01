@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import path from "path";
 import crypto from "crypto";
 import multer from "multer";
+import { z } from "zod/v4";
 import { eq, and, asc, ne } from "drizzle-orm";
 import {
   db,
@@ -36,6 +37,7 @@ import {
   fiscalYearsTable,
   usersTable,
   type Company,
+  manualPaymentRequestsTable,
 } from "@workspace/db";
 import { isCountry, isCurrency } from "@workspace/locale";
 import { UpdateCompanyBody } from "@workspace/api-zod";
@@ -438,7 +440,23 @@ router.post("/company/select-plan", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Plan not found" });
     return;
   }
-  const plan = planRows[0];
+  const plan = planRows[0]!;
+
+  // Country validation: plan must belong to the company's country.
+  const companyRows = await db
+    .select({ country: companiesTable.country })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, req.auth!.companyId))
+    .limit(1);
+  const companyCountry = companyRows[0]?.country;
+  if (companyCountry && plan.country !== companyCountry) {
+    res.status(400).json({
+      error: "هذه الباقة غير متاحة لدولتك",
+      code: "PLAN_COUNTRY_MISMATCH",
+    });
+    return;
+  }
+
   const now = new Date();
   const endsAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
@@ -489,5 +507,71 @@ router.patch(
     }
   },
 );
+
+// POST /payment-requests — company submits a manual payment/renewal request
+
+const PaymentRequestBody = z.object({
+  planId: z.string().uuid(),
+  amount: z.string().min(1),
+  currency: z.string().min(1),
+  billingCycle: z.enum(["monthly", "quarterly", "yearly"]),
+  notes: z.string().optional(),
+  proofUrl: z.string().url().optional(),
+});
+
+router.post("/payment-requests", requireAuth, async (req, res) => {
+  const parsed = PaymentRequestBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues });
+    return;
+  }
+  const { planId, amount, currency, billingCycle, notes, proofUrl } = parsed.data;
+
+  // Validate plan belongs to company's country
+  const planRows = await db
+    .select({ country: subscriptionPlansTable.country, isActive: subscriptionPlansTable.isActive })
+    .from(subscriptionPlansTable)
+    .where(eq(subscriptionPlansTable.id, planId))
+    .limit(1);
+  if (planRows.length === 0) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+  const companyRows = await db
+    .select({ country: companiesTable.country })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, req.auth!.companyId))
+    .limit(1);
+  const companyCountry = companyRows[0]?.country;
+  if (companyCountry && planRows[0]!.country !== companyCountry) {
+    res.status(400).json({ error: "هذه الباقة غير متاحة لدولتك", code: "PLAN_COUNTRY_MISMATCH" });
+    return;
+  }
+
+  const [row] = await db
+    .insert(manualPaymentRequestsTable)
+    .values({
+      companyId: req.auth!.companyId,
+      planId,
+      amount,
+      currency,
+      billingCycle,
+      notes: notes ?? null,
+      proofUrl: proofUrl ?? null,
+      status: "pending",
+    })
+    .returning();
+
+  res.status(201).json(row);
+});
+
+// GET /payment-requests — company views its own requests
+router.get("/payment-requests", requireAuth, async (req, res) => {
+  const rows = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, req.auth!.companyId));
+  res.json(rows);
+});
 
 export default router;

@@ -82,3 +82,46 @@ export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema
 export type SubscriptionPlan = typeof subscriptionPlansTable.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type Subscription = typeof subscriptionsTable.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Manual payment requests — submitted by a company, reviewed by super admin
+// ---------------------------------------------------------------------------
+export const manualPaymentRequestsTable = pgTable(
+  "manual_payment_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companiesTable.id, { onDelete: "cascade" }),
+    planId: uuid("plan_id").notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: text("currency").notNull(),
+    billingCycle: text("billing_cycle", { enum: ["monthly", "quarterly", "yearly"] }).notNull(),
+    notes: text("notes"),
+    proofUrl: text("proof_url"),
+    status: text("status", { enum: ["pending", "approved", "rejected"] })
+      .notNull()
+      .default("pending"),
+    reviewedBySuperAdminId: uuid("reviewed_by_super_admin_id"),
+    reviewerNotes: text("reviewer_notes"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index("manual_payment_requests_company_idx").on(t.companyId),
+    index("manual_payment_requests_status_idx").on(t.status),
+  ],
+);
+
+export const insertManualPaymentRequestSchema = createInsertSchema(manualPaymentRequestsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertManualPaymentRequest = z.infer<typeof insertManualPaymentRequestSchema>;
+export type ManualPaymentRequest = typeof manualPaymentRequestsTable.$inferSelect;

@@ -11,4 +11,7 @@ accountId: string;
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
 };
