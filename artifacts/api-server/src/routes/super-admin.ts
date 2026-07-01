@@ -191,6 +191,7 @@ const UpdateCompany = z.object({
   planId: z.string().uuid().optional(),
   maxUsers: z.number().optional(),
   maxTransactions: z.number().optional(),
+  phone: z.string().max(30).nullable().optional(),
 });
 
 router.patch("/super-admin/companies/:id", async (req, res) => {
@@ -208,6 +209,7 @@ router.patch("/super-admin/companies/:id", async (req, res) => {
   if (data.planId !== undefined) update.planId = data.planId;
   if (data.maxUsers !== undefined) update.maxUsers = data.maxUsers;
   if (data.maxTransactions !== undefined) update.maxTransactions = data.maxTransactions;
+  if (data.phone !== undefined) update.phone = data.phone;
   update.updatedAt = new Date();
 
   const result = await db

@@ -83,6 +83,8 @@ export function SuperAdminCompanies() {
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [editingStatus, setEditingStatus] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [editingPhone, setEditingPhone] = useState<string | null>(null);
+  const [phoneValue, setPhoneValue] = useState<string>("");
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["super-admin-companies", search],
@@ -122,6 +124,22 @@ export function SuperAdminCompanies() {
       setEditingStatus(null);
       toast({ title: t("common.success") });
     },
+  });
+
+  const updatePhone = useMutation({
+    mutationFn: ({ id, phone }: { id: string; phone: string | null }) =>
+      fetch(`/api/super-admin/companies/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone: phone || null }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["super-admin-companies"] });
+      setEditingPhone(null);
+      toast({ title: t("common.success") });
+    },
+    onError: () => toast({ title: t("common.error"), variant: "destructive" }),
   });
 
   const handleExpand = async (id: string) => {
@@ -276,7 +294,32 @@ export function SuperAdminCompanies() {
                   </div>
                   <div>
                     <div className="text-xs font-medium text-muted-foreground/70">التليفون</div>
-                    <div dir="ltr" className="font-mono text-xs">{company.phone || "—"}</div>
+                    {editingPhone === company.id ? (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Input
+                          value={phoneValue}
+                          onChange={(e) => setPhoneValue(e.target.value)}
+                          dir="ltr"
+                          className="h-6 text-xs font-mono px-1.5 w-32"
+                          placeholder="+201234567890"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") updatePhone.mutate({ id: company.id, phone: phoneValue });
+                            if (e.key === "Escape") setEditingPhone(null);
+                          }}
+                          autoFocus
+                        />
+                        <button onClick={() => updatePhone.mutate({ id: company.id, phone: phoneValue })} className="text-green-600 hover:text-green-700"><Check className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setEditingPhone(null)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ) : (
+                      <div
+                        className="flex items-center gap-1 group cursor-pointer"
+                        onClick={() => { setEditingPhone(company.id); setPhoneValue(company.phone || ""); }}
+                      >
+                        <span dir="ltr" className="font-mono text-xs">{company.phone || "—"}</span>
+                        <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    )}
                   </div>
                 </div>
 
