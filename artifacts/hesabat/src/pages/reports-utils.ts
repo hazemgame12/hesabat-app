@@ -4,9 +4,40 @@ import type {
   BalanceSheet,
   Currency,
   Company,
-  TrialBalanceBreakdownGroup,
-  IncomeStatementBreakdownGroup,
+  PnlLine,
 } from "@workspace/api-client-react";
+
+export type TrialBalanceBreakdownGroup = {
+  dimensionId: string | null;
+  dimensionNameAr: string;
+  dimensionNameEn: string | null;
+  rows: TrialBalance["rows"];
+  totalOpeningDebit: number;
+  totalOpeningCredit: number;
+  totalPeriodDebit: number;
+  totalPeriodCredit: number;
+  totalClosingDebit: number;
+  totalClosingCredit: number;
+};
+
+export type IncomeStatementBreakdownGroup = {
+  dimensionId: string | null;
+  dimensionNameAr: string;
+  dimensionNameEn: string | null;
+  revenue: PnlLine[];
+  expenses: PnlLine[];
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+};
+
+type TrialBalanceWithBreakdown = TrialBalance & {
+  breakdownGroups?: TrialBalanceBreakdownGroup[];
+};
+
+type IncomeStatementWithBreakdown = IncomeStatement & {
+  breakdownGroups?: IncomeStatementBreakdownGroup[];
+};
 
 export type Fmt = (n: number) => string;
 
@@ -100,7 +131,7 @@ function metaLinesHtml(lines: string[] | undefined): string {
 }
 
 export function buildTrialBalancePdfHtml(
-  data: TrialBalance,
+  data: TrialBalanceWithBreakdown,
   fmt: Fmt,
   lang: string,
   from: string,
@@ -242,7 +273,7 @@ export function buildTrialBalancePdfHtml(
 }
 
 export function buildIncomeStatementPdfHtml(
-  data: IncomeStatement,
+  data: IncomeStatementWithBreakdown,
   fmt: Fmt,
   lang: string,
   from: string,
