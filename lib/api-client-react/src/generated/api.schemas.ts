@@ -2510,6 +2510,19 @@ export interface TrialBalance {
   totalClosingCredit: number;
   balanced: boolean;
   currencyInfo?: CurrencyInfo;
+  breakdownGroups?: TrialBalanceBreakdownGroup[];
+}
+
+export interface TrialBalanceBreakdownGroup {
+  dimensionId: string | null;
+  dimensionName: string;
+  rows: TrialBalanceRow[];
+  totalOpeningDebit: number;
+  totalOpeningCredit: number;
+  totalPeriodDebit: number;
+  totalPeriodCredit: number;
+  totalClosingDebit: number;
+  totalClosingCredit: number;
 }
 
 export interface VatReportRow {
@@ -2655,6 +2668,17 @@ export interface IncomeStatement {
   totalExpenses: number;
   netProfit: number;
   currencyInfo?: CurrencyInfo;
+  breakdownGroups?: IncomeStatementBreakdownGroup[];
+}
+
+export interface IncomeStatementBreakdownGroup {
+  dimensionId: string | null;
+  dimensionName: string;
+  revenue: PnlLine[];
+  expenses: PnlLine[];
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
 }
 
 export interface BalanceSheet {
@@ -2682,6 +2706,18 @@ export interface GeneralLedgerEntry {
   debit: number;
   credit: number;
   balance: number;
+  /** @nullable */
+  costCenterId?: string | null;
+  /** @nullable */
+  costCenterName?: string | null;
+  /** @nullable */
+  projectId?: string | null;
+  /** @nullable */
+  projectName?: string | null;
+  /** @nullable */
+  branchId?: string | null;
+  /** @nullable */
+  branchName?: string | null;
 }
 
 export interface GeneralLedger {
@@ -3389,17 +3425,28 @@ export type GetTrialBalanceParams = {
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
+breakdownBy?: string | null;
 };
 
 export type GetIncomeStatementParams = {
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
+breakdownBy?: string | null;
 };
 
 export type GetBalanceSheetParams = {
 asOf?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
 };
 
 export type GetGeneralLedgerParams = {
@@ -3407,6 +3454,10 @@ accountId: string;
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
+breakdownBy?: string | null;
 };
 
 export type GetCashFlowParams = {

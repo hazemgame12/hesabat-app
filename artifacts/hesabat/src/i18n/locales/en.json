@@ -175,7 +175,8 @@
     "vendorPayments": "Vendor Payments",
     "financialReports": "Financial Reports",
     "taxDeclarations": "Tax Declarations",
-    "financialAnalysis": "Budgets & Analysis"
+    "financialAnalysis": "Budgets & Analysis",
+    "reportsCenter": "Reports Center"
   },
   "support": {
     "title": "Support",
@@ -2353,6 +2354,18 @@
   "reportsPage": {
     "title": "Financial Reports",
     "subtitle": "Reports built from posted journal entries only",
+    "detail": {
+      "accountStatementTitle": "Account Statement",
+      "backToReportsCenter": "Back to Reports Center",
+      "companyFallback": "Company",
+      "reportCurrency": "Report Currency",
+      "baseCurrency": "Base Currency",
+      "noFilters": "All dimensions",
+      "filterWithValue": "{{label}}: {{value}}",
+      "printButton": "PDF / Print",
+      "breakdownComingSoon": "{{mode}} is coming soon for management breakdown. Showing the standard report for now.",
+      "breakdownManagement": "Management breakdown: Coming Soon"
+    },
     "tabs": {
       "trialBalance": "Trial Balance",
       "incomeStatement": "Income Statement",
@@ -2445,6 +2458,16 @@
     "ledger": {
       "openingBalance": "Opening balance",
       "closingBalance": "Closing balance"
+    },
+    "drill": {
+      "viewGeneralLedger": "View General Ledger",
+      "openJournalEntry": "Open Journal Entry",
+      "selectedAccount": "Selected Account",
+      "backToReport": "Back to Report",
+      "sourceModule": "Source",
+      "postedAt": "Posted At",
+      "createdAt": "Created At",
+      "dimensions": "Dimensions"
     },
     "je": {
       "title": "Journal Entry",
@@ -2576,6 +2599,50 @@
       "change": "Change",
       "current": "Current",
       "prior": "Prior"
+    }
+  },
+  "reportsCenter": {
+    "title": "Reports Center",
+    "subtitle": "Choose a report from the categories below",
+    "search": "Search reports...",
+    "favorites": "Favorite Reports",
+    "noFavorites": "No favorite reports yet",
+    "noResults": "No matching reports",
+    "comingSoon": "Coming Soon",
+    "status": {
+      "ready": "Ready",
+      "linked": "Linked",
+      "comingSoon": "Coming Soon"
+    },
+    "categories": {
+      "financial": "Financial Reports",
+      "sales": "Sales & Customers",
+      "purchases": "Purchases & Suppliers",
+      "cashBank": "Cash & Bank",
+      "inventory": "Inventory",
+      "fixedAssets": "Fixed Assets",
+      "payroll": "Payroll / Custody / Advances",
+      "tax": "Tax Reports"
+    }
+  },
+  "dimensionFilters": {
+    "title": "Filter by Dimension",
+    "subtitle": "Refine financial reports by accounting dimensions",
+    "costCenter": "Cost Center",
+    "project": "Project",
+    "branch": "Branch",
+    "allCostCenters": "All Cost Centers",
+    "allProjects": "All Projects",
+    "allBranches": "All Branches",
+    "applyFilter": "Apply",
+    "breakdown": {
+      "label": "Breakdown By",
+      "standard": "Standard View",
+      "costCenter": "Breakdown by Cost Center",
+      "project": "Breakdown by Project",
+      "branch": "Breakdown by Branch",
+      "unassigned": "Unassigned",
+      "subtotal": "Subtotal"
     }
   },
   "superAdmin": {

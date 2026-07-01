@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
 import {
   useGetTrialBalance,
   useGetIncomeStatement,
@@ -76,6 +77,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { TaxReports } from "@/components/reports/TaxReports";
+import type { DimensionFilterQuery } from "@/components/reports/DimensionFilters";
 
 // ── Searchable combobox for long lists (accounts / parties) ──────────────────
 function SearchableSelect({
@@ -173,6 +175,33 @@ type CategoryKey =
   | "tax"
   | "audit";
 
+function readReportsTab(location: string): TabKey | null {
+  const params = new URLSearchParams(location.split("?")[1] || "");
+  const tab = params.get("tab");
+  const validTabs: TabKey[] = [
+    "trialBalance",
+    "incomeStatement",
+    "balanceSheet",
+    "generalLedger",
+    "cashFlow",
+    "cashForecast",
+    "salesByItem",
+    "purchasesByItem",
+    "inventorySummary",
+    "partyStatement",
+    "aging",
+    "outstanding",
+    "tax",
+    "revaluation",
+    "auditLog",
+  ];
+  return tab && validTabs.includes(tab as TabKey) ? (tab as TabKey) : null;
+}
+
+function categoryForTab(tab: TabKey): CategoryKey {
+  return CATEGORIES.find((category) => category.tabs.includes(tab))?.key ?? "financial";
+}
+
 const CATEGORIES: { key: CategoryKey; tabs: TabKey[] }[] = [
   {
     key: "financial",
@@ -194,6 +223,7 @@ const CATEGORIES: { key: CategoryKey; tabs: TabKey[] }[] = [
 
 export function Reports() {
   const { t, i18n } = useTranslation();
+  const [location] = useLocation();
   const lang = i18n.language;
   const [category, setCategory] = useState<CategoryKey>("financial");
   const [tab, setTab] = useState<TabKey>("trialBalance");
@@ -208,6 +238,14 @@ export function Reports() {
     setCategory("financial");
     setTab("generalLedger");
   }
+
+  useEffect(() => {
+    const nextTab = readReportsTab(location);
+    if (nextTab) {
+      setCategory(categoryForTab(nextTab));
+      setTab(nextTab);
+    }
+  }, [location]);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat(lang, {
@@ -492,12 +530,14 @@ export function TrialBalanceTab({
   cc,
   onDrillAccount,
   company,
+  dimensionFilters,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
   onDrillAccount?: (accountId: string, from: string, to: string) => void;
   company?: Company;
+  dimensionFilters?: DimensionFilterQuery;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -506,12 +546,16 @@ export function TrialBalanceTab({
     from: from || undefined,
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
+    ...dimensionFilters,
   });
 
   const exportExcel = () => {
     const qs = new URLSearchParams();
     if (from) qs.set("from", from);
     if (to) qs.set("to", to);
+    if (dimensionFilters?.costCenterId) qs.set("costCenterId", dimensionFilters.costCenterId);
+    if (dimensionFilters?.projectId) qs.set("projectId", dimensionFilters.projectId);
+    if (dimensionFilters?.branchId) qs.set("branchId", dimensionFilters.branchId);
     // Same-origin GET download; the session cookie is sent automatically.
     window.open(`/api/reports/trial-balance/export?${qs.toString()}`, "_blank");
   };
@@ -842,12 +886,14 @@ export function IncomeStatementTab({
   cc,
   onDrillAccount,
   company,
+  dimensionFilters,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
   onDrillAccount?: (accountId: string, from: string, to: string) => void;
   company?: Company;
+  dimensionFilters?: DimensionFilterQuery;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -864,9 +910,15 @@ export function IncomeStatementTab({
     from: from || undefined,
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
+    ...dimensionFilters,
   });
   const { data: compData, isLoading: compLoading } = useGetIncomeStatement(
-    { from: compFrom || undefined, to: compTo || undefined, reportCurrency: reportCurrencyParam(cc) },
+    {
+      from: compFrom || undefined,
+      to: compTo || undefined,
+      reportCurrency: reportCurrencyParam(cc),
+      ...dimensionFilters,
+    },
     { query: { enabled: showComparison } as any },
   );
 
@@ -882,6 +934,9 @@ export function IncomeStatementTab({
     if (to) qs.set("to", to);
     const rc = reportCurrencyParam(cc);
     if (rc) qs.set("reportCurrency", rc);
+    if (dimensionFilters?.costCenterId) qs.set("costCenterId", dimensionFilters.costCenterId);
+    if (dimensionFilters?.projectId) qs.set("projectId", dimensionFilters.projectId);
+    if (dimensionFilters?.branchId) qs.set("branchId", dimensionFilters.branchId);
     window.open(`/api/reports/income-statement/export?${qs.toString()}`, "_blank");
   };
   const exportIsPdf = () => {
@@ -1059,12 +1114,14 @@ export function BalanceSheetTab({
   cc,
   onDrillAccount,
   company,
+  dimensionFilters,
 }: {
   fmt: Fmt;
   lang: string;
   cc: CurrencyControls;
   onDrillAccount?: (accountId: string, from: string, to: string) => void;
   company?: Company;
+  dimensionFilters?: DimensionFilterQuery;
 }) {
   const { t } = useTranslation();
   const [asOf, setAsOf] = useState(today());
@@ -1076,9 +1133,14 @@ export function BalanceSheetTab({
   const { data, isLoading } = useGetBalanceSheet({
     asOf: asOf || undefined,
     reportCurrency: reportCurrencyParam(cc),
+    ...dimensionFilters,
   });
   const { data: compData, isLoading: compLoading } = useGetBalanceSheet(
-    { asOf: compAsOf || undefined, reportCurrency: reportCurrencyParam(cc) },
+    {
+      asOf: compAsOf || undefined,
+      reportCurrency: reportCurrencyParam(cc),
+      ...dimensionFilters,
+    },
     { query: { enabled: showComparison } as any },
   );
 
@@ -1087,6 +1149,9 @@ export function BalanceSheetTab({
     if (asOf) qs.set("asOf", asOf);
     const rc = reportCurrencyParam(cc);
     if (rc) qs.set("reportCurrency", rc);
+    if (dimensionFilters?.costCenterId) qs.set("costCenterId", dimensionFilters.costCenterId);
+    if (dimensionFilters?.projectId) qs.set("projectId", dimensionFilters.projectId);
+    if (dimensionFilters?.branchId) qs.set("branchId", dimensionFilters.branchId);
     window.open(`/api/reports/balance-sheet/export?${qs.toString()}`, "_blank");
   };
   const exportBsPdf = () => {
@@ -1379,6 +1444,7 @@ export function GeneralLedgerTab({
   initialAccountId,
   initialFrom,
   initialTo,
+  dimensionFilters,
 }: {
   fmt: Fmt;
   lang: string;
@@ -1387,6 +1453,7 @@ export function GeneralLedgerTab({
   initialAccountId?: string;
   initialFrom?: string;
   initialTo?: string;
+  dimensionFilters?: DimensionFilterQuery;
 }) {
   const { t } = useTranslation();
   const [accountId, setAccountId] = useState<string>(initialAccountId ?? "");
@@ -1407,6 +1474,7 @@ export function GeneralLedgerTab({
     from: from || undefined,
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
+    ...dimensionFilters,
   };
   const { data, isLoading } = useGetGeneralLedger(glParams, {
     query: {
@@ -1465,6 +1533,9 @@ export function GeneralLedgerTab({
               if (to) qs.set("to", to);
               const rc = reportCurrencyParam(cc);
               if (rc) qs.set("reportCurrency", rc);
+              if (dimensionFilters?.costCenterId) qs.set("costCenterId", dimensionFilters.costCenterId);
+              if (dimensionFilters?.projectId) qs.set("projectId", dimensionFilters.projectId);
+              if (dimensionFilters?.branchId) qs.set("branchId", dimensionFilters.branchId);
               window.open(`/api/reports/general-ledger/export?${qs.toString()}`, "_blank");
             }}
             className="px-4 py-2 rounded-xl text-sm font-semibold border border-border bg-card hover:bg-muted transition-colors self-end"
@@ -1938,8 +2009,14 @@ function JournalEntryModal({
 // ---- Aging ----
 function AgingTab({ fmt }: { fmt: Fmt }) {
   const { t } = useTranslation();
+  const [location] = useLocation();
   const [type, setType] = useState<"ar" | "ap">("ar");
   const [asOf, setAsOf] = useState(today());
+  useEffect(() => {
+    const partyType = new URLSearchParams(location.split("?")[1] || "").get("partyType");
+    if (partyType === "customer") setType("ar");
+    if (partyType === "supplier") setType("ap");
+  }, [location]);
   const { data, isLoading } = useGetAgingReport({ type, asOf: asOf || undefined });
 
   return (

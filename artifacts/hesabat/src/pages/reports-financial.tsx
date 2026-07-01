@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
 import {
   useGetIncomeStatement,
   useGetCompany,
@@ -45,6 +46,11 @@ import {
   CashForecastTab,
   RevaluationTab,
 } from "./reports";
+import {
+  DimensionFilters,
+  type DimensionFilterQuery,
+  type DimensionFilterValues,
+} from "@/components/reports/DimensionFilters";
 
 type PeriodPreset = "month" | "quarter" | "year";
 type TabKey =
@@ -65,6 +71,12 @@ const TABS: TabKey[] = [
   "cashForecast",
   "revaluation",
 ];
+
+function readFinancialTab(location: string): TabKey | null {
+  const params = new URLSearchParams(location.split("?")[1] || "");
+  const tab = params.get("tab");
+  return tab && TABS.includes(tab as TabKey) ? (tab as TabKey) : null;
+}
 
 function periodRange(preset: PeriodPreset): { from: string; to: string } {
   const now = new Date();
@@ -149,8 +161,14 @@ function KpiCard({
 
 export function ReportsFinancial() {
   const { t, i18n } = useTranslation();
+  const [location] = useLocation();
   const lang = i18n.language;
-  const [tab, setTab] = useState<TabKey>("trialBalance");
+  const [tab, setTab] = useState<TabKey>(() => readFinancialTab(window.location.pathname + window.location.search) ?? "trialBalance");
+  const [dimensionFilters, setDimensionFilters] = useState<DimensionFilterValues>({
+    costCenterId: "",
+    projectId: "",
+    branchId: "",
+  });
   const [preset, setPreset] = useState<PeriodPreset>("year");
 
   const [drillGL, setDrillGL] = useState<{
@@ -163,6 +181,27 @@ export function ReportsFinancial() {
     setDrillGL({ accountId, from, to });
     setTab("generalLedger");
   }
+
+  useEffect(() => {
+    const nextTab = readFinancialTab(location);
+    if (nextTab && nextTab !== tab) setTab(nextTab);
+  }, [location, tab]);
+
+  useEffect(() => {
+    const qs = new URLSearchParams(window.location.search);
+    qs.set("tab", tab);
+    window.history.replaceState(null, "", `${window.location.pathname}?${qs.toString()}`);
+  }, [tab]);
+
+  const dimensionQuery: DimensionFilterQuery = useMemo(
+    () => ({
+      costCenterId: dimensionFilters.costCenterId || undefined,
+      projectId: dimensionFilters.projectId || undefined,
+      branchId: dimensionFilters.branchId || undefined,
+    }),
+    [dimensionFilters],
+  );
+
   const period = periodRange(preset);
 
   const fmt = (n: number) =>
@@ -174,6 +213,7 @@ export function ReportsFinancial() {
   const { data: kpi, isLoading: kpiLoading } = useGetIncomeStatement({
     from: period.from,
     to: period.to,
+    ...dimensionQuery,
   });
 
   const revenue = kpi?.totalRevenue ?? 0;
@@ -335,6 +375,8 @@ export function ReportsFinancial() {
         )}
       </div>
 
+      <DimensionFilters value={dimensionFilters} onChange={setDimensionFilters} />
+
       {/* ── Report tabs ── */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
         <div className="overflow-x-auto pb-1">
@@ -349,13 +391,13 @@ export function ReportsFinancial() {
 
         <div className="mt-6">
           <TabsContent value="trialBalance">
-            <TrialBalanceTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} />
+            <TrialBalanceTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} dimensionFilters={dimensionQuery} />
           </TabsContent>
           <TabsContent value="incomeStatement">
-            <IncomeStatementTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} />
+            <IncomeStatementTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} dimensionFilters={dimensionQuery} />
           </TabsContent>
           <TabsContent value="balanceSheet">
-            <BalanceSheetTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} />
+            <BalanceSheetTab fmt={fmt} lang={lang} cc={cc} onDrillAccount={drillToGL} dimensionFilters={dimensionQuery} />
           </TabsContent>
           <TabsContent value="generalLedger">
             <GeneralLedgerTab
@@ -366,6 +408,7 @@ export function ReportsFinancial() {
               initialAccountId={drillGL?.accountId}
               initialFrom={drillGL?.from}
               initialTo={drillGL?.to}
+              dimensionFilters={dimensionQuery}
             />
           </TabsContent>
           <TabsContent value="cashFlow">

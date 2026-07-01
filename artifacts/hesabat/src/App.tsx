@@ -29,6 +29,8 @@ import PrintPaymentPage from "@/pages/print-payment";
 import { PrintGuard } from "@/components/print/PrintGuard";
 import { Reports } from "@/pages/reports";
 import { ReportsFinancial } from "@/pages/reports-financial";
+import { ReportsFinancialDetail } from "@/pages/reports-financial-detail";
+import { ReportsCenter } from "@/pages/reports-center";
 import { ReportsTax } from "@/pages/reports-tax";
 import { ReportsAnalysis } from "@/pages/reports-analysis";
 import { Revaluation } from "@/pages/revaluation";
@@ -109,8 +111,10 @@ function ProtectedRoutes() {
         <Route path="/purchase-orders" component={PurchaseOrdersPage} />
         <Route path="/revaluation" component={Revaluation} />
         <Route path="/reports/financial" component={ReportsFinancial} />
+        <Route path="/reports/financial/:reportKey" component={ReportsFinancialDetail} />
         <Route path="/reports/tax" component={ReportsTax} />
         <Route path="/reports/analysis" component={ReportsAnalysis} />
+        <Route path="/reports/center" component={ReportsCenter} />
         <Route path="/reports" component={Reports} />
         <Route path="/audit" component={Audit} />
         <Route path="/e-invoice" component={EInvoice} />
