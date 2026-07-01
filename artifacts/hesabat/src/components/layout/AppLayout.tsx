@@ -104,7 +104,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       const isTrialWithoutPlan = user.subscriptionStatus === "trial" && !user.planId;
       const isSuspended = user.subscriptionStatus === "suspended";
       // Suspended users go to choose-plan for self-service recovery
-      if ((isExpired || isTrialWithoutPlan || isSuspended) && !(user as any).isImpersonating) {
+      if ((isExpired || isTrialWithoutPlan || isSuspended) && !user.isImpersonating) {
         setLocation("/choose-plan");
       }
     }
@@ -125,9 +125,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  const userAny = user as any;
-  const isImpersonating: boolean = !!userAny.isImpersonating;
-  const impersonatedByName: string | null = userAny.impersonatedByName ?? null;
+  const isImpersonating: boolean = !!user.isImpersonating;
+  const impersonatedByName: string | null = user.impersonatedByName ?? null;
 
   // Prevent showing the app layout when the user needs to choose a plan
   // (unless we are in an impersonation session, where the admin can see all states)
@@ -139,7 +138,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const hasBanner = isImpersonating || isSuspended || isExpired;
-  const bannerHeight = hasBanner ? "mt-10" : "";
 
   return (
     <div className="min-h-screen flex w-full bg-background font-sans text-foreground">

@@ -43,6 +43,15 @@ async function logSubscriptionAudit(
   });
 }
 
+/** Add months/quarters/years to a date based on billing cycle. */
+function addBillingCycle(from: Date, cycle?: string): Date {
+  const d = new Date(from);
+  if (cycle === "yearly") d.setFullYear(d.getFullYear() + 1);
+  else if (cycle === "quarterly") d.setMonth(d.getMonth() + 3);
+  else d.setMonth(d.getMonth() + 1); // monthly default
+  return d;
+}
+
 // GET /super-admin/dashboard — KPIs
 router.get("/super-admin/dashboard", async (req, res) => {
   const totalCompanies = await db
@@ -296,15 +305,6 @@ router.post("/super-admin/companies/:id/subscription", async (req, res) => {
 
   const now = new Date();
   const resolvedEndsAt = endsAt ? new Date(endsAt) : null;
-
-  // Compute subscription end date based on billing cycle if not provided
-  function addBillingCycle(from: Date, cycle?: string): Date {
-    const d = new Date(from);
-    if (cycle === "yearly") d.setFullYear(d.getFullYear() + 1);
-    else if (cycle === "quarterly") d.setMonth(d.getMonth() + 3);
-    else d.setMonth(d.getMonth() + 1); // monthly default
-    return d;
-  }
 
   const companyUpdate: any = { updatedAt: now };
   let auditAction = "";
@@ -972,14 +972,6 @@ router.post("/super-admin/payment-requests/:id/approve", async (req, res) => {
       })
       .where(eq(manualPaymentRequestsTable.id, id));
 
-    // Compute new subscription end date
-    function addBillingCycle(from: Date, cycle: string): Date {
-      const d = new Date(from);
-      if (cycle === "yearly") d.setFullYear(d.getFullYear() + 1);
-      else if (cycle === "quarterly") d.setMonth(d.getMonth() + 3);
-      else d.setMonth(d.getMonth() + 1);
-      return d;
-    }
     const endsAt = addBillingCycle(now, request.billingCycle);
 
     // Activate company subscription
