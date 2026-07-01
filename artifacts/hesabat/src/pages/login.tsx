@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { AuthBrandPanel } from "@/components/AuthBrandPanel";
 
 const loginSchema = z.object({
   email: z.string().email("emailInvalid"),
@@ -58,68 +59,77 @@ export function Login() {
   if (isUserLoading) return null;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 font-sans relative">
-      <div className="absolute top-4 end-4">
-        <LanguageSwitcher />
+    <div className="min-h-screen flex bg-background font-sans">
+      {/* Brand panel — first in DOM → appears on the right in RTL */}
+      <AuthBrandPanel />
+
+      {/* Form side */}
+      <div className="flex-1 flex flex-col min-h-screen relative">
+        <div className="absolute top-4 end-4 z-10">
+          <LanguageSwitcher />
+        </div>
+
+        <div className="flex-1 flex items-center justify-center p-6">
+          <Card className="w-full max-w-md p-8 shadow-xl border-border">
+            <div className="flex flex-col items-center gap-4 mb-8">
+              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl shadow-sm">
+                ح
+              </div>
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-foreground mb-1">{t("auth.login.title")}</h1>
+                <p className="text-sm text-muted-foreground">{t("auth.login.subtitle")}</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+              {errorMsg && (
+                <div className="p-3 text-sm font-semibold text-destructive bg-destructive/10 rounded-lg text-center">
+                  {errorMsg}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="email">{t("auth.login.email")}</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  dir="ltr"
+                  placeholder="name@company.com"
+                  className="text-start focus-visible:ring-primary"
+                  {...register("email")}
+                />
+                {errors.email && <span className="text-xs text-destructive">{t(`auth.validation.${errors.email.message}`)}</span>}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password">{t("auth.login.password")}</Label>
+                  <Link href="/forgot-password" className="text-xs text-primary font-semibold hover:underline">{t("auth.login.forgotPassword")}</Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  dir="ltr"
+                  className="text-start focus-visible:ring-primary"
+                  {...register("password")}
+                />
+                {errors.password && <span className="text-xs text-destructive">{t(`auth.validation.${errors.password.message}`)}</span>}
+              </div>
+
+              <Button type="submit" disabled={login.isPending} className="w-full h-11 text-base font-bold mt-2 shadow-md hover:opacity-90">
+                {login.isPending ? t("auth.login.submitting") : t("auth.login.submit")}
+              </Button>
+            </form>
+
+            <div className="mt-8 text-center text-sm text-muted-foreground">
+              {t("auth.login.noAccount")}{" "}
+              <Link href="/signup" className="text-primary font-bold hover:underline">
+                {t("auth.login.createAccount")}
+              </Link>
+            </div>
+          </Card>
+        </div>
       </div>
-      <Card className="w-full max-w-md p-8 shadow-xl border-border">
-        <div className="flex flex-col items-center gap-4 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl shadow-sm">
-            ح
-          </div>
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-foreground mb-1">{t("auth.login.title")}</h1>
-            <p className="text-sm text-muted-foreground">{t("auth.login.subtitle")}</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-          {errorMsg && (
-            <div className="p-3 text-sm font-semibold text-destructive bg-destructive/10 rounded-lg text-center">
-              {errorMsg}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">{t("auth.login.email")}</Label>
-            <Input
-              id="email"
-              type="email"
-              dir="ltr"
-              placeholder="name@company.com"
-              className="text-start focus-visible:ring-primary"
-              {...register("email")}
-            />
-            {errors.email && <span className="text-xs text-destructive">{t(`auth.validation.${errors.email.message}`)}</span>}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="password">{t("auth.login.password")}</Label>
-              <Link href="/forgot-password" className="text-xs text-primary font-semibold hover:underline">{t("auth.login.forgotPassword")}</Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              dir="ltr"
-              className="text-start focus-visible:ring-primary"
-              {...register("password")}
-            />
-            {errors.password && <span className="text-xs text-destructive">{t(`auth.validation.${errors.password.message}`)}</span>}
-          </div>
-
-          <Button type="submit" disabled={login.isPending} className="w-full h-11 text-base font-bold mt-2 shadow-md hover:opacity-90">
-            {login.isPending ? t("auth.login.submitting") : t("auth.login.submit")}
-          </Button>
-        </form>
-
-        <div className="mt-8 text-center text-sm text-muted-foreground">
-          {t("auth.login.noAccount")}{" "}
-          <Link href="/signup" className="text-primary font-bold hover:underline">
-            {t("auth.login.createAccount")}
-          </Link>
-        </div>
-      </Card>
     </div>
   );
 }
