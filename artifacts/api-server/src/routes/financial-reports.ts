@@ -49,6 +49,7 @@ async function buildExcelTitleRows(
   companyId: string,
   reportLabel: string,
   periodLabel: string,
+  extraRows: string[] = [],
 ): Promise<string[]> {
   const [co] = await db
     .select({
@@ -70,6 +71,7 @@ async function buildExcelTitleRows(
   if (sub.length) rows.push(sub.join("  ·  "));
 
   rows.push(`${reportLabel}  —  ${periodLabel}`);
+  rows.push(...extraRows.filter(Boolean));
 
   return rows;
 }
@@ -265,6 +267,101 @@ async function loadAccounts(companyId: string): Promise<AccountRow[]> {
 
 export type BreakdownByDimension = "costCenter" | "project" | "branch";
 
+function readBreakdownBy(
+  query: Record<string, unknown>,
+): BreakdownByDimension | null {
+  const value = query["breakdownBy"];
+  return value === "costCenter" || value === "project" || value === "branch"
+    ? value
+    : null;
+}
+
+function breakdownLabelAr(breakdownBy: BreakdownByDimension): string {
+  if (breakdownBy === "costCenter") return "تجميع حسب مركز التكلفة";
+  if (breakdownBy === "project") return "تجميع حسب المشروع";
+  return "تجميع حسب الفرع";
+}
+
+function exportContextRows(
+  selectedFilters: Array<{ label: string; value: string }>,
+  currencyInfo?: CurrencyInfo,
+  breakdownBy?: BreakdownByDimension | null,
+): string[] {
+  const rows: string[] = [];
+  if (breakdownBy) rows.push(`التجميع: ${breakdownLabelAr(breakdownBy)}`);
+  rows.push(...selectedFilters.map((filter) => `${filter.label}: ${filter.value}`));
+  if (currencyInfo) {
+    rows.push(
+      `عملة التقرير: ${currencyInfo.reportCurrency} · العملة الأساسية: ${currencyInfo.baseCurrency}`,
+    );
+  }
+  return rows;
+}
+
+async function loadSelectedDimensionLabels(
+  companyId: string,
+  dimensions: ReportDimensionFilters,
+): Promise<Array<{ label: string; value: string }>> {
+  const [costCenters, projects, branches] = await Promise.all([
+    dimensions.costCenterId
+      ? db
+          .select({ nameAr: costCentersTable.nameAr })
+          .from(costCentersTable)
+          .where(
+            and(
+              eq(costCentersTable.companyId, companyId),
+              eq(costCentersTable.id, dimensions.costCenterId),
+            ),
+          )
+          .limit(1)
+      : Promise.resolve([] as { nameAr: string }[]),
+    dimensions.projectId
+      ? db
+          .select({ nameAr: projectsTable.nameAr })
+          .from(projectsTable)
+          .where(
+            and(
+              eq(projectsTable.companyId, companyId),
+              eq(projectsTable.id, dimensions.projectId),
+            ),
+          )
+          .limit(1)
+      : Promise.resolve([] as { nameAr: string }[]),
+    dimensions.branchId
+      ? db
+          .select({ nameAr: branchesTable.nameAr })
+          .from(branchesTable)
+          .where(
+            and(
+              eq(branchesTable.companyId, companyId),
+              eq(branchesTable.id, dimensions.branchId),
+            ),
+          )
+          .limit(1)
+      : Promise.resolve([] as { nameAr: string }[]),
+  ]);
+  const rows: Array<{ label: string; value: string }> = [];
+  if (dimensions.costCenterId) {
+    rows.push({
+      label: "مركز التكلفة",
+      value: costCenters[0]?.nameAr ?? dimensions.costCenterId,
+    });
+  }
+  if (dimensions.projectId) {
+    rows.push({
+      label: "المشروع",
+      value: projects[0]?.nameAr ?? dimensions.projectId,
+    });
+  }
+  if (dimensions.branchId) {
+    rows.push({
+      label: "الفرع",
+      value: branches[0]?.nameAr ?? dimensions.branchId,
+    });
+  }
+  return rows;
+}
+
 type DimensionItem = { id: string; nameAr: string; nameEn: string | null };
 
 // Returns the ORM column for the chosen dimension on journal_entry_lines.
@@ -338,6 +435,7 @@ async function postedTotalsBeforeGrouped(
   companyId: string,
   before: string,
   breakdownBy: BreakdownByDimension,
+  baseFilters?: ReportDimensionFilters,
 ): Promise<Map<string | null, Map<string, { debit: number; credit: number }>>> {
   const dimCol = dimColFor(breakdownBy);
 
@@ -358,6 +456,15 @@ async function postedTotalsBeforeGrouped(
         eq(journalEntriesTable.companyId, companyId),
         eq(journalEntriesTable.status, "posted"),
         lt(journalEntriesTable.date, before),
+        baseFilters?.costCenterId
+          ? eq(journalEntryLinesTable.costCenterId, baseFilters.costCenterId)
+          : undefined,
+        baseFilters?.projectId
+          ? eq(journalEntryLinesTable.projectId, baseFilters.projectId)
+          : undefined,
+        baseFilters?.branchId
+          ? eq(journalEntryLinesTable.branchId, baseFilters.branchId)
+          : undefined,
       ),
     )
     .groupBy(journalEntryLinesTable.accountId, dimCol);
@@ -588,13 +695,14 @@ async function computeTrialBalanceBreakdown(
   from: string | null,
   to: string | null,
   breakdownBy: BreakdownByDimension,
+  baseFilters?: ReportDimensionFilters,
 ): Promise<TrialBalanceResult & { breakdownGroups: TrialBalanceBreakdownGroup[] }> {
   const [accounts, groupedPeriod, groupedOpening, dimensionItems] =
     await Promise.all([
       loadAccounts(companyId),
-      postedTotalsGrouped(companyId, from, to, breakdownBy),
+      postedTotalsGrouped(companyId, from, to, breakdownBy, baseFilters),
       from
-        ? postedTotalsBeforeGrouped(companyId, from, breakdownBy)
+        ? postedTotalsBeforeGrouped(companyId, from, breakdownBy, baseFilters)
         : Promise.resolve(
             new Map<string | null, Map<string, { debit: number; credit: number }>>(),
           ),
@@ -719,10 +827,7 @@ router.get(
     const reportCurrency =
       (req.query["reportCurrency"] as string | undefined) || null;
     const dimensions = readReportDimensionFilters(req.query);
-    const breakdownByRaw = (req.query["breakdownBy"] as string | undefined) || null;
-    const breakdownBy = (["costCenter", "project", "branch"].includes(breakdownByRaw ?? "")
-      ? breakdownByRaw
-      : null) as BreakdownByDimension | null;
+    const breakdownBy = readBreakdownBy(req.query);
     const dateErr = validateDateRange(from, to);
     if (dateErr) {
       res.status(400).json({ error: dateErr });
@@ -737,7 +842,13 @@ router.get(
         return;
       }
       if (breakdownBy) {
-        const raw = await computeTrialBalanceBreakdown(companyId, from, to, breakdownBy);
+        const raw = await computeTrialBalanceBreakdown(
+          companyId,
+          from,
+          to,
+          breakdownBy,
+          dimensions,
+        );
         // currency conversion for breakdown
         let report = raw;
         if (ccy.info.rate !== 1) {
@@ -784,10 +895,7 @@ router.get(
   async (req, res) => {
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
-    const breakdownByRaw = (req.query["breakdownBy"] as string | undefined) || null;
-    const breakdownBy = (["costCenter", "project", "branch"].includes(breakdownByRaw ?? "")
-      ? breakdownByRaw
-      : null) as BreakdownByDimension | null;
+    const breakdownBy = readBreakdownBy(req.query);
     const dateErr = validateDateRange(from, to);
     if (dateErr) {
       res.status(400).json({ error: dateErr });
@@ -795,16 +903,57 @@ router.get(
     }
     try {
       const dimensions = readReportDimensionFilters(req.query);
-      const [report, titleRows] = await Promise.all([
-        breakdownBy
-          ? computeTrialBalanceBreakdown(req.auth!.companyId, from, to, breakdownBy)
-          : computeTrialBalance(req.auth!.companyId, from, to, dimensions),
-        buildExcelTitleRows(
-          req.auth!.companyId,
-          "ميزان المراجعة",
-          `${from ?? "البداية"} → ${to ?? todayStr()}`,
-        ),
-      ]);
+      const companyId = req.auth!.companyId;
+      const reportCurrency =
+        (req.query["reportCurrency"] as string | undefined) || null;
+      const ccy = await resolveReportCurrency(companyId, reportCurrency, to);
+      if (!ccy.ok) {
+        res.status(400).json({ error: NO_RATE_ERROR });
+        return;
+      }
+      const reportBase = breakdownBy
+        ? await computeTrialBalanceBreakdown(
+            companyId,
+            from,
+            to,
+            breakdownBy,
+            dimensions,
+          )
+        : await computeTrialBalance(companyId, from, to, dimensions);
+      let report = reportBase;
+      if (ccy.info.rate !== 1) {
+        const c = (n: number) => round2(n / ccy.info.rate);
+        report = breakdownBy
+          ? {
+              ...convertTrialBalance(reportBase, ccy.info.rate),
+              breakdownGroups: reportBase.breakdownGroups.map((g) => ({
+                ...g,
+                rows: g.rows.map((row) => ({
+                  ...row,
+                  openingDebit: c(row.openingDebit),
+                  openingCredit: c(row.openingCredit),
+                  periodDebit: c(row.periodDebit),
+                  periodCredit: c(row.periodCredit),
+                  closingDebit: c(row.closingDebit),
+                  closingCredit: c(row.closingCredit),
+                })),
+                totalOpeningDebit: c(g.totalOpeningDebit),
+                totalOpeningCredit: c(g.totalOpeningCredit),
+                totalPeriodDebit: c(g.totalPeriodDebit),
+                totalPeriodCredit: c(g.totalPeriodCredit),
+                totalClosingDebit: c(g.totalClosingDebit),
+                totalClosingCredit: c(g.totalClosingCredit),
+              })),
+            }
+          : convertTrialBalance(reportBase, ccy.info.rate);
+      }
+      const selectedFilters = await loadSelectedDimensionLabels(companyId, dimensions);
+      const titleRows = await buildExcelTitleRows(
+        companyId,
+        "ميزان المراجعة",
+        `${from ?? "البداية"} → ${to ?? todayStr()}`,
+        exportContextRows(selectedFilters, ccy.info, breakdownBy),
+      );
 
       // When breakdown is active, flatten groups with a leading "Dimension" column.
       type TbExportRow = TrialBalanceRow & { dimension?: string };
@@ -944,10 +1093,11 @@ async function computeIncomeStatementBreakdown(
   from: string | null,
   to: string | null,
   breakdownBy: BreakdownByDimension,
+  baseFilters?: ReportDimensionFilters,
 ): Promise<IncomeStatementResult & { breakdownGroups: IncomeStatementBreakdownGroup[] }> {
   const [accounts, groupedTotals, dimensionItems] = await Promise.all([
     loadAccounts(companyId),
-    postedTotalsGrouped(companyId, from, to, breakdownBy),
+    postedTotalsGrouped(companyId, from, to, breakdownBy, baseFilters),
     loadDimensionItems(companyId, breakdownBy),
   ]);
 
@@ -1014,10 +1164,7 @@ router.get(
     const reportCurrency =
       (req.query["reportCurrency"] as string | undefined) || null;
     const dimensions = readReportDimensionFilters(req.query);
-    const breakdownByRaw = (req.query["breakdownBy"] as string | undefined) || null;
-    const breakdownBy = (["costCenter", "project", "branch"].includes(breakdownByRaw ?? "")
-      ? breakdownByRaw
-      : null) as BreakdownByDimension | null;
+    const breakdownBy = readBreakdownBy(req.query);
     try {
       const companyId = req.auth!.companyId;
       const ccy = await resolveReportCurrency(companyId, reportCurrency, to);
@@ -1026,7 +1173,13 @@ router.get(
         return;
       }
       if (breakdownBy) {
-        const raw = await computeIncomeStatementBreakdown(companyId, from, to, breakdownBy);
+        const raw = await computeIncomeStatementBreakdown(
+          companyId,
+          from,
+          to,
+          breakdownBy,
+          dimensions,
+        );
         if (ccy.info.rate !== 1) {
           const c = (n: number) => round2(n / ccy.info.rate);
           const convertedGroups = raw.breakdownGroups.map((g) => ({
@@ -1062,22 +1215,55 @@ router.get(
   async (req, res) => {
     const from = (req.query["from"] as string | undefined) || null;
     const to = (req.query["to"] as string | undefined) || null;
-    const breakdownByRaw = (req.query["breakdownBy"] as string | undefined) || null;
-    const breakdownBy = (["costCenter", "project", "branch"].includes(breakdownByRaw ?? "")
-      ? breakdownByRaw
-      : null) as BreakdownByDimension | null;
+    const breakdownBy = readBreakdownBy(req.query);
     try {
       const dimensions = readReportDimensionFilters(req.query);
-      const [r, titleRows] = await Promise.all([
-        breakdownBy
-          ? computeIncomeStatementBreakdown(req.auth!.companyId, from, to, breakdownBy)
-          : computeIncomeStatement(req.auth!.companyId, from, to, dimensions),
-        buildExcelTitleRows(
-          req.auth!.companyId,
-          "قائمة الأرباح والخسائر",
-          `${from ?? "البداية"} → ${to ?? todayStr()}`,
-        ),
-      ]);
+      const companyId = req.auth!.companyId;
+      const reportCurrency =
+        (req.query["reportCurrency"] as string | undefined) || null;
+      const ccy = await resolveReportCurrency(companyId, reportCurrency, to);
+      if (!ccy.ok) {
+        res.status(400).json({ error: NO_RATE_ERROR });
+        return;
+      }
+      const reportBase = breakdownBy
+        ? await computeIncomeStatementBreakdown(
+            companyId,
+            from,
+            to,
+            breakdownBy,
+            dimensions,
+          )
+        : await computeIncomeStatement(companyId, from, to, dimensions);
+      const r =
+        ccy.info.rate !== 1
+          ? breakdownBy
+            ? {
+                ...convertIncomeStatement(reportBase, ccy.info.rate),
+                breakdownGroups: reportBase.breakdownGroups.map((g) => ({
+                  ...g,
+                  revenue: g.revenue.map((l) => ({
+                    ...l,
+                    amount: round2(l.amount / ccy.info.rate),
+                  })),
+                  expenses: g.expenses.map((l) => ({
+                    ...l,
+                    amount: round2(l.amount / ccy.info.rate),
+                  })),
+                  totalRevenue: round2(g.totalRevenue / ccy.info.rate),
+                  totalExpenses: round2(g.totalExpenses / ccy.info.rate),
+                  netProfit: round2(g.netProfit / ccy.info.rate),
+                })),
+              }
+            : convertIncomeStatement(reportBase, ccy.info.rate)
+          : reportBase;
+      const selectedFilters = await loadSelectedDimensionLabels(companyId, dimensions);
+      const titleRows = await buildExcelTitleRows(
+        companyId,
+        "قائمة الأرباح والخسائر",
+        `${from ?? "البداية"} → ${to ?? todayStr()}`,
+        exportContextRows(selectedFilters, ccy.info, breakdownBy),
+      );
 
       const hasBreakdown = breakdownBy && "breakdownGroups" in r;
       type ExpRow = { dimension?: string; section: string; code: string; name: string; amount: number };
@@ -1251,14 +1437,23 @@ router.get(
     const asOf = (req.query["asOf"] as string | undefined) || null;
     try {
       const dimensions = readReportDimensionFilters(req.query);
-      const [r, titleRows] = await Promise.all([
-        computeBalanceSheet(req.auth!.companyId, asOf, dimensions),
-        buildExcelTitleRows(
-          req.auth!.companyId,
-          "الميزانية العمومية",
-          `حتى ${asOf ?? todayStr()}`,
-        ),
-      ]);
+      const companyId = req.auth!.companyId;
+      const reportCurrency =
+        (req.query["reportCurrency"] as string | undefined) || null;
+      const ccy = await resolveReportCurrency(companyId, reportCurrency, asOf);
+      if (!ccy.ok) {
+        res.status(400).json({ error: NO_RATE_ERROR });
+        return;
+      }
+      let r = await computeBalanceSheet(companyId, asOf, dimensions);
+      if (ccy.info.rate !== 1) r = convertBalanceSheet(r, ccy.info.rate);
+      const selectedFilters = await loadSelectedDimensionLabels(companyId, dimensions);
+      const titleRows = await buildExcelTitleRows(
+        companyId,
+        "الميزانية العمومية",
+        `حتى ${asOf ?? todayStr()}`,
+        exportContextRows(selectedFilters, ccy.info),
+      );
       type ExpRow = { section: string; code: string; name: string; amount: number };
       const rows: ExpRow[] = [
         ...r.assets.map((l) => ({
@@ -1542,33 +1737,120 @@ router.get(
     }
     try {
       const dimensions = readReportDimensionFilters(req.query);
-      const report = await computeGeneralLedger(
-        req.auth!.companyId,
+      const breakdownBy = readBreakdownBy(req.query);
+      const companyId = req.auth!.companyId;
+      const reportCurrency =
+        (req.query["reportCurrency"] as string | undefined) || null;
+      const reportBase = await computeGeneralLedger(
+        companyId,
         accountId,
         from,
         to,
         dimensions,
       );
-      if (!report) {
+      if (!reportBase) {
         res.status(404).json({ error: "الحساب غير موجود" });
         return;
       }
+      const ccy = await resolveReportCurrency(companyId, reportCurrency, to);
+      if (!ccy.ok) {
+        res.status(400).json({ error: NO_RATE_ERROR });
+        return;
+      }
+      const report =
+        ccy.info.rate !== 1
+          ? convertGeneralLedger(reportBase, ccy.info.rate)
+          : reportBase;
+      type GlExportRow =
+        | (LedgerEntry & {
+            grouping: string;
+            rowType: "entry";
+          })
+        | {
+            grouping: string;
+            rowType: "subtotal";
+            date: string;
+            entryNo: string;
+            ref: string;
+            description: string;
+            costCenterName: string;
+            projectName: string;
+            branchName: string;
+            debit: number;
+            credit: number;
+            balance: number;
+          };
+      const rows: GlExportRow[] =
+        breakdownBy
+          ? (() => {
+              const groups = new Map<string, LedgerEntry[]>();
+              for (const entry of report.entries) {
+                const grouping =
+                  breakdownBy === "costCenter"
+                    ? entry.costCenterName ?? "غير محدد"
+                    : breakdownBy === "project"
+                      ? entry.projectName ?? "غير محدد"
+                      : entry.branchName ?? "غير محدد";
+                groups.set(grouping, [...(groups.get(grouping) ?? []), entry]);
+              }
+              return [...groups.entries()].flatMap(([grouping, groupEntries]) => [
+                ...groupEntries.map((entry) => ({
+                  ...entry,
+                  grouping,
+                  rowType: "entry" as const,
+                })),
+                {
+                  grouping,
+                  rowType: "subtotal" as const,
+                  date: "",
+                  entryNo: "",
+                  ref: "",
+                  description: "الإجمالي الفرعي",
+                  costCenterName: "",
+                  projectName: "",
+                  branchName: "",
+                  debit: round2(
+                    groupEntries.reduce((sum, row) => sum + row.debit, 0),
+                  ),
+                  credit: round2(
+                    groupEntries.reduce((sum, row) => sum + row.credit, 0),
+                  ),
+                  balance: groupEntries[groupEntries.length - 1]?.balance ?? 0,
+                },
+              ]);
+            })()
+          : report.entries.map((entry) => ({
+              ...entry,
+              grouping: "",
+              rowType: "entry" as const,
+            }));
+      const selectedFilters = await loadSelectedDimensionLabels(companyId, dimensions);
+      const titleRows = await buildExcelTitleRows(
+        companyId,
+        "دفتر الأستاذ",
+        `${from ?? "البداية"} → ${to ?? todayStr()}`,
+        exportContextRows(selectedFilters, ccy.info, breakdownBy),
+      );
       await exportWorkbook(res, {
         sheetName: "GeneralLedger",
         fileName: `general-ledger-${report.accountCode}`,
+        titleRows,
         columns: [
-          { header: "التاريخ", value: (e: LedgerEntry) => e.date },
-          { header: "رقم القيد", value: (e: LedgerEntry) => e.entryNo },
-          { header: "المرجع", value: (e: LedgerEntry) => e.ref ?? "" },
-          { header: "البيان", value: (e: LedgerEntry) => e.description, width: 32 },
-          { header: "مركز التكلفة", value: (e: LedgerEntry) => e.costCenterName ?? "", width: 20 },
-          { header: "المشروع", value: (e: LedgerEntry) => e.projectName ?? "", width: 20 },
-          { header: "الفرع", value: (e: LedgerEntry) => e.branchName ?? "", width: 20 },
-          { header: "مدين", value: (e: LedgerEntry) => e.debit, width: 16 },
-          { header: "دائن", value: (e: LedgerEntry) => e.credit, width: 16 },
-          { header: "الرصيد", value: (e: LedgerEntry) => e.balance, width: 16 },
+          ...(breakdownBy
+            ? [{ header: "التجميع", value: (e: GlExportRow) => e.grouping, width: 24 }]
+            : []),
+          { header: "التاريخ", value: (e: GlExportRow) => e.date },
+          { header: "رقم القيد", value: (e: GlExportRow) => e.entryNo },
+          { header: "المرجع", value: (e: GlExportRow) => e.ref ?? "" },
+          { header: "البيان", value: (e: GlExportRow) => e.description, width: 32 },
+          { header: "مركز التكلفة", value: (e: GlExportRow) => e.costCenterName ?? "", width: 20 },
+          { header: "المشروع", value: (e: GlExportRow) => e.projectName ?? "", width: 20 },
+          { header: "الفرع", value: (e: GlExportRow) => e.branchName ?? "", width: 20 },
+          { header: "مدين", value: (e: GlExportRow) => e.debit, width: 16 },
+          { header: "دائن", value: (e: GlExportRow) => e.credit, width: 16 },
+          { header: "الرصيد", value: (e: GlExportRow) => e.balance, width: 16 },
         ],
-        rows: report.entries,
+        rows,
       });
     } catch (err) {
       req.log.error({ err }, "Failed to export general ledger");

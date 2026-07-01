@@ -85,7 +85,7 @@ export function ReportHeader({
   });
 
   return (
-    <div className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden no-print">
+    <div className="rounded-3xl border border-border bg-card shadow-sm overflow-hidden">
       {/* Accent stripe */}
       <div className="h-1.5 w-full bg-gradient-to-r from-primary/70 via-primary to-primary/50" />
 
@@ -95,7 +95,7 @@ export function ReportHeader({
           <button
             type="button"
             onClick={onBack}
-            className="self-start inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline focus:outline-none"
+            className="self-start inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline focus:outline-none no-print"
           >
             {/* Flip direction to start so it looks correct in RTL too */}
             <span className="inline-block rotate-0 rtl:rotate-180">
@@ -195,7 +195,7 @@ export function ReportHeader({
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {t("reportsPage.trialBalance.preparedAt")}: {generatedAt}
             </span>
-            {actions}
+            {actions ? <div className="no-print">{actions}</div> : null}
           </div>
         </div>
       </div>

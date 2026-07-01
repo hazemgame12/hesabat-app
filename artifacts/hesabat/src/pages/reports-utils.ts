@@ -1,4 +1,12 @@
-import type { TrialBalance, IncomeStatement, BalanceSheet, Currency, Company } from "@workspace/api-client-react";
+import type {
+  TrialBalance,
+  IncomeStatement,
+  BalanceSheet,
+  Currency,
+  Company,
+  TrialBalanceBreakdownGroup,
+  IncomeStatementBreakdownGroup,
+} from "@workspace/api-client-react";
 
 export type Fmt = (n: number) => string;
 
@@ -72,6 +80,25 @@ function mastheadHtml(company: Company | undefined, title: string): string {
 </div>`;
 }
 
+type BreakdownGroupLabel = {
+  dimensionName?: string;
+  dimensionNameAr?: string;
+  dimensionNameEn?: string | null;
+};
+
+function breakdownGroupName(group: BreakdownGroupLabel, lang: string): string {
+  return lang.startsWith("en")
+    ? group.dimensionNameEn || group.dimensionName || group.dimensionNameAr || "Unassigned"
+    : group.dimensionNameAr || group.dimensionName || group.dimensionNameEn || "غير محدد";
+}
+
+function metaLinesHtml(lines: string[] | undefined): string {
+  if (!lines?.length) return "";
+  return `<div class="meta-lines">${lines
+    .map((line) => `<div>${esc(line)}</div>`)
+    .join("")}</div>`;
+}
+
 export function buildTrialBalancePdfHtml(
   data: TrialBalance,
   fmt: Fmt,
@@ -80,12 +107,14 @@ export function buildTrialBalancePdfHtml(
   to: string,
   labels: Record<string, string>,
   company?: Company,
+  metaLines?: string[],
 ): string {
   const rtl = !lang.startsWith("en");
   const cell = (v: number) => (v ? esc(fmt(v)) : "—");
-  const rows = data.rows
-    .map(
-      (r) => `<tr>
+  const rowsHtml = (rows: TrialBalance["rows"]) =>
+    rows
+      .map(
+        (r) => `<tr>
         <td class="code">${esc(r.code)}</td>
         <td class="name">${esc(displayName(r, lang))}</td>
         <td class="num">${cell(r.openingDebit)}</td>
@@ -95,30 +124,28 @@ export function buildTrialBalancePdfHtml(
         <td class="num">${cell(r.closingDebit)}</td>
         <td class="num">${cell(r.closingCredit)}</td>
       </tr>`,
-    )
-    .join("");
-  return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${esc(lang)}">
-<head><meta charset="utf-8"><title>${esc(labels.title)}</title>
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: 'Cairo','Segoe UI',Tahoma,Arial,sans-serif; margin: 28px; color: #1f2937; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th, td { border: 1px solid #d1d5db; padding: 6px 8px; }
-  thead th { background: #f3f4f6; text-align: center; font-weight: 700; }
-  td.code { font-family: monospace; }
-  td.num, th.num { text-align: ${rtl ? "left" : "right"}; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  tfoot td { font-weight: 700; background: #f9fafb; }
-  .badge { display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
-  .ok { background: #d1fae5; color: #047857; }
-  .bad { background: #fee2e2; color: #b91c1c; }
-  @media print { body { margin: 0; } }
-  ${MASTHEAD_CSS}
-</style></head>
-<body onload="window.print()">
-  ${mastheadHtml(company, labels.title)}
-  <div class="rpt-meta">${esc(labels.periodLabel)}: ${esc(from || "—")} → ${esc(to || "—")} &nbsp;·&nbsp; ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
-  <table>
-    <thead>
+      )
+      .join("");
+  const totalsHtml = (
+    openingDebit: number,
+    openingCredit: number,
+    periodDebit: number,
+    periodCredit: number,
+    closingDebit: number,
+    closingCredit: number,
+    label: string,
+  ) => `<tfoot>
+      <tr>
+        <td colspan="2">${esc(label)}</td>
+        <td class="num">${esc(fmt(openingDebit))}</td>
+        <td class="num">${esc(fmt(openingCredit))}</td>
+        <td class="num">${esc(fmt(periodDebit))}</td>
+        <td class="num">${esc(fmt(periodCredit))}</td>
+        <td class="num">${esc(fmt(closingDebit))}</td>
+        <td class="num">${esc(fmt(closingCredit))}</td>
+      </tr>
+    </tfoot>`;
+  const tableHead = `<thead>
       <tr>
         <th rowspan="2">${esc(labels.code)}</th>
         <th rowspan="2">${esc(labels.account)}</th>
@@ -131,20 +158,85 @@ export function buildTrialBalancePdfHtml(
         <th class="num">${esc(labels.debit)}</th><th class="num">${esc(labels.credit)}</th>
         <th class="num">${esc(labels.debit)}</th><th class="num">${esc(labels.credit)}</th>
       </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-    <tfoot>
-      <tr>
-        <td colspan="2">${esc(labels.total)}</td>
-        <td class="num">${esc(fmt(data.totalOpeningDebit))}</td>
-        <td class="num">${esc(fmt(data.totalOpeningCredit))}</td>
-        <td class="num">${esc(fmt(data.totalPeriodDebit))}</td>
-        <td class="num">${esc(fmt(data.totalPeriodCredit))}</td>
-        <td class="num">${esc(fmt(data.totalClosingDebit))}</td>
-        <td class="num">${esc(fmt(data.totalClosingCredit))}</td>
-      </tr>
-    </tfoot>
-  </table>
+    </thead>`;
+  const breakdownTables =
+    data.breakdownGroups && data.breakdownGroups.length > 0
+      ? data.breakdownGroups
+          .map(
+            (group) => `<section class="breakdown-group">
+      <div class="group-title">${esc(
+        breakdownGroupName(group as TrialBalanceBreakdownGroup & BreakdownGroupLabel, lang),
+      )}</div>
+      <table>
+        ${tableHead}
+        <tbody>${rowsHtml(group.rows)}</tbody>
+        ${totalsHtml(
+          group.totalOpeningDebit,
+          group.totalOpeningCredit,
+          group.totalPeriodDebit,
+          group.totalPeriodCredit,
+          group.totalClosingDebit,
+          group.totalClosingCredit,
+          labels.subtotal ?? labels.total,
+        )}
+      </table>
+    </section>`,
+          )
+          .join("")
+      : "";
+  return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${esc(lang)}">
+<head><meta charset="utf-8"><title>${esc(labels.title)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Cairo','Segoe UI',Tahoma,Arial,sans-serif; margin: 28px; color: #1f2937; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { border: 1px solid #d1d5db; padding: 6px 8px; }
+  thead th { background: #f3f4f6; text-align: center; font-weight: 700; }
+  td.code { font-family: monospace; }
+  td.num, th.num { text-align: ${rtl ? "left" : "right"}; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tfoot td { font-weight: 700; background: #f9fafb; }
+  .group-title { font-size: 13px; font-weight: 700; margin: 14px 0 6px; color: #1e40af; }
+  .breakdown-group { margin-bottom: 16px; }
+  .badge { display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .ok { background: #d1fae5; color: #047857; }
+  .bad { background: #fee2e2; color: #b91c1c; }
+  .meta-lines { font-size: 11px; color: #64748b; margin-bottom: 10px; display: flex; flex-direction: column; gap: 2px; }
+  @media print { body { margin: 0; } }
+  ${MASTHEAD_CSS}
+</style></head>
+<body onload="window.print()">
+  ${mastheadHtml(company, labels.title)}
+  <div class="rpt-meta">${esc(labels.periodLabel)}: ${esc(from || "—")} → ${esc(to || "—")} &nbsp;·&nbsp; ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
+  ${metaLinesHtml(metaLines)}
+  ${breakdownTables || `<table>
+    ${tableHead}
+    <tbody>${rowsHtml(data.rows)}</tbody>
+    ${totalsHtml(
+      data.totalOpeningDebit,
+      data.totalOpeningCredit,
+      data.totalPeriodDebit,
+      data.totalPeriodCredit,
+      data.totalClosingDebit,
+      data.totalClosingCredit,
+      labels.total,
+    )}
+  </table>`}
+  ${
+    breakdownTables
+      ? `<table>
+    ${tableHead}
+    ${totalsHtml(
+      data.totalOpeningDebit,
+      data.totalOpeningCredit,
+      data.totalPeriodDebit,
+      data.totalPeriodCredit,
+      data.totalClosingDebit,
+      data.totalClosingCredit,
+      labels.total,
+    )}
+  </table>`
+      : ""
+  }
   <span class="badge ${data.balanced ? "ok" : "bad"}">${esc(data.balanced ? labels.balanced : labels.unbalanced)}</span>
 </body></html>`;
 }
@@ -157,6 +249,7 @@ export function buildIncomeStatementPdfHtml(
   to: string,
   labels: Record<string, string>,
   company?: Company,
+  metaLines?: string[],
 ): string {
   const rtl = !lang.startsWith("en");
   const numCell = (v: number) =>
@@ -174,6 +267,45 @@ export function buildIncomeStatementPdfHtml(
       )
       .join("");
   const profit = data.netProfit >= 0;
+  const sectionTable = (
+    title: string,
+    lines: { code: string; nameAr: string; nameEn?: string | null; amount: number }[],
+    totalLabel: string,
+    total: number,
+  ) => `<table>
+    <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(title)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>
+    <tbody>${sectionRows(lines)}</tbody>
+    <tfoot><tr><td class="code"></td><td>${esc(totalLabel)}</td><td class="num">${esc(fmt(total))}</td></tr></tfoot>
+  </table>`;
+  const breakdownBlocks =
+    data.breakdownGroups && data.breakdownGroups.length > 0
+      ? data.breakdownGroups
+          .map((group) => {
+            const groupProfit = group.netProfit >= 0;
+            return `<section class="breakdown-group">
+      <div class="group-title">${esc(
+        breakdownGroupName(group as IncomeStatementBreakdownGroup & BreakdownGroupLabel, lang),
+      )}</div>
+      ${sectionTable(
+        labels.revenue,
+        group.revenue,
+        labels.totalRevenue,
+        group.totalRevenue,
+      )}
+      ${sectionTable(
+        labels.expenses,
+        group.expenses,
+        labels.totalExpenses,
+        group.totalExpenses,
+      )}
+      <div class="net ${groupProfit ? "profit" : "loss"}">
+        <span>${esc(labels.subtotal ?? labels.total)} · ${esc(groupProfit ? labels.netProfit : labels.netLoss)}</span>
+        <span class="num-val">${esc(fmt(Math.abs(group.netProfit)))}</span>
+      </div>
+    </section>`;
+          })
+          .join("")
+      : "";
 
   return `<!doctype html><html dir="${rtl ? "rtl" : "ltr"}" lang="${esc(lang)}">
 <head><meta charset="utf-8"><title>${esc(labels.title)}</title>
@@ -190,24 +322,28 @@ export function buildIncomeStatementPdfHtml(
   .profit { background: #d1fae5; color: #047857; border: 1px solid #6ee7b7; }
   .loss   { background: #fee2e2; color: #b91c1c;  border: 1px solid #fca5a5; }
   .num-val { font-family: monospace; font-variant-numeric: tabular-nums; }
+  .group-title { font-size: 13px; font-weight: 700; margin: 14px 0 6px; color: #1e40af; }
+  .breakdown-group { margin-bottom: 16px; }
+  .meta-lines { font-size: 11px; color: #64748b; margin-bottom: 10px; display: flex; flex-direction: column; gap: 2px; }
   @media print { body { margin: 0; } }
   ${MASTHEAD_CSS}
 </style></head>
 <body onload="window.print()">
   ${mastheadHtml(company, labels.title)}
   <div class="rpt-meta">${esc(labels.periodLabel)}: ${esc(from || "—")} → ${esc(to || "—")} &nbsp;·&nbsp; ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
-
-  <table>
-    <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(labels.revenue)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>
-    <tbody>${sectionRows(data.revenue)}</tbody>
-    <tfoot><tr><td class="code"></td><td>${esc(labels.totalRevenue)}</td><td class="num">${esc(fmt(data.totalRevenue))}</td></tr></tfoot>
-  </table>
-
-  <table>
-    <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(labels.expenses)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>
-    <tbody>${sectionRows(data.expenses)}</tbody>
-    <tfoot><tr><td class="code"></td><td>${esc(labels.totalExpenses)}</td><td class="num">${esc(fmt(data.totalExpenses))}</td></tr></tfoot>
-  </table>
+  ${metaLinesHtml(metaLines)}
+  ${
+    breakdownBlocks ||
+    `${sectionTable(labels.revenue, data.revenue, labels.totalRevenue, data.totalRevenue)}
+  ${sectionTable(labels.expenses, data.expenses, labels.totalExpenses, data.totalExpenses)}`
+  }
+  ${
+    breakdownBlocks
+      ? `<div class="group-title">${esc(labels.total)}</div>
+  ${sectionTable(labels.revenue, data.revenue, labels.totalRevenue, data.totalRevenue)}
+  ${sectionTable(labels.expenses, data.expenses, labels.totalExpenses, data.totalExpenses)}`
+      : ""
+  }
 
   <div class="net ${profit ? "profit" : "loss"}">
     <span>${esc(profit ? labels.netProfit : labels.netLoss)}</span>
@@ -223,6 +359,7 @@ export function buildBalanceSheetPdfHtml(
   asOf: string,
   labels: Record<string, string>,
   company?: Company,
+  metaLines?: string[],
 ): string {
   const rtl = !lang.startsWith("en");
   const numCell = (v: number) =>
@@ -253,12 +390,14 @@ export function buildBalanceSheetPdfHtml(
   tfoot td { font-weight: 700; background: #f9fafb; }
   .total-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: 6px; font-weight: 700; font-size: 13px; background: #f3f4f6; border: 1px solid #d1d5db; }
   .num-val { font-family: monospace; font-variant-numeric: tabular-nums; }
+  .meta-lines { font-size: 11px; color: #64748b; margin-bottom: 10px; display: flex; flex-direction: column; gap: 2px; }
   @media print { body { margin: 0; } }
   ${MASTHEAD_CSS}
 </style></head>
 <body onload="window.print()">
   ${mastheadHtml(company, labels.title)}
   <div class="rpt-meta">${esc(labels.asOfLabel)}: ${esc(asOf || "—")} &nbsp;·&nbsp; ${esc(labels.preparedAt)}: ${esc(new Date().toLocaleDateString(lang))}</div>
+  ${metaLinesHtml(metaLines)}
 
   <table>
     <thead><tr><th class="code">${esc(labels.code)}</th><th>${esc(labels.assets)}</th><th class="num">${esc(labels.amount)}</th></tr></thead>

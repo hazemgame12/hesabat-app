@@ -21,6 +21,9 @@ import {
   useGetCompany,
   useListCurrencies,
   useListAccounts,
+  useListBranches,
+  useListCostCenters,
+  useListProjects,
   useGetJournalEntry,
   useGetTrialBalance,
   useGetGeneralLedger,
@@ -31,6 +34,7 @@ import {
   type Account,
   type Currency,
   type Company,
+  type CostCenter,
   type CurrencyInfo,
   type CashFlowLine,
   type TrialBalanceRow,
@@ -38,6 +42,8 @@ import {
   type PnlLine,
   type IncomeStatementBreakdownGroup,
   type TrialBalanceBreakdownGroup,
+  type Project,
+  type Branch,
 } from "@workspace/api-client-react";
 import {
   type CurrencyControls,
@@ -132,6 +138,100 @@ const TD_CODE =
 const TD_NAME = "px-4 py-2.5";
 const TD_NUM =
   "px-4 py-2.5 text-end tabular-nums font-mono whitespace-nowrap";
+
+type NamedDimension = {
+  id: string;
+  code?: string | null;
+  nameAr: string;
+  nameEn?: string | null;
+};
+
+type NamedBreakdownGroup = {
+  dimensionName?: string;
+  dimensionNameAr?: string;
+  dimensionNameEn?: string | null;
+};
+
+type LedgerBreakdownGroup = {
+  key: string;
+  label: string;
+  entries: GeneralLedgerEntry[];
+  totalDebit: number;
+  totalCredit: number;
+};
+
+function breakdownModeLabel(
+  mode: BreakdownMode,
+  t: (key: string) => string,
+): string {
+  return t(`dimensionFilters.breakdown.${mode}`);
+}
+
+function breakdownGroupLabel(group: NamedBreakdownGroup, lang: string): string {
+  return lang.startsWith("en")
+    ? group.dimensionNameEn || group.dimensionName || group.dimensionNameAr || "Unassigned"
+    : group.dimensionNameAr || group.dimensionName || group.dimensionNameEn || "غير محدد";
+}
+
+function namedDimensionLabel(item: NamedDimension, lang: string): string {
+  const name = lang.startsWith("en")
+    ? item.nameEn || item.nameAr || item.id
+    : item.nameAr || item.nameEn || item.id;
+  return item.code ? `${item.code} · ${name}` : name;
+}
+
+function activeFilterPill(
+  label: string,
+  value: string,
+  t: (key: string, params?: Record<string, string>) => string,
+): string {
+  return t("reportsPage.detail.filterWithValue", { label, value });
+}
+
+function ledgerEntryDimensionLabel(
+  entry: GeneralLedgerEntry,
+  breakdownBy: BreakdownMode,
+  t: (key: string) => string,
+): string {
+  if (breakdownBy === "costCenter") {
+    return entry.costCenterName ?? t("dimensionFilters.breakdown.unassigned");
+  }
+  if (breakdownBy === "project") {
+    return entry.projectName ?? t("dimensionFilters.breakdown.unassigned");
+  }
+  if (breakdownBy === "branch") {
+    return entry.branchName ?? t("dimensionFilters.breakdown.unassigned");
+  }
+  return "";
+}
+
+function groupLedgerEntries(
+  entries: GeneralLedgerEntry[],
+  breakdownBy: BreakdownMode,
+  t: (key: string) => string,
+): LedgerBreakdownGroup[] {
+  if (breakdownBy === "standard") return [];
+  const groups = new Map<string, LedgerBreakdownGroup>();
+  for (const entry of entries) {
+    const label = ledgerEntryDimensionLabel(entry, breakdownBy, t);
+    const key = `${breakdownBy}:${label}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.entries.push(entry);
+      existing.totalDebit += entry.debit;
+      existing.totalCredit += entry.credit;
+      continue;
+    }
+    groups.set(key, {
+      key,
+      label,
+      entries: [entry],
+      totalDebit: entry.debit,
+      totalCredit: entry.credit,
+    });
+  }
+  return [...groups.values()];
+}
 
 function AccountDrillLink({
   accountId,
@@ -285,6 +385,18 @@ function CurrencyRateNote({
   );
 }
 
+function BreakdownNotice({
+  message,
+}: {
+  message: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+      {message}
+    </div>
+  );
+}
+
 // ─── Trial Balance ────────────────────────────────────────────────────────────
 
 function TrialBalanceDetail({
@@ -293,6 +405,7 @@ function TrialBalanceDetail({
   fmt,
   lang,
   dimensionFilters,
+  activeFilters,
   onDrillToGeneralLedger,
   breakdownBy = "standard",
 }: {
@@ -301,6 +414,7 @@ function TrialBalanceDetail({
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  activeFilters: string[];
   onDrillToGeneralLedger?: DrillToGeneralLedger;
   breakdownBy?: BreakdownMode;
 }) {
@@ -320,6 +434,8 @@ function TrialBalanceDetail({
     const qs = new URLSearchParams();
     if (from) qs.set("from", from);
     if (to) qs.set("to", to);
+    const rc = reportCurrencyParam(cc);
+    if (rc) qs.set("reportCurrency", rc);
     if (dimensionFilters?.costCenterId)
       qs.set("costCenterId", dimensionFilters.costCenterId);
     if (dimensionFilters?.projectId)
@@ -353,10 +469,12 @@ function TrialBalanceDetail({
         debit: t("reportsPage.table.debit"),
         credit: t("reportsPage.table.credit"),
         total: t("reportsPage.table.total"),
+        subtotal: t("dimensionFilters.breakdown.subtotal"),
         balanced: t("reportsPage.trialBalance.balanced"),
         unbalanced: t("reportsPage.trialBalance.unbalanced"),
       },
       company,
+      activeFilters,
     );
     const w = window.open("", "_blank");
     if (!w) return;
@@ -422,6 +540,7 @@ function TrialBalanceDetail({
         dateLabel={dateLabel + breakdownLabel}
         currency={currency}
         baseCurrency={cc.baseCurrency}
+        activeFilters={activeFilters}
         rateLabel={
           data?.currencyInfo &&
           data.currencyInfo.rate !== 1 &&
@@ -467,7 +586,9 @@ function TrialBalanceDetail({
           {data.breakdownGroups.map((grp: TrialBalanceBreakdownGroup) => (
             <ReportTableCard key={grp.dimensionId ?? "__unassigned__"}>
               <div className="flex items-center gap-2 border-b border-border bg-slate-50 dark:bg-slate-800 px-5 py-3">
-                <span className="font-bold text-sm">{grp.dimensionName}</span>
+                <span className="font-bold text-sm">
+                  {breakdownGroupLabel(grp as NamedBreakdownGroup, lang)}
+                </span>
               </div>
               <table className="w-full text-sm">
                 <thead className="bg-slate-100 dark:bg-slate-800 text-muted-foreground border-b border-border">
@@ -566,6 +687,8 @@ function GeneralLedgerDetail({
   lang,
   leafAccounts,
   dimensionFilters,
+  activeFilters,
+  breakdownBy = "standard",
   isAccountStatement = false,
   initialAccountId,
   initialFrom,
@@ -577,6 +700,8 @@ function GeneralLedgerDetail({
   lang: string;
   leafAccounts: Account[];
   dimensionFilters: DimensionFilterQuery;
+  activeFilters: string[];
+  breakdownBy?: BreakdownMode;
   isAccountStatement?: boolean;
   initialAccountId?: string;
   initialFrom?: string;
@@ -611,6 +736,7 @@ function GeneralLedgerDetail({
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
     ...dimensionFilters,
+    breakdownBy: breakdownBy !== "standard" ? breakdownBy : undefined,
   };
 
   const { data, isLoading } = useGetGeneralLedger(glParams, {
@@ -634,6 +760,7 @@ function GeneralLedgerDetail({
       qs.set("projectId", dimensionFilters.projectId);
     if (dimensionFilters?.branchId)
       qs.set("branchId", dimensionFilters.branchId);
+    if (breakdownBy !== "standard") qs.set("breakdownBy", breakdownBy);
     window.open(
       `/api/reports/general-ledger/export?${qs.toString()}`,
       "_blank",
@@ -653,15 +780,75 @@ function GeneralLedgerDetail({
           : ""
       }${t("reportsPage.filters.from")}: ${from || "—"}  ·  ${t("reportsPage.filters.to")}: ${to || "—"}`
     : "—";
+  const breakdownLabel =
+    breakdownBy !== "standard"
+      ? `  ·  ${breakdownModeLabel(breakdownBy, t)}`
+      : "";
+  const groupedEntries = useMemo(
+    () => groupLedgerEntries(data?.entries ?? [], breakdownBy, t),
+    [breakdownBy, data?.entries, t],
+  );
+  const renderLedgerRows = (entries: GeneralLedgerEntry[]) =>
+    entries.map((e: GeneralLedgerEntry, i: number) => (
+      <tr
+        key={`${e.entryId}-${i}`}
+        className={`border-t border-border transition-colors hover:bg-primary/5 ${i % 2 === 1 ? "bg-muted/20" : ""}`}
+      >
+        <td className="px-4 py-2.5 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
+          <button
+            type="button"
+            onClick={() => setJeModalId(e.entryId)}
+            className="hover:underline underline-offset-2"
+            title={t("reportsPage.drill.openJournalEntry")}
+            aria-label={`${t("reportsPage.drill.openJournalEntry")} ${e.entryNo}`}
+          >
+            {e.date}
+          </button>
+        </td>
+        <td className="px-4 py-2.5 font-mono text-primary font-semibold text-xs whitespace-nowrap">
+          <button
+            type="button"
+            onClick={() => setJeModalId(e.entryId)}
+            className="hover:underline underline-offset-2"
+            title={t("reportsPage.drill.openJournalEntry")}
+            aria-label={`${t("reportsPage.drill.openJournalEntry")} ${e.entryNo}`}
+          >
+            #{e.entryNo}
+          </button>
+        </td>
+        <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-[240px] truncate">
+          {e.description}
+        </td>
+        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+          {e.costCenterName ?? t("dimensionFilters.breakdown.unassigned")}
+        </td>
+        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+          {e.projectName ?? t("dimensionFilters.breakdown.unassigned")}
+        </td>
+        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+          {e.branchName ?? t("dimensionFilters.breakdown.unassigned")}
+        </td>
+        <td className="px-4 py-2.5 text-end tabular-nums font-mono text-rose-600 dark:text-rose-400">
+          {e.debit ? fmt(e.debit) : "—"}
+        </td>
+        <td className="px-4 py-2.5 text-end tabular-nums font-mono text-emerald-600 dark:text-emerald-400">
+          {e.credit ? fmt(e.credit) : "—"}
+        </td>
+        <td className="px-4 py-2.5 text-end tabular-nums font-mono font-bold">
+          {fmt(e.balance)}
+        </td>
+      </tr>
+    ));
 
   return (
     <>
       <ReportHeader
         company={company}
         title={t(titleKey)}
-        dateLabel={dateLabel}
+        dateLabel={dateLabel + breakdownLabel}
         currency={currency}
         baseCurrency={cc.baseCurrency}
+        activeFilters={activeFilters}
         rateLabel={
           data?.currencyInfo &&
           data.currencyInfo.rate !== 1 &&
@@ -771,57 +958,31 @@ function GeneralLedgerDetail({
                     {t("reportsPage.noData")}
                   </td>
                 </tr>
+              ) : groupedEntries.length > 0 ? (
+                groupedEntries.flatMap((group) => [
+                  <tr key={`${group.key}-label`} className="border-t border-border bg-primary/5">
+                    <td className="px-4 py-3 font-bold text-primary" colSpan={9}>
+                      {group.label}
+                    </td>
+                  </tr>,
+                  ...renderLedgerRows(group.entries),
+                  <tr key={`${group.key}-subtotal`} className="border-t border-border bg-muted/30 font-semibold text-xs">
+                    <td className="px-4 py-2.5" colSpan={6}>
+                      {t("dimensionFilters.breakdown.subtotal")}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums font-mono">
+                      {fmt(group.totalDebit)}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums font-mono">
+                      {fmt(group.totalCredit)}
+                    </td>
+                    <td className="px-4 py-2.5 text-end tabular-nums font-mono">
+                      {fmt(group.entries[group.entries.length - 1]?.balance ?? 0)}
+                    </td>
+                  </tr>,
+                ])
               ) : (
-                data.entries.map((e: GeneralLedgerEntry, i: number) => (
-                  <tr
-                    key={i}
-                    className={`border-t border-border transition-colors hover:bg-primary/5 ${i % 2 === 1 ? "bg-muted/20" : ""}`}
-                  >
-                    <td className="px-4 py-2.5 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => setJeModalId(e.entryId)}
-                        className="hover:underline underline-offset-2"
-                        title={t("reportsPage.drill.openJournalEntry")}
-                        aria-label={`${t("reportsPage.drill.openJournalEntry")} ${e.entryNo}`}
-                      >
-                        {e.date}
-                      </button>
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-primary font-semibold text-xs whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => setJeModalId(e.entryId)}
-                        className="hover:underline underline-offset-2"
-                        title={t("reportsPage.drill.openJournalEntry")}
-                        aria-label={`${t("reportsPage.drill.openJournalEntry")} ${e.entryNo}`}
-                      >
-                        #{e.entryNo}
-                      </button>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-[240px] truncate">
-                      {e.description}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {e.costCenterName ?? "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {e.projectName ?? "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {e.branchName ?? "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums font-mono text-rose-600 dark:text-rose-400">
-                      {e.debit ? fmt(e.debit) : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums font-mono text-emerald-600 dark:text-emerald-400">
-                      {e.credit ? fmt(e.credit) : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums font-mono font-bold">
-                      {fmt(e.balance)}
-                    </td>
-                  </tr>
-                ))
+                renderLedgerRows(data.entries)
               )}
             </tbody>
             <tfoot>
@@ -860,6 +1021,7 @@ function IncomeStatementDetail({
   fmt,
   lang,
   dimensionFilters,
+  activeFilters,
   onDrillToGeneralLedger,
   breakdownBy = "standard",
 }: {
@@ -868,6 +1030,7 @@ function IncomeStatementDetail({
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  activeFilters: string[];
   onDrillToGeneralLedger?: DrillToGeneralLedger;
   breakdownBy?: BreakdownMode;
 }) {
@@ -920,10 +1083,13 @@ function IncomeStatementDetail({
         totalRevenue: t("reportsPage.incomeStatement.totalRevenue"),
         expenses: t("reportsPage.incomeStatement.expenses"),
         totalExpenses: t("reportsPage.incomeStatement.totalExpenses"),
+        total: t("reportsPage.table.total"),
+        subtotal: t("dimensionFilters.breakdown.subtotal"),
         netProfit: t("reportsPage.incomeStatement.netProfit"),
         netLoss: t("reportsPage.incomeStatement.netLoss"),
       },
       company,
+      activeFilters,
     );
     const w = window.open("", "_blank");
     if (!w) return;
@@ -975,6 +1141,7 @@ function IncomeStatementDetail({
         dateLabel={dateLabel + breakdownLabel}
         currency={currency}
         baseCurrency={cc.baseCurrency}
+        activeFilters={activeFilters}
         rateLabel={
           data?.currencyInfo &&
           data.currencyInfo.rate !== 1 &&
@@ -1022,7 +1189,9 @@ function IncomeStatementDetail({
             return (
               <div key={grp.dimensionId ?? "__unassigned__"} className="flex flex-col gap-3">
                 <div className="rounded-xl border border-border bg-primary/5 px-5 py-2.5">
-                  <span className="font-bold text-sm">{grp.dimensionName}</span>
+                  <span className="font-bold text-sm">
+                    {breakdownGroupLabel(grp as NamedBreakdownGroup, lang)}
+                  </span>
                 </div>
                 <ReportSectionCard
                   title={t("reportsPage.incomeStatement.revenue")}
@@ -1115,6 +1284,8 @@ function BalanceSheetDetail({
   fmt,
   lang,
   dimensionFilters,
+  activeFilters,
+  breakdownBy = "standard",
   onDrillToGeneralLedger,
 }: {
   company?: Company;
@@ -1122,6 +1293,8 @@ function BalanceSheetDetail({
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  activeFilters: string[];
+  breakdownBy?: BreakdownMode;
   onDrillToGeneralLedger?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
@@ -1175,6 +1348,7 @@ function BalanceSheetDetail({
         ),
       },
       company,
+      activeFilters,
     );
     const w = window.open("", "_blank");
     if (!w) return;
@@ -1184,15 +1358,20 @@ function BalanceSheetDetail({
 
   const currency = reportCurrencyParam(cc) || cc.baseCurrency;
   const dateLabel = `${t("reportsPage.filters.asOf")}: ${asOf || "—"}`;
+  const breakdownLabel =
+    breakdownBy !== "standard"
+      ? `  ·  ${breakdownModeLabel(breakdownBy, t)}`
+      : "";
 
   return (
     <>
       <ReportHeader
         company={company}
         title={t("reportsPage.tabs.balanceSheet")}
-        dateLabel={dateLabel}
+        dateLabel={dateLabel + breakdownLabel}
         currency={currency}
         baseCurrency={cc.baseCurrency}
+        activeFilters={activeFilters}
         rateLabel={
           data?.currencyInfo &&
           data.currencyInfo.rate !== 1 &&
@@ -1225,6 +1404,14 @@ function BalanceSheetDetail({
         </ReportFilterField>
         <CurrencySelect cc={cc} />
       </ReportFilterRow>
+
+      {breakdownBy !== "standard" && (
+        <BreakdownNotice
+          message={t("reportsPage.detail.breakdownComingSoon", {
+            mode: breakdownModeLabel(breakdownBy, t),
+          })}
+        />
+      )}
 
       {isLoading ? (
         <ReportLoading />
@@ -1394,12 +1581,16 @@ function CashFlowDetail({
   cc,
   fmt,
   lang,
+  activeFilters,
+  breakdownBy = "standard",
   onDrillToGeneralLedger,
 }: {
   company?: Company;
   cc: CurrencyControls;
   fmt: Fmt;
   lang: string;
+  activeFilters: string[];
+  breakdownBy?: BreakdownMode;
   onDrillToGeneralLedger?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
@@ -1420,6 +1611,10 @@ function CashFlowDetail({
 
   const currency = reportCurrencyParam(cc) || cc.baseCurrency;
   const dateLabel = `${t("reportsPage.filters.from")}: ${from || "—"}  ·  ${t("reportsPage.filters.to")}: ${to || "—"}`;
+  const breakdownLabel =
+    breakdownBy !== "standard"
+      ? `  ·  ${breakdownModeLabel(breakdownBy, t)}`
+      : "";
 
   const flowSection = (
     title: string,
@@ -1484,9 +1679,10 @@ function CashFlowDetail({
       <ReportHeader
         company={company}
         title={t("reportsPage.tabs.cashFlow")}
-        dateLabel={dateLabel}
+        dateLabel={dateLabel + breakdownLabel}
         currency={currency}
         baseCurrency={cc.baseCurrency}
+        activeFilters={activeFilters}
         actions={data ? <ReportExcelButton onClick={exportExcel} /> : undefined}
       />
 
@@ -1502,6 +1698,14 @@ function CashFlowDetail({
           onChange={setTo}
         />
       </ReportFilterRow>
+
+      {breakdownBy !== "standard" && (
+        <BreakdownNotice
+          message={t("reportsPage.detail.breakdownComingSoon", {
+            mode: breakdownModeLabel(breakdownBy, t),
+          })}
+        />
+      )}
 
       {isLoading ? (
         <ReportLoading />
@@ -1758,7 +1962,7 @@ function JournalEntryModal({
 // ─── Main routing component ───────────────────────────────────────────────────
 
 export function ReportsFinancialDetail() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [location, setLocation] = useLocation();
   const lang = i18n.language;
 
@@ -1771,7 +1975,9 @@ export function ReportsFinancialDetail() {
     branchId: query.get("branchId") ?? "",
   });
 
-  const [breakdownBy, setBreakdownBy] = useState<BreakdownMode>("standard");
+  const [breakdownBy, setBreakdownBy] = useState<BreakdownMode>(
+    (query.get("breakdownBy") as BreakdownMode) || "standard",
+  );
 
   const dimensionQuery: DimensionFilterQuery = useMemo(
     () => ({
@@ -1785,6 +1991,9 @@ export function ReportsFinancialDetail() {
   const { data: company } = useGetCompany();
   const baseCurrency = (company?.baseCurrency ?? "EGP").toUpperCase();
   const { data: currencies = [] } = useListCurrencies();
+  const { data: costCenters = [] } = useListCostCenters();
+  const { data: projects = [] } = useListProjects();
+  const { data: branches = [] } = useListBranches();
   const [reportCurrency, setReportCurrency] = useState(
     (query.get("currency") || query.get("reportCurrency") || "").toUpperCase(),
   );
@@ -1818,6 +2027,7 @@ export function ReportsFinancialDetail() {
       projectId: query.get("projectId") ?? "",
       branchId: query.get("branchId") ?? "",
     });
+    setBreakdownBy((query.get("breakdownBy") as BreakdownMode) || "standard");
   }, [query]);
 
   const fmt: Fmt = (n: number) =>
@@ -1826,8 +2036,55 @@ export function ReportsFinancialDetail() {
       maximumFractionDigits: 2,
     }).format(n);
 
-  // Only TB and IS support breakdown
-  const supportsBreakdown = reportKey === "trial-balance" || reportKey === "income-statement";
+  const dimensionLookup = useMemo(() => {
+    const byId = new Map<string, NamedDimension>();
+    for (const item of [
+      ...(costCenters as CostCenter[]),
+      ...(projects as Project[]),
+      ...(branches as Branch[]),
+    ]) {
+      byId.set(item.id, {
+        id: item.id,
+        code: item.code ?? null,
+        nameAr: item.nameAr,
+        nameEn: item.nameEn ?? null,
+      });
+    }
+    return byId;
+  }, [branches, costCenters, projects]);
+
+  const activeFilters = useMemo(() => {
+    const filters: string[] = [
+      activeFilterPill(
+        t("dimensionFilters.breakdown.label"),
+        breakdownModeLabel(breakdownBy, t),
+        t,
+      ),
+    ];
+    const selectedDimensions: Array<[string, string]> = [
+      [t("dimensionFilters.costCenter"), dimensionFilters.costCenterId],
+      [t("dimensionFilters.project"), dimensionFilters.projectId],
+      [t("dimensionFilters.branch"), dimensionFilters.branchId],
+    ];
+    for (const [label, id] of selectedDimensions) {
+      if (!id) continue;
+      const item = dimensionLookup.get(id);
+      filters.push(
+        activeFilterPill(
+          label,
+          item ? namedDimensionLabel(item, lang) : id,
+          t,
+        ),
+      );
+    }
+    if (
+      (reportKey === "balance-sheet" || reportKey === "cash-flow") &&
+      breakdownBy !== "standard"
+    ) {
+      filters.push(t("reportsPage.detail.breakdownManagement"));
+    }
+    return filters;
+  }, [breakdownBy, dimensionFilters.branchId, dimensionFilters.costCenterId, dimensionFilters.projectId, dimensionLookup, lang, reportKey, t]);
 
   const commonProps = {
     company,
@@ -1835,6 +2092,7 @@ export function ReportsFinancialDetail() {
     fmt,
     lang,
     dimensionFilters: dimensionQuery,
+    activeFilters,
   };
 
   const drillToGeneralLedger: DrillToGeneralLedger = (accountId, params) => {
@@ -1847,6 +2105,7 @@ export function ReportsFinancialDetail() {
     if (dimensionQuery.costCenterId) qs.set("costCenterId", dimensionQuery.costCenterId);
     if (dimensionQuery.projectId) qs.set("projectId", dimensionQuery.projectId);
     if (dimensionQuery.branchId) qs.set("branchId", dimensionQuery.branchId);
+    if (breakdownBy !== "standard") qs.set("breakdownBy", breakdownBy);
     setLocation(`/reports/financial/general-ledger?${qs.toString()}`);
   };
 
@@ -1857,8 +2116,8 @@ export function ReportsFinancialDetail() {
         value={dimensionFilters}
         onChange={setDimensionFilters}
         onBack={() => setLocation("/reports/center")}
-        breakdown={supportsBreakdown ? breakdownBy : undefined}
-        onBreakdownChange={supportsBreakdown ? setBreakdownBy : undefined}
+        breakdown={breakdownBy}
+        onBreakdownChange={setBreakdownBy}
       />
 
       {reportKey === "trial-balance" && (
@@ -1872,6 +2131,7 @@ export function ReportsFinancialDetail() {
         <GeneralLedgerDetail
           {...commonProps}
           leafAccounts={leafAccounts}
+          breakdownBy={breakdownBy}
           initialAccountId={initialAccountId}
           initialFrom={initialFrom}
           initialTo={initialTo}
@@ -1881,6 +2141,7 @@ export function ReportsFinancialDetail() {
         <GeneralLedgerDetail
           {...commonProps}
           leafAccounts={leafAccounts}
+          breakdownBy={breakdownBy}
           isAccountStatement
           initialAccountId={initialAccountId}
           initialFrom={initialFrom}
@@ -1897,15 +2158,14 @@ export function ReportsFinancialDetail() {
       {reportKey === "balance-sheet" && (
         <BalanceSheetDetail
           {...commonProps}
+          breakdownBy={breakdownBy}
           onDrillToGeneralLedger={drillToGeneralLedger}
         />
       )}
       {reportKey === "cash-flow" && (
         <CashFlowDetail
-          company={company}
-          cc={cc}
-          fmt={fmt}
-          lang={lang}
+          {...commonProps}
+          breakdownBy={breakdownBy}
           onDrillToGeneralLedger={drillToGeneralLedger}
         />
       )}

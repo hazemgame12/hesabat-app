@@ -2362,7 +2362,9 @@
       "baseCurrency": "Base Currency",
       "noFilters": "All dimensions",
       "filterWithValue": "{{label}}: {{value}}",
-      "printButton": "PDF / Print"
+      "printButton": "PDF / Print",
+      "breakdownComingSoon": "{{mode}} is coming soon for management breakdown. Showing the standard report for now.",
+      "breakdownManagement": "Management breakdown: Coming Soon"
     },
     "tabs": {
       "trialBalance": "Trial Balance",

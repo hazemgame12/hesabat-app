@@ -2362,7 +2362,9 @@
       "baseCurrency": "العملة الأساسية",
       "noFilters": "كل الأبعاد",
       "filterWithValue": "{{label}}: {{value}}",
-      "printButton": "طباعة / PDF"
+      "printButton": "طباعة / PDF",
+      "breakdownComingSoon": "{{mode}} متاح قريبًا لتقارير الإدارة. يتم عرض التقرير القياسي حاليًا.",
+      "breakdownManagement": "تجميع إداري: قريبًا"
     },
     "tabs": {
       "trialBalance": "ميزان المراجعة",
