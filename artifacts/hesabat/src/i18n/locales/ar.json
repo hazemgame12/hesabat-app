@@ -390,6 +390,7 @@
       "password": "كلمة المرور",
       "backup": "نسخ احتياطي",
       "support": "الدعم الفني",
+      "subscription": "الاشتراك والباقات",
       "supportAdmin": "درج الدعم"
     },
     "password": {
@@ -402,6 +403,20 @@
       "changing": "جاري التغيير...",
       "success": "تم تغيير كلمة المرور بنجاح",
       "error": "تعذر تغيير كلمة المرور"
+    },
+    "subscription": {
+      "title": "الاشتراك والباقات",
+      "currentPackage": "الباقة الحالية",
+      "status": "حالة الاشتراك",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ الانتهاء",
+      "remainingDays": "الأيام المتبقية",
+      "requestRenewal": "طلب التجديد",
+      "requestUpgrade": "طلب ترقية الباقة",
+      "country": "الدولة",
+      "currency": "العملة",
+      "price": "السعر",
+      "usersUsage": "المستخدمون"
     },
     "backup": {
       "title": "نسخ احتياطي للبيانات",

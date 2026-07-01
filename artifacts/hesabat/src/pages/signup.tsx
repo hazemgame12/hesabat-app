@@ -49,6 +49,12 @@ async function fetchPlanById(planId: string) {
   return plans.find((p: any) => p.id === planId) || null;
 }
 
+async function fetchCountryPackages(countryCode: string) {
+  const res = await fetch(`/api/packages?countryCode=${countryCode}`);
+  if (!res.ok) throw new Error("Failed to fetch packages");
+  return res.json();
+}
+
 export function Signup() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language === "en" ? "en" : "ar") as Lang;
@@ -63,6 +69,7 @@ export function Signup() {
   const urlCountry = searchParams.get("country") as CountryCode | null;
   const initialCountry = urlCountry && COUNTRIES.includes(urlCountry) ? urlCountry : "EG";
   const initialCurrency = COUNTRY_INFO[initialCountry]?.defaultCurrency || "EGP";
+  const [selectedPackageId, setSelectedPackageId] = React.useState<string | null>(urlPlanId);
 
   const redirectForUser = (u: any) => {
     const isExpired = u.subscriptionStatus === "expired";
@@ -82,7 +89,6 @@ export function Signup() {
     queryFn: () => (urlPlanId ? fetchPlanById(urlPlanId) : null),
     enabled: !!urlPlanId,
   });
-
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -92,7 +98,12 @@ export function Signup() {
   });
 
   const country = watch("country");
+  const watchCountryValue = watch("country");
   const baseCurrency = watch("baseCurrency");
+  const { data: countryPackages = [] } = useQuery({
+    queryKey: ["country-packages", watchCountryValue ?? initialCountry],
+    queryFn: () => fetchCountryPackages(watchCountryValue ?? initialCountry),
+  });
 
   const [phonePrefix, setPhonePrefix] = React.useState<string>(
     COUNTRY_INFO[initialCountry]?.dialCode ?? "+20"
@@ -100,12 +111,10 @@ export function Signup() {
 
   const onSubmit = (data: z.infer<typeof signupSchema>) => {
     setErrorMsg(null);
-    const localPhone = data.phone.replace(/^\s+|\s+$/g, "");
+    const localPhone = String(data.phone ?? "").replace(/^\s+|\s+$/g, "");
     const fullPhone = `${phonePrefix}${localPhone}`;
     const payload = { ...data, phone: fullPhone };
-    if (urlPlanId) {
-      (payload as any).planId = urlPlanId;
-    }
+    if (selectedPackageId) (payload as any).planId = selectedPackageId;
     signup.mutate({ data: payload }, {
       onSuccess: (u: any) => {
         queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
@@ -222,7 +231,7 @@ export function Signup() {
                       className="rounded-lg border border-input bg-background px-2 py-2 text-sm font-mono font-bold focus:outline-none focus:ring-2 focus:ring-primary/30 text-primary shrink-0"
                       style={{ minWidth: "72px" }}
                     >
-                      {COUNTRIES.map((c) => (
+                      {COUNTRIES.map((c: CountryCode) => (
                         <option key={c} value={COUNTRY_INFO[c].dialCode}>
                           {COUNTRY_INFO[c].dialCode} {c}
                         </option>
@@ -275,13 +284,14 @@ export function Signup() {
                         const info = COUNTRY_INFO[v as keyof typeof COUNTRY_INFO];
                         if (info?.defaultCurrency) setValue("baseCurrency", info.defaultCurrency);
                         if (info?.dialCode) setPhonePrefix(info.dialCode);
+                        setSelectedPackageId(null);
                       }}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {COUNTRIES.map((c) => (
+                        {COUNTRIES.map((c: CountryCode) => (
                           <SelectItem key={c} value={c}>
                             {countryName(c, lang)}
                           </SelectItem>
@@ -300,7 +310,7 @@ export function Signup() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {CURRENCIES.map((c) => (
+                        {CURRENCIES.map((c: string) => (
                           <SelectItem key={c} value={c}>
                             {currencyName(c, lang)} ({c})
                           </SelectItem>
@@ -308,6 +318,23 @@ export function Signup() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label>{t("subscription.currentPackage")}</Label>
+                  <select
+                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={selectedPackageId ?? ""}
+                    onChange={(e) => setSelectedPackageId(e.target.value || null)}
+                  >
+                    <option value="">{t("superAdmin.selectPlan")}</option>
+                    {countryPackages.map((pkg: any) => (
+                      <option key={pkg.id} value={pkg.id}>
+                        {(lang === "ar" ? pkg.name_ar : pkg.name_en) || pkg.name_en} - {pkg.monthly_price} {pkg.currency_code}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-xs text-muted-foreground">Contact support to activate</span>
                 </div>
 
                 <Button type="submit" disabled={signup.isPending} className="w-full h-11 text-base font-bold mt-4 shadow-md hover:opacity-90">

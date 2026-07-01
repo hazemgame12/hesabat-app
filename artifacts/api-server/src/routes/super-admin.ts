@@ -13,9 +13,21 @@ import {
   articlesTable,
   insertArticleSchema,
   updateArticleSchema,
+  manualPaymentRequestsTable,
+  countryPaymentMethodsTable,
+  auditLogTable,
+  journalEntriesTable,
+  invoicesTable,
+  customersTable,
+  suppliersTable,
+  bankAccountsTable,
+  fixedAssetsTable,
+  employeesTable,
 } from "@workspace/db";
 import { requireSuperAdmin, requireSuperAdminRole } from "../middleware/super-admin";
 import { hashPassword } from "../lib/auth";
+import { createSession, setSessionCookie } from "../lib/session";
+import { safeAudit } from "../lib/audit";
 import { z } from "zod/v4";
 
 const router = Router();
@@ -187,7 +199,7 @@ router.get("/super-admin/companies/:id", async (req, res) => {
 // PATCH /super-admin/companies/:id
 const UpdateCompany = z.object({
   isActive: z.boolean().optional(),
-  subscriptionStatus: z.enum(["trial", "active", "expired", "cancelled", "suspended"]).optional(),
+  subscriptionStatus: z.enum(["trial", "pending_payment", "active", "expired", "cancelled", "suspended"]).optional(),
   planId: z.string().uuid().optional(),
   maxUsers: z.number().optional(),
   maxTransactions: z.number().optional(),
@@ -224,6 +236,317 @@ router.patch("/super-admin/companies/:id", async (req, res) => {
   }
 
   res.json(result[0]);
+});
+
+const CompanySubscriptionPatch = z.object({
+  planId: z.string().uuid().optional(),
+  subscriptionStatus: z.enum(["trial", "pending_payment", "active", "expired", "suspended"]).optional(),
+  trialEndsAt: z.string().datetime().nullable().optional(),
+  endsAt: z.string().datetime().nullable().optional(),
+  internalNotes: z.string().optional(),
+  renewalRequestId: z.string().uuid().optional(),
+  renewalDecision: z.enum(["approved", "rejected"]).optional(),
+});
+
+router.get("/super-admin/companies/:id/subscription", async (req, res) => {
+  const companyId = req.params["id"] as string;
+  const [company] = await db
+    .select()
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  if (!company) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+  const [plan] = company.planId
+    ? await db.select().from(subscriptionPlansTable).where(eq(subscriptionPlansTable.id, company.planId)).limit(1)
+    : [];
+  const [latestSubscription] = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.companyId, companyId))
+    .orderBy(desc(subscriptionsTable.createdAt))
+    .limit(1);
+  const requests = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, companyId))
+    .orderBy(desc(manualPaymentRequestsTable.requestedAt));
+  res.json({ company, plan, latestSubscription, requests });
+});
+
+router.patch("/super-admin/companies/:id/subscription", async (req, res) => {
+  const companyId = req.params["id"] as string;
+  const body = CompanySubscriptionPatch.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  if (body.data.planId !== undefined) patch["planId"] = body.data.planId;
+  if (body.data.subscriptionStatus !== undefined) patch["subscriptionStatus"] = body.data.subscriptionStatus;
+  if (body.data.trialEndsAt !== undefined) patch["trialEndsAt"] = body.data.trialEndsAt ? new Date(body.data.trialEndsAt) : null;
+  const [updated] = await db
+    .update(companiesTable)
+    .set(patch)
+    .where(eq(companiesTable.id, companyId))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+
+  if (body.data.endsAt !== undefined || body.data.subscriptionStatus || body.data.planId) {
+    await db.insert(subscriptionsTable).values({
+      companyId,
+      planId: updated.planId ?? body.data.planId ?? "",
+      status: (body.data.subscriptionStatus ?? updated.subscriptionStatus ?? "trial") as any,
+      startedAt: new Date(),
+      endsAt: body.data.endsAt ? new Date(body.data.endsAt) : null,
+      currency: updated.baseCurrency,
+      billingCycle: "monthly",
+    });
+  }
+
+  if (body.data.renewalRequestId && body.data.renewalDecision) {
+    const [request] = await db
+      .update(manualPaymentRequestsTable)
+      .set({
+        status: body.data.renewalDecision,
+        approvedBy: req.superAdmin!.superAdminId,
+        approvedAt: new Date(),
+        internalNotes: body.data.internalNotes,
+      })
+      .where(eq(manualPaymentRequestsTable.id, body.data.renewalRequestId))
+      .returning();
+    if (request) {
+      await safeAudit(
+        db,
+        {
+          companyId,
+          userId: null,
+          action: body.data.renewalDecision === "approved" ? "MANUAL_PAYMENT_APPROVED" : "MANUAL_PAYMENT_REJECTED",
+          entity: "subscription",
+          entityId: request.id,
+          newValue: request,
+        },
+        req.log,
+      );
+    }
+  }
+
+  const action =
+    body.data.planId
+      ? "SUBSCRIPTION_PACKAGE_CHANGED"
+      : body.data.subscriptionStatus === "active"
+        ? "SUBSCRIPTION_ACTIVATED"
+        : body.data.subscriptionStatus === "suspended"
+          ? "SUBSCRIPTION_SUSPENDED"
+          : "SUBSCRIPTION_EXTENDED";
+  await safeAudit(
+    db,
+    {
+      companyId,
+      userId: null,
+      action,
+      entity: "subscription",
+      entityId: companyId,
+      newValue: body.data,
+    },
+    req.log,
+  );
+
+  res.json(updated);
+});
+
+router.post("/super-admin/companies/:id/renew", async (req, res) => {
+  const companyId = req.params["id"] as string;
+  const body = z
+    .object({
+      months: z.number().min(1).max(36).optional(),
+      endsAt: z.string().datetime().optional(),
+    })
+    .safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const endDate = body.data.endsAt
+    ? new Date(body.data.endsAt)
+    : new Date(Date.now() + (body.data.months ?? 1) * 30 * 24 * 60 * 60 * 1000);
+  const [company] = await db
+    .update(companiesTable)
+    .set({ subscriptionStatus: "active", updatedAt: new Date() })
+    .where(eq(companiesTable.id, companyId))
+    .returning();
+  if (!company) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+  await db.insert(subscriptionsTable).values({
+    companyId,
+    planId: company.planId ?? "",
+    status: "active",
+    startedAt: new Date(),
+    endsAt: endDate,
+    currency: company.baseCurrency,
+    billingCycle: "monthly",
+  });
+  await safeAudit(
+    db,
+    {
+      companyId,
+      userId: null,
+      action: "SUBSCRIPTION_RENEWED",
+      entity: "subscription",
+      entityId: companyId,
+      newValue: { endsAt: endDate.toISOString() },
+    },
+    req.log,
+  );
+  res.json({ ok: true, endsAt: endDate.toISOString() });
+});
+
+router.post("/super-admin/companies/:id/suspend", async (req, res) => {
+  const companyId = req.params["id"] as string;
+  const [company] = await db
+    .update(companiesTable)
+    .set({ subscriptionStatus: "suspended", updatedAt: new Date() })
+    .where(eq(companiesTable.id, companyId))
+    .returning();
+  if (!company) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+  await safeAudit(
+    db,
+    {
+      companyId,
+      userId: null,
+      action: "SUBSCRIPTION_SUSPENDED",
+      entity: "subscription",
+      entityId: companyId,
+    },
+    req.log,
+  );
+  res.json(company);
+});
+
+router.post("/super-admin/companies/:id/reactivate", async (req, res) => {
+  const companyId = req.params["id"] as string;
+  const [company] = await db
+    .update(companiesTable)
+    .set({ subscriptionStatus: "active", updatedAt: new Date() })
+    .where(eq(companiesTable.id, companyId))
+    .returning();
+  if (!company) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+  await safeAudit(
+    db,
+    {
+      companyId,
+      userId: null,
+      action: "SUBSCRIPTION_REACTIVATED",
+      entity: "subscription",
+      entityId: companyId,
+    },
+    req.log,
+  );
+  res.json(company);
+});
+
+router.get("/super-admin/companies/:id/overview", async (req, res) => {
+  const companyId = req.params["id"] as string;
+  const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
+  if (!company) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+
+  const [usersCount] = await db.select({ count: count() }).from(usersTable).where(eq(usersTable.companyId, companyId));
+  const [journalCount] = await db.select({ count: count() }).from(journalEntriesTable).where(eq(journalEntriesTable.companyId, companyId));
+  const [invoiceCount] = await db.select({ count: count() }).from(invoicesTable).where(eq(invoicesTable.companyId, companyId));
+  const [customerCount] = await db.select({ count: count() }).from(customersTable).where(eq(customersTable.companyId, companyId));
+  const [supplierCount] = await db.select({ count: count() }).from(suppliersTable).where(eq(suppliersTable.companyId, companyId));
+  const [bankCount] = await db.select({ count: count() }).from(bankAccountsTable).where(eq(bankAccountsTable.companyId, companyId));
+  const [assetCount] = await db.select({ count: count() }).from(fixedAssetsTable).where(eq(fixedAssetsTable.companyId, companyId));
+  const [employeeCount] = await db.select({ count: count() }).from(employeesTable).where(eq(employeesTable.companyId, companyId));
+  const [latestActivity] = await db
+    .select()
+    .from(auditLogTable)
+    .where(eq(auditLogTable.companyId, companyId))
+    .orderBy(desc(auditLogTable.createdAt))
+    .limit(1);
+  res.json({
+    company,
+    summary: {
+      usersCount: usersCount?.count ?? 0,
+      journalEntries: journalCount?.count ?? 0,
+      invoices: invoiceCount?.count ?? 0,
+      customers: customerCount?.count ?? 0,
+      suppliers: supplierCount?.count ?? 0,
+      bankAccounts: bankCount?.count ?? 0,
+      fixedAssets: assetCount?.count ?? 0,
+      employees: employeeCount?.count ?? 0,
+      lastLogin: null,
+      lastActivity: latestActivity ?? null,
+    },
+  });
+});
+
+router.get("/super-admin/companies/:id/activity", async (req, res) => {
+  const companyId = req.params["id"] as string;
+  const rows = await db
+    .select()
+    .from(auditLogTable)
+    .where(eq(auditLogTable.companyId, companyId))
+    .orderBy(desc(auditLogTable.createdAt))
+    .limit(50);
+  res.json(rows);
+});
+
+router.post("/super-admin/companies/:id/impersonate", async (req, res) => {
+  const companyId = req.params["id"] as string;
+  const [company] = await db.select().from(companiesTable).where(eq(companiesTable.id, companyId)).limit(1);
+  if (!company) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+  const [candidate] = await db
+    .select()
+    .from(usersTable)
+    .where(and(eq(usersTable.companyId, companyId), inArray(usersTable.role, ["owner", "admin"] as any)))
+    .orderBy(asc(usersTable.createdAt))
+    .limit(1);
+  if (!candidate) {
+    res.status(404).json({ error: "No owner/admin user found for company" });
+    return;
+  }
+  const sessionToken = await createSession(candidate.id);
+  setSessionCookie(res, sessionToken);
+  res.cookie("hesabat_impersonation", "1", {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env["NODE_ENV"] === "production",
+    path: "/",
+    maxAge: 1000 * 60 * 60 * 12,
+  });
+  await safeAudit(
+    db,
+    {
+      companyId,
+      userId: null,
+      action: "SUPER_ADMIN_IMPERSONATE_START",
+      entity: "company",
+      entityId: companyId,
+      newValue: { superAdminId: req.superAdmin?.superAdminId, impersonatedUserId: candidate.id },
+    },
+    req.log,
+  );
+  res.json({ ok: true, redirectTo: "/hesabat/" });
 });
 
 // GET /super-admin/users — all users
@@ -297,14 +620,25 @@ const CreatePlan = z.object({
   nameEn: z.string().min(1),
   descriptionAr: z.string().optional(),
   descriptionEn: z.string().optional(),
-  country: z.string().min(1),
+  country: z.string().min(1).optional(),
+  countryCode: z.string().min(1).optional(),
+  countryName: z.string().optional(),
   maxUsers: z.number().min(1),
   maxTransactions: z.number().min(1),
-  price: z.string().min(1),
-  currency: z.string().min(1),
-  billingCycle: z.enum(["monthly", "quarterly", "yearly"]),
+  price: z.string().min(1).optional(),
+  currency: z.string().min(1).optional(),
+  currencyCode: z.string().optional(),
+  monthlyPrice: z.string().optional(),
+  yearlyPrice: z.string().optional(),
+  trialDays: z.number().min(0).optional(),
+  maxCompaniesOrBranches: z.number().min(1).optional(),
+  storageLimit: z.number().min(1).optional(),
+  featureLimits: z.record(z.string(), z.unknown()).optional(),
+  billingCycle: z.enum(["monthly", "quarterly", "yearly"]).optional(),
   features: z.array(z.string()).optional(),
   showOnLanding: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().optional(),
   order: z.number().optional(),
 });
 
@@ -317,7 +651,18 @@ router.post("/super-admin/plans", async (req, res) => {
 
   const result = await db
     .insert(subscriptionPlansTable)
-    .values(body.data)
+    .values({
+      ...body.data,
+      country: body.data.country ?? body.data.countryCode ?? "EG",
+      countryCode: body.data.countryCode ?? body.data.country ?? "EG",
+      currency: body.data.currency ?? body.data.currencyCode ?? "EGP",
+      currencyCode: body.data.currencyCode ?? body.data.currency ?? "EGP",
+      monthlyPrice: body.data.monthlyPrice ?? body.data.price ?? "0",
+      price: body.data.price ?? body.data.monthlyPrice ?? "0",
+      billingCycle: body.data.billingCycle ?? "monthly",
+      trialDays: body.data.trialDays ?? 14,
+      order: body.data.order ?? body.data.sortOrder ?? 0,
+    })
     .returning();
   res.status(201).json(result[0]);
 });
@@ -333,7 +678,17 @@ router.patch("/super-admin/plans/:id", async (req, res) => {
 
   const result = await db
     .update(subscriptionPlansTable)
-    .set({ ...body.data, updatedAt: new Date() })
+    .set({
+      ...body.data,
+      ...(body.data.countryCode && !body.data.country ? { country: body.data.countryCode } : {}),
+      ...(body.data.country && !body.data.countryCode ? { countryCode: body.data.country } : {}),
+      ...(body.data.currencyCode && !body.data.currency ? { currency: body.data.currencyCode } : {}),
+      ...(body.data.currency && !body.data.currencyCode ? { currencyCode: body.data.currency } : {}),
+      ...(body.data.monthlyPrice && !body.data.price ? { price: body.data.monthlyPrice } : {}),
+      ...(body.data.price && !body.data.monthlyPrice ? { monthlyPrice: body.data.price } : {}),
+      ...(body.data.sortOrder !== undefined && body.data.order === undefined ? { order: body.data.sortOrder } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(subscriptionPlansTable.id, id))
     .returning();
 
@@ -352,6 +707,78 @@ router.delete("/super-admin/plans/:id", async (req, res) => {
     .delete(subscriptionPlansTable)
     .where(eq(subscriptionPlansTable.id, id));
   res.json({ ok: true });
+});
+
+router.get("/super-admin/packages", async (req, res) => {
+  const rows = await db.select().from(subscriptionPlansTable).orderBy(asc(subscriptionPlansTable.order));
+  res.json(rows);
+});
+
+router.post("/super-admin/packages", async (req, res) => {
+  const body = CreatePlan.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const [created] = await db
+    .insert(subscriptionPlansTable)
+    .values({
+      ...body.data,
+      country: body.data.country ?? body.data.countryCode ?? "EG",
+      countryCode: body.data.countryCode ?? body.data.country ?? "EG",
+      currency: body.data.currency ?? body.data.currencyCode ?? "EGP",
+      currencyCode: body.data.currencyCode ?? body.data.currency ?? "EGP",
+      monthlyPrice: body.data.monthlyPrice ?? body.data.price ?? "0",
+      price: body.data.price ?? body.data.monthlyPrice ?? "0",
+      billingCycle: body.data.billingCycle ?? "monthly",
+      trialDays: body.data.trialDays ?? 14,
+      order: body.data.order ?? body.data.sortOrder ?? 0,
+    })
+    .returning();
+  res.status(201).json(created);
+});
+
+router.patch("/super-admin/packages/:id", async (req, res) => {
+  const { id } = req.params;
+  const body = CreatePlan.partial().safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const [updated] = await db
+    .update(subscriptionPlansTable)
+    .set({
+      ...body.data,
+      ...(body.data.countryCode && !body.data.country ? { country: body.data.countryCode } : {}),
+      ...(body.data.country && !body.data.countryCode ? { countryCode: body.data.country } : {}),
+      ...(body.data.currencyCode && !body.data.currency ? { currency: body.data.currencyCode } : {}),
+      ...(body.data.currency && !body.data.currencyCode ? { currencyCode: body.data.currency } : {}),
+      ...(body.data.monthlyPrice && !body.data.price ? { price: body.data.monthlyPrice } : {}),
+      ...(body.data.price && !body.data.monthlyPrice ? { monthlyPrice: body.data.price } : {}),
+      ...(body.data.sortOrder !== undefined && body.data.order === undefined ? { order: body.data.sortOrder } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptionPlansTable.id, id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Package not found" });
+    return;
+  }
+  res.json(updated);
+});
+
+router.delete("/super-admin/packages/:id", async (req, res) => {
+  const { id } = req.params;
+  const [updated] = await db
+    .update(subscriptionPlansTable)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(eq(subscriptionPlansTable.id, id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Package not found" });
+    return;
+  }
+  res.json(updated);
 });
 
 // GET /super-admin/subscriptions

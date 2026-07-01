@@ -21,7 +21,7 @@ export const companiesTable = pgTable("companies", {
   // Subscription & billing fields
   planId: uuid("plan_id"),
   subscriptionStatus: text("subscription_status", {
-    enum: ["trial", "active", "expired", "cancelled", "suspended"],
+    enum: ["trial", "pending_payment", "active", "expired", "cancelled", "suspended"],
   }).default("trial"),
   trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
   isActive: boolean("is_active").notNull().default(true),

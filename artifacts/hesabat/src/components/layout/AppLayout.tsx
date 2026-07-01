@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const { data: user, isLoading, isError } = useGetCurrentUser();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   React.useEffect(() => {
     if (isError) {
@@ -18,11 +18,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (user) {
       const isExpired = user.subscriptionStatus === "expired";
       const isTrialWithoutPlan = user.subscriptionStatus === "trial" && !user.planId;
+      const isSuspended = user.subscriptionStatus === "suspended";
       if (isExpired || isTrialWithoutPlan) {
         setLocation("/choose-plan");
+        return;
+      }
+      if (isSuspended && !location.startsWith("/settings/subscription")) {
+        setLocation("/settings/subscription");
       }
     }
-  }, [isError, user, setLocation]);
+  }, [isError, user, setLocation, location]);
 
   if (isLoading) {
     return (
@@ -46,10 +51,40 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return null;
   }
 
+  const trialEndsAt = user.trialEndsAt ? new Date(user.trialEndsAt).getTime() : null;
+  const remainingTrialDays = trialEndsAt ? Math.ceil((trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000)) : null;
+  const showPreExpiryWarning = remainingTrialDays !== null && remainingTrialDays > 0 && remainingTrialDays <= 7;
+  const isImpersonating = typeof document !== "undefined" && document.cookie.includes("hesabat_impersonation=1");
+
   return (
     <div className="min-h-screen flex w-full bg-background font-sans text-foreground">
       <Sidebar />
       <main className="flex-1 ms-64 flex flex-col min-h-screen">
+        {isImpersonating && (
+          <div className="bg-amber-100 text-amber-900 px-4 py-2 text-sm flex items-center justify-between">
+            <span>أنت الآن داخل هذه الشركة كسوبر أدمن / You are viewing this company as Super Admin</span>
+            <button
+              className="underline font-medium"
+              onClick={async () => {
+                await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+                setLocation("/super-admin");
+              }}
+            >
+              الخروج من عرض الشركة / Exit Company View
+            </button>
+          </div>
+        )}
+        {showPreExpiryWarning && (
+          <div className="bg-yellow-100 text-yellow-900 px-4 py-2 text-sm">
+            {`Subscription expires in ${remainingTrialDays} day(s).`}
+          </div>
+        )}
+        {user.subscriptionStatus === "expired" && (
+          <div className="bg-red-100 text-red-900 px-4 py-2 text-sm">Subscription expired — request renewal from Subscription page.</div>
+        )}
+        {user.subscriptionStatus === "suspended" && (
+          <div className="bg-orange-100 text-orange-900 px-4 py-2 text-sm">Account is suspended. Access limited to subscription page.</div>
+        )}
         {children}
       </main>
     </div>
