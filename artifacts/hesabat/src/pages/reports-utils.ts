@@ -1,43 +1,14 @@
 import type {
   TrialBalance,
+  TrialBalanceBreakdownGroup,
   IncomeStatement,
+  IncomeStatementBreakdownGroup,
   BalanceSheet,
   Currency,
   Company,
-  PnlLine,
 } from "@workspace/api-client-react";
 
-export type TrialBalanceBreakdownGroup = {
-  dimensionId: string | null;
-  dimensionNameAr: string;
-  dimensionNameEn: string | null;
-  rows: TrialBalance["rows"];
-  totalOpeningDebit: number;
-  totalOpeningCredit: number;
-  totalPeriodDebit: number;
-  totalPeriodCredit: number;
-  totalClosingDebit: number;
-  totalClosingCredit: number;
-};
-
-export type IncomeStatementBreakdownGroup = {
-  dimensionId: string | null;
-  dimensionNameAr: string;
-  dimensionNameEn: string | null;
-  revenue: PnlLine[];
-  expenses: PnlLine[];
-  totalRevenue: number;
-  totalExpenses: number;
-  netProfit: number;
-};
-
-type TrialBalanceWithBreakdown = TrialBalance & {
-  breakdownGroups?: TrialBalanceBreakdownGroup[];
-};
-
-type IncomeStatementWithBreakdown = IncomeStatement & {
-  breakdownGroups?: IncomeStatementBreakdownGroup[];
-};
+export type { TrialBalanceBreakdownGroup, IncomeStatementBreakdownGroup };
 
 export type Fmt = (n: number) => string;
 
@@ -131,7 +102,7 @@ function metaLinesHtml(lines: string[] | undefined): string {
 }
 
 export function buildTrialBalancePdfHtml(
-  data: TrialBalanceWithBreakdown,
+  data: TrialBalance,
   fmt: Fmt,
   lang: string,
   from: string,
@@ -196,7 +167,7 @@ export function buildTrialBalancePdfHtml(
           .map(
             (group) => `<section class="breakdown-group">
       <div class="group-title">${esc(
-        breakdownGroupName(group as TrialBalanceBreakdownGroup & BreakdownGroupLabel, lang),
+        breakdownGroupName(group as BreakdownGroupLabel, lang),
       )}</div>
       <table>
         ${tableHead}
@@ -273,7 +244,7 @@ export function buildTrialBalancePdfHtml(
 }
 
 export function buildIncomeStatementPdfHtml(
-  data: IncomeStatementWithBreakdown,
+  data: IncomeStatement,
   fmt: Fmt,
   lang: string,
   from: string,
@@ -315,7 +286,7 @@ export function buildIncomeStatementPdfHtml(
             const groupProfit = group.netProfit >= 0;
             return `<section class="breakdown-group">
       <div class="group-title">${esc(
-        breakdownGroupName(group as IncomeStatementBreakdownGroup & BreakdownGroupLabel, lang),
+        breakdownGroupName(group as BreakdownGroupLabel, lang),
       )}</div>
       ${sectionTable(
         labels.revenue,
