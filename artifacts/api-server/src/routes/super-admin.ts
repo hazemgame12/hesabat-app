@@ -297,10 +297,10 @@ router.patch("/super-admin/companies/:id/subscription", async (req, res) => {
     return;
   }
 
-  if (body.data.endsAt !== undefined || body.data.subscriptionStatus || body.data.planId) {
+  if ((body.data.endsAt !== undefined || body.data.subscriptionStatus || body.data.planId) && (updated.planId ?? body.data.planId)) {
     await db.insert(subscriptionsTable).values({
       companyId,
-      planId: updated.planId ?? body.data.planId ?? "",
+      planId: (updated.planId ?? body.data.planId)!,
       status: (body.data.subscriptionStatus ?? updated.subscriptionStatus ?? "trial") as any,
       startedAt: new Date(),
       endsAt: body.data.endsAt ? new Date(body.data.endsAt) : null,
@@ -374,7 +374,11 @@ router.post("/super-admin/companies/:id/renew", async (req, res) => {
   }
   const endDate = body.data.endsAt
     ? new Date(body.data.endsAt)
-    : new Date(Date.now() + (body.data.months ?? 1) * 30 * 24 * 60 * 60 * 1000);
+    : (() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + (body.data.months ?? 1));
+        return d;
+      })();
   const [company] = await db
     .update(companiesTable)
     .set({ subscriptionStatus: "active", updatedAt: new Date() })
@@ -384,9 +388,13 @@ router.post("/super-admin/companies/:id/renew", async (req, res) => {
     res.status(404).json({ error: "Company not found" });
     return;
   }
+  if (!company.planId) {
+    res.status(400).json({ error: "Company has no package assigned" });
+    return;
+  }
   await db.insert(subscriptionsTable).values({
     companyId,
-    planId: company.planId ?? "",
+    planId: company.planId,
     status: "active",
     startedAt: new Date(),
     endsAt: endDate,

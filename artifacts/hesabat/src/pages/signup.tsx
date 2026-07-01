@@ -111,7 +111,7 @@ export function Signup() {
 
   const onSubmit = (data: z.infer<typeof signupSchema>) => {
     setErrorMsg(null);
-    const localPhone = String(data.phone ?? "").replace(/^\s+|\s+$/g, "");
+    const localPhone = String(data.phone ?? "").trim();
     const fullPhone = `${phonePrefix}${localPhone}`;
     const payload = { ...data, phone: fullPhone };
     if (selectedPackageId) (payload as any).planId = selectedPackageId;
