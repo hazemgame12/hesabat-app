@@ -4,6 +4,9 @@ import {
   db,
   accountsTable,
   companiesTable,
+  costCentersTable,
+  projectsTable,
+  branchesTable,
   journalEntriesTable,
   journalEntryLinesTable,
 } from "@workspace/db";
@@ -107,6 +110,7 @@ export type ReportDimensionFilters = {
   costCenterId?: string | null;
   projectId?: string | null;
   branchId?: string | null;
+  breakdownBy?: "costCenter" | "project" | "branch" | null;
 };
 
 export function readReportDimensionFilters(
@@ -116,10 +120,18 @@ export function readReportDimensionFilters(
     const value = query[key];
     return typeof value === "string" && value ? value : null;
   };
+  const rawBreakdown = query["breakdownBy"];
+  const breakdownBy =
+    rawBreakdown === "costCenter" ||
+    rawBreakdown === "project" ||
+    rawBreakdown === "branch"
+      ? rawBreakdown
+      : null;
   return {
     costCenterId: read("costCenterId"),
     projectId: read("projectId"),
     branchId: read("branchId"),
+    breakdownBy,
   };
 }
 
@@ -252,6 +264,127 @@ async function loadAccounts(companyId: string): Promise<AccountRow[]> {
     .from(accountsTable)
     .where(eq(accountsTable.companyId, companyId))
     .orderBy(accountsTable.code);
+}
+
+// ---- Dimension lookup helpers ----------------------------------------------
+
+type DimensionOption = { id: string; nameAr: string; nameEn: string | null };
+
+async function loadDimensionOptions(
+  companyId: string,
+  breakdownBy: "costCenter" | "project" | "branch",
+): Promise<DimensionOption[]> {
+  if (breakdownBy === "costCenter") {
+    return db
+      .select({ id: costCentersTable.id, nameAr: costCentersTable.nameAr, nameEn: costCentersTable.nameEn })
+      .from(costCentersTable)
+      .where(eq(costCentersTable.companyId, companyId));
+  }
+  if (breakdownBy === "project") {
+    return db
+      .select({ id: projectsTable.id, nameAr: projectsTable.nameAr, nameEn: projectsTable.nameEn })
+      .from(projectsTable)
+      .where(eq(projectsTable.companyId, companyId));
+  }
+  return db
+    .select({ id: branchesTable.id, nameAr: branchesTable.nameAr, nameEn: branchesTable.nameEn })
+    .from(branchesTable)
+    .where(eq(branchesTable.companyId, companyId));
+}
+
+// Returns Map<dimensionId|null, Map<accountId, {debit,credit}>>
+// One query grouping by (accountId, dimensionCol) for a date range.
+async function postedTotalsGrouped(
+  companyId: string,
+  from: string | null,
+  to: string | null,
+  breakdownBy: "costCenter" | "project" | "branch",
+) {
+  const dimCol =
+    breakdownBy === "costCenter"
+      ? journalEntryLinesTable.costCenterId
+      : breakdownBy === "project"
+        ? journalEntryLinesTable.projectId
+        : journalEntryLinesTable.branchId;
+
+  const conds = [
+    eq(journalEntriesTable.companyId, companyId),
+    eq(journalEntriesTable.status, "posted"),
+  ];
+  if (from) conds.push(gte(journalEntriesTable.date, from));
+  if (to) conds.push(lte(journalEntriesTable.date, to));
+
+  const rows = await db
+    .select({
+      accountId: journalEntryLinesTable.accountId,
+      dimensionId: dimCol,
+      debit: sql<string>`sum(${journalEntryLinesTable.debitBase})`,
+      credit: sql<string>`sum(${journalEntryLinesTable.creditBase})`,
+    })
+    .from(journalEntryLinesTable)
+    .innerJoin(
+      journalEntriesTable,
+      eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
+    )
+    .where(and(...conds))
+    .groupBy(journalEntryLinesTable.accountId, dimCol);
+
+  const result = new Map<string | null, Map<string, { debit: number; credit: number }>>();
+  for (const r of rows) {
+    const key = r.dimensionId ?? null;
+    if (!result.has(key)) result.set(key, new Map());
+    result.get(key)!.set(r.accountId, {
+      debit: Number(r.debit) || 0,
+      credit: Number(r.credit) || 0,
+    });
+  }
+  return result;
+}
+
+// Same but strictly before a date (for opening balances in breakdown).
+async function postedTotalsBeforeGrouped(
+  companyId: string,
+  before: string,
+  breakdownBy: "costCenter" | "project" | "branch",
+) {
+  const dimCol =
+    breakdownBy === "costCenter"
+      ? journalEntryLinesTable.costCenterId
+      : breakdownBy === "project"
+        ? journalEntryLinesTable.projectId
+        : journalEntryLinesTable.branchId;
+
+  const conds = [
+    eq(journalEntriesTable.companyId, companyId),
+    eq(journalEntriesTable.status, "posted"),
+    lt(journalEntriesTable.date, before),
+  ];
+
+  const rows = await db
+    .select({
+      accountId: journalEntryLinesTable.accountId,
+      dimensionId: dimCol,
+      debit: sql<string>`sum(${journalEntryLinesTable.debitBase})`,
+      credit: sql<string>`sum(${journalEntryLinesTable.creditBase})`,
+    })
+    .from(journalEntryLinesTable)
+    .innerJoin(
+      journalEntriesTable,
+      eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
+    )
+    .where(and(...conds))
+    .groupBy(journalEntryLinesTable.accountId, dimCol);
+
+  const result = new Map<string | null, Map<string, { debit: number; credit: number }>>();
+  for (const r of rows) {
+    const key = r.dimensionId ?? null;
+    if (!result.has(key)) result.set(key, new Map());
+    result.get(key)!.set(r.accountId, {
+      debit: Number(r.debit) || 0,
+      credit: Number(r.credit) || 0,
+    });
+  }
+  return result;
 }
 
 // ---- Trial balance (6 columns) ---------------------------------------------
@@ -392,6 +525,167 @@ function convertTrialBalance(
   };
 }
 
+// Builds trial balance group totals from pre-queried opening and period maps.
+function buildTrialBalanceGroupRows(
+  accounts: AccountRow[],
+  opening: Map<string, { debit: number; credit: number }>,
+  period: Map<string, { debit: number; credit: number }>,
+) {
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const accIds = new Set<string>([...opening.keys(), ...period.keys()]);
+  let totalOpeningDebit = 0;
+  let totalOpeningCredit = 0;
+  let totalPeriodDebit = 0;
+  let totalPeriodCredit = 0;
+  let totalClosingDebit = 0;
+  let totalClosingCredit = 0;
+  const rows: TrialBalanceRow[] = [];
+  for (const accId of accIds) {
+    const acc = byId.get(accId);
+    if (!acc) continue;
+    const op = opening.get(accId) ?? { debit: 0, credit: 0 };
+    const pe = period.get(accId) ?? { debit: 0, credit: 0 };
+    const openingNet = round2(op.debit - op.credit);
+    const openingDebit = openingNet > 0 ? openingNet : 0;
+    const openingCredit = openingNet < 0 ? -openingNet : 0;
+    const periodDebit = round2(pe.debit);
+    const periodCredit = round2(pe.credit);
+    const closingNet = round2(openingNet + (pe.debit - pe.credit));
+    const closingDebit = closingNet > 0 ? closingNet : 0;
+    const closingCredit = closingNet < 0 ? -closingNet : 0;
+    if (
+      openingDebit === 0 &&
+      openingCredit === 0 &&
+      periodDebit === 0 &&
+      periodCredit === 0 &&
+      closingDebit === 0 &&
+      closingCredit === 0
+    )
+      continue;
+    totalOpeningDebit = round2(totalOpeningDebit + openingDebit);
+    totalOpeningCredit = round2(totalOpeningCredit + openingCredit);
+    totalPeriodDebit = round2(totalPeriodDebit + periodDebit);
+    totalPeriodCredit = round2(totalPeriodCredit + periodCredit);
+    totalClosingDebit = round2(totalClosingDebit + closingDebit);
+    totalClosingCredit = round2(totalClosingCredit + closingCredit);
+    rows.push({
+      accountId: acc.id,
+      code: acc.code,
+      nameAr: acc.nameAr,
+      nameEn: acc.nameEn,
+      type: acc.type,
+      openingDebit,
+      openingCredit,
+      periodDebit,
+      periodCredit,
+      closingDebit,
+      closingCredit,
+    });
+  }
+  rows.sort((a, b) => a.code.localeCompare(b.code));
+  return {
+    rows,
+    totalOpeningDebit,
+    totalOpeningCredit,
+    totalPeriodDebit,
+    totalPeriodCredit,
+    totalClosingDebit,
+    totalClosingCredit,
+  };
+}
+
+type TrialBalanceBreakdownGroup = {
+  dimensionId: string | null;
+  dimensionName: string;
+  rows: TrialBalanceRow[];
+  totalOpeningDebit: number;
+  totalOpeningCredit: number;
+  totalPeriodDebit: number;
+  totalPeriodCredit: number;
+  totalClosingDebit: number;
+  totalClosingCredit: number;
+};
+
+async function computeTrialBalanceBreakdown(
+  companyId: string,
+  from: string | null,
+  to: string | null,
+  breakdownBy: "costCenter" | "project" | "branch",
+): Promise<TrialBalanceBreakdownGroup[]> {
+  const [accounts, dimensionOptions, openingGrouped, periodGrouped] =
+    await Promise.all([
+      loadAccounts(companyId),
+      loadDimensionOptions(companyId, breakdownBy),
+      from
+        ? postedTotalsBeforeGrouped(companyId, from, breakdownBy)
+        : Promise.resolve(
+            new Map<string | null, Map<string, { debit: number; credit: number }>>(),
+          ),
+      postedTotalsGrouped(companyId, from, to, breakdownBy),
+    ]);
+
+  const dimById = new Map(dimensionOptions.map((d) => [d.id, d]));
+
+  // Collect all dimension keys that have data (including null = unassigned).
+  const allKeys = new Set<string | null>([
+    ...openingGrouped.keys(),
+    ...periodGrouped.keys(),
+  ]);
+
+  const groups: TrialBalanceBreakdownGroup[] = [];
+  for (const key of allKeys) {
+    const opening = openingGrouped.get(key) ?? new Map();
+    const period = periodGrouped.get(key) ?? new Map();
+    const groupData = buildTrialBalanceGroupRows(accounts, opening, period);
+    if (
+      groupData.rows.length === 0 &&
+      groupData.totalOpeningDebit === 0 &&
+      groupData.totalPeriodDebit === 0
+    )
+      continue;
+    const dim = key ? dimById.get(key) : null;
+    groups.push({
+      dimensionId: key,
+      dimensionName: dim ? dim.nameAr : "غير محدد",
+      ...groupData,
+    });
+  }
+
+  // Sort: named groups first (by nameAr), then unassigned last.
+  groups.sort((a, b) => {
+    if (a.dimensionId === null) return 1;
+    if (b.dimensionId === null) return -1;
+    return a.dimensionName.localeCompare(b.dimensionName);
+  });
+
+  return groups;
+}
+
+function convertTrialBalanceBreakdownGroup(
+  group: TrialBalanceBreakdownGroup,
+  rate: number,
+): TrialBalanceBreakdownGroup {
+  const c = (n: number) => round2(n / rate);
+  return {
+    ...group,
+    rows: group.rows.map((row) => ({
+      ...row,
+      openingDebit: c(row.openingDebit),
+      openingCredit: c(row.openingCredit),
+      periodDebit: c(row.periodDebit),
+      periodCredit: c(row.periodCredit),
+      closingDebit: c(row.closingDebit),
+      closingCredit: c(row.closingCredit),
+    })),
+    totalOpeningDebit: c(group.totalOpeningDebit),
+    totalOpeningCredit: c(group.totalOpeningCredit),
+    totalPeriodDebit: c(group.totalPeriodDebit),
+    totalPeriodCredit: c(group.totalPeriodCredit),
+    totalClosingDebit: c(group.totalClosingDebit),
+    totalClosingCredit: c(group.totalClosingCredit),
+  };
+}
+
 router.get(
   "/reports/trial-balance",
   requireAuth,
@@ -417,7 +711,24 @@ router.get(
       }
       let report = await computeTrialBalance(companyId, from, to, dimensions);
       if (ccy.info.rate !== 1) report = convertTrialBalance(report, ccy.info.rate);
-      res.json({ ...report, currencyInfo: ccy.info });
+
+      let breakdownGroups: TrialBalanceBreakdownGroup[] | undefined;
+      if (dimensions.breakdownBy) {
+        let groups = await computeTrialBalanceBreakdown(
+          companyId,
+          from,
+          to,
+          dimensions.breakdownBy,
+        );
+        if (ccy.info.rate !== 1) {
+          groups = groups.map((g) =>
+            convertTrialBalanceBreakdownGroup(g, ccy.info.rate),
+          );
+        }
+        breakdownGroups = groups;
+      }
+
+      res.json({ ...report, breakdownGroups, currencyInfo: ccy.info });
     } catch (err) {
       req.log.error({ err }, "Failed to build trial balance");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -577,6 +888,94 @@ function convertIncomeStatement(
   };
 }
 
+// Builds income-statement lines from a pre-queried totals map.
+function buildIncomeStatementGroupLines(
+  accounts: AccountRow[],
+  totals: Map<string, { debit: number; credit: number }>,
+) {
+  const revenue: PnlLine[] = [];
+  const expenses: PnlLine[] = [];
+  let totalRevenue = 0;
+  let totalExpenses = 0;
+  for (const acc of accounts) {
+    if (acc.isGroup) continue;
+    const t = totals.get(acc.id);
+    if (!t) continue;
+    if (acc.type === "revenue") {
+      const amount = round2(t.credit - t.debit);
+      if (Math.abs(amount) < 0.005) continue;
+      totalRevenue = round2(totalRevenue + amount);
+      revenue.push({ accountId: acc.id, code: acc.code, nameAr: acc.nameAr, nameEn: acc.nameEn, amount });
+    } else if (acc.type === "expense") {
+      const amount = round2(t.debit - t.credit);
+      if (Math.abs(amount) < 0.005) continue;
+      totalExpenses = round2(totalExpenses + amount);
+      expenses.push({ accountId: acc.id, code: acc.code, nameAr: acc.nameAr, nameEn: acc.nameEn, amount });
+    }
+  }
+  return { revenue, expenses, totalRevenue, totalExpenses, netProfit: round2(totalRevenue - totalExpenses) };
+}
+
+type IncomeStatementBreakdownGroup = {
+  dimensionId: string | null;
+  dimensionName: string;
+  revenue: PnlLine[];
+  expenses: PnlLine[];
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+};
+
+async function computeIncomeStatementBreakdown(
+  companyId: string,
+  from: string | null,
+  to: string | null,
+  breakdownBy: "costCenter" | "project" | "branch",
+): Promise<IncomeStatementBreakdownGroup[]> {
+  const [accounts, dimensionOptions, periodGrouped] = await Promise.all([
+    loadAccounts(companyId),
+    loadDimensionOptions(companyId, breakdownBy),
+    postedTotalsGrouped(companyId, from, to, breakdownBy),
+  ]);
+
+  const dimById = new Map(dimensionOptions.map((d) => [d.id, d]));
+  const groups: IncomeStatementBreakdownGroup[] = [];
+
+  for (const [key, totals] of periodGrouped) {
+    const groupData = buildIncomeStatementGroupLines(accounts, totals);
+    if (groupData.revenue.length === 0 && groupData.expenses.length === 0) continue;
+    const dim = key ? dimById.get(key) : null;
+    groups.push({
+      dimensionId: key,
+      dimensionName: dim ? dim.nameAr : "غير محدد",
+      ...groupData,
+    });
+  }
+
+  groups.sort((a, b) => {
+    if (a.dimensionId === null) return 1;
+    if (b.dimensionId === null) return -1;
+    return a.dimensionName.localeCompare(b.dimensionName);
+  });
+
+  return groups;
+}
+
+function convertIncomeStatementBreakdownGroup(
+  group: IncomeStatementBreakdownGroup,
+  rate: number,
+): IncomeStatementBreakdownGroup {
+  const c = (n: number) => round2(n / rate);
+  return {
+    ...group,
+    revenue: group.revenue.map((l) => ({ ...l, amount: c(l.amount) })),
+    expenses: group.expenses.map((l) => ({ ...l, amount: c(l.amount) })),
+    totalRevenue: c(group.totalRevenue),
+    totalExpenses: c(group.totalExpenses),
+    netProfit: c(group.netProfit),
+  };
+}
+
 router.get(
   "/reports/income-statement",
   requireAuth,
@@ -597,7 +996,24 @@ router.get(
       let report = await computeIncomeStatement(companyId, from, to, dimensions);
       if (ccy.info.rate !== 1)
         report = convertIncomeStatement(report, ccy.info.rate);
-      res.json({ ...report, currencyInfo: ccy.info });
+
+      let breakdownGroups: IncomeStatementBreakdownGroup[] | undefined;
+      if (dimensions.breakdownBy) {
+        let groups = await computeIncomeStatementBreakdown(
+          companyId,
+          from,
+          to,
+          dimensions.breakdownBy,
+        );
+        if (ccy.info.rate !== 1) {
+          groups = groups.map((g) =>
+            convertIncomeStatementBreakdownGroup(g, ccy.info.rate),
+          );
+        }
+        breakdownGroups = groups;
+      }
+
+      res.json({ ...report, breakdownGroups, currencyInfo: ccy.info });
     } catch (err) {
       req.log.error({ err }, "Failed to build income statement");
       res.status(500).json({ error: "حدث خطأ في الخادم" });
@@ -856,6 +1272,9 @@ type LedgerEntry = {
   debit: number;
   credit: number;
   balance: number;
+  costCenterName: string | null;
+  projectName: string | null;
+  branchName: string | null;
 };
 
 async function computeGeneralLedger(
@@ -892,11 +1311,26 @@ async function computeGeneralLedger(
       description: journalEntryLinesTable.description,
       debit: journalEntryLinesTable.debitBase,
       credit: journalEntryLinesTable.creditBase,
+      costCenterName: costCentersTable.nameAr,
+      projectName: projectsTable.nameAr,
+      branchName: branchesTable.nameAr,
     })
     .from(journalEntryLinesTable)
     .innerJoin(
       journalEntriesTable,
       eq(journalEntriesTable.id, journalEntryLinesTable.entryId),
+    )
+    .leftJoin(
+      costCentersTable,
+      eq(costCentersTable.id, journalEntryLinesTable.costCenterId),
+    )
+    .leftJoin(
+      projectsTable,
+      eq(projectsTable.id, journalEntryLinesTable.projectId),
+    )
+    .leftJoin(
+      branchesTable,
+      eq(branchesTable.id, journalEntryLinesTable.branchId),
     )
     .where(
       and(
@@ -943,6 +1377,9 @@ async function computeGeneralLedger(
       debit,
       credit,
       balance: running,
+      costCenterName: l.costCenterName ?? null,
+      projectName: l.projectName ?? null,
+      branchName: l.branchName ?? null,
     });
   }
   const closing =

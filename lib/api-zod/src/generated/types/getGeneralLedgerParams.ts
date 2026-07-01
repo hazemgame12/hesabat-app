@@ -5,10 +5,15 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GetGeneralLedgerBreakdownBy } from './getGeneralLedgerBreakdownBy';
 
 export type GetGeneralLedgerParams = {
 accountId: string;
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
+breakdownBy?: GetGeneralLedgerBreakdownBy;
 };

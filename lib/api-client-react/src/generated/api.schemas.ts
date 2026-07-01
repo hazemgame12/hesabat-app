@@ -2490,6 +2490,19 @@ export interface TrialBalanceRow {
   closingCredit: number;
 }
 
+export interface TrialBalanceBreakdownGroup {
+  /** @nullable */
+  dimensionId?: string | null;
+  dimensionName: string;
+  rows: TrialBalanceRow[];
+  totalOpeningDebit: number;
+  totalOpeningCredit: number;
+  totalPeriodDebit: number;
+  totalPeriodCredit: number;
+  totalClosingDebit: number;
+  totalClosingCredit: number;
+}
+
 export interface CurrencyInfo {
   baseCurrency: string;
   reportCurrency: string;
@@ -2509,6 +2522,7 @@ export interface TrialBalance {
   totalClosingDebit: number;
   totalClosingCredit: number;
   balanced: boolean;
+  breakdownGroups?: TrialBalanceBreakdownGroup[];
   currencyInfo?: CurrencyInfo;
 }
 
@@ -2644,6 +2658,17 @@ export interface PnlLine {
   amount: number;
 }
 
+export interface IncomeStatementBreakdownGroup {
+  /** @nullable */
+  dimensionId?: string | null;
+  dimensionName: string;
+  revenue: PnlLine[];
+  expenses: PnlLine[];
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+}
+
 export interface IncomeStatement {
   /** @nullable */
   from?: string | null;
@@ -2654,6 +2679,7 @@ export interface IncomeStatement {
   totalRevenue: number;
   totalExpenses: number;
   netProfit: number;
+  breakdownGroups?: IncomeStatementBreakdownGroup[];
   currencyInfo?: CurrencyInfo;
 }
 
@@ -2682,6 +2708,12 @@ export interface GeneralLedgerEntry {
   debit: number;
   credit: number;
   balance: number;
+  /** @nullable */
+  costCenterName?: string | null;
+  /** @nullable */
+  projectName?: string | null;
+  /** @nullable */
+  branchName?: string | null;
 }
 
 export interface GeneralLedger {
@@ -3392,7 +3424,17 @@ reportCurrency?: string;
 costCenterId?: string | null;
 projectId?: string | null;
 branchId?: string | null;
+breakdownBy?: GetTrialBalanceBreakdownBy;
 };
+
+export type GetTrialBalanceBreakdownBy = typeof GetTrialBalanceBreakdownBy[keyof typeof GetTrialBalanceBreakdownBy] | null;
+
+
+export const GetTrialBalanceBreakdownBy = {
+  costCenter: 'costCenter',
+  project: 'project',
+  branch: 'branch',
+} as const;
 
 export type GetIncomeStatementParams = {
 from?: string;
@@ -3401,14 +3443,21 @@ reportCurrency?: string;
 costCenterId?: string | null;
 projectId?: string | null;
 branchId?: string | null;
+breakdownBy?: GetIncomeStatementBreakdownBy;
 };
+
+export type GetIncomeStatementBreakdownBy = typeof GetIncomeStatementBreakdownBy[keyof typeof GetIncomeStatementBreakdownBy] | null;
+
+
+export const GetIncomeStatementBreakdownBy = {
+  costCenter: 'costCenter',
+  project: 'project',
+  branch: 'branch',
+} as const;
 
 export type GetBalanceSheetParams = {
 asOf?: string;
 reportCurrency?: string;
-costCenterId?: string | null;
-projectId?: string | null;
-branchId?: string | null;
 };
 
 export type GetGeneralLedgerParams = {
@@ -3419,7 +3468,17 @@ reportCurrency?: string;
 costCenterId?: string | null;
 projectId?: string | null;
 branchId?: string | null;
+breakdownBy?: GetGeneralLedgerBreakdownBy;
 };
+
+export type GetGeneralLedgerBreakdownBy = typeof GetGeneralLedgerBreakdownBy[keyof typeof GetGeneralLedgerBreakdownBy] | null;
+
+
+export const GetGeneralLedgerBreakdownBy = {
+  costCenter: 'costCenter',
+  project: 'project',
+  branch: 'branch',
+} as const;
 
 export type GetCashFlowParams = {
 from?: string;

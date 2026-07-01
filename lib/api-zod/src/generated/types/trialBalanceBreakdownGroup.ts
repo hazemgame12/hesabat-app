@@ -5,15 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CurrencyInfo } from './currencyInfo';
-import type { TrialBalanceBreakdownGroup } from './trialBalanceBreakdownGroup';
 import type { TrialBalanceRow } from './trialBalanceRow';
 
-export interface TrialBalance {
+export interface TrialBalanceBreakdownGroup {
   /** @nullable */
-  from?: string | null;
-  /** @nullable */
-  to?: string | null;
+  dimensionId?: string | null;
+  dimensionName: string;
   rows: TrialBalanceRow[];
   totalOpeningDebit: number;
   totalOpeningCredit: number;
@@ -21,7 +18,4 @@ export interface TrialBalance {
   totalPeriodCredit: number;
   totalClosingDebit: number;
   totalClosingCredit: number;
-  balanced: boolean;
-  breakdownGroups?: TrialBalanceBreakdownGroup[];
-  currencyInfo?: CurrencyInfo;
 }

@@ -5,9 +5,14 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { GetTrialBalanceBreakdownBy } from './getTrialBalanceBreakdownBy';
 
 export type GetTrialBalanceParams = {
 from?: string;
 to?: string;
 reportCurrency?: string;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
+breakdownBy?: GetTrialBalanceBreakdownBy;
 };

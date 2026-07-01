@@ -16,4 +16,10 @@ export interface GeneralLedgerEntry {
   debit: number;
   credit: number;
   balance: number;
+  /** @nullable */
+  costCenterName?: string | null;
+  /** @nullable */
+  projectName?: string | null;
+  /** @nullable */
+  branchName?: string | null;
 }

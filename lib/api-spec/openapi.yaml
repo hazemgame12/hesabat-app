@@ -3634,6 +3634,31 @@ paths:
           required: false
           schema:
             type: string
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: projectId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: branchId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: breakdownBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [costCenter, project, branch]
+            nullable: true
       responses:
         "200":
           description: Trial balance
@@ -3663,6 +3688,31 @@ paths:
           required: false
           schema:
             type: string
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: projectId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: branchId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: breakdownBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [costCenter, project, branch]
+            nullable: true
       responses:
         "200":
           description: Income statement
@@ -3721,6 +3771,31 @@ paths:
           required: false
           schema:
             type: string
+        - name: costCenterId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: projectId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: branchId
+          in: query
+          required: false
+          schema:
+            type: string
+            nullable: true
+        - name: breakdownBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [costCenter, project, branch]
+            nullable: true
       responses:
         "200":
           description: General ledger
@@ -7365,8 +7440,47 @@ components:
           type: number
         balanced:
           type: boolean
+        breakdownGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrialBalanceBreakdownGroup"
         currencyInfo:
           $ref: "#/components/schemas/CurrencyInfo"
+
+    TrialBalanceBreakdownGroup:
+      type: object
+      required:
+        [
+          dimensionName,
+          rows,
+          totalOpeningDebit,
+          totalOpeningCredit,
+          totalPeriodDebit,
+          totalPeriodCredit,
+          totalClosingDebit,
+          totalClosingCredit,
+        ]
+      properties:
+        dimensionId:
+          type: ["string", "null"]
+        dimensionName:
+          type: string
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrialBalanceRow"
+        totalOpeningDebit:
+          type: number
+        totalOpeningCredit:
+          type: number
+        totalPeriodDebit:
+          type: number
+        totalPeriodCredit:
+          type: number
+        totalClosingDebit:
+          type: number
+        totalClosingCredit:
+          type: number
 
     CurrencyInfo:
       type: object
@@ -7652,8 +7766,35 @@ components:
           type: number
         netProfit:
           type: number
+        breakdownGroups:
+          type: array
+          items:
+            $ref: "#/components/schemas/IncomeStatementBreakdownGroup"
         currencyInfo:
           $ref: "#/components/schemas/CurrencyInfo"
+
+    IncomeStatementBreakdownGroup:
+      type: object
+      required: [dimensionName, revenue, expenses, totalRevenue, totalExpenses, netProfit]
+      properties:
+        dimensionId:
+          type: ["string", "null"]
+        dimensionName:
+          type: string
+        revenue:
+          type: array
+          items:
+            $ref: "#/components/schemas/PnlLine"
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/PnlLine"
+        totalRevenue:
+          type: number
+        totalExpenses:
+          type: number
+        netProfit:
+          type: number
 
     BalanceSheet:
       type: object
@@ -7709,6 +7850,12 @@ components:
           type: number
         balance:
           type: number
+        costCenterName:
+          type: ["string", "null"]
+        projectName:
+          type: ["string", "null"]
+        branchName:
+          type: ["string", "null"]
 
     GeneralLedger:
       type: object

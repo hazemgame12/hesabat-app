@@ -2625,6 +2625,15 @@
     "allBranches": "All Branches",
     "applyFilter": "Apply"
   },
+  "breakdown": {
+    "label": "Breakdown By",
+    "standard": "Standard View",
+    "byCostCenter": "Breakdown by Cost Center",
+    "byProject": "Breakdown by Project",
+    "byBranch": "Breakdown by Branch",
+    "unassigned": "Unassigned",
+    "groupTotal": "Subtotal"
+  },
   "superAdmin": {
     "title": "Super Admin",
     "subtitle": "Login to the admin dashboard",

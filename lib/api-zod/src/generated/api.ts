@@ -33,8 +33,7 @@ export const SignupBody = zod.object({
   "password": zod.string().min(signupBodyPasswordMin),
   "country": zod.enum(['EG', 'SA', 'AE', 'KW', 'QA', 'BH', 'OM']).optional(),
   "baseCurrency": zod.enum(['EGP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'USD']).optional(),
-  "planId": zod.string().nullish(),
-  "phone": zod.string().nullish()
+  "planId": zod.string().nullish()
 })
 
 
@@ -3479,7 +3478,11 @@ export const DeleteFiscalYearResponse = zod.object({
 export const GetTrialBalanceQueryParams = zod.object({
   "from": zod.coerce.string().optional(),
   "to": zod.coerce.string().optional(),
-  "reportCurrency": zod.coerce.string().optional()
+  "reportCurrency": zod.coerce.string().optional(),
+  "costCenterId": zod.coerce.string().nullish(),
+  "projectId": zod.coerce.string().nullish(),
+  "branchId": zod.coerce.string().nullish(),
+  "breakdownBy": zod.enum(['costCenter', 'project', 'branch']).nullish()
 })
 
 export const GetTrialBalanceResponse = zod.object({
@@ -3505,6 +3508,29 @@ export const GetTrialBalanceResponse = zod.object({
   "totalClosingDebit": zod.number(),
   "totalClosingCredit": zod.number(),
   "balanced": zod.boolean(),
+  "breakdownGroups": zod.array(zod.object({
+  "dimensionId": zod.string().nullish(),
+  "dimensionName": zod.string(),
+  "rows": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "type": zod.string(),
+  "openingDebit": zod.number(),
+  "openingCredit": zod.number(),
+  "periodDebit": zod.number(),
+  "periodCredit": zod.number(),
+  "closingDebit": zod.number(),
+  "closingCredit": zod.number()
+})),
+  "totalOpeningDebit": zod.number(),
+  "totalOpeningCredit": zod.number(),
+  "totalPeriodDebit": zod.number(),
+  "totalPeriodCredit": zod.number(),
+  "totalClosingDebit": zod.number(),
+  "totalClosingCredit": zod.number()
+})).optional(),
   "currencyInfo": zod.object({
   "baseCurrency": zod.string(),
   "reportCurrency": zod.string(),
@@ -3519,7 +3545,11 @@ export const GetTrialBalanceResponse = zod.object({
 export const GetIncomeStatementQueryParams = zod.object({
   "from": zod.coerce.string().optional(),
   "to": zod.coerce.string().optional(),
-  "reportCurrency": zod.coerce.string().optional()
+  "reportCurrency": zod.coerce.string().optional(),
+  "costCenterId": zod.coerce.string().nullish(),
+  "projectId": zod.coerce.string().nullish(),
+  "branchId": zod.coerce.string().nullish(),
+  "breakdownBy": zod.enum(['costCenter', 'project', 'branch']).nullish()
 })
 
 export const GetIncomeStatementResponse = zod.object({
@@ -3542,6 +3572,27 @@ export const GetIncomeStatementResponse = zod.object({
   "totalRevenue": zod.number(),
   "totalExpenses": zod.number(),
   "netProfit": zod.number(),
+  "breakdownGroups": zod.array(zod.object({
+  "dimensionId": zod.string().nullish(),
+  "dimensionName": zod.string(),
+  "revenue": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "expenses": zod.array(zod.object({
+  "accountId": zod.string(),
+  "code": zod.string(),
+  "nameAr": zod.string(),
+  "nameEn": zod.string().nullish(),
+  "amount": zod.number()
+})),
+  "totalRevenue": zod.number(),
+  "totalExpenses": zod.number(),
+  "netProfit": zod.number()
+})).optional(),
   "currencyInfo": zod.object({
   "baseCurrency": zod.string(),
   "reportCurrency": zod.string(),
@@ -3602,7 +3653,11 @@ export const GetGeneralLedgerQueryParams = zod.object({
   "accountId": zod.coerce.string(),
   "from": zod.coerce.string().optional(),
   "to": zod.coerce.string().optional(),
-  "reportCurrency": zod.coerce.string().optional()
+  "reportCurrency": zod.coerce.string().optional(),
+  "costCenterId": zod.coerce.string().nullish(),
+  "projectId": zod.coerce.string().nullish(),
+  "branchId": zod.coerce.string().nullish(),
+  "breakdownBy": zod.enum(['costCenter', 'project', 'branch']).nullish()
 })
 
 export const GetGeneralLedgerResponse = zod.object({
@@ -3622,7 +3677,10 @@ export const GetGeneralLedgerResponse = zod.object({
   "description": zod.string(),
   "debit": zod.number(),
   "credit": zod.number(),
-  "balance": zod.number()
+  "balance": zod.number(),
+  "costCenterName": zod.string().nullish(),
+  "projectName": zod.string().nullish(),
+  "branchName": zod.string().nullish()
 })),
   "currencyInfo": zod.object({
   "baseCurrency": zod.string(),

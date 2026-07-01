@@ -11,6 +11,7 @@ describe("financial report dimension helpers", () => {
       costCenterId?: string | null;
       projectId?: string | null;
       branchId?: string | null;
+      breakdownBy?: "costCenter" | "project" | "branch" | null;
     }>();
   });
 
@@ -25,7 +26,26 @@ describe("financial report dimension helpers", () => {
       costCenterId: "cc-1",
       projectId: null,
       branchId: "br-1",
+      breakdownBy: null,
     });
+  });
+
+  it("reads breakdownBy from query params", () => {
+    expect(
+      readReportDimensionFilters({ breakdownBy: "costCenter" }),
+    ).toMatchObject({ breakdownBy: "costCenter" });
+    expect(
+      readReportDimensionFilters({ breakdownBy: "project" }),
+    ).toMatchObject({ breakdownBy: "project" });
+    expect(
+      readReportDimensionFilters({ breakdownBy: "branch" }),
+    ).toMatchObject({ breakdownBy: "branch" });
+    expect(
+      readReportDimensionFilters({ breakdownBy: "invalid" }),
+    ).toMatchObject({ breakdownBy: null });
+    expect(
+      readReportDimensionFilters({}),
+    ).toMatchObject({ breakdownBy: null });
   });
 
   it("validates date ranges without needing database access", () => {

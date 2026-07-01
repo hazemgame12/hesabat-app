@@ -2625,6 +2625,15 @@
     "allBranches": "جميع الفروع",
     "applyFilter": "تطبيق"
   },
+  "breakdown": {
+    "label": "تجميع حسب",
+    "standard": "العرض القياسي",
+    "byCostCenter": "تجميع حسب مركز التكلفة",
+    "byProject": "تجميع حسب المشروع",
+    "byBranch": "تجميع حسب الفرع",
+    "unassigned": "غير محدد",
+    "groupTotal": "مجموع المجموعة"
+  },
   "superAdmin": {
     "title": "لوحة التحكم",
     "subtitle": "دخول لوحة تحكم النظام",

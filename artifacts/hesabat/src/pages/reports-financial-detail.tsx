@@ -33,8 +33,13 @@ import {
   type CurrencyInfo,
   type CashFlowLine,
   type TrialBalanceRow,
+  type TrialBalanceBreakdownGroup,
   type GeneralLedgerEntry,
   type PnlLine,
+  type IncomeStatementBreakdownGroup,
+  GetTrialBalanceBreakdownBy,
+  GetIncomeStatementBreakdownBy,
+  GetGeneralLedgerBreakdownBy,
 } from "@workspace/api-client-react";
 import {
   type CurrencyControls,
@@ -273,6 +278,63 @@ function CurrencyRateNote({
   );
 }
 
+// ─── Breakdown By selector ────────────────────────────────────────────────────
+
+type BreakdownByValue = "standard" | "costCenter" | "project" | "branch";
+
+function BreakdownSelect({
+  value,
+  onChange,
+}: {
+  value: BreakdownByValue;
+  onChange: (v: BreakdownByValue) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <ReportFilterField label={t("breakdown.label")}>
+      <Select value={value} onValueChange={(v) => onChange(v as BreakdownByValue)}>
+        <SelectTrigger className="h-11 min-w-52 rounded-xl">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="standard">{t("breakdown.standard")}</SelectItem>
+          <SelectItem value="costCenter">{t("breakdown.byCostCenter")}</SelectItem>
+          <SelectItem value="project">{t("breakdown.byProject")}</SelectItem>
+          <SelectItem value="branch">{t("breakdown.byBranch")}</SelectItem>
+        </SelectContent>
+      </Select>
+    </ReportFilterField>
+  );
+}
+
+// Helper: convert UI BreakdownByValue to API param type
+function toTrialBalanceBreakdown(
+  v: BreakdownByValue,
+): typeof GetTrialBalanceBreakdownBy[keyof typeof GetTrialBalanceBreakdownBy] | undefined {
+  if (v === "costCenter") return GetTrialBalanceBreakdownBy.costCenter;
+  if (v === "project") return GetTrialBalanceBreakdownBy.project;
+  if (v === "branch") return GetTrialBalanceBreakdownBy.branch;
+  return undefined;
+}
+
+function toIncomeStatementBreakdown(
+  v: BreakdownByValue,
+): typeof GetIncomeStatementBreakdownBy[keyof typeof GetIncomeStatementBreakdownBy] | undefined {
+  if (v === "costCenter") return GetIncomeStatementBreakdownBy.costCenter;
+  if (v === "project") return GetIncomeStatementBreakdownBy.project;
+  if (v === "branch") return GetIncomeStatementBreakdownBy.branch;
+  return undefined;
+}
+
+function toGeneralLedgerBreakdown(
+  v: BreakdownByValue,
+): typeof GetGeneralLedgerBreakdownBy[keyof typeof GetGeneralLedgerBreakdownBy] | undefined {
+  if (v === "costCenter") return GetGeneralLedgerBreakdownBy.costCenter;
+  if (v === "project") return GetGeneralLedgerBreakdownBy.project;
+  if (v === "branch") return GetGeneralLedgerBreakdownBy.branch;
+  return undefined;
+}
+
 // ─── Trial Balance ────────────────────────────────────────────────────────────
 
 function TrialBalanceDetail({
@@ -281,6 +343,7 @@ function TrialBalanceDetail({
   fmt,
   lang,
   dimensionFilters,
+  breakdownBy,
   onDrillAccount,
 }: {
   company?: Company;
@@ -288,6 +351,7 @@ function TrialBalanceDetail({
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  breakdownBy: BreakdownByValue;
   onDrillAccount?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
@@ -299,6 +363,7 @@ function TrialBalanceDetail({
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
     ...dimensionFilters,
+    breakdownBy: toTrialBalanceBreakdown(breakdownBy),
   });
 
   const exportExcel = () => {
@@ -311,6 +376,7 @@ function TrialBalanceDetail({
       qs.set("projectId", dimensionFilters.projectId);
     if (dimensionFilters?.branchId)
       qs.set("branchId", dimensionFilters.branchId);
+    if (breakdownBy !== "standard") qs.set("breakdownBy", breakdownBy);
     window.open(
       `/api/reports/trial-balance/export?${qs.toString()}`,
       "_blank",
@@ -399,9 +465,11 @@ function TrialBalanceDetail({
       ) : !data || data.rows.length === 0 ? (
         <ReportEmpty />
       ) : (
-        <ReportTableCard>
-          <table className="w-full text-sm">
-            <thead className="bg-slate-100 dark:bg-slate-800 text-muted-foreground border-b border-border">
+        <>
+          {/* Standard table */}
+          <ReportTableCard>
+            <table className="w-full text-sm">
+              <thead className="bg-slate-100 dark:bg-slate-800 text-muted-foreground border-b border-border">
               <tr>
                 <th
                   rowSpan={2}
@@ -542,7 +610,71 @@ function TrialBalanceDetail({
                 : t("reportsPage.trialBalance.unbalanced")}
             </span>
           </div>
-        </ReportTableCard>
+          </ReportTableCard>
+
+          {/* Breakdown groups */}
+          {data.breakdownGroups && data.breakdownGroups.length > 0 && (
+            <div className="flex flex-col gap-4">
+              {data.breakdownGroups.map((grp: TrialBalanceBreakdownGroup) => (
+                <ReportTableCard key={grp.dimensionId ?? "__unassigned__"}>
+                  <div className="border-b border-border bg-muted/30 px-5 py-2.5">
+                    <span className="text-sm font-bold text-foreground">
+                      {grp.dimensionId === null
+                        ? t("breakdown.unassigned")
+                        : grp.dimensionName}
+                    </span>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-100 dark:bg-slate-800 text-muted-foreground border-b border-border">
+                      <tr>
+                        <th rowSpan={2} className={`${TH_BASE} text-start border-e border-border`}>{t("reportsPage.table.code")}</th>
+                        <th rowSpan={2} className={`${TH_BASE} text-start border-e border-border`}>{t("reportsPage.table.account")}</th>
+                        <th colSpan={2} className={`${TH_BASE} text-center border-e border-border border-b border-border`}>{t("reportsPage.trialBalance.opening")}</th>
+                        <th colSpan={2} className={`${TH_BASE} text-center border-e border-border border-b border-border`}>{t("reportsPage.trialBalance.period")}</th>
+                        <th colSpan={2} className={`${TH_BASE} text-center border-b border-border`}>{t("reportsPage.trialBalance.closing")}</th>
+                      </tr>
+                      <tr>
+                        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.debit")}</th>
+                        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.credit")}</th>
+                        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.debit")}</th>
+                        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.credit")}</th>
+                        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.debit")}</th>
+                        <th className={TH_NUM}>{t("reportsPage.table.credit")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grp.rows.map((r: TrialBalanceRow, idx: number) => (
+                        <tr key={r.accountId} className={`border-t border-border transition-colors hover:bg-primary/5 ${idx % 2 === 1 ? "bg-muted/20" : ""}`}>
+                          <td className={`${TD_CODE} border-e border-border`}>{r.code}</td>
+                          <td className={`${TD_NAME} border-e border-border font-medium`}>
+                            <DrillableAccountName accountId={r.accountId} label={displayName(r, lang)} onDrillAccount={onDrillAccount} from={from} to={to} />
+                          </td>
+                          <td className={`${TD_NUM} border-e border-border text-slate-700 dark:text-slate-300`}>{r.openingDebit ? fmt(r.openingDebit) : "—"}</td>
+                          <td className={`${TD_NUM} border-e border-border text-slate-700 dark:text-slate-300`}>{r.openingCredit ? fmt(r.openingCredit) : "—"}</td>
+                          <td className={`${TD_NUM} border-e border-border`}>{r.periodDebit ? fmt(r.periodDebit) : "—"}</td>
+                          <td className={`${TD_NUM} border-e border-border`}>{r.periodCredit ? fmt(r.periodCredit) : "—"}</td>
+                          <td className={`${TD_NUM} border-e border-border font-semibold`}>{r.closingDebit ? fmt(r.closingDebit) : "—"}</td>
+                          <td className={`${TD_NUM} font-semibold`}>{r.closingCredit ? fmt(r.closingCredit) : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-primary/20 bg-primary/5 font-bold">
+                        <td className="px-4 py-3.5 border-e border-border" colSpan={2}>{t("breakdown.groupTotal")}</td>
+                        <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalOpeningDebit)}</td>
+                        <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalOpeningCredit)}</td>
+                        <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalPeriodDebit)}</td>
+                        <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalPeriodCredit)}</td>
+                        <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalClosingDebit)}</td>
+                        <td className={TD_NUM}>{fmt(grp.totalClosingCredit)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </ReportTableCard>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
   );
@@ -557,6 +689,7 @@ function GeneralLedgerDetail({
   lang,
   leafAccounts,
   dimensionFilters,
+  breakdownBy,
   isAccountStatement = false,
 }: {
   company?: Company;
@@ -565,6 +698,7 @@ function GeneralLedgerDetail({
   lang: string;
   leafAccounts: Account[];
   dimensionFilters: DimensionFilterQuery;
+  breakdownBy: BreakdownByValue;
   isAccountStatement?: boolean;
 }) {
   const { t } = useTranslation();
@@ -597,6 +731,7 @@ function GeneralLedgerDetail({
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
     ...dimensionFilters,
+    breakdownBy: toGeneralLedgerBreakdown(breakdownBy),
   };
 
   const { data, isLoading } = useGetGeneralLedger(glParams, {
@@ -620,6 +755,7 @@ function GeneralLedgerDetail({
       qs.set("projectId", dimensionFilters.projectId);
     if (dimensionFilters?.branchId)
       qs.set("branchId", dimensionFilters.branchId);
+    if (breakdownBy !== "standard") qs.set("breakdownBy", breakdownBy);
     window.open(
       `/api/reports/general-ledger/export?${qs.toString()}`,
       "_blank",
@@ -639,6 +775,18 @@ function GeneralLedgerDetail({
           : ""
       }${t("reportsPage.filters.from")}: ${from || "—"}  ·  ${t("reportsPage.filters.to")}: ${to || "—"}`
     : "—";
+
+  // Determine which dimension column to show
+  const showCostCenter = breakdownBy === "costCenter";
+  const showProject = breakdownBy === "project";
+  const showBranch = breakdownBy === "branch";
+  const showDimCol = showCostCenter || showProject || showBranch;
+  const dimColLabel = showCostCenter
+    ? t("dimensionFilters.costCenter")
+    : showProject
+      ? t("dimensionFilters.project")
+      : t("dimensionFilters.branch");
+  const dimColSpan = showDimCol ? 7 : 6;
 
   return (
     <>
@@ -730,6 +878,9 @@ function GeneralLedgerDetail({
                 <th className={`${TH_BASE} text-start`}>
                   {t("reportsPage.table.description")}
                 </th>
+                {showDimCol && (
+                  <th className={`${TH_BASE} text-start`}>{dimColLabel}</th>
+                )}
                 <th className={TH_NUM}>{t("reportsPage.table.debit")}</th>
                 <th className={TH_NUM}>{t("reportsPage.table.credit")}</th>
                 <th className={TH_NUM}>{t("reportsPage.table.balance")}</th>
@@ -740,42 +891,54 @@ function GeneralLedgerDetail({
                 <tr>
                   <td
                     className="px-4 py-8 text-center text-muted-foreground"
-                    colSpan={6}
+                    colSpan={dimColSpan}
                   >
                     {t("reportsPage.noData")}
                   </td>
                 </tr>
               ) : (
-                data.entries.map((e: GeneralLedgerEntry, i: number) => (
-                  <tr
-                    key={i}
-                    className={`border-t border-border transition-colors hover:bg-primary/5 ${i % 2 === 1 ? "bg-muted/20" : ""}`}
-                  >
-                    <td className="px-4 py-2.5 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-                      {e.date}
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-primary font-semibold text-xs whitespace-nowrap">
-                      #{e.entryNo}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-[240px] truncate">
-                      {e.description}
-                    </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums font-mono text-rose-600 dark:text-rose-400">
-                      {e.debit ? fmt(e.debit) : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums font-mono text-emerald-600 dark:text-emerald-400">
-                      {e.credit ? fmt(e.credit) : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-end tabular-nums font-mono font-bold">
-                      {fmt(e.balance)}
-                    </td>
-                  </tr>
-                ))
+                data.entries.map((e: GeneralLedgerEntry, i: number) => {
+                  const dimVal = showCostCenter
+                    ? e.costCenterName
+                    : showProject
+                      ? e.projectName
+                      : e.branchName;
+                  return (
+                    <tr
+                      key={i}
+                      className={`border-t border-border transition-colors hover:bg-primary/5 ${i % 2 === 1 ? "bg-muted/20" : ""}`}
+                    >
+                      <td className="px-4 py-2.5 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
+                        {e.date}
+                      </td>
+                      <td className="px-4 py-2.5 font-mono text-primary font-semibold text-xs whitespace-nowrap">
+                        #{e.entryNo}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-[240px] truncate">
+                        {e.description}
+                      </td>
+                      {showDimCol && (
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                          {dimVal ?? <span className="italic">{t("breakdown.unassigned")}</span>}
+                        </td>
+                      )}
+                      <td className="px-4 py-2.5 text-end tabular-nums font-mono text-rose-600 dark:text-rose-400">
+                        {e.debit ? fmt(e.debit) : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-end tabular-nums font-mono text-emerald-600 dark:text-emerald-400">
+                        {e.credit ? fmt(e.credit) : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-end tabular-nums font-mono font-bold">
+                        {fmt(e.balance)}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-primary/20 bg-primary/5 font-bold">
-                <td className="px-4 py-3.5" colSpan={5}>
+                <td className="px-4 py-3.5" colSpan={dimColSpan - 1}>
                   {t("reportsPage.ledger.closingBalance")}
                 </td>
                 <td className="px-4 py-3.5 text-end tabular-nums font-mono">
@@ -801,6 +964,7 @@ function IncomeStatementDetail({
   fmt,
   lang,
   dimensionFilters,
+  breakdownBy,
   onDrillAccount,
 }: {
   company?: Company;
@@ -808,6 +972,7 @@ function IncomeStatementDetail({
   fmt: Fmt;
   lang: string;
   dimensionFilters: DimensionFilterQuery;
+  breakdownBy: BreakdownByValue;
   onDrillAccount?: DrillToGeneralLedger;
 }) {
   const { t } = useTranslation();
@@ -819,6 +984,7 @@ function IncomeStatementDetail({
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
     ...dimensionFilters,
+    breakdownBy: toIncomeStatementBreakdown(breakdownBy),
   });
 
   const exportExcel = () => {
@@ -833,6 +999,7 @@ function IncomeStatementDetail({
       qs.set("projectId", dimensionFilters.projectId);
     if (dimensionFilters?.branchId)
       qs.set("branchId", dimensionFilters.branchId);
+    if (breakdownBy !== "standard") qs.set("breakdownBy", breakdownBy);
     window.open(
       `/api/reports/income-statement/export?${qs.toString()}`,
       "_blank",
@@ -1022,6 +1189,88 @@ function IncomeStatementDetail({
             fmt={fmt}
             positive={profit}
           />
+
+          {/* Breakdown groups */}
+          {data.breakdownGroups && data.breakdownGroups.length > 0 && (
+            <>
+              {data.breakdownGroups.map((grp: IncomeStatementBreakdownGroup) => (
+                <div key={grp.dimensionId ?? "__unassigned__"} className="flex flex-col gap-2 border border-border rounded-lg overflow-hidden">
+                  <div className="bg-muted/30 border-b border-border px-5 py-2.5">
+                    <span className="text-sm font-bold text-foreground">
+                      {grp.dimensionId === null
+                        ? t("breakdown.unassigned")
+                        : grp.dimensionName}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-3 p-3">
+                    {/* Revenue */}
+                    <ReportSectionCard
+                      title={t("reportsPage.incomeStatement.revenue")}
+                      total={grp.totalRevenue}
+                      totalLabel={t("reportsPage.incomeStatement.totalRevenue")}
+                      fmt={fmt}
+                      accentClass="bg-emerald-50 dark:bg-emerald-900/20"
+                    >
+                      <thead className="bg-muted/30 text-muted-foreground border-b border-border">
+                        <tr>
+                          <th className={`${TH_BASE} text-start`}>{t("reportsPage.table.code")}</th>
+                          <th className={`${TH_BASE} text-start`}>{t("reportsPage.table.account")}</th>
+                          <th className={TH_NUM}>{t("reportsPage.table.amount")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grp.revenueLines.map((l: PnlLine, i: number) => (
+                          <tr key={l.accountId ?? i} className={`border-t border-border/50 hover:bg-muted/20 ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
+                            <td className={TD_CODE}>{l.code}</td>
+                            <td className={TD_NAME}>
+                              <DrillableAccountName accountId={l.accountId} label={displayName(l, lang)} onDrillAccount={onDrillAccount} from={from} to={to} />
+                            </td>
+                            <td className={`${TD_NUM} font-semibold text-emerald-700 dark:text-emerald-400`}>{fmt(l.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </ReportSectionCard>
+
+                    {/* Expenses */}
+                    <ReportSectionCard
+                      title={t("reportsPage.incomeStatement.expenses")}
+                      total={grp.totalExpenses}
+                      totalLabel={t("reportsPage.incomeStatement.totalExpenses")}
+                      fmt={fmt}
+                      accentClass="bg-rose-50 dark:bg-rose-900/20"
+                    >
+                      <thead className="bg-muted/30 text-muted-foreground border-b border-border">
+                        <tr>
+                          <th className={`${TH_BASE} text-start`}>{t("reportsPage.table.code")}</th>
+                          <th className={`${TH_BASE} text-start`}>{t("reportsPage.table.account")}</th>
+                          <th className={TH_NUM}>{t("reportsPage.table.amount")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grp.expenseLines.map((l: PnlLine, i: number) => (
+                          <tr key={l.accountId ?? i} className={`border-t border-border/50 hover:bg-muted/20 ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
+                            <td className={TD_CODE}>{l.code}</td>
+                            <td className={TD_NAME}>
+                              <DrillableAccountName accountId={l.accountId} label={displayName(l, lang)} onDrillAccount={onDrillAccount} from={from} to={to} />
+                            </td>
+                            <td className={`${TD_NUM} font-semibold text-rose-700 dark:text-rose-400`}>{fmt(l.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </ReportSectionCard>
+
+                    {/* Net */}
+                    <ReportNetCard
+                      label={grp.netProfit >= 0 ? t("reportsPage.incomeStatement.netProfit") : t("reportsPage.incomeStatement.netLoss")}
+                      value={grp.netProfit}
+                      fmt={fmt}
+                      positive={grp.netProfit >= 0}
+                    />
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </>
@@ -1544,6 +1793,8 @@ export function ReportsFinancialDetail() {
     dimensionFilters: dimensionQuery,
   };
 
+  const [breakdownBy, setBreakdownBy] = useState<BreakdownByValue>("standard");
+
   const drillToGeneralLedger: DrillToGeneralLedger = (accountId, from, to) => {
     const qs = new URLSearchParams();
     qs.set("accountId", accountId);
@@ -1566,15 +1817,26 @@ export function ReportsFinancialDetail() {
         onBack={() => setLocation("/reports/center")}
       />
 
+      {/* Breakdown selector — shown for reports that support it */}
+      {(reportKey === "trial-balance" ||
+        reportKey === "income-statement" ||
+        reportKey === "general-ledger" ||
+        reportKey === "account-statement") && (
+        <ReportFilterRow>
+          <BreakdownSelect value={breakdownBy} onChange={setBreakdownBy} />
+        </ReportFilterRow>
+      )}
+
       {reportKey === "trial-balance" && (
-        <TrialBalanceDetail {...commonProps} onDrillAccount={drillToGeneralLedger} />
+        <TrialBalanceDetail {...commonProps} breakdownBy={breakdownBy} onDrillAccount={drillToGeneralLedger} />
       )}
       {reportKey === "general-ledger" && (
-        <GeneralLedgerDetail {...commonProps} leafAccounts={leafAccounts} />
+        <GeneralLedgerDetail {...commonProps} breakdownBy={breakdownBy} leafAccounts={leafAccounts} />
       )}
       {reportKey === "account-statement" && (
         <GeneralLedgerDetail
           {...commonProps}
+          breakdownBy={breakdownBy}
           leafAccounts={leafAccounts}
           isAccountStatement
         />
@@ -1582,6 +1844,7 @@ export function ReportsFinancialDetail() {
       {reportKey === "income-statement" && (
         <IncomeStatementDetail
           {...commonProps}
+          breakdownBy={breakdownBy}
           onDrillAccount={drillToGeneralLedger}
         />
       )}
