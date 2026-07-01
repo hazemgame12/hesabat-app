@@ -640,7 +640,9 @@ async function computeTrialBalanceBreakdown(
     if (
       groupData.rows.length === 0 &&
       groupData.totalOpeningDebit === 0 &&
-      groupData.totalPeriodDebit === 0
+      groupData.totalOpeningCredit === 0 &&
+      groupData.totalPeriodDebit === 0 &&
+      groupData.totalPeriodCredit === 0
     )
       continue;
     const dim = key ? dimById.get(key) : null;

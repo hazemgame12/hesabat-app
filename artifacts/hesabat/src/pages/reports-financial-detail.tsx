@@ -1219,7 +1219,7 @@ function IncomeStatementDetail({
                         </tr>
                       </thead>
                       <tbody>
-                        {grp.revenueLines.map((l: PnlLine, i: number) => (
+                        {grp.revenue.map((l: PnlLine, i: number) => (
                           <tr key={l.accountId ?? i} className={`border-t border-border/50 hover:bg-muted/20 ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
                             <td className={TD_CODE}>{l.code}</td>
                             <td className={TD_NAME}>
@@ -1247,7 +1247,7 @@ function IncomeStatementDetail({
                         </tr>
                       </thead>
                       <tbody>
-                        {grp.expenseLines.map((l: PnlLine, i: number) => (
+                        {grp.expenses.map((l: PnlLine, i: number) => (
                           <tr key={l.accountId ?? i} className={`border-t border-border/50 hover:bg-muted/20 ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
                             <td className={TD_CODE}>{l.code}</td>
                             <td className={TD_NAME}>
