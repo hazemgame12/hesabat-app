@@ -12,6 +12,7 @@ const SUBSCRIPTION_WHITELIST = [
   "/auth/exit-impersonation",
   "/plans",
   "/company/select-plan",
+  "/company/subscription",
   "/payment-requests",
 ];
 

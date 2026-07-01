@@ -5,6 +5,7 @@ import {
   usersTable,
   companiesTable,
   passwordResetTokensTable,
+  auditLogTable,
   type User,
   type Company,
 } from "@workspace/db";
@@ -196,10 +197,30 @@ router.post("/auth/exit-impersonation", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Not in an impersonation session" });
     return;
   }
+  const auth = req.auth!;
   const token = req.cookies?.[SESSION_COOKIE] as string | undefined;
   if (token) {
     await destroySession(token);
     clearSessionCookie(res);
+  }
+  // Audit: log end of impersonation session
+  try {
+    await db.insert(auditLogTable).values({
+      companyId: auth.companyId,
+      userId: auth.userId,
+      action: "SUPER_ADMIN_IMPERSONATE_END",
+      entity: "subscription",
+      entityId: auth.companyId,
+      newValue: {
+        targetUserId: auth.userId,
+        targetCompanyId: auth.companyId,
+        superAdminId: auth.impersonatedBySuperAdminId ?? null,
+        superAdminName: auth.impersonatedByName ?? null,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch {
+    // Best-effort — session is already destroyed, do not block the response
   }
   res.json({ ok: true });
 });

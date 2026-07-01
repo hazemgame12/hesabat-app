@@ -266,6 +266,19 @@ router.patch("/super-admin/companies/:id", async (req, res) => {
       subscriptionStatus: data.subscriptionStatus,
       changedBy: req.superAdmin?.email,
     });
+
+    // When suspending, also update the current active subscription record's status
+    if (data.subscriptionStatus === "suspended") {
+      await db
+        .update(subscriptionsTable)
+        .set({ status: "suspended", updatedAt: new Date() })
+        .where(
+          and(
+            eq(subscriptionsTable.companyId, id),
+            eq(subscriptionsTable.status, "active"),
+          ),
+        );
+    }
   }
 
   res.json(result[0]);
@@ -346,7 +359,15 @@ router.post("/super-admin/companies/:id/subscription", async (req, res) => {
       res.status(400).json({ error: "endsAt required for extend action" });
       return;
     }
-    companyUpdate.subscriptionStatus = "active";
+    const currentStatus = companyRows[0]!.subscriptionStatus;
+    // For trial extension: update trialEndsAt and keep trial status.
+    // For active subscription extension: update active status and extend subscription record.
+    if (currentStatus === "trial") {
+      companyUpdate.trialEndsAt = resolvedEndsAt;
+      // Keep status as trial
+    } else {
+      companyUpdate.subscriptionStatus = "active";
+    }
     auditAction = "SUBSCRIPTION_EXTENDED";
   } else if (action === "change_plan") {
     if (!planId) {
@@ -366,6 +387,19 @@ router.post("/super-admin/companies/:id/subscription", async (req, res) => {
   if (subscriptionInsert) {
     const [s] = await db.insert(subscriptionsTable).values(subscriptionInsert).returning();
     newSubscription = s;
+  }
+
+  // For trial extension: also update the trial subscription record's trialEndsAt
+  if (action === "extend" && companyRows[0]!.subscriptionStatus === "trial" && resolvedEndsAt) {
+    await db
+      .update(subscriptionsTable)
+      .set({ trialEndsAt: resolvedEndsAt, updatedAt: new Date() })
+      .where(
+        and(
+          eq(subscriptionsTable.companyId, id),
+          eq(subscriptionsTable.status, "trial"),
+        ),
+      );
   }
 
   await logSubscriptionAudit(id, auditAction, id, {

@@ -390,7 +390,8 @@
       "password": "Password",
       "backup": "Backup",
       "support": "Support",
-      "supportAdmin": "Support Inbox"
+      "supportAdmin": "Support Inbox",
+      "subscription": "Subscription"
     },
     "password": {
       "title": "Change Password",
@@ -428,6 +429,36 @@
       "exporting": "Exporting...",
       "success": "Backup exported successfully",
       "error": "Failed to export backup"
+    },
+    "subscription": {
+      "title": "Subscription & Billing",
+      "subtitle": "Your current plan and subscription status",
+      "currentPlan": "Current Plan",
+      "noPlan": "No plan selected",
+      "status": "Status",
+      "statusLabels": {
+        "trial": "Trial",
+        "active": "Active",
+        "expired": "Expired",
+        "cancelled": "Cancelled",
+        "suspended": "Suspended"
+      },
+      "trialEndsAt": "Trial ends on",
+      "subscriptionEndsAt": "Subscription ends on",
+      "renewalRequests": "Renewal Requests",
+      "noRequests": "No renewal requests yet",
+      "requestRenewal": "Request Renewal",
+      "requesting": "Submitting...",
+      "renewalSuccess": "Renewal request submitted successfully",
+      "renewalError": "Failed to submit renewal request",
+      "requestStatus": {
+        "pending": "Pending Review",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "choosePlan": "Choose a Plan",
+      "pendingReview": "Your renewal request is pending review by the admin.",
+      "contactSupport": "Contact support to renew your subscription."
     }
   },
   "dashboard": {

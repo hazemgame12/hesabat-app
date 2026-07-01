@@ -390,7 +390,8 @@
       "password": "كلمة المرور",
       "backup": "نسخ احتياطي",
       "support": "الدعم الفني",
-      "supportAdmin": "درج الدعم"
+      "supportAdmin": "درج الدعم",
+      "subscription": "الاشتراك"
     },
     "password": {
       "title": "تغيير كلمة المرور",
@@ -428,6 +429,36 @@
       "exporting": "جاري التصدير...",
       "success": "تم تصدير النسخة الاحتياطية بنجاح",
       "error": "تعذر تصدير النسخة الاحتياطية"
+    },
+    "subscription": {
+      "title": "الاشتراك والفوترة",
+      "subtitle": "خطتك الحالية وحالة الاشتراك",
+      "currentPlan": "الخطة الحالية",
+      "noPlan": "لم يتم اختيار خطة",
+      "status": "حالة الاشتراك",
+      "statusLabels": {
+        "trial": "تجريبي",
+        "active": "نشط",
+        "expired": "منتهي",
+        "cancelled": "ملغي",
+        "suspended": "موقوف"
+      },
+      "trialEndsAt": "تنتهي التجربة في",
+      "subscriptionEndsAt": "ينتهي الاشتراك في",
+      "renewalRequests": "طلبات التجديد",
+      "noRequests": "لا توجد طلبات تجديد حتى الآن",
+      "requestRenewal": "طلب تجديد الاشتراك",
+      "requesting": "جاري الإرسال...",
+      "renewalSuccess": "تم تقديم طلب التجديد بنجاح",
+      "renewalError": "تعذر تقديم طلب التجديد",
+      "requestStatus": {
+        "pending": "قيد المراجعة",
+        "approved": "موافق عليه",
+        "rejected": "مرفوض"
+      },
+      "choosePlan": "اختر خطة",
+      "pendingReview": "طلب التجديد قيد المراجعة من قبل الإدارة.",
+      "contactSupport": "تواصل مع الدعم لتجديد اشتراكك."
     }
   },
   "dashboard": {

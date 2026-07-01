@@ -26,6 +26,7 @@ export type AuthContext = {
   companyName: string;
   isImpersonating: boolean;
   impersonatedByName: string | null;
+  impersonatedBySuperAdminId: string | null;
 };
 
 export async function createSession(userId: string): Promise<string> {
@@ -113,6 +114,7 @@ export async function resolveSession(
     companyName: row.companyName,
     isImpersonating: row.isImpersonating,
     impersonatedByName,
+    impersonatedBySuperAdminId: row.impersonatedBySuperAdminId ?? null,
   };
 }
 
