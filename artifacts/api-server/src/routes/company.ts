@@ -41,11 +41,16 @@ import {
 } from "@workspace/db";
 import { isCountry, isCurrency } from "@workspace/locale";
 import { UpdateCompanyBody } from "@workspace/api-zod";
+import { z } from "zod/v4";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 import { uploadsDir } from "./uploads";
-import { subscriptionPlansTable } from "@workspace/db";
+import { subscriptionPlansTable,
+subscriptionsTable,
+manualPaymentRequestsTable,
+countryPaymentMethodsTable } from "@workspace/db";
+import { safeAudit } from "../lib/audit";
 
 const router = Router();
 
@@ -404,11 +409,11 @@ router.get("/company/export", requireAuth, async (req, res) => {
 // GET /plans — available subscription plans
 // Public browsing: only showOnLanding=true; authenticated users: all active plans
 router.get("/plans", async (req, res) => {
-  const country = req.query["country"] as string | undefined;
+  const country = (req.query["country"] as string | undefined) ?? (req.query["countryCode"] as string | undefined);
   const isAuthenticated = !!(req as any).auth?.userId;
   const conditions = [];
   if (country) {
-    conditions.push(eq(subscriptionPlansTable.country, country));
+    conditions.push(or(eq(subscriptionPlansTable.country, country), eq(subscriptionPlansTable.countryCode, country)));
   }
   conditions.push(eq(subscriptionPlansTable.isActive, true));
   if (!isAuthenticated) {
@@ -421,7 +426,15 @@ router.get("/plans", async (req, res) => {
     .from(subscriptionPlansTable)
     .where(whereClause)
     .orderBy(asc(subscriptionPlansTable.order));
-  res.json(plans);
+  res.json(
+    plans.map((plan) => ({
+      ...plan,
+      countryCode: plan.countryCode ?? plan.country,
+      currencyCode: plan.currencyCode ?? plan.currency,
+      monthlyPrice: plan.monthlyPrice ?? plan.price,
+      sortOrder: plan.order,
+    })),
+  );
 });
 
 // POST /company/select-plan — user chooses a plan
@@ -471,6 +484,125 @@ router.post("/company/select-plan", requireAuth, async (req, res) => {
     .where(eq(companiesTable.id, req.auth!.companyId));
 
   res.json({ ok: true, trialEndsAt: endsAt.toISOString() });
+});
+
+router.get("/company/subscription", requireAuth, async (req, res) => {
+  const companyId = req.auth!.companyId;
+  const [company] = await db
+    .select()
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  if (!company) {
+    res.status(404).json({ error: "الشركة غير موجودة" });
+    return;
+  }
+  const [plan] = company.planId
+    ? await db
+        .select()
+        .from(subscriptionPlansTable)
+        .where(eq(subscriptionPlansTable.id, company.planId))
+        .limit(1)
+    : [];
+  const [latestSubscription] = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.companyId, companyId))
+    .orderBy(desc(subscriptionsTable.createdAt))
+    .limit(1);
+  const [usersCount] = await db
+    .select({ count: count() })
+    .from(usersTable)
+    .where(eq(usersTable.companyId, companyId));
+  const [latestRequest] = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, companyId))
+    .orderBy(desc(manualPaymentRequestsTable.requestedAt))
+    .limit(1);
+  const paymentMethods = await db
+    .select()
+    .from(countryPaymentMethodsTable)
+    .where(
+      and(
+        eq(countryPaymentMethodsTable.countryCode, company.country),
+        eq(countryPaymentMethodsTable.enabled, true),
+        eq(countryPaymentMethodsTable.isPublic, true),
+      ),
+    )
+    .orderBy(asc(countryPaymentMethodsTable.methodName));
+
+  const now = Date.now();
+  const endsAt = latestSubscription?.endsAt ?? company.trialEndsAt;
+  const remainingDays = endsAt
+    ? Math.max(0, Math.ceil((new Date(endsAt).getTime() - now) / (24 * 60 * 60 * 1000)))
+    : null;
+  const trialStatus = company.subscriptionStatus === "trial" ? "in_trial" : "not_trial";
+
+  res.json({
+    company,
+    plan,
+    latestSubscription,
+    latestRequest,
+    usersCount: usersCount?.count ?? 0,
+    remainingDays,
+    trialStatus,
+    paymentMethods,
+    manualInstructions: paymentMethods
+      .filter((m) => m.type === "manual" || m.type === "bank_transfer" || m.type === "cash")
+      .map((m) => ({
+        methodName: m.methodName,
+        type: m.type,
+        instructionsAr: m.instructionsAr ?? null,
+        instructionsEn: m.instructionsEn ?? null,
+        accountDetails: m.accountDetails ?? null,
+      })),
+  });
+});
+
+const RenewalRequestBody = z.object({
+  packageId: z.string().uuid().optional(),
+  billingPeriod: z.enum(["monthly", "yearly", "custom"]),
+  amount: z.string().min(1),
+  currency: z.string().min(1),
+  paymentMethod: z.enum(["manual", "bank_transfer", "cash", "other"]).default("manual"),
+  notes: z.string().optional(),
+  proofAttachment: z.string().optional(),
+});
+
+router.post("/company/subscription/renewal-request", requireAuth, async (req, res) => {
+  const body = RenewalRequestBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const [created] = await db
+    .insert(manualPaymentRequestsTable)
+    .values({
+      companyId: req.auth!.companyId,
+      packageId: body.data.packageId ?? null,
+      billingPeriod: body.data.billingPeriod,
+      amount: body.data.amount,
+      currency: body.data.currency,
+      paymentMethod: body.data.paymentMethod,
+      notes: body.data.notes,
+      proofAttachment: body.data.proofAttachment,
+      requestedBy: req.auth!.userId,
+    })
+    .returning();
+  await safeAudit(
+    db,
+    {
+      companyId: req.auth!.companyId,
+      userId: req.auth!.userId,
+      action: "SUBSCRIPTION_RENEWAL_REQUESTED",
+      entity: "subscription",
+      entityId: created.id,
+      newValue: created,
+    },
+    req.log,
+  );
+  res.status(201).json(created);
 });
 
 // PATCH /company/period-lock — set or clear the soft period lock (owner only)

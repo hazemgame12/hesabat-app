@@ -404,6 +404,20 @@
       "success": "Password changed successfully",
       "error": "Failed to change password"
     },
+    "subscription": {
+      "title": "Subscription & Packages",
+      "currentPackage": "Current Package",
+      "status": "Subscription Status",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "remainingDays": "Remaining Days",
+      "requestRenewal": "Request Renewal",
+      "requestUpgrade": "Request Upgrade",
+      "country": "Country",
+      "currency": "Currency",
+      "price": "Price",
+      "usersUsage": "Users"
+    },
     "backup": {
       "title": "Data Backup",
       "subtitle": "Export all your company data as a JSON file",

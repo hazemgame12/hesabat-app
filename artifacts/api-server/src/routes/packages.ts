@@ -1,12 +1,54 @@
 import { Router } from "express";
-import { eq, asc } from "drizzle-orm";
-import { db, packagesTable, insertPackageSchema, updatePackageSchema } from "@workspace/db";
+import { and, asc, eq } from "drizzle-orm";
+import {
+  db,
+  packagesTable,
+  insertPackageSchema,
+  updatePackageSchema,
+  subscriptionPlansTable,
+} from "@workspace/db";
 import { adminAuth } from "../middleware/auth";
 
 const router = Router();
 
 router.get("/packages", async (req, res) => {
   try {
+    const countryCode = (req.query["countryCode"] as string | undefined)?.trim();
+    if (countryCode) {
+      const rows = await db
+        .select()
+        .from(subscriptionPlansTable)
+        .where(
+          and(
+            eq(subscriptionPlansTable.isActive, true),
+            eq(subscriptionPlansTable.countryCode, countryCode),
+          ),
+        )
+        .orderBy(asc(subscriptionPlansTable.order));
+      res.json(
+        rows.map((row) => ({
+          id: row.id,
+          name_ar: row.nameAr,
+          name_en: row.nameEn,
+          country_code: row.countryCode ?? row.country,
+          country_name: row.countryName ?? row.country,
+          currency_code: row.currencyCode ?? row.currency,
+          monthly_price: row.monthlyPrice ?? row.price,
+          yearly_price: row.yearlyPrice,
+          trial_days: row.trialDays,
+          max_users: row.maxUsers,
+          max_companies_or_branches: row.maxCompaniesOrBranches,
+          storage_limit: row.storageLimit,
+          feature_limits: row.featureLimits ?? {},
+          is_active: row.isActive,
+          sort_order: row.order,
+          description_ar: row.descriptionAr ?? "",
+          description_en: row.descriptionEn ?? "",
+        })),
+      );
+      return;
+    }
+
     const rows = await db.select().from(packagesTable)
       .where(eq(packagesTable.published, true))
       .orderBy(asc(packagesTable.order));
