@@ -1,14 +1,10 @@
 import type {
   TrialBalance,
-  TrialBalanceBreakdownGroup,
   IncomeStatement,
-  IncomeStatementBreakdownGroup,
   BalanceSheet,
   Currency,
   Company,
 } from "@workspace/api-client-react";
-
-export type { TrialBalanceBreakdownGroup, IncomeStatementBreakdownGroup };
 
 export type Fmt = (n: number) => string;
 
