@@ -88,6 +88,30 @@ import {
   Minus,
 } from "lucide-react";
 
+/* ───────────────────────────────  Logo Ticker Data  ─────────────────────────────── */
+
+const LOGO_ROW_1 = [
+  { initial: "ن", name: "النيل للتجارة", bg: "#1e3a5f" },
+  { initial: "ف", name: "الفجر للمقاولات", bg: "#2a5298" },
+  { initial: "ص", name: "صيدليات الشروق", bg: "#059669" },
+  { initial: "ق", name: "القمة للاستثمار", bg: "#1e3a5f" },
+  { initial: "س", name: "مطاعم سلة", bg: "#d97706" },
+  { initial: "أ", name: "الأهرام للتوريدات", bg: "#1e3a5f" },
+  { initial: "ر", name: "مكتب الرياض المحاسبي", bg: "#2563eb" },
+  { initial: "خ", name: "الخليج للتجارة", bg: "#0d9488" },
+];
+
+const LOGO_ROW_2 = [
+  { initial: "ز", name: "زهرة للملابس", bg: "#7c3aed" },
+  { initial: "د", name: "دار الشفاء الطبية", bg: "#dc2626" },
+  { initial: "ت", name: "التقدم الغذائية", bg: "#ea580c" },
+  { initial: "م", name: "مصر للمقاولات", bg: "#1e3a5f" },
+  { initial: "ع", name: "الأمل للتطوير", bg: "#059669" },
+  { initial: "ري", name: "ريف للتجارة", bg: "#2563eb" },
+  { initial: "و", name: "الوطنية للبترول", bg: "#1e3a5f" },
+  { initial: "سم", name: "سما للخدمات", bg: "#0d9488" },
+];
+
 /* ───────────────────────────────  Data  ─────────────────────────────── */
 
 const COUNTRIES: { code: CountryCode; flag: string; name: string; currency: string }[] = [
@@ -247,6 +271,410 @@ function SectionTitle({ title, subtitle, align = "center" }: { title: string; su
           {subtitle}
         </motion.p>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────  Product Demo Animation  ─────────────────────── */
+
+/* ──────── Demo Tour: sidebar nav items ──────── */
+const DEMO_NAV = [
+  { id: "dashboard",  label: "لوحة التحكم",         icon: "📊" },
+  { id: "banks",      label: "الخزينة والبنوك",       icon: "🏦" },
+  { id: "customers",  label: "العملاء والمبيعات",     icon: "🛒" },
+  { id: "suppliers",  label: "الموردين والمشتريات",   icon: "🏭" },
+  { id: "accounting", label: "المحاسبة",              icon: "📒" },
+  { id: "assets",     label: "الأصول الثابتة",        icon: "🏗️" },
+  { id: "inventory",  label: "المخزون",               icon: "📦" },
+  { id: "invoices",   label: "الفاتورة الإلكترونية",  icon: "🧾" },
+  { id: "hr",         label: "الموارد البشرية",        icon: "👥" },
+];
+
+/* cursor anchors: x/y as % from top-left of the demo shell (dir=rtl, sidebar on RIGHT) */
+const C = {
+  idle:         { x: 35, y: 45 },
+  inv_nav:      { x: 88, y: 76 },  // "الفاتورة الإلكترونية" in sidebar
+  inv_row:      { x: 35, y: 42 },  // first invoice row
+  inv_open:     { x: 35, y: 35 },  // open invoice row → detail
+  cust_nav:     { x: 88, y: 39 },  // "العملاء والمبيعات"
+  cust_row:     { x: 35, y: 42 },
+  bank_nav:     { x: 88, y: 32 },  // "الخزينة والبنوك"
+  dash_nav:     { x: 88, y: 25 },  // "لوحة التحكم"
+};
+
+/* ── Sub-pages rendered inside the demo shell ── */
+
+function DemoShellDashboard() {
+  return (
+    <div className="space-y-2 h-full overflow-hidden">
+      <div className="grid grid-cols-4 gap-1.5">
+        {[
+          { label: "صافي الربح",        val: "٩٠,٠٠٠",   unit: "ج.م", icon: "📈", hi: true },
+          { label: "النقدية والبنوك",    val: "١٨٢,٥٠٠",  unit: "ج.م", icon: "💰", hi: false },
+          { label: "مستحقات العملاء",   val: "٢٢١,١٦٠",  unit: "ج.م", icon: "🛒", hi: false },
+          { label: "مستحقات الموردين",  val: "١٠٥,١٥٩",  unit: "ج.م", icon: "🏭", hi: false },
+        ].map((k, i) => (
+          <div key={i} className="bg-white rounded-lg border p-2 shadow-sm">
+            <div className="flex justify-between items-start mb-1">
+              <span className="text-[9px] text-muted-foreground leading-tight">{k.label}</span>
+              <span className="text-sm">{k.icon}</span>
+            </div>
+            <p className="font-bold text-[#1e3a5f] text-[11px]">{k.val}</p>
+            <p className="text-[8px] text-muted-foreground">{k.unit}</p>
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {[
+          { label: "إجمالي الإيرادات", val: "١٩٤,٠٠٠ ج.م" },
+          { label: "إجمالي المصروفات", val: "١٠٤,٠٠٠ ج.م" },
+          { label: "الأقسام الرئيسية",  val: "٥ أقسام"     },
+        ].map((s, i) => (
+          <div key={i} className="bg-white rounded-lg border p-2 shadow-sm">
+            <p className="text-[9px] text-muted-foreground">{s.label}</p>
+            <p className="font-bold text-[#1e3a5f] text-[10px] mt-0.5">{s.val}</p>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white rounded-lg border p-2 shadow-sm">
+        <p className="text-[9px] font-bold text-[#1e3a5f] mb-1.5">الإيرادات مقابل المصروفات — تحليل النصف الأول</p>
+        <div className="flex items-end gap-1.5 h-10">
+          {[{r:55,e:38},{r:68,e:46},{r:61,e:49},{r:79,e:42},{r:88,e:55},{r:100,e:62}].map((b,i)=>(
+            <div key={i} className="flex-1 flex items-end gap-px h-full">
+              <div className="flex-1 bg-[#1e3a5f] rounded-t-sm" style={{height:`${b.r}%`}}/>
+              <div className="flex-1 bg-[#c9a96e] rounded-t-sm" style={{height:`${b.e}%`}}/>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-3 mt-1">
+          <span className="flex items-center gap-1 text-[8px] text-muted-foreground"><span className="w-1.5 h-1.5 bg-[#1e3a5f] rounded-sm inline-block"/>إيرادات</span>
+          <span className="flex items-center gap-1 text-[8px] text-muted-foreground"><span className="w-1.5 h-1.5 bg-[#c9a96e] rounded-sm inline-block"/>مصروفات</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DemoShellInvoices() {
+  return (
+    <div className="flex flex-col gap-1.5 h-full">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold text-[#1e3a5f]">الفواتير الإلكترونية</p>
+        <button className="bg-[#1e3a5f] text-white text-[9px] px-2 py-0.5 rounded-md">+ فاتورة جديدة</button>
+      </div>
+      <div className="bg-white rounded-lg border shadow-sm overflow-hidden flex-1">
+        <div className="grid text-[8px] font-bold text-muted-foreground bg-[#f8f9fb] border-b px-2 py-1.5" style={{gridTemplateColumns:"72px 1fr 64px 54px 50px"}}>
+          <span>رقم الفاتورة</span><span>العميل</span><span>المبلغ</span><span>التاريخ</span><span>الحالة</span>
+        </div>
+        {[
+          { num:"#٠٨٤٧", client:"شركة النيل للتجارة",      amt:"٥٬٧٠٠",  date:"٠١/٠٧", st:"مسودة",  sc:"amber",   hi:true  },
+          { num:"#٠٨٤٦", client:"مكتب الرياض المحاسبي",    amt:"١٣٬٦٨٠", date:"٢٨/٠٦", st:"مُصدرة", sc:"blue",    hi:false },
+          { num:"#٠٨٤٥", client:"صيدليات الشروق",          amt:"٩٬٦٩٠",  date:"٢٥/٠٦", st:"مدفوعة", sc:"emerald", hi:false },
+          { num:"#٠٨٤٤", client:"الأهرام للتوريدات",       amt:"٣٬٦٤٨",  date:"٢٢/٠٦", st:"مُصدرة", sc:"blue",    hi:false },
+          { num:"#٠٨٤٣", client:"مطاعم سلة",               amt:"٢٢٬٨٠٠", date:"١٨/٠٦", st:"مدفوعة", sc:"emerald", hi:false },
+        ].map((r,i)=>(
+          <div key={i} className={`grid text-[9px] px-2 py-1.5 border-b last:border-0 items-center ${r.hi?"bg-[#1e3a5f]/5":""}`} style={{gridTemplateColumns:"72px 1fr 64px 54px 50px"}}>
+            <span className="font-mono text-[8px] font-bold text-[#1e3a5f]">{r.num}</span>
+            <span className="font-medium text-[#1e3a5f] truncate">{r.client}</span>
+            <span className="font-bold text-[#1e3a5f]">{r.amt}</span>
+            <span className="text-muted-foreground">{r.date}</span>
+            <span className={`text-[8px] px-1 py-0.5 rounded-full text-center font-semibold ${r.sc==="emerald"?"bg-emerald-100 text-emerald-700":r.sc==="amber"?"bg-amber-100 text-amber-700":"bg-blue-100 text-blue-700"}`}>{r.st}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DemoShellInvoiceDetail() {
+  return (
+    <div className="bg-white rounded-lg border shadow-sm p-2.5 flex flex-col gap-2 h-full overflow-hidden">
+      <div className="flex items-start justify-between border-b pb-2">
+        <div>
+          <p className="text-[10px] font-bold text-[#1e3a5f]">فاتورة مبيعات #INV-2026-0847</p>
+          <p className="text-[8px] text-muted-foreground">٠١/٠٧/٢٠٢٦ · شركة النيل للتجارة والتوزيع</p>
+        </div>
+        <span className="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold shrink-0">مسودة</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-[9px]">
+        {[
+          ["العميل","شركة النيل للتجارة"],
+          ["طريقة الدفع","تحويل بنكي"],
+          ["تاريخ الاستحقاق","٣١/٠٧/٢٠٢٦"],
+        ].map(([l,v],i)=>(
+          <div key={i}><p className="text-[8px] text-muted-foreground">{l}</p><p className="font-bold text-[#1e3a5f]">{v}</p></div>
+        ))}
+      </div>
+      <div className="border rounded-lg overflow-hidden text-[9px] flex-1">
+        <div className="grid bg-[#f8f9fb] border-b px-2 py-1 text-[8px] font-bold text-muted-foreground" style={{gridTemplateColumns:"1fr 36px 60px 68px"}}>
+          <span>الوصف</span><span>كمية</span><span>سعر الوحدة</span><span>الإجمالي</span>
+        </div>
+        <div className="grid px-2 py-1.5 border-b" style={{gridTemplateColumns:"1fr 36px 60px 68px"}}>
+          <span className="text-[#1e3a5f]">استشارات مالية شهرية</span>
+          <span className="text-center">١</span>
+          <span className="text-center">٥٬٠٠٠</span>
+          <span className="font-bold text-[#1e3a5f] text-right">٥٬٠٠٠ ج.م</span>
+        </div>
+        <div className="px-2 py-1.5 space-y-0.5 text-[8px]">
+          <div className="flex justify-between"><span className="text-muted-foreground">الإجمالي قبل الضريبة</span><span>٥٬٠٠٠ ج.م</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">ض.ق.م ١٤٪</span><span>٧٠٠ ج.م</span></div>
+          <div className="flex justify-between font-bold text-[#1e3a5f] border-t pt-0.5"><span>الإجمالي النهائي</span><span>٥٬٧٠٠ ج.م</span></div>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button className="flex-1 bg-[#1e3a5f] text-white rounded-lg py-1 text-[9px] font-bold">إصدار الفاتورة</button>
+        <button className="border rounded-lg px-3 py-1 text-[9px] text-muted-foreground">تعديل</button>
+      </div>
+    </div>
+  );
+}
+
+function DemoShellCustomers() {
+  return (
+    <div className="flex flex-col gap-1.5 h-full">
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-bold text-[#1e3a5f]">العملاء</p>
+        <button className="bg-[#1e3a5f] text-white text-[9px] px-2 py-0.5 rounded-md">+ عميل جديد</button>
+      </div>
+      <div className="bg-white rounded-lg border shadow-sm overflow-hidden flex-1">
+        <div className="grid text-[8px] font-bold text-muted-foreground bg-[#f8f9fb] border-b px-2 py-1.5" style={{gridTemplateColumns:"1fr 90px 60px"}}>
+          <span>اسم العميل</span><span>الرصيد المستحق</span><span>التصنيف</span>
+        </div>
+        {[
+          { name:"شركة النيل للتجارة",    bal:"٥٬٧٠٠ ج.م", debit:true  },
+          { name:"مكتب الرياض المحاسبي", bal:"١٣٬٦٨٠ ج.م",debit:true  },
+          { name:"صيدليات الشروق",        bal:"مسوى",       debit:false },
+          { name:"الأهرام للتوريدات",     bal:"٣٬٦٤٨ ج.م", debit:true  },
+          { name:"مطاعم سلة",             bal:"مسوى",       debit:false },
+          { name:"القمة للاستثمار",       bal:"٢٢٬٨٠٠ ج.م",debit:true  },
+        ].map((r,i)=>(
+          <div key={i} className="grid text-[9px] px-2 py-1.5 border-b last:border-0 items-center hover:bg-[#f8f9fb] cursor-pointer" style={{gridTemplateColumns:"1fr 90px 60px"}}>
+            <span className="font-medium text-[#1e3a5f]">{r.name}</span>
+            <span className={`font-bold text-[9px] ${r.debit?"text-red-500":"text-emerald-600"}`}>{r.bal}</span>
+            <span className="text-[8px] text-muted-foreground">عميل</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DemoShellBanks() {
+  return (
+    <div className="flex flex-col gap-1.5 h-full">
+      <p className="text-[10px] font-bold text-[#1e3a5f]">البنوك والخزينة</p>
+      <div className="grid grid-cols-3 gap-1.5">
+        {[
+          { name:"بنك QNB مصر",   num:"****٣٤٥٦", bal:"١٢٥٬٠٠٠", icon:"🏦", c:"#1e3a5f" },
+          { name:"بنك CIB",        num:"****٧٨٩٠", bal:"٤٥٬٠٠٠",  icon:"🏛️", c:"#2563eb" },
+          { name:"الصندوق النقدي", num:"رئيسي",    bal:"١٢٬٥٠٠",  icon:"💵", c:"#059669" },
+        ].map((b,i)=>(
+          <div key={i} className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div className="p-2" style={{background:`${b.c}18`}}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-base">{b.icon}</span>
+                <span className="text-[8px] text-muted-foreground">{b.num}</span>
+              </div>
+              <p className="text-[9px] font-bold text-[#1e3a5f]">{b.name}</p>
+            </div>
+            <div className="px-2 py-1.5 border-t">
+              <p className="text-[8px] text-muted-foreground">الرصيد</p>
+              <p className="font-bold text-[#1e3a5f] text-[11px]">{b.bal} <span className="text-[8px] font-normal">ج.م</span></p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white rounded-lg border shadow-sm p-2 flex-1">
+        <p className="text-[9px] font-bold text-[#1e3a5f] mb-1.5">آخر الحركات</p>
+        {[
+          { desc:"تحصيل فاتورة #٠٨٤٥ — صيدليات الشروق", amt:"+٩٬٦٩٠", t:"in"  },
+          { desc:"رسوم الإيجار — يوليو ٢٠٢٦",            amt:"-٨٬٠٠٠", t:"out" },
+          { desc:"مشتريات مواد خام — مورد الدلتا",       amt:"-١٥٬٠٠٠",t:"out" },
+          { desc:"تحصيل فاتورة #٠٨٤٣ — مطاعم سلة",      amt:"+٢٢٬٨٠٠",t:"in"  },
+        ].map((r,i)=>(
+          <div key={i} className="flex items-center justify-between py-0.5 border-b last:border-0 text-[9px]">
+            <span className="text-[#1e3a5f] truncate flex-1">{r.desc}</span>
+            <span className={`font-bold shrink-0 ms-2 ${r.t==="in"?"text-emerald-600":"text-red-500"}`}>{r.amt}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main ProductDemo shell ── */
+type DemoPage = "dashboard" | "invoices" | "invoice-detail" | "customers" | "banks";
+
+function ProductDemo() {
+  const [page, setPage]         = React.useState<DemoPage>("dashboard");
+  const [cursor, setCursor]     = React.useState(C.idle);
+  const [clicked, setClicked]   = React.useState(false);
+  const [tick, setTick]         = React.useState(0);
+
+  const click = (pos: {x:number;y:number}, fn: ()=>void, ids: ReturnType<typeof setTimeout>[]) => {
+    setCursor(pos);
+    const a = setTimeout(() => { setClicked(true);  }, 750);
+    const b = setTimeout(() => { setClicked(false); fn(); }, 1100);
+    ids.push(a, b);
+    return 1150;
+  };
+
+  React.useEffect(() => {
+    const ids: ReturnType<typeof setTimeout>[] = [];
+    const q = (ms: number, fn: () => void) => { ids.push(setTimeout(fn, ms)); };
+
+    setPage("dashboard"); setCursor(C.idle); setClicked(false);
+
+    let t = 0;
+
+    // dashboard → invoices
+    t += 1800;
+    q(t, () => setCursor(C.inv_nav));
+    t += 800;
+    q(t, () => setClicked(true));
+    t += 350;
+    q(t, () => { setClicked(false); setPage("invoices"); setCursor(C.inv_row); });
+
+    // browse invoice list
+    t += 2200;
+    q(t, () => setCursor(C.inv_open));
+    t += 600;
+    q(t, () => setClicked(true));
+    t += 350;
+    q(t, () => { setClicked(false); setPage("invoice-detail"); });
+
+    // view invoice detail → customers
+    t += 2000;
+    q(t, () => setCursor(C.cust_nav));
+    t += 800;
+    q(t, () => setClicked(true));
+    t += 350;
+    q(t, () => { setClicked(false); setPage("customers"); setCursor(C.cust_row); });
+
+    // browse customers → banks
+    t += 1800;
+    q(t, () => setCursor(C.bank_nav));
+    t += 800;
+    q(t, () => setClicked(true));
+    t += 350;
+    q(t, () => { setClicked(false); setPage("banks"); setCursor(C.idle); });
+
+    // banks → back to dashboard
+    t += 2000;
+    q(t, () => setCursor(C.dash_nav));
+    t += 800;
+    q(t, () => setClicked(true));
+    t += 350;
+    q(t, () => { setClicked(false); setPage("dashboard"); setCursor(C.idle); });
+
+    // loop
+    t += 1200;
+    q(t, () => setTick(n => n + 1));
+
+    return () => ids.forEach(clearTimeout);
+  }, [tick]);
+
+  const activeSidebar: string = page === "invoice-detail" ? "invoices" : page;
+
+  return (
+    <div className="relative overflow-hidden rounded-b-2xl bg-[#f8f9fb]" style={{ height: 380 }} dir="rtl">
+      {/* ── App shell: sidebar (RIGHT in RTL) + main ── */}
+      <div className="flex h-full">
+
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* Header */}
+          <div className="bg-white border-b px-3 py-2 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-md bg-[#1e3a5f] flex items-center justify-center text-[#c9a96e] text-[9px] font-bold shrink-0">ن</div>
+              <div className="leading-tight">
+                <p className="text-[10px] font-bold text-[#1e3a5f]">شركة النيل للتجارة والتوزيع</p>
+                <p className="text-[8px] text-muted-foreground">مشترك بالنظام</p>
+              </div>
+            </div>
+            <p className="text-[9px] text-muted-foreground">الأربعاء ١ يوليو ٢٠٢٦</p>
+          </div>
+          {/* Page */}
+          <div className="flex-1 p-2.5 overflow-hidden relative">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={page}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25 }}
+                className="absolute inset-2.5"
+              >
+                {page === "dashboard"      && <DemoShellDashboard />}
+                {page === "invoices"       && <DemoShellInvoices />}
+                {page === "invoice-detail" && <DemoShellInvoiceDetail />}
+                {page === "customers"      && <DemoShellCustomers />}
+                {page === "banks"          && <DemoShellBanks />}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="w-40 bg-[#1e3a5f] flex flex-col shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/10">
+            <div className="w-6 h-6 rounded-lg bg-[#c9a96e] flex items-center justify-center text-[#1e3a5f] font-bold text-xs shrink-0">ح</div>
+            <span className="text-white font-bold text-xs">حسابات</span>
+          </div>
+          <nav className="flex-1 py-1 overflow-hidden">
+            {DEMO_NAV.map((item) => (
+              <motion.div
+                key={item.id}
+                animate={activeSidebar === item.id
+                  ? { backgroundColor: "rgba(201,169,110,0.2)", borderRightColor: "#c9a96e" }
+                  : { backgroundColor: "transparent", borderRightColor: "transparent" }
+                }
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] border-r-2 transition-colors"
+              >
+                <span className="text-xs shrink-0">{item.icon}</span>
+                <span className={`truncate ${activeSidebar === item.id ? "text-[#c9a96e] font-semibold" : "text-white/55"}`}>
+                  {item.label}
+                </span>
+              </motion.div>
+            ))}
+          </nav>
+          <div className="px-2.5 py-2 border-t border-white/10 flex items-center gap-1.5">
+            <div className="w-5 h-5 rounded-full bg-[#c9a96e]/30 flex items-center justify-center text-[#c9a96e] text-[9px] font-bold shrink-0">أ</div>
+            <span className="text-white/50 text-[9px] truncate">أحمد محمود</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Animated cursor ── */}
+      <motion.div
+        className="absolute pointer-events-none z-50"
+        animate={{ left: `${cursor.x}%`, top: `${cursor.y}%` }}
+        transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+      >
+        <AnimatePresence>
+          {clicked && (
+            <motion.div
+              key="ripple"
+              initial={{ scale: 0, opacity: 0.7 }}
+              animate={{ scale: 2.8, opacity: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.38 }}
+              className="absolute w-5 h-5 rounded-full bg-[#c9a96e] -translate-x-1/2 -translate-y-1/2"
+            />
+          )}
+        </AnimatePresence>
+        <svg width="16" height="16" viewBox="0 0 20 20" style={{filter:"drop-shadow(0 1px 3px rgba(0,0,0,0.55))"}}>
+          <path d="M3 2l14 6.5-7.5 1.8L7 18z" fill="white" stroke="#1e3a5f" strokeWidth="1.3" strokeLinejoin="round"/>
+        </svg>
+      </motion.div>
+
+      {/* Live badge */}
+      <div className="absolute top-2.5 left-3 z-40 pointer-events-none">
+        <span className="text-[8px] bg-white/90 text-[#1e3a5f] px-2 py-0.5 rounded-full border font-semibold backdrop-blur-sm flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block"/>
+          جولة مباشرة
+        </span>
+      </div>
     </div>
   );
 }
@@ -452,6 +880,32 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ═══════════════════  Dashboard Preview  ═══════════════════ */}
+      <section className="bg-[#1e3a5f] pb-16">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="max-w-5xl mx-auto"
+          >
+            {/* Browser chrome */}
+            <div className="bg-[#f1f3f5] rounded-t-2xl px-4 py-3 flex items-center gap-3 border border-white/20">
+              <div className="flex gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-red-400/80" />
+                <div className="w-3 h-3 rounded-full bg-yellow-400/80" />
+                <div className="w-3 h-3 rounded-full bg-green-400/80" />
+              </div>
+              <div className="flex-1 bg-white rounded-md px-3 py-1 text-xs text-muted-foreground text-center border max-w-xs mx-auto">
+                hesabat.hg-audit.com/dashboard
+              </div>
+            </div>
+            {/* Animated product demo — real screenshot + live cursor + invoice entry */}
+            <ProductDemo />
+          </motion.div>
+        </div>
+      </section>
+
       {/* ═══════════════════  Stats Bar  ═══════════════════ */}
       <section className="py-12 bg-[#f8f9fb] border-b">
         <div className="container mx-auto px-4">
@@ -459,6 +913,64 @@ export function LandingPage() {
             {STATS.map((s, i) => (
               <AnimatedStat key={i} label={s.label} value={s.value} suffix={s.suffix} />
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════  Logo Ticker  ═══════════════════ */}
+      <section className="py-10 bg-white border-b overflow-hidden">
+        <style>{`
+          @keyframes ticker-ltr { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+          @keyframes ticker-rtl { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+          .ticker-row-1 { display: flex; animation: ticker-ltr 40s linear infinite; will-change: transform; }
+          .ticker-row-2 { display: flex; animation: ticker-rtl 35s linear infinite; will-change: transform; }
+          .ticker-row-1:hover, .ticker-row-2:hover { animation-play-state: paused; }
+        `}</style>
+        <div className="container mx-auto px-4 mb-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            يثق بنا أكثر من{" "}
+            <strong className="text-[#1e3a5f] font-bold">١٬٢٠٠ شركة</strong>{" "}
+            في ٧ دول عربية
+          </p>
+        </div>
+        <div className="space-y-3" dir="ltr">
+          {/* Row 1 — scrolls left */}
+          <div className="overflow-hidden">
+            <div className="ticker-row-1">
+              {[...LOGO_ROW_1, ...LOGO_ROW_1].map((c, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 mx-3 bg-[#f8f9fb] border border-[#e8eaed] rounded-xl px-4 py-2.5 shrink-0 hover:border-[#1e3a5f]/30 hover:shadow-sm transition-all cursor-default"
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
+                    style={{ backgroundColor: c.bg }}
+                  >
+                    {c.initial}
+                  </div>
+                  <span className="text-sm font-semibold text-[#1e3a5f] whitespace-nowrap">{c.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Row 2 — scrolls right */}
+          <div className="overflow-hidden">
+            <div className="ticker-row-2">
+              {[...LOGO_ROW_2, ...LOGO_ROW_2].map((c, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 mx-3 bg-[#f8f9fb] border border-[#e8eaed] rounded-xl px-4 py-2.5 shrink-0 hover:border-[#1e3a5f]/30 hover:shadow-sm transition-all cursor-default"
+                >
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0"
+                    style={{ backgroundColor: c.bg }}
+                  >
+                    {c.initial}
+                  </div>
+                  <span className="text-sm font-semibold text-[#1e3a5f] whitespace-nowrap">{c.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
