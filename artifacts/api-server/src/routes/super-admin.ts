@@ -528,7 +528,7 @@ router.post("/super-admin/companies/:id/impersonate", async (req, res) => {
   const sessionToken = await createSession(candidate.id);
   setSessionCookie(res, sessionToken);
   res.cookie("hesabat_impersonation", "1", {
-    httpOnly: false,
+    httpOnly: true,
     sameSite: "lax",
     secure: process.env["NODE_ENV"] === "production",
     path: "/",

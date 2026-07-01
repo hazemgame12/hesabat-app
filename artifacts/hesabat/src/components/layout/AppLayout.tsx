@@ -54,7 +54,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const trialEndsAt = user.trialEndsAt ? new Date(user.trialEndsAt).getTime() : null;
   const remainingTrialDays = trialEndsAt ? Math.ceil((trialEndsAt - Date.now()) / (24 * 60 * 60 * 1000)) : null;
   const showPreExpiryWarning = remainingTrialDays !== null && remainingTrialDays > 0 && remainingTrialDays <= 7;
-  const isImpersonating = typeof document !== "undefined" && document.cookie.includes("hesabat_impersonation=1");
+  const isImpersonating = Boolean((user as any)?.isImpersonating);
 
   return (
     <div className="min-h-screen flex w-full bg-background font-sans text-foreground">

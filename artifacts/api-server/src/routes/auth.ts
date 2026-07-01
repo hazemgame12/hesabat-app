@@ -180,6 +180,12 @@ router.post("/auth/logout", async (req, res) => {
       req.log.error({ err }, "Logout failed");
     }
   }
+  res.clearCookie("hesabat_impersonation", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env["NODE_ENV"] === "production",
+    path: "/",
+  });
   clearSessionCookie(res);
   res.json({ status: "ok" });
 });
@@ -208,6 +214,7 @@ router.get("/auth/me", requireAuth, async (req, res) => {
     trialEndsAt: company?.trialEndsAt?.toISOString() ?? null,
     planId: company?.planId ?? null,
     country: company?.country ?? null,
+    isImpersonating: req.cookies?.["hesabat_impersonation"] === "1",
   });
 });
 
