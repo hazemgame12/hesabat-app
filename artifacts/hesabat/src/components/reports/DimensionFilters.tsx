@@ -8,7 +8,7 @@ import {
   useListCostCenters,
   useListProjects,
 } from "@workspace/api-client-react";
-import { BriefcaseBusiness, Building2, GitBranch } from "lucide-react";
+import { BriefcaseBusiness, Building2, GitBranch, LayoutList } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -30,6 +30,8 @@ export type DimensionFilterQuery = {
   projectId?: string | null;
   branchId?: string | null;
 };
+
+export type BreakdownMode = "standard" | "costCenter" | "project" | "branch";
 
 type Option = {
   id: string;
@@ -101,15 +103,53 @@ function FilterSelect({
   );
 }
 
+function BreakdownSelect({
+  value,
+  onChange,
+}: {
+  value: BreakdownMode;
+  onChange: (value: BreakdownMode) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <label className="flex min-w-[220px] flex-1 flex-col gap-1.5 text-sm">
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {t("dimensionFilters.breakdown.label")}
+      </span>
+      <div className="relative">
+        <LayoutList className="pointer-events-none absolute start-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Select
+          value={value}
+          onValueChange={(next) => onChange(next as BreakdownMode)}
+        >
+          <SelectTrigger className="h-11 rounded-xl bg-background ps-10">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="standard">{t("dimensionFilters.breakdown.standard")}</SelectItem>
+            <SelectItem value="costCenter">{t("dimensionFilters.breakdown.costCenter")}</SelectItem>
+            <SelectItem value="project">{t("dimensionFilters.breakdown.project")}</SelectItem>
+            <SelectItem value="branch">{t("dimensionFilters.breakdown.branch")}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </label>
+  );
+}
+
 export function DimensionFilters({
   value,
   onChange,
   onBack,
+  breakdown = "standard",
+  onBreakdownChange,
 }: {
   value: DimensionFilterValues;
   onChange: (value: DimensionFilterValues) => void;
   /** Optional back navigation callback rendered as a link above the filters. */
   onBack?: () => void;
+  breakdown?: BreakdownMode;
+  onBreakdownChange?: (mode: BreakdownMode) => void;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -158,7 +198,7 @@ export function DimensionFilters({
           </button>
         )}
       </div>
-      <div className="grid gap-3 lg:grid-cols-3">
+      <div className="grid gap-3 lg:grid-cols-4">
         <FilterSelect
           icon={Building2}
           label={t("dimensionFilters.costCenter")}
@@ -186,6 +226,9 @@ export function DimensionFilters({
           options={toOptions(branches as Branch[])}
           lang={lang}
         />
+        {onBreakdownChange && (
+          <BreakdownSelect value={breakdown} onChange={onBreakdownChange} />
+        )}
       </div>
     </div>
   );

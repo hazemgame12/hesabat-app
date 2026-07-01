@@ -36,6 +36,8 @@ import {
   type TrialBalanceRow,
   type GeneralLedgerEntry,
   type PnlLine,
+  type IncomeStatementBreakdownGroup,
+  type TrialBalanceBreakdownGroup,
 } from "@workspace/api-client-react";
 import {
   type CurrencyControls,
@@ -52,6 +54,7 @@ import {
   DimensionFilters,
   type DimensionFilterQuery,
   type DimensionFilterValues,
+  type BreakdownMode,
 } from "@/components/reports/DimensionFilters";
 import {
   ReportShell,
@@ -291,6 +294,7 @@ function TrialBalanceDetail({
   lang,
   dimensionFilters,
   onDrillToGeneralLedger,
+  breakdownBy = "standard",
 }: {
   company?: Company;
   cc: CurrencyControls;
@@ -298,6 +302,7 @@ function TrialBalanceDetail({
   lang: string;
   dimensionFilters: DimensionFilterQuery;
   onDrillToGeneralLedger?: DrillToGeneralLedger;
+  breakdownBy?: BreakdownMode;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -308,6 +313,7 @@ function TrialBalanceDetail({
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
     ...dimensionFilters,
+    breakdownBy: breakdownBy !== "standard" ? breakdownBy : undefined,
   });
 
   const exportExcel = () => {
@@ -320,6 +326,7 @@ function TrialBalanceDetail({
       qs.set("projectId", dimensionFilters.projectId);
     if (dimensionFilters?.branchId)
       qs.set("branchId", dimensionFilters.branchId);
+    if (breakdownBy !== "standard") qs.set("breakdownBy", breakdownBy);
     window.open(
       `/api/reports/trial-balance/export?${qs.toString()}`,
       "_blank",
@@ -359,13 +366,60 @@ function TrialBalanceDetail({
 
   const currency = reportCurrencyParam(cc) || cc.baseCurrency;
   const dateLabel = `${t("reportsPage.filters.from")}: ${from || "—"}  ·  ${t("reportsPage.filters.to")}: ${to || "—"}`;
+  const breakdownLabel = breakdownBy !== "standard"
+    ? `  ·  ${t(`dimensionFilters.breakdown.${breakdownBy}`)}`
+    : "";
+
+  // Reusable table body for trial balance rows
+  const renderTbRows = (rows: TrialBalanceRow[]) =>
+    rows.map((r: TrialBalanceRow, idx: number) => (
+      <tr
+        key={r.accountId}
+        className={`border-t border-border transition-colors hover:bg-primary/5 ${idx % 2 === 1 ? "bg-muted/20" : ""}`}
+      >
+        <td className={`${TD_CODE} border-e border-border`}>{r.code}</td>
+        <td className={`${TD_NAME} border-e border-border font-medium`}>
+          <AccountDrillLink
+            accountId={r.accountId}
+            label={displayName(r, lang)}
+            onDrill={(accountId) => onDrillToGeneralLedger?.(accountId, { from, to })}
+          />
+        </td>
+        <td className={`${TD_NUM} border-e border-border text-slate-700 dark:text-slate-300`}>{r.openingDebit ? fmt(r.openingDebit) : "—"}</td>
+        <td className={`${TD_NUM} border-e border-border text-slate-700 dark:text-slate-300`}>{r.openingCredit ? fmt(r.openingCredit) : "—"}</td>
+        <td className={`${TD_NUM} border-e border-border`}>{r.periodDebit ? fmt(r.periodDebit) : "—"}</td>
+        <td className={`${TD_NUM} border-e border-border`}>{r.periodCredit ? fmt(r.periodCredit) : "—"}</td>
+        <td className={`${TD_NUM} border-e border-border font-semibold`}>{r.closingDebit ? fmt(r.closingDebit) : "—"}</td>
+        <td className={`${TD_NUM} font-semibold`}>{r.closingCredit ? fmt(r.closingCredit) : "—"}</td>
+      </tr>
+    ));
+
+  const tbHeaders = (
+    <>
+      <tr>
+        <th rowSpan={2} className={`${TH_BASE} text-start border-e border-border`}>{t("reportsPage.table.code")}</th>
+        <th rowSpan={2} className={`${TH_BASE} text-start border-e border-border`}>{t("reportsPage.table.account")}</th>
+        <th colSpan={2} className={`${TH_BASE} text-center border-e border-border border-b border-border`}>{t("reportsPage.trialBalance.opening")}</th>
+        <th colSpan={2} className={`${TH_BASE} text-center border-e border-border border-b border-border`}>{t("reportsPage.trialBalance.period")}</th>
+        <th colSpan={2} className={`${TH_BASE} text-center border-b border-border`}>{t("reportsPage.trialBalance.closing")}</th>
+      </tr>
+      <tr>
+        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.debit")}</th>
+        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.credit")}</th>
+        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.debit")}</th>
+        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.credit")}</th>
+        <th className={`${TH_NUM} border-e border-border`}>{t("reportsPage.table.debit")}</th>
+        <th className={TH_NUM}>{t("reportsPage.table.credit")}</th>
+      </tr>
+    </>
+  );
 
   return (
     <>
       <ReportHeader
         company={company}
         title={t("reportsPage.trialBalance.title")}
-        dateLabel={dateLabel}
+        dateLabel={dateLabel + breakdownLabel}
         currency={currency}
         baseCurrency={cc.baseCurrency}
         rateLabel={
@@ -407,131 +461,77 @@ function TrialBalanceDetail({
         <ReportLoading />
       ) : !data || data.rows.length === 0 ? (
         <ReportEmpty />
+      ) : data.breakdownGroups && data.breakdownGroups.length > 0 ? (
+        /* ── Breakdown view ────────────────────────────────────────── */
+        <div className="flex flex-col gap-4">
+          {data.breakdownGroups.map((grp: TrialBalanceBreakdownGroup) => (
+            <ReportTableCard key={grp.dimensionId ?? "__unassigned__"}>
+              <div className="flex items-center gap-2 border-b border-border bg-slate-50 dark:bg-slate-800 px-5 py-3">
+                <span className="font-bold text-sm">{grp.dimensionName}</span>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100 dark:bg-slate-800 text-muted-foreground border-b border-border">
+                  {tbHeaders}
+                </thead>
+                <tbody>{renderTbRows(grp.rows)}</tbody>
+                <tfoot>
+                  <tr className="border-t border-primary/20 bg-primary/5 font-semibold text-xs">
+                    <td className="px-4 py-2.5 border-e border-border" colSpan={2}>
+                      {t("dimensionFilters.breakdown.subtotal")}
+                    </td>
+                    <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalOpeningDebit)}</td>
+                    <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalOpeningCredit)}</td>
+                    <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalPeriodDebit)}</td>
+                    <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalPeriodCredit)}</td>
+                    <td className={`${TD_NUM} border-e border-border`}>{fmt(grp.totalClosingDebit)}</td>
+                    <td className={TD_NUM}>{fmt(grp.totalClosingCredit)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </ReportTableCard>
+          ))}
+          {/* Grand total card */}
+          <ReportTableCard>
+            <table className="w-full text-sm">
+              <thead className="bg-slate-100 dark:bg-slate-800 text-muted-foreground border-b border-border">
+                {tbHeaders}
+              </thead>
+              <tfoot>
+                <tr className="border-t-2 border-primary/20 bg-primary/5 font-bold">
+                  <td className="px-4 py-3.5 border-e border-border" colSpan={2}>{t("reportsPage.table.total")}</td>
+                  <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalOpeningDebit)}</td>
+                  <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalOpeningCredit)}</td>
+                  <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalPeriodDebit)}</td>
+                  <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalPeriodCredit)}</td>
+                  <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalClosingDebit)}</td>
+                  <td className={TD_NUM}>{fmt(data.totalClosingCredit)}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div className="flex items-center justify-between border-t border-border bg-card px-5 py-3">
+              <CurrencyRateNote info={data.currencyInfo} fmt={fmt} />
+              <span className={`rounded-full px-4 py-1 text-xs font-bold ${data.balanced ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400"}`}>
+                {data.balanced ? t("reportsPage.trialBalance.balanced") : t("reportsPage.trialBalance.unbalanced")}
+              </span>
+            </div>
+          </ReportTableCard>
+        </div>
       ) : (
+        /* ── Standard view ─────────────────────────────────────────── */
         <ReportTableCard>
           <table className="w-full text-sm">
             <thead className="bg-slate-100 dark:bg-slate-800 text-muted-foreground border-b border-border">
-              <tr>
-                <th
-                  rowSpan={2}
-                  className={`${TH_BASE} text-start border-e border-border`}
-                >
-                  {t("reportsPage.table.code")}
-                </th>
-                <th
-                  rowSpan={2}
-                  className={`${TH_BASE} text-start border-e border-border`}
-                >
-                  {t("reportsPage.table.account")}
-                </th>
-                <th
-                  colSpan={2}
-                  className={`${TH_BASE} text-center border-e border-border border-b border-border`}
-                >
-                  {t("reportsPage.trialBalance.opening")}
-                </th>
-                <th
-                  colSpan={2}
-                  className={`${TH_BASE} text-center border-e border-border border-b border-border`}
-                >
-                  {t("reportsPage.trialBalance.period")}
-                </th>
-                <th
-                  colSpan={2}
-                  className={`${TH_BASE} text-center border-b border-border`}
-                >
-                  {t("reportsPage.trialBalance.closing")}
-                </th>
-              </tr>
-              <tr>
-                <th className={`${TH_NUM} border-e border-border`}>
-                  {t("reportsPage.table.debit")}
-                </th>
-                <th className={`${TH_NUM} border-e border-border`}>
-                  {t("reportsPage.table.credit")}
-                </th>
-                <th className={`${TH_NUM} border-e border-border`}>
-                  {t("reportsPage.table.debit")}
-                </th>
-                <th className={`${TH_NUM} border-e border-border`}>
-                  {t("reportsPage.table.credit")}
-                </th>
-                <th className={`${TH_NUM} border-e border-border`}>
-                  {t("reportsPage.table.debit")}
-                </th>
-                <th className={TH_NUM}>{t("reportsPage.table.credit")}</th>
-              </tr>
+              {tbHeaders}
             </thead>
-            <tbody>
-              {data.rows.map((r: TrialBalanceRow, idx: number) => (
-                <tr
-                  key={r.accountId}
-                  className={`border-t border-border transition-colors hover:bg-primary/5 ${idx % 2 === 1 ? "bg-muted/20" : ""}`}
-                >
-                  <td className={`${TD_CODE} border-e border-border`}>
-                    {r.code}
-                  </td>
-                  <td
-                    className={`${TD_NAME} border-e border-border font-medium`}
-                  >
-                    <AccountDrillLink
-                      accountId={r.accountId}
-                      label={displayName(r, lang)}
-                      onDrill={(accountId) =>
-                        onDrillToGeneralLedger?.(accountId, { from, to })
-                      }
-                    />
-                  </td>
-                  <td
-                    className={`${TD_NUM} border-e border-border text-slate-700 dark:text-slate-300`}
-                  >
-                    {r.openingDebit ? fmt(r.openingDebit) : "—"}
-                  </td>
-                  <td
-                    className={`${TD_NUM} border-e border-border text-slate-700 dark:text-slate-300`}
-                  >
-                    {r.openingCredit ? fmt(r.openingCredit) : "—"}
-                  </td>
-                  <td className={`${TD_NUM} border-e border-border`}>
-                    {r.periodDebit ? fmt(r.periodDebit) : "—"}
-                  </td>
-                  <td className={`${TD_NUM} border-e border-border`}>
-                    {r.periodCredit ? fmt(r.periodCredit) : "—"}
-                  </td>
-                  <td
-                    className={`${TD_NUM} border-e border-border font-semibold`}
-                  >
-                    {r.closingDebit ? fmt(r.closingDebit) : "—"}
-                  </td>
-                  <td className={`${TD_NUM} font-semibold`}>
-                    {r.closingCredit ? fmt(r.closingCredit) : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            <tbody>{renderTbRows(data.rows)}</tbody>
             <tfoot>
               <tr className="border-t-2 border-primary/20 bg-primary/5 font-bold">
-                <td
-                  className="px-4 py-3.5 border-e border-border"
-                  colSpan={2}
-                >
-                  {t("reportsPage.table.total")}
-                </td>
-                <td className={`${TD_NUM} border-e border-border`}>
-                  {fmt(data.totalOpeningDebit)}
-                </td>
-                <td className={`${TD_NUM} border-e border-border`}>
-                  {fmt(data.totalOpeningCredit)}
-                </td>
-                <td className={`${TD_NUM} border-e border-border`}>
-                  {fmt(data.totalPeriodDebit)}
-                </td>
-                <td className={`${TD_NUM} border-e border-border`}>
-                  {fmt(data.totalPeriodCredit)}
-                </td>
-                <td className={`${TD_NUM} border-e border-border`}>
-                  {fmt(data.totalClosingDebit)}
-                </td>
+                <td className="px-4 py-3.5 border-e border-border" colSpan={2}>{t("reportsPage.table.total")}</td>
+                <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalOpeningDebit)}</td>
+                <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalOpeningCredit)}</td>
+                <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalPeriodDebit)}</td>
+                <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalPeriodCredit)}</td>
+                <td className={`${TD_NUM} border-e border-border`}>{fmt(data.totalClosingDebit)}</td>
                 <td className={TD_NUM}>{fmt(data.totalClosingCredit)}</td>
               </tr>
             </tfoot>
@@ -753,6 +753,9 @@ function GeneralLedgerDetail({
                 <th className={`${TH_BASE} text-start`}>
                   {t("reportsPage.table.description")}
                 </th>
+                <th className={`${TH_BASE} text-start`}>{t("dimensionFilters.costCenter")}</th>
+                <th className={`${TH_BASE} text-start`}>{t("dimensionFilters.project")}</th>
+                <th className={`${TH_BASE} text-start`}>{t("dimensionFilters.branch")}</th>
                 <th className={TH_NUM}>{t("reportsPage.table.debit")}</th>
                 <th className={TH_NUM}>{t("reportsPage.table.credit")}</th>
                 <th className={TH_NUM}>{t("reportsPage.table.balance")}</th>
@@ -763,7 +766,7 @@ function GeneralLedgerDetail({
                 <tr>
                   <td
                     className="px-4 py-8 text-center text-muted-foreground"
-                    colSpan={6}
+                    colSpan={9}
                   >
                     {t("reportsPage.noData")}
                   </td>
@@ -799,6 +802,15 @@ function GeneralLedgerDetail({
                     <td className="px-4 py-2.5 text-xs text-muted-foreground max-w-[240px] truncate">
                       {e.description}
                     </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                      {e.costCenterName ?? "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                      {e.projectName ?? "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                      {e.branchName ?? "—"}
+                    </td>
                     <td className="px-4 py-2.5 text-end tabular-nums font-mono text-rose-600 dark:text-rose-400">
                       {e.debit ? fmt(e.debit) : "—"}
                     </td>
@@ -814,7 +826,7 @@ function GeneralLedgerDetail({
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-primary/20 bg-primary/5 font-bold">
-                <td className="px-4 py-3.5" colSpan={5}>
+                <td className="px-4 py-3.5" colSpan={8}>
                   {t("reportsPage.ledger.closingBalance")}
                 </td>
                 <td className="px-4 py-3.5 text-end tabular-nums font-mono">
@@ -849,6 +861,7 @@ function IncomeStatementDetail({
   lang,
   dimensionFilters,
   onDrillToGeneralLedger,
+  breakdownBy = "standard",
 }: {
   company?: Company;
   cc: CurrencyControls;
@@ -856,6 +869,7 @@ function IncomeStatementDetail({
   lang: string;
   dimensionFilters: DimensionFilterQuery;
   onDrillToGeneralLedger?: DrillToGeneralLedger;
+  breakdownBy?: BreakdownMode;
 }) {
   const { t } = useTranslation();
   const [from, setFrom] = useState(startOfYear());
@@ -866,6 +880,7 @@ function IncomeStatementDetail({
     to: to || undefined,
     reportCurrency: reportCurrencyParam(cc),
     ...dimensionFilters,
+    breakdownBy: breakdownBy !== "standard" ? breakdownBy : undefined,
   });
 
   const exportExcel = () => {
@@ -880,6 +895,7 @@ function IncomeStatementDetail({
       qs.set("projectId", dimensionFilters.projectId);
     if (dimensionFilters?.branchId)
       qs.set("branchId", dimensionFilters.branchId);
+    if (breakdownBy !== "standard") qs.set("breakdownBy", breakdownBy);
     window.open(
       `/api/reports/income-statement/export?${qs.toString()}`,
       "_blank",
@@ -918,13 +934,45 @@ function IncomeStatementDetail({
   const currency = reportCurrencyParam(cc) || cc.baseCurrency;
   const profit = (data?.netProfit ?? 0) >= 0;
   const dateLabel = `${t("reportsPage.filters.from")}: ${from || "—"}  ·  ${t("reportsPage.filters.to")}: ${to || "—"}`;
+  const breakdownLabel = breakdownBy !== "standard"
+    ? `  ·  ${t(`dimensionFilters.breakdown.${breakdownBy}`)}`
+    : "";
+
+  // Reusable PnL table body renderer
+  const renderPnlRows = (lines: PnlLine[], colorClass: string) =>
+    lines.map((l: PnlLine, i: number) => (
+      <tr
+        key={l.accountId ?? i}
+        className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
+      >
+        <td className={TD_CODE}>{l.code}</td>
+        <td className={TD_NAME}>
+          <AccountDrillLink
+            accountId={l.accountId}
+            label={displayName(l, lang)}
+            onDrill={(accountId) => onDrillToGeneralLedger?.(accountId, { from, to })}
+          />
+        </td>
+        <td className={`${TD_NUM} font-semibold ${colorClass}`}>{fmt(l.amount)}</td>
+      </tr>
+    ));
+
+  const pnlHeaders = (
+    <thead className="bg-muted/30 text-muted-foreground border-b border-border">
+      <tr>
+        <th className={`${TH_BASE} text-start`}>{t("reportsPage.table.code")}</th>
+        <th className={`${TH_BASE} text-start`}>{t("reportsPage.table.account")}</th>
+        <th className={TH_NUM}>{t("reportsPage.table.amount")}</th>
+      </tr>
+    </thead>
+  );
 
   return (
     <>
       <ReportHeader
         company={company}
         title={t("reportsPage.tabs.incomeStatement")}
-        dateLabel={dateLabel}
+        dateLabel={dateLabel + breakdownLabel}
         currency={currency}
         baseCurrency={cc.baseCurrency}
         rateLabel={
@@ -966,6 +1014,56 @@ function IncomeStatementDetail({
         <ReportLoading />
       ) : !data ? (
         <ReportEmpty />
+      ) : data.breakdownGroups && data.breakdownGroups.length > 0 ? (
+        /* ── Breakdown view ────────────────────────────────────────── */
+        <div className="flex flex-col gap-4">
+          {data.breakdownGroups.map((grp: IncomeStatementBreakdownGroup) => {
+            const grpProfit = grp.netProfit >= 0;
+            return (
+              <div key={grp.dimensionId ?? "__unassigned__"} className="flex flex-col gap-3">
+                <div className="rounded-xl border border-border bg-primary/5 px-5 py-2.5">
+                  <span className="font-bold text-sm">{grp.dimensionName}</span>
+                </div>
+                <ReportSectionCard
+                  title={t("reportsPage.incomeStatement.revenue")}
+                  total={grp.totalRevenue}
+                  totalLabel={t("reportsPage.incomeStatement.totalRevenue")}
+                  fmt={fmt}
+                  accentClass="bg-emerald-50 dark:bg-emerald-900/20"
+                >
+                  {pnlHeaders}
+                  <tbody>{renderPnlRows(grp.revenue, "text-emerald-700 dark:text-emerald-400")}</tbody>
+                </ReportSectionCard>
+                <ReportSectionCard
+                  title={t("reportsPage.incomeStatement.expenses")}
+                  total={grp.totalExpenses}
+                  totalLabel={t("reportsPage.incomeStatement.totalExpenses")}
+                  fmt={fmt}
+                  accentClass="bg-rose-50 dark:bg-rose-900/20"
+                >
+                  {pnlHeaders}
+                  <tbody>{renderPnlRows(grp.expenses, "text-rose-700 dark:text-rose-400")}</tbody>
+                </ReportSectionCard>
+                <ReportNetCard
+                  label={`${t("dimensionFilters.breakdown.subtotal")} · ${grpProfit ? t("reportsPage.incomeStatement.netProfit") : t("reportsPage.incomeStatement.netLoss")}`}
+                  value={grp.netProfit}
+                  fmt={fmt}
+                  positive={grpProfit}
+                />
+              </div>
+            );
+          })}
+          {/* Grand totals */}
+          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 px-5 py-3 flex items-center justify-between">
+            <span className="font-bold text-sm">{t("reportsPage.table.total")}</span>
+          </div>
+          <ReportNetCard
+            label={profit ? t("reportsPage.incomeStatement.netProfit") : t("reportsPage.incomeStatement.netLoss")}
+            value={data.netProfit}
+            fmt={fmt}
+            positive={profit}
+          />
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           {/* Revenue */}
@@ -976,41 +1074,8 @@ function IncomeStatementDetail({
             fmt={fmt}
             accentClass="bg-emerald-50 dark:bg-emerald-900/20"
           >
-            <thead className="bg-muted/30 text-muted-foreground border-b border-border">
-              <tr>
-                <th className={`${TH_BASE} text-start`}>
-                  {t("reportsPage.table.code")}
-                </th>
-                <th className={`${TH_BASE} text-start`}>
-                  {t("reportsPage.table.account")}
-                </th>
-                <th className={TH_NUM}>{t("reportsPage.table.amount")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.revenue.map((l: PnlLine, i: number) => (
-                <tr
-                  key={l.accountId ?? i}
-                  className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
-                >
-                  <td className={TD_CODE}>{l.code}</td>
-                  <td className={TD_NAME}>
-                    <AccountDrillLink
-                      accountId={l.accountId}
-                      label={displayName(l, lang)}
-                      onDrill={(accountId) =>
-                        onDrillToGeneralLedger?.(accountId, { from, to })
-                      }
-                    />
-                  </td>
-                  <td
-                    className={`${TD_NUM} font-semibold text-emerald-700 dark:text-emerald-400`}
-                  >
-                    {fmt(l.amount)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            {pnlHeaders}
+            <tbody>{renderPnlRows(data.revenue, "text-emerald-700 dark:text-emerald-400")}</tbody>
           </ReportSectionCard>
 
           {/* Expenses */}
@@ -1021,41 +1086,8 @@ function IncomeStatementDetail({
             fmt={fmt}
             accentClass="bg-rose-50 dark:bg-rose-900/20"
           >
-            <thead className="bg-muted/30 text-muted-foreground border-b border-border">
-              <tr>
-                <th className={`${TH_BASE} text-start`}>
-                  {t("reportsPage.table.code")}
-                </th>
-                <th className={`${TH_BASE} text-start`}>
-                  {t("reportsPage.table.account")}
-                </th>
-                <th className={TH_NUM}>{t("reportsPage.table.amount")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.expenses.map((l: PnlLine, i: number) => (
-                <tr
-                  key={l.accountId ?? i}
-                  className={`border-t border-border/50 hover:bg-muted/20 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}
-                >
-                  <td className={TD_CODE}>{l.code}</td>
-                  <td className={TD_NAME}>
-                    <AccountDrillLink
-                      accountId={l.accountId}
-                      label={displayName(l, lang)}
-                      onDrill={(accountId) =>
-                        onDrillToGeneralLedger?.(accountId, { from, to })
-                      }
-                    />
-                  </td>
-                  <td
-                    className={`${TD_NUM} font-semibold text-rose-700 dark:text-rose-400`}
-                  >
-                    {fmt(l.amount)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+            {pnlHeaders}
+            <tbody>{renderPnlRows(data.expenses, "text-rose-700 dark:text-rose-400")}</tbody>
           </ReportSectionCard>
 
           {/* Net result */}
@@ -1739,6 +1771,8 @@ export function ReportsFinancialDetail() {
     branchId: query.get("branchId") ?? "",
   });
 
+  const [breakdownBy, setBreakdownBy] = useState<BreakdownMode>("standard");
+
   const dimensionQuery: DimensionFilterQuery = useMemo(
     () => ({
       costCenterId: dimensionFilters.costCenterId || undefined,
@@ -1792,6 +1826,9 @@ export function ReportsFinancialDetail() {
       maximumFractionDigits: 2,
     }).format(n);
 
+  // Only TB and IS support breakdown
+  const supportsBreakdown = reportKey === "trial-balance" || reportKey === "income-statement";
+
   const commonProps = {
     company,
     cc,
@@ -1820,12 +1857,15 @@ export function ReportsFinancialDetail() {
         value={dimensionFilters}
         onChange={setDimensionFilters}
         onBack={() => setLocation("/reports/center")}
+        breakdown={supportsBreakdown ? breakdownBy : undefined}
+        onBreakdownChange={supportsBreakdown ? setBreakdownBy : undefined}
       />
 
       {reportKey === "trial-balance" && (
         <TrialBalanceDetail
           {...commonProps}
           onDrillToGeneralLedger={drillToGeneralLedger}
+          breakdownBy={breakdownBy}
         />
       )}
       {reportKey === "general-ledger" && (
@@ -1851,6 +1891,7 @@ export function ReportsFinancialDetail() {
         <IncomeStatementDetail
           {...commonProps}
           onDrillToGeneralLedger={drillToGeneralLedger}
+          breakdownBy={breakdownBy}
         />
       )}
       {reportKey === "balance-sheet" && (

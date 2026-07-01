@@ -2632,7 +2632,16 @@
     "allCostCenters": "All Cost Centers",
     "allProjects": "All Projects",
     "allBranches": "All Branches",
-    "applyFilter": "Apply"
+    "applyFilter": "Apply",
+    "breakdown": {
+      "label": "Breakdown By",
+      "standard": "Standard View",
+      "costCenter": "Breakdown by Cost Center",
+      "project": "Breakdown by Project",
+      "branch": "Breakdown by Branch",
+      "unassigned": "Unassigned",
+      "subtotal": "Subtotal"
+    }
   },
   "superAdmin": {
     "title": "Super Admin",

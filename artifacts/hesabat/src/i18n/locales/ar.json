@@ -2632,7 +2632,16 @@
     "allCostCenters": "جميع مراكز التكلفة",
     "allProjects": "جميع المشاريع",
     "allBranches": "جميع الفروع",
-    "applyFilter": "تطبيق"
+    "applyFilter": "تطبيق",
+    "breakdown": {
+      "label": "تجميع حسب",
+      "standard": "العرض القياسي",
+      "costCenter": "تجميع حسب مركز التكلفة",
+      "project": "تجميع حسب المشروع",
+      "branch": "تجميع حسب الفرع",
+      "unassigned": "غير محدد",
+      "subtotal": "الإجمالي الفرعي"
+    }
   },
   "superAdmin": {
     "title": "لوحة التحكم",
