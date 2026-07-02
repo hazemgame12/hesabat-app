@@ -82,7 +82,10 @@ router.post("/auth/signup", authLimiter, async (req, res) => {
       res.status(400).json({ error: "الباقة المختارة غير متاحة" });
       return;
     }
-    if (selectedPlan && selectedPlan.countryCode && selectedPlan.countryCode !== resolvedCountry) {
+    // Use plan.country as canonical; fall back to countryCode only when country is absent.
+    // (Some legacy rows have countryCode set to a currency code, not a country code.)
+    const planCanonicalCountry = selectedPlan?.country || selectedPlan?.countryCode;
+    if (selectedPlan && planCanonicalCountry && planCanonicalCountry !== resolvedCountry) {
       res.status(400).json({ error: "الباقة غير متاحة للدولة المختارة" });
       return;
     }

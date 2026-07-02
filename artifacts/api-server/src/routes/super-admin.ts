@@ -486,12 +486,17 @@ router.post("/super-admin/companies/:id/subscription", async (req, res) => {
   let subscriptionInsert: any = null;
 
   if (action === "activate") {
+    const resolvedPlanId = planId ?? companyRows[0]!.planId;
+    if (!resolvedPlanId) {
+      res.status(400).json({ error: "planId is required to activate a subscription" });
+      return;
+    }
     const cycleEnd = resolvedEndsAt ?? addBillingCycle(now, billingCycle);
     companyUpdate.subscriptionStatus = "active";
-    if (planId) companyUpdate.planId = planId;
+    companyUpdate.planId = resolvedPlanId;
     subscriptionInsert = {
       companyId: id,
-      planId: planId ?? companyRows[0]!.planId ?? "",
+      planId: resolvedPlanId,
       status: "active",
       startedAt: now,
       endsAt: cycleEnd,
@@ -502,11 +507,17 @@ router.post("/super-admin/companies/:id/subscription", async (req, res) => {
     };
     auditAction = "SUBSCRIPTION_ACTIVATED";
   } else if (action === "renew") {
+    const resolvedPlanId = planId ?? companyRows[0]!.planId;
+    if (!resolvedPlanId) {
+      res.status(400).json({ error: "planId is required to renew a subscription" });
+      return;
+    }
     const cycleEnd = resolvedEndsAt ?? addBillingCycle(now, billingCycle);
     companyUpdate.subscriptionStatus = "active";
+    companyUpdate.planId = resolvedPlanId;
     subscriptionInsert = {
       companyId: id,
-      planId: planId ?? companyRows[0]!.planId ?? "",
+      planId: resolvedPlanId,
       status: "active",
       startedAt: now,
       endsAt: cycleEnd,
