@@ -287,6 +287,18 @@ export function SubscriptionSettings() {
       )}
 
       {/* Renewal request form */}
+      {plans.length === 0 && (
+        <Card>
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              <Info className="w-4 h-4 shrink-0" />
+              {isAr
+                ? "لا توجد باقات متاحة لدولتك حالياً. تواصل مع الدعم لتفعيل اشتراكك."
+                : "No plans available for your country yet. Contact support to activate your subscription."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
       {plans.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
