@@ -94,40 +94,48 @@ function addBillingCycle(from: Date, cycle?: string): Date {
 
 // GET /super-admin/dashboard — KPIs
 router.get("/super-admin/dashboard", async (req, res) => {
-  const totalCompanies = await db
-    .select({ count: count() })
-    .from(companiesTable);
-  const activeCompanies = await db
-    .select({ count: count() })
-    .from(companiesTable)
-    .where(eq(companiesTable.isActive, true));
-  const totalUsers = await db.select({ count: count() }).from(usersTable);
-  const activeSubscriptions = await db
-    .select({ count: count() })
-    .from(subscriptionsTable)
-    .where(eq(subscriptionsTable.status, "active"));
-  const trialCompanies = await db
-    .select({ count: count() })
-    .from(companiesTable)
-    .where(eq(companiesTable.subscriptionStatus, "trial"));
-  const expiredCompanies = await db
-    .select({ count: count() })
-    .from(companiesTable)
-    .where(eq(companiesTable.subscriptionStatus, "expired"));
-  const openTickets = await db
-    .select({ count: count() })
-    .from(supportTicketsTable)
-    .where(eq(supportTicketsTable.status, "open"));
+  try {
+    const safeCount = async (label: string, query: Promise<any[]>): Promise<number> => {
+      try {
+        const rows = await query;
+        return Number(rows[0]?.count ?? 0);
+      } catch (e) {
+        req.log.warn({ label, err: e instanceof Error ? e.message : String(e) }, "dashboard KPI query failed");
+        return 0;
+      }
+    };
 
-  res.json({
-    totalCompanies: totalCompanies[0]?.count ?? 0,
-    activeCompanies: activeCompanies[0]?.count ?? 0,
-    totalUsers: totalUsers[0]?.count ?? 0,
-    activeSubscriptions: activeSubscriptions[0]?.count ?? 0,
-    trialCompanies: trialCompanies[0]?.count ?? 0,
-    expiredCompanies: expiredCompanies[0]?.count ?? 0,
-    openTickets: openTickets[0]?.count ?? 0,
-  });
+    const [
+      totalCompanies,
+      activeCompanies,
+      totalUsers,
+      activeSubscriptions,
+      trialCompanies,
+      expiredCompanies,
+      openTickets,
+    ] = await Promise.all([
+      safeCount("totalCompanies",      db.select({ count: count() }).from(companiesTable)),
+      safeCount("activeCompanies",     db.select({ count: count() }).from(companiesTable).where(eq(companiesTable.isActive, true))),
+      safeCount("totalUsers",          db.select({ count: count() }).from(usersTable)),
+      safeCount("activeSubscriptions", db.select({ count: count() }).from(subscriptionsTable).where(eq(subscriptionsTable.status, "active"))),
+      safeCount("trialCompanies",      db.select({ count: count() }).from(companiesTable).where(eq(companiesTable.subscriptionStatus, "trial"))),
+      safeCount("expiredCompanies",    db.select({ count: count() }).from(companiesTable).where(eq(companiesTable.subscriptionStatus, "expired"))),
+      safeCount("openTickets",         db.select({ count: count() }).from(supportTicketsTable).where(eq(supportTicketsTable.status, "open"))),
+    ]);
+
+    res.json({
+      totalCompanies,
+      activeCompanies,
+      totalUsers,
+      activeSubscriptions,
+      trialCompanies,
+      expiredCompanies,
+      openTickets,
+    });
+  } catch (err) {
+    req.log.error({ err }, "dashboard failed");
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 // GET /super-admin/companies — list all companies
