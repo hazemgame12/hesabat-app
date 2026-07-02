@@ -238,58 +238,178 @@ export async function ensurePayrollSchema(): Promise<void> {
 
   // ── Phase 5: Subscriptions & Super Admin ─────────────────────────────────
   // CRITICAL: sessions.is_impersonating — Drizzle selects all columns on every
-  // auth check; if this column is missing production crashes with 500 on every request.
+  // auth check. Missing column = 500 on EVERY authenticated request.
   steps.push(
     { name: "sessions.is_impersonating",               ddl: `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS is_impersonating BOOLEAN NOT NULL DEFAULT FALSE` },
     { name: "sessions.impersonated_by_super_admin_id", ddl: `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS impersonated_by_super_admin_id UUID` },
   );
 
-  // subscription_plans extra columns (added in Phase 5 on top of old migrate-super-admin.sql)
-  steps.push(
-    { name: "subscription_plans.country_code",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS country_code TEXT DEFAULT 'EG'` },
-    { name: "subscription_plans.country_name",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS country_name TEXT` },
-    { name: "subscription_plans.currency_code",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS currency_code TEXT` },
-    { name: "subscription_plans.monthly_price",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS monthly_price NUMERIC(12,2)` },
-    { name: "subscription_plans.yearly_price",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS yearly_price NUMERIC(12,2)` },
-    { name: "subscription_plans.trial_days",                ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS trial_days INTEGER NOT NULL DEFAULT 14` },
-    { name: "subscription_plans.max_companies_or_branches", ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS max_companies_or_branches INTEGER` },
-    { name: "subscription_plans.storage_limit",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS storage_limit INTEGER` },
-    { name: "subscription_plans.feature_limits",            ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS feature_limits JSONB NOT NULL DEFAULT '{}'` },
-  );
-
-  // manual_payment_requests table (new in Phase 5)
-  steps.push(
-    {
-      name: "manual_payment_requests table",
-      ddl: `
-        CREATE TABLE IF NOT EXISTS manual_payment_requests (
-          id                             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
-          company_id                     UUID          NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-          plan_id                        UUID          NOT NULL,
-          amount                         NUMERIC(12,2) NOT NULL,
-          currency                       TEXT          NOT NULL,
-          billing_cycle                  TEXT          NOT NULL,
-          notes                          TEXT,
-          proof_url                      TEXT,
-          status                         TEXT          NOT NULL DEFAULT 'pending',
-          reviewed_by_super_admin_id     UUID,
-          reviewer_notes                 TEXT,
-          reviewed_at                    TIMESTAMPTZ,
-          created_at                     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-          updated_at                     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
-        )`,
-    },
-    { name: "manual_payment_requests_company_idx", ddl: `CREATE INDEX IF NOT EXISTS manual_payment_requests_company_idx ON manual_payment_requests (company_id)` },
-    { name: "manual_payment_requests_status_idx",  ddl: `CREATE INDEX IF NOT EXISTS manual_payment_requests_status_idx  ON manual_payment_requests (status)` },
-  );
-
-  // companies Phase 5 columns — safety net if old migration hadn't run
+  // companies Phase 5 columns
   steps.push(
     { name: "companies.plan_id",             ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_id UUID` },
     { name: "companies.subscription_status", ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial'` },
     { name: "companies.trial_ends_at",       ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ` },
     { name: "companies.max_users",           ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 1` },
     { name: "companies.max_transactions",    ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_transactions INTEGER DEFAULT 1000` },
+  );
+
+  // super_admins table (full create — safe if old migration never ran)
+  steps.push({
+    name: "super_admins table",
+    ddl: `
+      CREATE TABLE IF NOT EXISTS super_admins (
+        id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+        email         TEXT        NOT NULL,
+        name          TEXT        NOT NULL,
+        password_hash TEXT        NOT NULL,
+        role          TEXT        NOT NULL DEFAULT 'super_admin',
+        is_active     BOOLEAN     NOT NULL DEFAULT TRUE,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+  });
+  steps.push(
+    { name: "super_admins_email_idx", ddl: `CREATE UNIQUE INDEX IF NOT EXISTS super_admins_email_idx ON super_admins (email)` },
+  );
+
+  // super_admin_sessions table
+  steps.push({
+    name: "super_admin_sessions table",
+    ddl: `
+      CREATE TABLE IF NOT EXISTS super_admin_sessions (
+        id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+        super_admin_id   UUID        NOT NULL REFERENCES super_admins(id) ON DELETE CASCADE,
+        token_hash       TEXT        NOT NULL,
+        expires_at       TIMESTAMPTZ NOT NULL,
+        created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+  });
+  steps.push(
+    { name: "super_admin_sessions_token_idx", ddl: `CREATE INDEX IF NOT EXISTS super_admin_sessions_token_hash_idx ON super_admin_sessions (token_hash)` },
+  );
+
+  // subscription_plans table + extra columns
+  steps.push({
+    name: "subscription_plans table",
+    ddl: `
+      CREATE TABLE IF NOT EXISTS subscription_plans (
+        id                          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        name_ar                     TEXT          NOT NULL,
+        name_en                     TEXT          NOT NULL,
+        description_ar              TEXT          DEFAULT '',
+        description_en              TEXT          DEFAULT '',
+        country                     TEXT          NOT NULL DEFAULT 'EG',
+        country_code                TEXT          DEFAULT 'EG',
+        country_name                TEXT,
+        max_users                   INTEGER       NOT NULL DEFAULT 1,
+        max_transactions            INTEGER       NOT NULL DEFAULT 1000,
+        price                       NUMERIC(12,2) NOT NULL DEFAULT 0,
+        currency                    TEXT          NOT NULL DEFAULT 'EGP',
+        currency_code               TEXT,
+        billing_cycle               TEXT          NOT NULL DEFAULT 'monthly',
+        monthly_price               NUMERIC(12,2),
+        yearly_price                NUMERIC(12,2),
+        trial_days                  INTEGER       NOT NULL DEFAULT 14,
+        max_companies_or_branches   INTEGER,
+        storage_limit               INTEGER,
+        features                    JSONB         NOT NULL DEFAULT '[]',
+        feature_limits              JSONB         NOT NULL DEFAULT '{}',
+        is_active                   BOOLEAN       NOT NULL DEFAULT TRUE,
+        show_on_landing             BOOLEAN       NOT NULL DEFAULT TRUE,
+        "order"                     INTEGER       NOT NULL DEFAULT 0,
+        created_at                  TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+        updated_at                  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+      )`,
+  });
+  steps.push(
+    { name: "subscription_plans_country_idx", ddl: `CREATE INDEX IF NOT EXISTS subscription_plans_country_idx ON subscription_plans (country)` },
+    { name: "subscription_plans_active_idx",  ddl: `CREATE INDEX IF NOT EXISTS subscription_plans_active_idx ON subscription_plans (is_active)` },
+    { name: "subscription_plans_show_idx",    ddl: `CREATE INDEX IF NOT EXISTS subscription_plans_show_idx ON subscription_plans (show_on_landing)` },
+    // ADD COLUMN for servers that already have the table from old migration
+    { name: "subscription_plans.country_code ADD",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS country_code TEXT DEFAULT 'EG'` },
+    { name: "subscription_plans.country_name ADD",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS country_name TEXT` },
+    { name: "subscription_plans.currency_code ADD",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS currency_code TEXT` },
+    { name: "subscription_plans.monthly_price ADD",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS monthly_price NUMERIC(12,2)` },
+    { name: "subscription_plans.yearly_price ADD",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS yearly_price NUMERIC(12,2)` },
+    { name: "subscription_plans.trial_days ADD",                ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS trial_days INTEGER NOT NULL DEFAULT 14` },
+    { name: "subscription_plans.max_companies_or_branches ADD", ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS max_companies_or_branches INTEGER` },
+    { name: "subscription_plans.storage_limit ADD",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS storage_limit INTEGER` },
+    { name: "subscription_plans.feature_limits ADD",            ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS feature_limits JSONB NOT NULL DEFAULT '{}'` },
+  );
+
+  // subscriptions table
+  steps.push({
+    name: "subscriptions table",
+    ddl: `
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id                        UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        company_id                UUID          NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        plan_id                   UUID          NOT NULL,
+        status                    TEXT          NOT NULL DEFAULT 'trial',
+        started_at                TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+        ends_at                   TIMESTAMPTZ,
+        payment_provider          TEXT,
+        provider_subscription_id  TEXT,
+        amount                    NUMERIC(12,2),
+        currency                  TEXT,
+        billing_cycle             TEXT,
+        trial_ends_at             TIMESTAMPTZ,
+        created_at                TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+        updated_at                TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+      )`,
+  });
+  steps.push(
+    { name: "subscriptions_company_idx", ddl: `CREATE INDEX IF NOT EXISTS subscriptions_company_idx ON subscriptions (company_id)` },
+    { name: "subscriptions_status_idx",  ddl: `CREATE INDEX IF NOT EXISTS subscriptions_status_idx  ON subscriptions (status)` },
+  );
+
+  // manual_payment_requests table
+  steps.push({
+    name: "manual_payment_requests table",
+    ddl: `
+      CREATE TABLE IF NOT EXISTS manual_payment_requests (
+        id                             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        company_id                     UUID          NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        plan_id                        UUID          NOT NULL,
+        amount                         NUMERIC(12,2) NOT NULL,
+        currency                       TEXT          NOT NULL,
+        billing_cycle                  TEXT          NOT NULL,
+        notes                          TEXT,
+        proof_url                      TEXT,
+        status                         TEXT          NOT NULL DEFAULT 'pending',
+        reviewed_by_super_admin_id     UUID,
+        reviewer_notes                 TEXT,
+        reviewed_at                    TIMESTAMPTZ,
+        created_at                     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+        updated_at                     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+      )`,
+  });
+  steps.push(
+    { name: "manual_payment_requests_company_idx", ddl: `CREATE INDEX IF NOT EXISTS manual_payment_requests_company_idx ON manual_payment_requests (company_id)` },
+    { name: "manual_payment_requests_status_idx",  ddl: `CREATE INDEX IF NOT EXISTS manual_payment_requests_status_idx  ON manual_payment_requests (status)` },
+  );
+
+  // support_tickets table
+  steps.push({
+    name: "support_tickets table",
+    ddl: `
+      CREATE TABLE IF NOT EXISTS support_tickets (
+        id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+        company_id  UUID        NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type        TEXT        NOT NULL DEFAULT 'issue',
+        subject     TEXT        NOT NULL,
+        body        TEXT        NOT NULL,
+        status      TEXT        NOT NULL DEFAULT 'open',
+        priority    TEXT        NOT NULL DEFAULT 'medium',
+        assigned_to UUID,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`,
+  });
+  steps.push(
+    { name: "support_tickets_company_idx", ddl: `CREATE INDEX IF NOT EXISTS support_tickets_company_idx ON support_tickets (company_id)` },
+    { name: "support_tickets_status_idx",  ddl: `CREATE INDEX IF NOT EXISTS support_tickets_status_idx  ON support_tickets (status)` },
   );
 
   let ok = 0;
