@@ -30,6 +30,39 @@ import { z } from "zod/v4";
 
 const router = Router();
 
+// POST /super-admin/setup — create first SA account (protected by ADMIN_SECRET env var)
+// This endpoint does NOT require SA auth so it can bootstrap the first account.
+router.post("/super-admin/setup", async (req, res) => {
+  const adminSecret = process.env["ADMIN_SECRET"];
+  if (!adminSecret) {
+    res.status(503).json({ error: "ADMIN_SECRET not configured on server" });
+    return;
+  }
+  const provided = req.headers["x-admin-secret"];
+  if (!provided || provided !== adminSecret) {
+    res.status(403).json({ error: "Invalid admin secret" });
+    return;
+  }
+  const { email, name, password } = req.body as { email?: string; name?: string; password?: string };
+  if (!email || !name || !password) {
+    res.status(400).json({ error: "email, name, password required" });
+    return;
+  }
+  try {
+    const existing = await db.select({ id: superAdminsTable.id }).from(superAdminsTable).where(eq(superAdminsTable.email, email)).limit(1);
+    const passwordHash = await hashPassword(password);
+    if (existing.length > 0) {
+      await db.update(superAdminsTable).set({ name, passwordHash, isActive: true, updatedAt: new Date() }).where(eq(superAdminsTable.email, email));
+      res.json({ ok: true, action: "updated", email });
+    } else {
+      await db.insert(superAdminsTable).values({ email, name, passwordHash, role: "super_admin", isActive: true });
+      res.json({ ok: true, action: "created", email });
+    }
+  } catch (err) {
+    res.status(500).json({ error: String(err) });
+  }
+});
+
 // All routes require super admin auth
 router.use(requireSuperAdmin);
 
