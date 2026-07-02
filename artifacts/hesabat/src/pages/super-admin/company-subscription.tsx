@@ -6,7 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+
+type Plan = { id: string; nameAr: string; nameEn: string; price: string; currency: string; isActive: boolean };
 
 async function fetchSubscriptionData(companyId: string) {
   const res = await fetch(`/api/super-admin/companies/${companyId}/subscription`, { credentials: "include" });
@@ -14,14 +18,27 @@ async function fetchSubscriptionData(companyId: string) {
   return res.json();
 }
 
+async function fetchPlans(): Promise<Plan[]> {
+  const res = await fetch("/api/super-admin/plans", { credentials: "include" });
+  if (!res.ok) throw new Error("Failed");
+  return res.json();
+}
+
 export function SuperAdminCompanySubscription() {
   const [, params] = useRoute("/super-admin/companies/:companyId/subscription");
   const companyId = params?.companyId ?? "";
   const queryClient = useQueryClient();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isAr = i18n.language !== "en";
   const { toast } = useToast();
+
   const [extendDate, setExtendDate] = React.useState("");
   const [renewDate, setRenewDate] = React.useState("");
+  const [changePlanId, setChangePlanId] = React.useState("");
+  const [changeBillingCycle, setChangeBillingCycle] = React.useState<"monthly" | "quarterly" | "yearly">("monthly");
+
+  // Per-request notes state for approve/reject
+  const [requestNotes, setRequestNotes] = React.useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ["sa-company-subscription", companyId],
@@ -29,7 +46,11 @@ export function SuperAdminCompanySubscription() {
     enabled: !!companyId,
   });
 
-  /** POST /super-admin/companies/:id/subscription with action payload */
+  const { data: allPlans = [] } = useQuery<Plan[]>({
+    queryKey: ["sa-all-plans"],
+    queryFn: fetchPlans,
+  });
+
   const subscriptionAction = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
       const res = await fetch(`/api/super-admin/companies/${companyId}/subscription`, {
@@ -68,7 +89,7 @@ export function SuperAdminCompanySubscription() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ notes }),
+          body: JSON.stringify({ notes: notes?.trim() || undefined }),
         },
       );
       if (!res.ok) {
@@ -77,8 +98,9 @@ export function SuperAdminCompanySubscription() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["sa-company-subscription", companyId] });
+      setRequestNotes((prev) => { const n = { ...prev }; delete n[vars.requestId]; return n; });
       toast({ title: t("common.success") });
     },
     onError: (err: Error) =>
@@ -92,6 +114,8 @@ export function SuperAdminCompanySubscription() {
   const requests: any[] = data?.requests ?? [];
   const status: string = company?.subscriptionStatus ?? "-";
 
+  const activePlans = allPlans.filter((p) => p.isActive);
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{t("superAdmin.companySubscriptionTitle")}</h1>
@@ -104,7 +128,7 @@ export function SuperAdminCompanySubscription() {
         <CardContent className="space-y-2 text-sm">
           <div>
             <span className="font-medium">{t("superAdmin.plan")}: </span>
-            {plan?.nameAr ?? plan?.nameEn ?? "-"}
+            {plan ? (isAr ? plan.nameAr : plan.nameEn) : "-"}
           </div>
           <div>
             <span className="font-medium">{t("superAdmin.subscriptionStatus")}: </span>
@@ -117,13 +141,12 @@ export function SuperAdminCompanySubscription() {
         </CardContent>
       </Card>
 
-      {/* Admin actions */}
+      {/* Quick actions */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t("superAdmin.subscriptionActions")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Quick actions */}
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => subscriptionAction.mutate({ action: "activate" })}
@@ -147,7 +170,7 @@ export function SuperAdminCompanySubscription() {
             </Button>
           </div>
 
-          {/* Extend trial with date */}
+          {/* Extend trial */}
           <div className="space-y-2">
             <Label htmlFor="extend-date">{t("superAdmin.extendTrialUntil")}</Label>
             <div className="flex gap-2 items-center">
@@ -173,7 +196,7 @@ export function SuperAdminCompanySubscription() {
             </div>
           </div>
 
-          {/* Renew subscription with date */}
+          {/* Renew with date */}
           <div className="space-y-2">
             <Label htmlFor="renew-date">{t("superAdmin.renewUntil")}</Label>
             <div className="flex gap-2 items-center">
@@ -197,6 +220,59 @@ export function SuperAdminCompanySubscription() {
               </Button>
             </div>
           </div>
+
+          {/* Change plan */}
+          {activePlans.length > 0 && (
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-sm font-medium">{isAr ? "تغيير الباقة" : "Change Plan"}</p>
+              <div className="flex flex-wrap gap-2 items-end">
+                <div className="space-y-1">
+                  <Label>{isAr ? "الباقة" : "Plan"}</Label>
+                  <Select value={changePlanId} onValueChange={setChangePlanId}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder={isAr ? "اختر باقة" : "Select plan"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activePlans.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {isAr ? p.nameAr : p.nameEn}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>{t("superAdmin.billingCycle")}</Label>
+                  <Select
+                    value={changeBillingCycle}
+                    onValueChange={(v) => setChangeBillingCycle(v as typeof changeBillingCycle)}
+                  >
+                    <SelectTrigger className="w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">{isAr ? "شهري" : "Monthly"}</SelectItem>
+                      <SelectItem value="quarterly">{isAr ? "ربعي" : "Quarterly"}</SelectItem>
+                      <SelectItem value="yearly">{isAr ? "سنوي" : "Yearly"}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={!changePlanId || subscriptionAction.isPending}
+                  onClick={() =>
+                    subscriptionAction.mutate({
+                      action: "change_plan",
+                      planId: changePlanId,
+                      billingCycle: changeBillingCycle,
+                    })
+                  }
+                >
+                  {isAr ? "تطبيق التغيير" : "Apply Change"}
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -206,42 +282,69 @@ export function SuperAdminCompanySubscription() {
           <CardHeader>
             <CardTitle className="text-base">{t("superAdmin.paymentRequests")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             {requests.map((r: any) => (
-              <div key={r.id} className="border rounded p-3 text-sm flex items-center justify-between">
-                <span>
-                  {r.amount} {r.currency} — {r.status}
-                </span>
+              <div key={r.id} className="border rounded-lg p-3 text-sm space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">
+                    {r.amount} {r.currency}{" "}
+                    <span className="text-muted-foreground font-normal">
+                      · {r.billingCycle} · {r.status}
+                    </span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(r.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                {r.notes && (
+                  <p className="text-xs text-muted-foreground">{isAr ? "ملاحظة الشركة: " : "Company note: "}{r.notes}</p>
+                )}
                 {r.status === "pending" && (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        reviewPaymentRequest.mutate({
-                          requestId: r.id,
-                          action: "approve",
-                          notes: `Approved request ${r.id}`,
-                        })
+                  <div className="space-y-2 pt-1 border-t">
+                    <Textarea
+                      rows={2}
+                      value={requestNotes[r.id] ?? ""}
+                      onChange={(e) =>
+                        setRequestNotes((prev) => ({ ...prev, [r.id]: e.target.value }))
                       }
-                      disabled={reviewPaymentRequest.isPending}
-                    >
-                      {t("superAdmin.approve")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        reviewPaymentRequest.mutate({
-                          requestId: r.id,
-                          action: "reject",
-                          notes: `Rejected request ${r.id}`,
-                        })
-                      }
-                      disabled={reviewPaymentRequest.isPending}
-                    >
-                      {t("superAdmin.reject")}
-                    </Button>
+                      placeholder={isAr ? "ملاحظة للشركة (اختياري)..." : "Note to company (optional)..."}
+                      className="text-xs"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          reviewPaymentRequest.mutate({
+                            requestId: r.id,
+                            action: "approve",
+                            notes: requestNotes[r.id],
+                          })
+                        }
+                        disabled={reviewPaymentRequest.isPending}
+                      >
+                        {t("superAdmin.approve")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          reviewPaymentRequest.mutate({
+                            requestId: r.id,
+                            action: "reject",
+                            notes: requestNotes[r.id],
+                          })
+                        }
+                        disabled={reviewPaymentRequest.isPending}
+                      >
+                        {t("superAdmin.reject")}
+                      </Button>
+                    </div>
                   </div>
+                )}
+                {r.status !== "pending" && r.reviewerNotes && (
+                  <p className="text-xs text-muted-foreground">
+                    {isAr ? "ملاحظة الإدارة: " : "Admin note: "}{r.reviewerNotes}
+                  </p>
                 )}
               </div>
             ))}
