@@ -34,7 +34,7 @@ export function ChoosePlan() {
   const [, setLocation] = useLocation();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
-  const isTrialExpired = user?.subscriptionStatus === "expired";
+  const isTrialExpired = user?.subscriptionStatus === "expired" || user?.subscriptionStatus === "pending_payment";
   const isTrial = user?.subscriptionStatus === "trial";
   const trialDaysLeft = user?.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(user.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -140,8 +140,8 @@ export function ChoosePlan() {
                     <p className="text-sm text-muted-foreground">{plan.nameEn}</p>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-primary">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.currency}</span>
+                    <span className="text-3xl font-bold text-primary">{plan.monthlyPrice ?? plan.price}</span>
+                    <span className="text-muted-foreground">{plan.currencyCode ?? plan.currency}</span>
                     <span className="text-sm text-muted-foreground">/ {billingLabel(plan.billingCycle)}</span>
                   </div>
                   <div className="text-sm text-muted-foreground">

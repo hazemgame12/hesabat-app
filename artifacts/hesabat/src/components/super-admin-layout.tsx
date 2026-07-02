@@ -22,7 +22,7 @@ const navItems = [
   { labelKey: "superAdmin.nav.dashboard", icon: LayoutDashboard, href: "/super-admin" },
   { labelKey: "superAdmin.nav.companies", icon: Building2, href: "/super-admin/companies" },
   { labelKey: "superAdmin.nav.users", icon: Users, href: "/super-admin/users" },
-  { labelKey: "superAdmin.nav.plans", icon: CreditCard, href: "/super-admin/plans" },
+  { labelKey: "superAdmin.nav.plans", icon: CreditCard, href: "/super-admin/packages" },
   { labelKey: "superAdmin.nav.subscriptions", icon: Receipt, href: "/super-admin/subscriptions" },
   { labelKey: "superAdmin.nav.paymentRequests", icon: Inbox, href: "/super-admin/payment-requests" },
   { labelKey: "superAdmin.nav.supportTickets", icon: LifeBuoy, href: "/super-admin/support-tickets" },
