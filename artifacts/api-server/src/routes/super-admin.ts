@@ -71,27 +71,22 @@ router.get("/super-admin/diag", async (req, res) => {
     return;
   }
   try {
-    const colCheck = await db.execute(sql.raw(`
-      SELECT table_name, column_name, data_type, column_default, is_nullable
+    const dbInfo = await db.execute(sql.raw(`SELECT current_database() AS db, current_schema() AS schema, version() AS ver`));
+    const allTables = await db.execute(sql.raw(`SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename`));
+    const searchPath = await db.execute(sql.raw(`SHOW search_path`));
+    const phase5Cols = await db.execute(sql.raw(`
+      SELECT table_name, column_name
       FROM information_schema.columns
       WHERE table_schema = 'public'
-        AND table_name IN ('companies','sessions','super_admins','super_admin_sessions','subscriptions','subscription_plans','manual_payment_requests','support_tickets')
-        AND column_name IN ('subscription_status','plan_id','trial_ends_at','max_users','max_transactions','is_impersonating','impersonated_by_super_admin_id','id','status','token_hash')
+        AND column_name IN ('subscription_status','plan_id','trial_ends_at','is_impersonating')
       ORDER BY table_name, column_name
     `));
-    const tableCheck = await db.execute(sql.raw(`
-      SELECT tablename FROM pg_tables WHERE schemaname='public'
-        AND tablename IN ('super_admins','super_admin_sessions','subscriptions','subscription_plans','manual_payment_requests','support_tickets')
-      ORDER BY tablename
-    `));
-    // Simple companies count (no Phase 5 cols)
-    const compCount = await db.execute(sql.raw(`SELECT COUNT(*) as n FROM companies`));
-    const userCount = await db.execute(sql.raw(`SELECT COUNT(*) as n FROM users`));
     res.json({
-      tables: tableCheck.rows,
-      columns: colCheck.rows,
-      companies: compCount.rows[0],
-      users: userCount.rows[0],
+      dbInfo: dbInfo.rows[0],
+      searchPath: searchPath.rows[0],
+      allTableCount: allTables.rows.length,
+      allTables: allTables.rows.map((r: any) => r.tablename),
+      phase5Cols: phase5Cols.rows,
     });
   } catch (err) {
     res.status(500).json({ error: String(err), cause: (err as any)?.cause?.message });
