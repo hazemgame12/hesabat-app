@@ -41,9 +41,9 @@ export function ChoosePlan() {
     : 0;
 
   const { data: plans, isLoading } = useQuery({
-    queryKey: ["available-plans", user?.country],
+    queryKey: ["available-plans", user?.country ?? "EG"],
     queryFn: () => fetchAvailablePlans(user?.country || "EG"),
-    enabled: !!user?.country,
+    enabled: !isUserLoading && !!user,
   });
 
   // If user already has a plan and isn't expired, redirect to dashboard

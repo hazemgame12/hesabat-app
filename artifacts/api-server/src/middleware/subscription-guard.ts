@@ -60,6 +60,12 @@ export async function subscriptionGuard(
 
   const path = req.path;
 
+  // Super-admin management routes are never blocked by the subscription guard.
+  if (path.startsWith("/super-admin/") || path === "/super-admin") {
+    next();
+    return;
+  }
+
   // Check if this path is whitelisted (always allowed even when suspended).
   const isWhitelisted = SUBSCRIPTION_WHITELIST.some((w) => path.startsWith(w));
   if (isWhitelisted) {
