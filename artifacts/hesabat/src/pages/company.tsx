@@ -165,8 +165,13 @@ export function CompanyProfile() {
   });
 
   React.useEffect(() => {
-    if (company) reset(toForm(company));
-  }, [company, reset]);
+    if (!company) return;
+    reset(toForm(company));
+    // Explicitly set unregistered Select-controlled fields so watch() reflects the
+    // correct value even in RHF versions where reset() skips unregistered fields.
+    setValue("country", company.country ?? "EG");
+    setValue("baseCurrency", company.baseCurrency ?? "EGP");
+  }, [company, reset, setValue]);
 
   const country = watch("country");
   const baseCurrency = watch("baseCurrency");
