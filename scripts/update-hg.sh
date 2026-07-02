@@ -44,14 +44,21 @@ echo "📦 Installing dependencies..."
 pnpm install --frozen-lockfile 2>/dev/null || pnpm install --no-frozen-lockfile
 
 echo ""
-echo "🗄️  Applying DB schema migrations..."
+echo "🗄️  Loading .env and verifying DATABASE_URL points to correct DB..."
 if [ -f "$APP_DIR/.env" ]; then
   set -a && source "$APP_DIR/.env" && set +a
 fi
 if [ -z "${DATABASE_URL:-}" ]; then
-  echo "⚠️  DATABASE_URL not set — skipping migrations"
+  echo "⚠️  DATABASE_URL not set — skipping DB checks"
 else
-  # Use Node.js migration runner (no psql CLI required)
+  # Auto-detect correct DB: if companies table missing, try hesabat_db
+  node "$APP_DIR/scripts/check-db-url.mjs" || true
+  # Reload .env in case DATABASE_URL was updated by check-db-url.mjs
+  if [ -f "$APP_DIR/.env" ]; then
+    set -a && source "$APP_DIR/.env" && set +a
+  fi
+  echo ""
+  echo "🗄️  Applying DB schema migrations..."
   node "$APP_DIR/scripts/migrate-vps.mjs" \
        "$APP_DIR/hostinger-deploy-sql" \
        "$APP_DIR/.applied-migrations" || true
