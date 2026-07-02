@@ -52,6 +52,39 @@ export function SuperAdminCompanySubscription() {
       toast({ title: t("common.error"), description: err.message, variant: "destructive" }),
   });
 
+  const reviewPaymentRequest = useMutation({
+    mutationFn: async ({
+      requestId,
+      action,
+      notes,
+    }: {
+      requestId: string;
+      action: "approve" | "reject";
+      notes?: string;
+    }) => {
+      const res = await fetch(
+        `/api/super-admin/companies/${companyId}/payment-requests/${requestId}/${action}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ notes }),
+        },
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error ?? "Request failed");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sa-company-subscription", companyId] });
+      toast({ title: t("common.success") });
+    },
+    onError: (err: Error) =>
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" }),
+  });
+
   if (isLoading) return <div className="text-muted-foreground">{t("common.loading")}</div>;
 
   const company = data?.company;
@@ -184,9 +217,13 @@ export function SuperAdminCompanySubscription() {
                     <Button
                       size="sm"
                       onClick={() =>
-                        subscriptionAction.mutate({ action: "renew", notes: `Approved request ${r.id}` })
+                        reviewPaymentRequest.mutate({
+                          requestId: r.id,
+                          action: "approve",
+                          notes: `Approved request ${r.id}`,
+                        })
                       }
-                      disabled={subscriptionAction.isPending}
+                      disabled={reviewPaymentRequest.isPending}
                     >
                       {t("superAdmin.approve")}
                     </Button>
@@ -194,9 +231,13 @@ export function SuperAdminCompanySubscription() {
                       size="sm"
                       variant="outline"
                       onClick={() =>
-                        subscriptionAction.mutate({ action: "suspend", notes: `Rejected request ${r.id}` })
+                        reviewPaymentRequest.mutate({
+                          requestId: r.id,
+                          action: "reject",
+                          notes: `Rejected request ${r.id}`,
+                        })
                       }
-                      disabled={subscriptionAction.isPending}
+                      disabled={reviewPaymentRequest.isPending}
                     >
                       {t("superAdmin.reject")}
                     </Button>
