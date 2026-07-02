@@ -45,6 +45,7 @@ import {
 import { isCountry, isCurrency } from "@workspace/locale";
 import { UpdateCompanyBody } from "@workspace/api-zod";
 import { requireAuth } from "../middleware/require-auth";
+import { optionalAuth } from "../middleware/optional-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 import { uploadsDir } from "./uploads";
@@ -406,7 +407,7 @@ router.get("/company/export", requireAuth, async (req, res) => {
 
 // GET /plans — available subscription plans
 // Public browsing: only showOnLanding=true; authenticated users: all active plans
-router.get("/plans", async (req, res) => {
+router.get("/plans", optionalAuth, async (req, res) => {
   const country = (req.query["country"] as string | undefined) ?? (req.query["countryCode"] as string | undefined);
   const isAuthenticated = !!(req as any).auth?.userId;
   const conditions = [];

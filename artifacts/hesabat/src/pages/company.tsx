@@ -167,11 +167,7 @@ export function CompanyProfile() {
   React.useEffect(() => {
     if (!company) return;
     reset(toForm(company));
-    // Explicitly set unregistered Select-controlled fields so watch() reflects the
-    // correct value even in RHF versions where reset() skips unregistered fields.
-    setValue("country", company.country ?? "EG");
-    setValue("baseCurrency", company.baseCurrency ?? "EGP");
-  }, [company, reset, setValue]);
+  }, [company, reset]);
 
   const country = watch("country");
   const baseCurrency = watch("baseCurrency");
@@ -359,15 +355,18 @@ export function CompanyProfile() {
             </div>
 
             <div className="flex flex-col gap-2">
+              {/* Hidden inputs register country/baseCurrency so reset() properly updates them */}
+              <input type="hidden" {...register("country")} />
+              <input type="hidden" {...register("baseCurrency")} />
               <Label>{t("company.country")}</Label>
               <Select
                 value={country}
                 disabled={!canEdit}
                 onValueChange={(v) => {
-                  setValue("country", v);
+                  setValue("country", v, { shouldDirty: true });
                   const def = COUNTRY_INFO[v as keyof typeof COUNTRY_INFO]
                     ?.defaultCurrency;
-                  if (def) setValue("baseCurrency", def);
+                  if (def) setValue("baseCurrency", def, { shouldDirty: true });
                 }}
               >
                 <SelectTrigger>

@@ -246,6 +246,8 @@ export async function ensurePayrollSchema(): Promise<void> {
 
   // companies Phase 5 columns
   steps.push(
+    { name: "companies.country",             ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS country TEXT NOT NULL DEFAULT 'EG'` },
+    { name: "companies.base_currency",       ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS base_currency TEXT NOT NULL DEFAULT 'EGP'` },
     { name: "companies.plan_id",             ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_id UUID` },
     { name: "companies.subscription_status", ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial'` },
     { name: "companies.trial_ends_at",       ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ` },
