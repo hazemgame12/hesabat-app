@@ -71,14 +71,41 @@ router.get("/super-admin/diag", async (req, res) => {
     return;
   }
   try {
-    const dbInfo    = await db.execute(sql.raw(`SELECT current_database() AS db, current_user AS usr, current_schema() AS schema`));
+    const { Pool } = await import("pg") as any;
+
+    const currentUrl = process.env["DATABASE_URL"] ?? "";
+    // Mask password for safety
+    const maskedUrl = currentUrl.replace(/:([^:@]+)@/, ":***@");
+
+    // Check what tables exist in current DB
+    const dbInfo    = await db.execute(sql.raw(`SELECT current_database() AS db, current_user AS usr`));
     const allTables = await db.execute(sql.raw(`SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename`));
     const allDbs    = await db.execute(sql.raw(`SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname`));
+
+    // Try connecting to hesabat_db by swapping database name in URL
+    let hesabatDbTables: string[] = [];
+    let hesabatDbError = null;
+    try {
+      const hesabatUrl = currentUrl.replace(/\/[^/?]+(\?|$)/, "/hesabat_db$1");
+      const pool2 = new Pool({ connectionString: hesabatUrl });
+      const result = await pool2.query(`SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename`);
+      hesabatDbTables = result.rows.map((r: any) => r.tablename);
+      await pool2.end();
+    } catch (e2) {
+      hesabatDbError = (e2 as Error).message;
+    }
+
     res.json({
+      currentUrl: maskedUrl,
       dbInfo: dbInfo.rows[0],
-      allTableCount: allTables.rows.length,
-      allTables: allTables.rows.map((r: any) => r.tablename),
+      currentDbTableCount: allTables.rows.length,
+      currentDbTables: allTables.rows.map((r: any) => r.tablename),
       allDatabases: allDbs.rows.map((r: any) => r.datname),
+      hesabatDb: {
+        tableCount: hesabatDbTables.length,
+        tables: hesabatDbTables,
+        error: hesabatDbError,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: String(err), cause: (err as any)?.cause?.message });
