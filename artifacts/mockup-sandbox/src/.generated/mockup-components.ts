@@ -11,8 +11,15 @@ export const modules: ModuleMap = {
   "./components/mockups/company-profile/CompanyProfile.tsx": () => import("../components/mockups/company-profile/CompanyProfile.tsx"),
   "./components/mockups/cost-centers/CostCenters.tsx": () => import("../components/mockups/cost-centers/CostCenters.tsx"),
   "./components/mockups/customers-suppliers/CustomersSuppliers.tsx": () => import("../components/mockups/customers-suppliers/CustomersSuppliers.tsx"),
+  "./components/mockups/document-inbox/DocumentDetail.tsx": () => import("../components/mockups/document-inbox/DocumentDetail.tsx"),
+  "./components/mockups/document-inbox/DocumentInbox.tsx": () => import("../components/mockups/document-inbox/DocumentInbox.tsx"),
   "./components/mockups/dashboard-variants/CleanPro.tsx": () => import("../components/mockups/dashboard-variants/CleanPro.tsx"),
   "./components/mockups/dashboard-variants/ExecutiveDark.tsx": () => import("../components/mockups/dashboard-variants/ExecutiveDark.tsx"),
   "./components/mockups/financial-reports/FinancialReports.tsx": () => import("../components/mockups/financial-reports/FinancialReports.tsx"),
+  "./components/mockups/hesabat-storyboard/Scene1Dashboard.tsx": () => import("../components/mockups/hesabat-storyboard/Scene1Dashboard.tsx"),
+  "./components/mockups/hesabat-storyboard/Scene2Features.tsx": () => import("../components/mockups/hesabat-storyboard/Scene2Features.tsx"),
+  "./components/mockups/hesabat-storyboard/Scene3Invoice.tsx": () => import("../components/mockups/hesabat-storyboard/Scene3Invoice.tsx"),
+  "./components/mockups/hesabat-storyboard/Scene4Reports.tsx": () => import("../components/mockups/hesabat-storyboard/Scene4Reports.tsx"),
+  "./components/mockups/hesabat-storyboard/Scene5CTA.tsx": () => import("../components/mockups/hesabat-storyboard/Scene5CTA.tsx"),
   "./components/mockups/taxes/Taxes.tsx": () => import("../components/mockups/taxes/Taxes.tsx")
 };

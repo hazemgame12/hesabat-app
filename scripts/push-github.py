@@ -29,7 +29,7 @@ SKIP_PREFIXES = [
     ".git/",
     ".local/state/",
 ]
-SKIP_SUFFIXES = [".log"]
+SKIP_SUFFIXES = [".log", ".mp4", ".mov", ".avi", ".mkv"]
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def get_token() -> str:
