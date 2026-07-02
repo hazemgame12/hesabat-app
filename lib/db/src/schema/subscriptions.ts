@@ -83,25 +83,20 @@ export const manualPaymentRequestsTable = pgTable(
     companyId: uuid("company_id")
       .notNull()
       .references(() => companiesTable.id, { onDelete: "cascade" }),
-    packageId: uuid("package_id"),
-    billingPeriod: text("billing_period", { enum: ["monthly", "yearly", "custom"] })
+    planId: uuid("plan_id").notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: text("currency").notNull().default("EGP"),
+    billingCycle: text("billing_cycle", { enum: ["monthly", "quarterly", "yearly"] })
       .notNull()
       .default("monthly"),
-    amount: decimal("amount", { precision: 12, scale: 2 }).notNull().default("0"),
-    currency: text("currency").notNull().default("EGP"),
-    status: text("status", { enum: ["pending", "approved", "rejected", "cancelled"] })
+    notes: text("notes"),
+    proofUrl: text("proof_url"),
+    status: text("status", { enum: ["pending", "approved", "rejected"] })
       .notNull()
       .default("pending"),
-    paymentMethod: text("payment_method", { enum: ["manual", "bank_transfer", "cash", "other"] })
-      .notNull()
-      .default("manual"),
-    notes: text("notes"),
-    proofAttachment: text("proof_attachment"),
-    internalNotes: text("internal_notes"),
-    requestedBy: uuid("requested_by"),
-    approvedBy: uuid("approved_by"),
-    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
-    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    reviewedBySuperAdminId: uuid("reviewed_by_super_admin_id"),
+    reviewerNotes: text("reviewer_notes"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -154,8 +149,9 @@ export const insertSubscriptionSchema = createInsertSchema(subscriptionsTable).o
 });
 export const insertManualPaymentRequestSchema = createInsertSchema(manualPaymentRequestsTable).omit({
   id: true,
-  approvedBy: true,
-  approvedAt: true,
+  reviewedBySuperAdminId: true,
+  reviewerNotes: true,
+  reviewedAt: true,
   createdAt: true,
   updatedAt: true,
 });

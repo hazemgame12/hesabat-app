@@ -518,7 +518,7 @@ router.get("/company/subscription", requireAuth, async (req, res) => {
     .select()
     .from(manualPaymentRequestsTable)
     .where(eq(manualPaymentRequestsTable.companyId, companyId))
-    .orderBy(desc(manualPaymentRequestsTable.requestedAt))
+    .orderBy(desc(manualPaymentRequestsTable.createdAt))
     .limit(1);
   const paymentMethods = await db
     .select()
@@ -561,13 +561,12 @@ router.get("/company/subscription", requireAuth, async (req, res) => {
 });
 
 const RenewalRequestBody = z.object({
-  packageId: z.string().uuid().optional(),
-  billingPeriod: z.enum(["monthly", "yearly", "custom"]),
+  planId: z.string().uuid(),
+  billingCycle: z.enum(["monthly", "quarterly", "yearly"]),
   amount: z.string().min(1),
   currency: z.string().min(1),
-  paymentMethod: z.enum(["manual", "bank_transfer", "cash", "other"]).default("manual"),
   notes: z.string().optional(),
-  proofAttachment: z.string().optional(),
+  proofUrl: z.string().url().optional(),
 });
 
 router.post("/company/subscription/renewal-request", requireAuth, async (req, res) => {
@@ -580,14 +579,13 @@ router.post("/company/subscription/renewal-request", requireAuth, async (req, re
     .insert(manualPaymentRequestsTable)
     .values({
       companyId: req.auth!.companyId,
-      packageId: body.data.packageId ?? null,
-      billingPeriod: body.data.billingPeriod,
+      planId: body.data.planId,
+      billingCycle: body.data.billingCycle,
       amount: body.data.amount,
       currency: body.data.currency,
-      paymentMethod: body.data.paymentMethod,
       notes: body.data.notes,
-      proofAttachment: body.data.proofAttachment,
-      requestedBy: req.auth!.userId,
+      proofUrl: body.data.proofUrl,
+      status: "pending",
     })
     .returning();
   await safeAudit(
