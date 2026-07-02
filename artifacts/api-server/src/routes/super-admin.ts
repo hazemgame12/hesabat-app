@@ -1499,8 +1499,11 @@ router.get("/super-admin/companies/:id/activity", async (req, res) => {
         entity: auditLogTable.entity,
         entityId: auditLogTable.entityId,
         createdAt: auditLogTable.createdAt,
+        userName: usersTable.name,
+        userEmail: usersTable.email,
       })
       .from(auditLogTable)
+      .leftJoin(usersTable, eq(auditLogTable.userId, usersTable.id))
       .where(eq(auditLogTable.companyId, id))
       .orderBy(desc(auditLogTable.createdAt))
       .limit(limit);
