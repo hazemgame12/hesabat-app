@@ -194,6 +194,24 @@ router.get("/super-admin/companies/:id", async (req, res) => {
     .from(subscriptionsTable)
     .where(eq(subscriptionsTable.companyId, id));
 
+  const paymentRequests = await db
+    .select({
+      id: manualPaymentRequestsTable.id,
+      companyId: manualPaymentRequestsTable.companyId,
+      planId: manualPaymentRequestsTable.planId,
+      amount: manualPaymentRequestsTable.amount,
+      currency: manualPaymentRequestsTable.currency,
+      billingCycle: manualPaymentRequestsTable.billingCycle,
+      status: manualPaymentRequestsTable.status,
+      notes: manualPaymentRequestsTable.notes,
+      reviewerNotes: manualPaymentRequestsTable.reviewerNotes,
+      reviewedAt: manualPaymentRequestsTable.reviewedAt,
+      createdAt: manualPaymentRequestsTable.createdAt,
+    })
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, id))
+    .orderBy(desc(manualPaymentRequestsTable.createdAt));
+
   const tickets = await db
     .select({
       id: supportTicketsTable.id,
@@ -209,6 +227,7 @@ router.get("/super-admin/companies/:id", async (req, res) => {
     company: company[0],
     users,
     subscriptions,
+    paymentRequests,
     tickets,
   });
 });
@@ -971,75 +990,166 @@ router.get("/super-admin/payment-requests", async (req, res) => {
   }
 });
 
+async function getPendingManualPaymentRequest(requestId: string, companyId?: string) {
+  const [request] = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(
+      companyId
+        ? and(
+            eq(manualPaymentRequestsTable.id, requestId),
+            eq(manualPaymentRequestsTable.companyId, companyId),
+          )
+        : eq(manualPaymentRequestsTable.id, requestId),
+    )
+    .limit(1);
+
+  if (!request) {
+    return { error: "Request not found" as const };
+  }
+
+  if (request.status !== "pending") {
+    return { error: "Request already reviewed" as const };
+  }
+
+  return { request };
+}
+
+async function approveManualPaymentRequest(params: {
+  requestId: string;
+  companyId?: string;
+  notes?: string;
+  superAdminId: string;
+  superAdminEmail?: string;
+}) {
+  const lookup = await getPendingManualPaymentRequest(params.requestId, params.companyId);
+  if ("error" in lookup) {
+    return lookup;
+  }
+
+  const { request } = lookup;
+  const now = new Date();
+
+  await db
+    .update(manualPaymentRequestsTable)
+    .set({
+      status: "approved",
+      reviewedBySuperAdminId: params.superAdminId,
+      reviewerNotes: params.notes ?? null,
+      reviewedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(manualPaymentRequestsTable.id, params.requestId));
+
+  const endsAt = addBillingCycle(now, request.billingCycle);
+
+  await db
+    .update(companiesTable)
+    .set({ subscriptionStatus: "active", planId: request.planId, updatedAt: now })
+    .where(eq(companiesTable.id, request.companyId));
+
+  await db.insert(subscriptionsTable).values({
+    companyId: request.companyId,
+    planId: request.planId,
+    status: "active",
+    startedAt: now,
+    endsAt,
+    billingCycle: request.billingCycle,
+    amount: request.amount,
+    currency: request.currency,
+    paymentProvider: "manual",
+  });
+
+  await logSubscriptionAudit(request.companyId, "MANUAL_PAYMENT_APPROVED", params.requestId, {
+    requestId: params.requestId,
+    planId: request.planId,
+    amount: request.amount,
+    currency: request.currency,
+    approvedBy: params.superAdminEmail,
+    notes: params.notes,
+  });
+
+  return { ok: true as const, endsAt };
+}
+
+async function rejectManualPaymentRequest(params: {
+  requestId: string;
+  companyId?: string;
+  notes?: string;
+  superAdminId: string;
+  superAdminEmail?: string;
+}) {
+  const lookup = await getPendingManualPaymentRequest(params.requestId, params.companyId);
+  if ("error" in lookup) {
+    return lookup;
+  }
+
+  const { request } = lookup;
+  const now = new Date();
+
+  await db
+    .update(manualPaymentRequestsTable)
+    .set({
+      status: "rejected",
+      reviewedBySuperAdminId: params.superAdminId,
+      reviewerNotes: params.notes ?? null,
+      reviewedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(manualPaymentRequestsTable.id, params.requestId));
+
+  await logSubscriptionAudit(request.companyId, "MANUAL_PAYMENT_REJECTED", params.requestId, {
+    requestId: params.requestId,
+    rejectedBy: params.superAdminEmail,
+    notes: params.notes,
+  });
+
+  return { ok: true as const };
+}
+
 // POST /super-admin/payment-requests/:id/approve
 router.post("/super-admin/payment-requests/:id/approve", async (req, res) => {
   const { id } = req.params;
   const { notes } = req.body as { notes?: string };
 
   try {
-    const [request] = await db
-      .select()
-      .from(manualPaymentRequestsTable)
-      .where(eq(manualPaymentRequestsTable.id, id))
-      .limit(1);
-
-    if (!request) {
-      res.status(404).json({ error: "Request not found" });
-      return;
-    }
-    if (request.status !== "pending") {
-      res.status(400).json({ error: "Request already reviewed" });
-      return;
-    }
-
-    const now = new Date();
-
-    // Update the payment request status
-    await db
-      .update(manualPaymentRequestsTable)
-      .set({
-        status: "approved",
-        reviewedBySuperAdminId: req.superAdmin!.superAdminId,
-        reviewerNotes: notes ?? null,
-        reviewedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(manualPaymentRequestsTable.id, id));
-
-    const endsAt = addBillingCycle(now, request.billingCycle);
-
-    // Activate company subscription
-    await db
-      .update(companiesTable)
-      .set({ subscriptionStatus: "active", planId: request.planId, updatedAt: now })
-      .where(eq(companiesTable.id, request.companyId));
-
-    // Insert subscription record
-    await db.insert(subscriptionsTable).values({
-      companyId: request.companyId,
-      planId: request.planId,
-      status: "active",
-      startedAt: now,
-      endsAt,
-      billingCycle: request.billingCycle,
-      amount: request.amount,
-      currency: request.currency,
-      paymentProvider: "manual",
-    });
-
-    // Audit
-    await logSubscriptionAudit(request.companyId, "MANUAL_PAYMENT_APPROVED", id, {
+    const result = await approveManualPaymentRequest({
       requestId: id,
-      planId: request.planId,
-      amount: request.amount,
-      currency: request.currency,
-      approvedBy: req.superAdmin?.email,
       notes,
+      superAdminId: req.superAdmin!.superAdminId,
+      superAdminEmail: req.superAdmin?.email,
     });
-
-    res.json({ ok: true, endsAt: endsAt.toISOString() });
+    if ("error" in result) {
+      res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, endsAt: result.endsAt.toISOString() });
   } catch (err) {
     req.log.error({ err }, "Failed to approve payment request");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /super-admin/companies/:companyId/payment-requests/:requestId/approve
+router.post("/super-admin/companies/:companyId/payment-requests/:requestId/approve", async (req, res) => {
+  const { companyId, requestId } = req.params;
+  const { notes } = req.body as { notes?: string };
+
+  try {
+    const result = await approveManualPaymentRequest({
+      requestId,
+      companyId,
+      notes,
+      superAdminId: req.superAdmin!.superAdminId,
+      superAdminEmail: req.superAdmin?.email,
+    });
+    if ("error" in result) {
+      res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, endsAt: result.endsAt.toISOString() });
+  } catch (err) {
+    req.log.error({ err }, "Failed to approve company payment request");
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -1050,43 +1160,43 @@ router.post("/super-admin/payment-requests/:id/reject", async (req, res) => {
   const { notes } = req.body as { notes?: string };
 
   try {
-    const [request] = await db
-      .select()
-      .from(manualPaymentRequestsTable)
-      .where(eq(manualPaymentRequestsTable.id, id))
-      .limit(1);
-
-    if (!request) {
-      res.status(404).json({ error: "Request not found" });
-      return;
-    }
-    if (request.status !== "pending") {
-      res.status(400).json({ error: "Request already reviewed" });
-      return;
-    }
-
-    const now = new Date();
-    await db
-      .update(manualPaymentRequestsTable)
-      .set({
-        status: "rejected",
-        reviewedBySuperAdminId: req.superAdmin!.superAdminId,
-        reviewerNotes: notes ?? null,
-        reviewedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(manualPaymentRequestsTable.id, id));
-
-    // Rejected request does NOT change subscription status
-    await logSubscriptionAudit(request.companyId, "MANUAL_PAYMENT_REJECTED", id, {
+    const result = await rejectManualPaymentRequest({
       requestId: id,
-      rejectedBy: req.superAdmin?.email,
       notes,
+      superAdminId: req.superAdmin!.superAdminId,
+      superAdminEmail: req.superAdmin?.email,
     });
-
+    if ("error" in result) {
+      res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
+      return;
+    }
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Failed to reject payment request");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /super-admin/companies/:companyId/payment-requests/:requestId/reject
+router.post("/super-admin/companies/:companyId/payment-requests/:requestId/reject", async (req, res) => {
+  const { companyId, requestId } = req.params;
+  const { notes } = req.body as { notes?: string };
+
+  try {
+    const result = await rejectManualPaymentRequest({
+      requestId,
+      companyId,
+      notes,
+      superAdminId: req.superAdmin!.superAdminId,
+      superAdminEmail: req.superAdmin?.email,
+    });
+    if ("error" in result) {
+      res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to reject company payment request");
     res.status(500).json({ error: "Server error" });
   }
 });

@@ -14,6 +14,7 @@
     "back": "تراجع",
     "loading": "جاري التحميل...",
     "error": "خطأ",
+    "success": "تمت العملية بنجاح",
     "you": "أنت",
     "all": "الكل",
     "view": "عرض",
@@ -2693,7 +2694,7 @@
       "subscriptions": "الاشتراكات",
       "supportTickets": "تذاكر الدعم",
       "analytics": "التحليلات",
-      "landingPage": "صفحة الهبوف"
+      "landingPage": "صفحة الهبوط"
     },
     "dashboardTitle": "لوحة المعلومات",
     "dashboardSubtitle": "نظرة عامة على نظام حسابات",
