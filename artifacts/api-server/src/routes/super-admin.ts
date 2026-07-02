@@ -71,22 +71,14 @@ router.get("/super-admin/diag", async (req, res) => {
     return;
   }
   try {
-    const dbInfo = await db.execute(sql.raw(`SELECT current_database() AS db, current_schema() AS schema, version() AS ver`));
+    const dbInfo    = await db.execute(sql.raw(`SELECT current_database() AS db, current_user AS usr, current_schema() AS schema`));
     const allTables = await db.execute(sql.raw(`SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename`));
-    const searchPath = await db.execute(sql.raw(`SHOW search_path`));
-    const phase5Cols = await db.execute(sql.raw(`
-      SELECT table_name, column_name
-      FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND column_name IN ('subscription_status','plan_id','trial_ends_at','is_impersonating')
-      ORDER BY table_name, column_name
-    `));
+    const allDbs    = await db.execute(sql.raw(`SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname`));
     res.json({
       dbInfo: dbInfo.rows[0],
-      searchPath: searchPath.rows[0],
       allTableCount: allTables.rows.length,
       allTables: allTables.rows.map((r: any) => r.tablename),
-      phase5Cols: phase5Cols.rows,
+      allDatabases: allDbs.rows.map((r: any) => r.datname),
     });
   } catch (err) {
     res.status(500).json({ error: String(err), cause: (err as any)?.cause?.message });
