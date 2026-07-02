@@ -67,16 +67,38 @@ router.post("/auth/signup", authLimiter, async (req, res) => {
       return;
     }
 
+    const selectedPlan = planId
+      ? (
+          await db
+            .select()
+            .from(subscriptionPlansTable)
+            .where(eq(subscriptionPlansTable.id, planId))
+            .limit(1)
+        )[0]
+      : null;
+    if (planId && !selectedPlan) {
+      res.status(400).json({ error: "الباقة المختارة غير متاحة" });
+      return;
+    }
+    if (selectedPlan && selectedPlan.countryCode && selectedPlan.countryCode !== resolvedCountry) {
+      res.status(400).json({ error: "الباقة غير متاحة للدولة المختارة" });
+      return;
+    }
+
     const passwordHash = await hashPassword(password);
     const created = await db.transaction(async (tx) => {
-      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      const trialDays = selectedPlan?.trialDays ?? 14;
+      const trialEndsAt = trialDays > 0
+        ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
+        : null;
+      const subscriptionStatus = trialDays > 0 ? "trial" : "pending_payment";
       const companyInsert = await tx
         .insert(companiesTable)
         .values({
           name: companyName,
           country: resolvedCountry,
-          baseCurrency: resolvedCurrency,
-          subscriptionStatus: "trial",
+          baseCurrency: selectedPlan?.currencyCode ?? selectedPlan?.currency ?? resolvedCurrency,
+          subscriptionStatus,
           trialEndsAt,
           planId: planId ?? null,
         })
@@ -158,6 +180,12 @@ router.post("/auth/logout", async (req, res) => {
       req.log.error({ err }, "Logout failed");
     }
   }
+  res.clearCookie("hesabat_impersonation", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env["NODE_ENV"] === "production",
+    path: "/",
+  });
   clearSessionCookie(res);
   res.json({ status: "ok" });
 });

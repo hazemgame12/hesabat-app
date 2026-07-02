@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
   name_en         text NOT NULL,
   description_ar  text DEFAULT '',
   description_en  text DEFAULT '',
+  country_code    text DEFAULT 'EG',
+  country_name    text,
   country         text NOT NULL DEFAULT 'EG',
   max_users       integer NOT NULL DEFAULT 1,
   max_transactions integer NOT NULL DEFAULT 1000,
@@ -71,6 +73,11 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
+
+-- If the table was already created without country_code / country_name, add them safely.
+ALTER TABLE subscription_plans
+  ADD COLUMN IF NOT EXISTS country_code text DEFAULT 'EG',
+  ADD COLUMN IF NOT EXISTS country_name text;
 
 CREATE INDEX IF NOT EXISTS subscription_plans_country_idx  ON subscription_plans(country);
 CREATE INDEX IF NOT EXISTS subscription_plans_active_idx   ON subscription_plans(is_active);

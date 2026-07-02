@@ -92,7 +92,7 @@ function ExpiredBanner() {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
   const { data: user, isLoading, isError } = useGetCurrentUser();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   React.useEffect(() => {
     if (isError) {
@@ -106,9 +106,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       // Suspended users go to choose-plan for self-service recovery
       if ((isExpired || isTrialWithoutPlan || isSuspended) && !user.isImpersonating) {
         setLocation("/choose-plan");
+        return;
+      }
+      if (isSuspended && !location.startsWith("/settings/subscription")) {
+        setLocation("/settings/subscription");
       }
     }
-  }, [isError, user, setLocation]);
+  }, [isError, user, setLocation, location]);
 
   if (isLoading) {
     return (
