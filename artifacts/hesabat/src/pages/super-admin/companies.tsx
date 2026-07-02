@@ -261,7 +261,9 @@ export function SuperAdminCompanies() {
                           onChange={(e) => setSelectedPlan(e.target.value)}
                         >
                           <option value="">{t("superAdmin.selectPlan")}</option>
-                          {plans?.map((plan: any) => (
+                          {plans?.filter((plan: any) =>
+                            !plan.countryCode || !company.country || plan.countryCode === company.country
+                          ).map((plan: any) => (
                             <option key={plan.id} value={plan.id}>
                               {plan.nameAr} ({plan.price} {plan.currency})
                             </option>

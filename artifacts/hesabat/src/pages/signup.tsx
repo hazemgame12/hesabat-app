@@ -49,12 +49,6 @@ async function fetchPlanById(planId: string) {
   return plans.find((p: any) => p.id === planId) || null;
 }
 
-async function fetchCountryPackages(countryCode: string) {
-  const res = await fetch(`/api/packages?countryCode=${countryCode}`);
-  if (!res.ok) throw new Error("Failed to fetch packages");
-  return res.json();
-}
-
 export function Signup() {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language === "en" ? "en" : "ar") as Lang;
@@ -98,13 +92,7 @@ export function Signup() {
   });
 
   const country = watch("country");
-  const watchCountryValue = watch("country");
   const baseCurrency = watch("baseCurrency");
-  const { data: countryPackages = [] } = useQuery({
-    queryKey: ["country-packages", watchCountryValue ?? initialCountry],
-    queryFn: () => fetchCountryPackages(watchCountryValue ?? initialCountry),
-  });
-
   const [phonePrefix, setPhonePrefix] = React.useState<string>(
     COUNTRY_INFO[initialCountry]?.dialCode ?? "+20"
   );
@@ -318,23 +306,6 @@ export function Signup() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Label>{t("subscription.currentPackage")}</Label>
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    value={selectedPackageId ?? ""}
-                    onChange={(e) => setSelectedPackageId(e.target.value || null)}
-                  >
-                    <option value="">{t("superAdmin.selectPlan")}</option>
-                    {countryPackages.map((pkg: any) => (
-                      <option key={pkg.id} value={pkg.id}>
-                        {(lang === "ar" ? pkg.name_ar : pkg.name_en) || pkg.name_en} - {pkg.monthly_price} {pkg.currency_code}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="text-xs text-muted-foreground">Contact support to activate</span>
                 </div>
 
                 <Button type="submit" disabled={signup.isPending} className="w-full h-11 text-base font-bold mt-4 shadow-md hover:opacity-90">

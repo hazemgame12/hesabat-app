@@ -62,6 +62,10 @@ else
   node "$APP_DIR/scripts/migrate-vps.mjs" \
        "$APP_DIR/hostinger-deploy-sql" \
        "$APP_DIR/.applied-migrations" || true
+
+  echo ""
+  echo "🗄️  Pushing full Drizzle schema (creates missing tables/columns)..."
+  pnpm --filter @workspace/db run push-force || true
 fi
 
 echo ""
@@ -96,18 +100,20 @@ echo "♻️  Restarting hesabat-api (new API bundle)..."
 pm2 restart hesabat-api || true
 pm2 save || true
 
-# ── Copy pre-built Hesabat frontend (no VPS build needed) ────
+# ── Build & deploy Hesabat frontend ──────────────────────────
 echo ""
-echo "📋 Copying Hesabat pre-built frontend..."
-if test -f "$APP_DIR/artifacts/hesabat/dist/public/index.html"; then
-  mkdir -p "$APP_DIR/artifacts/api-server/dist/public"
-  cp -r "$APP_DIR/artifacts/hesabat/dist/public/." "$APP_DIR/artifacts/api-server/dist/public/"
-  echo "✅ Hesabat frontend copied"
-  pm2 restart hesabat-api || true
-  pm2 save || true
-else
-  echo "⚠️  No pre-built Hesabat dist found in repo — skipping"
-fi
+echo "🔨 Building Hesabat frontend..."
+BASE_PATH=/ NODE_ENV=production pnpm --filter @workspace/hesabat run build
+echo "✅ Hesabat frontend built"
+
+echo ""
+echo "📋 Copying Hesabat frontend into hesabat-api dist/public..."
+mkdir -p "$APP_DIR/artifacts/api-server/dist/public"
+cp -r "$APP_DIR/artifacts/hesabat/dist/public/." "$APP_DIR/artifacts/api-server/dist/public/"
+echo "✅ Hesabat frontend copied"
+
+pm2 restart hesabat-api || true
+pm2 save || true
 
 echo ""
 echo "♻️  Restarting hg-api process..."
