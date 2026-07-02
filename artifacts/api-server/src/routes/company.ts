@@ -573,6 +573,31 @@ router.post("/company/subscription/renewal-request", requireAuth, async (req, re
     res.status(400).json({ error: "Invalid body" });
     return;
   }
+
+  // Validate plan exists, is active, and matches company country
+  const [planRows, companyRows] = await Promise.all([
+    db
+      .select({ countryCode: subscriptionPlansTable.countryCode, isActive: subscriptionPlansTable.isActive })
+      .from(subscriptionPlansTable)
+      .where(eq(subscriptionPlansTable.id, body.data.planId))
+      .limit(1),
+    db
+      .select({ country: companiesTable.country })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, req.auth!.companyId))
+      .limit(1),
+  ]);
+  if (planRows.length === 0 || !planRows[0]!.isActive) {
+    res.status(404).json({ error: "الباقة غير موجودة أو غير متاحة" });
+    return;
+  }
+  const companyCountry = companyRows[0]?.country;
+  const planCountry = planRows[0]!.countryCode;
+  if (companyCountry && planCountry && planCountry !== companyCountry) {
+    res.status(400).json({ error: "هذه الباقة غير متاحة لدولتك", code: "PLAN_COUNTRY_MISMATCH" });
+    return;
+  }
+
   const [created] = await db
     .insert(manualPaymentRequestsTable)
     .values({
