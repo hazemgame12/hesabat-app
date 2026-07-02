@@ -591,10 +591,14 @@ router.post("/company/subscription/renewal-request", requireAuth, async (req, re
     res.status(404).json({ error: "الباقة غير موجودة أو غير متاحة" });
     return;
   }
-  // Country check is intentionally removed: the plans endpoint already filters by
-  // the company's country so any plan the user sees in the UI is valid for them.
-  // A strict column match here caused false positives when countryCode and country
-  // columns were inconsistent (e.g. "AED" vs "AE").
+  // Use plan.country as the canonical country field (plan.countryCode may hold
+  // a currency code rather than a country code in some legacy rows).
+  const planCountry = planRows[0]!.country;
+  const companyCountry = companyRows[0]?.country;
+  if (companyCountry && planCountry && planCountry !== companyCountry) {
+    res.status(400).json({ error: "هذه الباقة غير متاحة لدولتك", code: "PLAN_COUNTRY_MISMATCH" });
+    return;
+  }
 
   const [created] = await db
     .insert(manualPaymentRequestsTable)
