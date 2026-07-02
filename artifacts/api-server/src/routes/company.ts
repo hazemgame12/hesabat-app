@@ -577,7 +577,7 @@ router.post("/company/subscription/renewal-request", requireAuth, async (req, re
   // Validate plan exists, is active, and matches company country
   const [planRows, companyRows] = await Promise.all([
     db
-      .select({ countryCode: subscriptionPlansTable.countryCode, isActive: subscriptionPlansTable.isActive })
+      .select({ countryCode: subscriptionPlansTable.countryCode, country: subscriptionPlansTable.country, isActive: subscriptionPlansTable.isActive })
       .from(subscriptionPlansTable)
       .where(eq(subscriptionPlansTable.id, body.data.planId))
       .limit(1),
@@ -592,7 +592,8 @@ router.post("/company/subscription/renewal-request", requireAuth, async (req, re
     return;
   }
   const companyCountry = companyRows[0]?.country;
-  const planCountry = planRows[0]!.countryCode;
+  // accept match on either countryCode or country column (plans endpoint uses OR on both)
+  const planCountry = planRows[0]!.countryCode || planRows[0]!.country;
   if (companyCountry && planCountry && planCountry !== companyCountry) {
     res.status(400).json({ error: "هذه الباقة غير متاحة لدولتك", code: "PLAN_COUNTRY_MISMATCH" });
     return;

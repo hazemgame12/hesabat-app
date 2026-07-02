@@ -51,6 +51,7 @@ router.post("/auth/signup", authLimiter, async (req, res) => {
   }
   const { companyName, name, email, password, country, baseCurrency, planId } =
     parsed.data;
+  const phone = typeof req.body?.phone === "string" ? req.body.phone.trim() || null : null;
   const normalizedEmail = email.toLowerCase().trim();
   const resolvedCountry = country && isCountry(country) ? country : "EG";
   const resolvedCurrency =
@@ -102,6 +103,7 @@ router.post("/auth/signup", authLimiter, async (req, res) => {
           subscriptionStatus,
           trialEndsAt,
           planId: planId ?? null,
+          ...(phone ? { phone } : {}),
         })
         .returning();
       const company = companyInsert[0];
