@@ -63,6 +63,41 @@ router.post("/super-admin/setup", async (req, res) => {
   }
 });
 
+// GET /super-admin/diag — check Phase 5 columns in DB (ADMIN_SECRET protected)
+router.get("/super-admin/diag", async (req, res) => {
+  const secret = req.headers["x-admin-secret"];
+  if (!secret || secret !== process.env["ADMIN_SECRET"]) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  try {
+    const colCheck = await db.execute(sql.raw(`
+      SELECT table_name, column_name, data_type, column_default, is_nullable
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name IN ('companies','sessions','super_admins','super_admin_sessions','subscriptions','subscription_plans','manual_payment_requests','support_tickets')
+        AND column_name IN ('subscription_status','plan_id','trial_ends_at','max_users','max_transactions','is_impersonating','impersonated_by_super_admin_id','id','status','token_hash')
+      ORDER BY table_name, column_name
+    `));
+    const tableCheck = await db.execute(sql.raw(`
+      SELECT tablename FROM pg_tables WHERE schemaname='public'
+        AND tablename IN ('super_admins','super_admin_sessions','subscriptions','subscription_plans','manual_payment_requests','support_tickets')
+      ORDER BY tablename
+    `));
+    // Simple companies count (no Phase 5 cols)
+    const compCount = await db.execute(sql.raw(`SELECT COUNT(*) as n FROM companies`));
+    const userCount = await db.execute(sql.raw(`SELECT COUNT(*) as n FROM users`));
+    res.json({
+      tables: tableCheck.rows,
+      columns: colCheck.rows,
+      companies: compCount.rows[0],
+      users: userCount.rows[0],
+    });
+  } catch (err) {
+    res.status(500).json({ error: String(err), cause: (err as any)?.cause?.message });
+  }
+});
+
 // All routes require super admin auth
 router.use(requireSuperAdmin);
 
