@@ -3,7 +3,7 @@ import path from "path";
 import crypto from "crypto";
 import multer from "multer";
 import { z } from "zod/v4";
-import { eq, and, asc, ne } from "drizzle-orm";
+import { eq, and, asc, ne, or, desc, count } from "drizzle-orm";
 import {
   db,
   companiesTable,
@@ -36,20 +36,18 @@ import {
   costCentersTable,
   fiscalYearsTable,
   usersTable,
-  type Company,
+  subscriptionPlansTable,
+  subscriptionsTable,
   manualPaymentRequestsTable,
+  countryPaymentMethodsTable,
+  type Company,
 } from "@workspace/db";
 import { isCountry, isCurrency } from "@workspace/locale";
 import { UpdateCompanyBody } from "@workspace/api-zod";
-import { z } from "zod/v4";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 import { uploadsDir } from "./uploads";
-import { subscriptionPlansTable,
-subscriptionsTable,
-manualPaymentRequestsTable,
-countryPaymentMethodsTable } from "@workspace/db";
 import { safeAudit } from "../lib/audit";
 
 const router = Router();

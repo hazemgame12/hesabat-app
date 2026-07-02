@@ -15,6 +15,13 @@ import {
   updateArticleSchema,
   auditLogTable,
   manualPaymentRequestsTable,
+  journalEntriesTable,
+  invoicesTable,
+  customersTable,
+  suppliersTable,
+  bankAccountsTable,
+  fixedAssetsTable,
+  employeesTable,
 } from "@workspace/db";
 import { requireSuperAdmin, requireSuperAdminRole } from "../middleware/super-admin";
 import { hashPassword } from "../lib/auth";
@@ -1328,7 +1335,8 @@ router.post("/super-admin/payment-requests/:id/approve", async (req, res) => {
       res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
       return;
     }
-    res.json({ ok: true, endsAt: result.endsAt.toISOString() });
+    const approved = result as { ok: true; endsAt: Date };
+    res.json({ ok: true, endsAt: approved.endsAt.toISOString() });
   } catch (err) {
     req.log.error({ err }, "Failed to approve payment request");
     res.status(500).json({ error: "Server error" });
@@ -1352,7 +1360,8 @@ router.post("/super-admin/companies/:companyId/payment-requests/:requestId/appro
       res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
       return;
     }
-    res.json({ ok: true, endsAt: result.endsAt.toISOString() });
+    const approved = result as { ok: true; endsAt: Date };
+    res.json({ ok: true, endsAt: approved.endsAt.toISOString() });
   } catch (err) {
     req.log.error({ err }, "Failed to approve company payment request");
     res.status(500).json({ error: "Server error" });
@@ -1402,6 +1411,102 @@ router.post("/super-admin/companies/:companyId/payment-requests/:requestId/rejec
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Failed to reject company payment request");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /super-admin/companies/:id/overview
+router.get("/super-admin/companies/:id/overview", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [company] = await db
+      .select({
+        id: companiesTable.id,
+        name: companiesTable.name,
+        country: companiesTable.country,
+        subscriptionStatus: companiesTable.subscriptionStatus,
+        trialEndsAt: companiesTable.trialEndsAt,
+        planId: companiesTable.planId,
+        createdAt: companiesTable.createdAt,
+      })
+      .from(companiesTable)
+      .where(eq(companiesTable.id, id))
+      .limit(1);
+    if (!company) {
+      res.status(404).json({ error: "Company not found" });
+      return;
+    }
+    const [usersCount] = await db
+      .select({ count: count() })
+      .from(usersTable)
+      .where(eq(usersTable.companyId, id));
+    const [jeCount] = await db
+      .select({ count: count() })
+      .from(journalEntriesTable)
+      .where(eq(journalEntriesTable.companyId, id));
+    const [invCount] = await db
+      .select({ count: count() })
+      .from(invoicesTable)
+      .where(eq(invoicesTable.companyId, id));
+    const [custCount] = await db
+      .select({ count: count() })
+      .from(customersTable)
+      .where(eq(customersTable.companyId, id));
+    const [suppCount] = await db
+      .select({ count: count() })
+      .from(suppliersTable)
+      .where(eq(suppliersTable.companyId, id));
+    const [bankCount] = await db
+      .select({ count: count() })
+      .from(bankAccountsTable)
+      .where(eq(bankAccountsTable.companyId, id));
+    const [assetCount] = await db
+      .select({ count: count() })
+      .from(fixedAssetsTable)
+      .where(eq(fixedAssetsTable.companyId, id));
+    const [empCount] = await db
+      .select({ count: count() })
+      .from(employeesTable)
+      .where(eq(employeesTable.companyId, id));
+    res.json({
+      company,
+      summary: {
+        usersCount: Number(usersCount?.count ?? 0),
+        journalEntries: Number(jeCount?.count ?? 0),
+        invoices: Number(invCount?.count ?? 0),
+        customers: Number(custCount?.count ?? 0),
+        suppliers: Number(suppCount?.count ?? 0),
+        bankAccounts: Number(bankCount?.count ?? 0),
+        fixedAssets: Number(assetCount?.count ?? 0),
+        employees: Number(empCount?.count ?? 0),
+      },
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch company overview");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// GET /super-admin/companies/:id/activity
+router.get("/super-admin/companies/:id/activity", async (req, res) => {
+  const { id } = req.params;
+  const limit = Math.min(Number(req.query["limit"] ?? 50), 200);
+  try {
+    const rows = await db
+      .select({
+        id: auditLogTable.id,
+        action: auditLogTable.action,
+        entity: auditLogTable.entity,
+        entityId: auditLogTable.entityId,
+        createdAt: auditLogTable.createdAt,
+      })
+      .from(auditLogTable)
+      .where(eq(auditLogTable.companyId, id))
+      .orderBy(desc(auditLogTable.createdAt))
+      .limit(limit);
+    res.json(rows);
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch company activity");
     res.status(500).json({ error: "Server error" });
   }
 });

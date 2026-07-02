@@ -6,6 +6,7 @@ import {
   companiesTable,
   passwordResetTokensTable,
   auditLogTable,
+  subscriptionPlansTable,
   type User,
   type Company,
 } from "@workspace/db";
