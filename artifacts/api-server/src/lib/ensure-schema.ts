@@ -236,6 +236,62 @@ export async function ensurePayrollSchema(): Promise<void> {
       )`,
   });
 
+  // ── Phase 5: Subscriptions & Super Admin ─────────────────────────────────
+  // CRITICAL: sessions.is_impersonating — Drizzle selects all columns on every
+  // auth check; if this column is missing production crashes with 500 on every request.
+  steps.push(
+    { name: "sessions.is_impersonating",               ddl: `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS is_impersonating BOOLEAN NOT NULL DEFAULT FALSE` },
+    { name: "sessions.impersonated_by_super_admin_id", ddl: `ALTER TABLE sessions ADD COLUMN IF NOT EXISTS impersonated_by_super_admin_id UUID` },
+  );
+
+  // subscription_plans extra columns (added in Phase 5 on top of old migrate-super-admin.sql)
+  steps.push(
+    { name: "subscription_plans.country_code",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS country_code TEXT DEFAULT 'EG'` },
+    { name: "subscription_plans.country_name",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS country_name TEXT` },
+    { name: "subscription_plans.currency_code",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS currency_code TEXT` },
+    { name: "subscription_plans.monthly_price",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS monthly_price NUMERIC(12,2)` },
+    { name: "subscription_plans.yearly_price",              ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS yearly_price NUMERIC(12,2)` },
+    { name: "subscription_plans.trial_days",                ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS trial_days INTEGER NOT NULL DEFAULT 14` },
+    { name: "subscription_plans.max_companies_or_branches", ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS max_companies_or_branches INTEGER` },
+    { name: "subscription_plans.storage_limit",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS storage_limit INTEGER` },
+    { name: "subscription_plans.feature_limits",            ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS feature_limits JSONB NOT NULL DEFAULT '{}'` },
+  );
+
+  // manual_payment_requests table (new in Phase 5)
+  steps.push(
+    {
+      name: "manual_payment_requests table",
+      ddl: `
+        CREATE TABLE IF NOT EXISTS manual_payment_requests (
+          id                             UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+          company_id                     UUID          NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+          plan_id                        UUID          NOT NULL,
+          amount                         NUMERIC(12,2) NOT NULL,
+          currency                       TEXT          NOT NULL,
+          billing_cycle                  TEXT          NOT NULL,
+          notes                          TEXT,
+          proof_url                      TEXT,
+          status                         TEXT          NOT NULL DEFAULT 'pending',
+          reviewed_by_super_admin_id     UUID,
+          reviewer_notes                 TEXT,
+          reviewed_at                    TIMESTAMPTZ,
+          created_at                     TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+          updated_at                     TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+        )`,
+    },
+    { name: "manual_payment_requests_company_idx", ddl: `CREATE INDEX IF NOT EXISTS manual_payment_requests_company_idx ON manual_payment_requests (company_id)` },
+    { name: "manual_payment_requests_status_idx",  ddl: `CREATE INDEX IF NOT EXISTS manual_payment_requests_status_idx  ON manual_payment_requests (status)` },
+  );
+
+  // companies Phase 5 columns — safety net if old migration hadn't run
+  steps.push(
+    { name: "companies.plan_id",             ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan_id UUID` },
+    { name: "companies.subscription_status", ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'trial'` },
+    { name: "companies.trial_ends_at",       ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ` },
+    { name: "companies.max_users",           ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 1` },
+    { name: "companies.max_transactions",    ddl: `ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_transactions INTEGER DEFAULT 1000` },
+  );
+
   let ok = 0;
   let skipped = 0;
 
