@@ -485,6 +485,19 @@ router.post("/super-admin/companies/:id/subscription", async (req, res) => {
       );
   }
 
+  // For non-trial extension: update the active subscription row's endsAt
+  if (action === "extend" && companyRows[0]!.subscriptionStatus !== "trial" && resolvedEndsAt) {
+    await db
+      .update(subscriptionsTable)
+      .set({ endsAt: resolvedEndsAt, updatedAt: new Date() })
+      .where(
+        and(
+          eq(subscriptionsTable.companyId, id),
+          eq(subscriptionsTable.status, "active"),
+        ),
+      );
+  }
+
   await logSubscriptionAudit(id, auditAction, id, {
     action,
     planId,
@@ -1436,40 +1449,40 @@ router.get("/super-admin/companies/:id/overview", async (req, res) => {
       res.status(404).json({ error: "Company not found" });
       return;
     }
-    const [usersCount] = await db
-      .select({ count: count() })
-      .from(usersTable)
-      .where(eq(usersTable.companyId, id));
-    const [jeCount] = await db
-      .select({ count: count() })
-      .from(journalEntriesTable)
-      .where(eq(journalEntriesTable.companyId, id));
-    const [invCount] = await db
-      .select({ count: count() })
-      .from(invoicesTable)
-      .where(eq(invoicesTable.companyId, id));
-    const [custCount] = await db
-      .select({ count: count() })
-      .from(customersTable)
-      .where(eq(customersTable.companyId, id));
-    const [suppCount] = await db
-      .select({ count: count() })
-      .from(suppliersTable)
-      .where(eq(suppliersTable.companyId, id));
-    const [bankCount] = await db
-      .select({ count: count() })
-      .from(bankAccountsTable)
-      .where(eq(bankAccountsTable.companyId, id));
-    const [assetCount] = await db
-      .select({ count: count() })
-      .from(fixedAssetsTable)
-      .where(eq(fixedAssetsTable.companyId, id));
-    const [empCount] = await db
-      .select({ count: count() })
-      .from(employeesTable)
-      .where(eq(employeesTable.companyId, id));
+
+    const [
+      [usersCount],
+      [jeCount],
+      [invCount],
+      [custCount],
+      [suppCount],
+      [bankCount],
+      [assetCount],
+      [empCount],
+      planRows,
+      subscriptionRows,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(usersTable).where(eq(usersTable.companyId, id)),
+      db.select({ count: count() }).from(journalEntriesTable).where(eq(journalEntriesTable.companyId, id)),
+      db.select({ count: count() }).from(invoicesTable).where(eq(invoicesTable.companyId, id)),
+      db.select({ count: count() }).from(customersTable).where(eq(customersTable.companyId, id)),
+      db.select({ count: count() }).from(suppliersTable).where(eq(suppliersTable.companyId, id)),
+      db.select({ count: count() }).from(bankAccountsTable).where(eq(bankAccountsTable.companyId, id)),
+      db.select({ count: count() }).from(fixedAssetsTable).where(eq(fixedAssetsTable.companyId, id)),
+      db.select({ count: count() }).from(employeesTable).where(eq(employeesTable.companyId, id)),
+      company.planId
+        ? db.select({ nameAr: subscriptionPlansTable.nameAr, nameEn: subscriptionPlansTable.nameEn, price: subscriptionPlansTable.price, currency: subscriptionPlansTable.currency }).from(subscriptionPlansTable).where(eq(subscriptionPlansTable.id, company.planId)).limit(1)
+        : Promise.resolve([]),
+      db.select({ status: subscriptionsTable.status, endsAt: subscriptionsTable.endsAt, billingCycle: subscriptionsTable.billingCycle, amount: subscriptionsTable.amount, currency: subscriptionsTable.currency }).from(subscriptionsTable).where(and(eq(subscriptionsTable.companyId, id), eq(subscriptionsTable.status, "active"))).orderBy(desc(subscriptionsTable.createdAt)).limit(1),
+    ]);
+
+    const activePlan = planRows[0] ?? null;
+    const activeSubscription = subscriptionRows[0] ?? null;
+
     res.json({
       company,
+      plan: activePlan,
+      activeSubscription,
       summary: {
         usersCount: Number(usersCount?.count ?? 0),
         journalEntries: Number(jeCount?.count ?? 0),
