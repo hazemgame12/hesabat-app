@@ -284,9 +284,50 @@ router.patch("/super-admin/companies/:id", async (req, res) => {
   res.json(result[0]);
 });
 
-// POST /super-admin/companies/:id/subscription — activate / renew / extend / change plan
+// GET /super-admin/companies/:id/subscription — subscription info + payment requests
+router.get("/super-admin/companies/:id/subscription", async (req, res) => {
+  const { id } = req.params;
+  const companyRows = await db
+    .select()
+    .from(companiesTable)
+    .where(eq(companiesTable.id, id))
+    .limit(1);
+  if (companyRows.length === 0) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+  const company = companyRows[0]!;
+
+  let plan = null;
+  if (company.planId) {
+    const planRows = await db
+      .select()
+      .from(subscriptionPlansTable)
+      .where(eq(subscriptionPlansTable.id, company.planId))
+      .limit(1);
+    plan = planRows[0] ?? null;
+  }
+
+  const subscriptions = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.companyId, id))
+    .orderBy(desc(subscriptionsTable.createdAt))
+    .limit(10);
+
+  const requests = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, id))
+    .orderBy(desc(manualPaymentRequestsTable.createdAt))
+    .limit(20);
+
+  res.json({ company, plan, subscriptions, requests });
+});
+
+// POST /super-admin/companies/:id/subscription — activate / renew / extend / change plan / suspend
 const SubscriptionAction = z.object({
-  action: z.enum(["activate", "renew", "extend", "change_plan", "reactivate"]),
+  action: z.enum(["activate", "renew", "extend", "change_plan", "reactivate", "suspend"]),
   planId: z.string().uuid().optional(),
   billingCycle: z.enum(["monthly", "quarterly", "yearly"]).optional(),
   endsAt: z.string().datetime().optional(),
@@ -379,9 +420,25 @@ router.post("/super-admin/companies/:id/subscription", async (req, res) => {
   } else if (action === "reactivate") {
     companyUpdate.subscriptionStatus = "active";
     auditAction = "SUBSCRIPTION_REACTIVATED";
+  } else if (action === "suspend") {
+    companyUpdate.subscriptionStatus = "suspended";
+    auditAction = "SUBSCRIPTION_SUSPENDED";
   }
 
   await db.update(companiesTable).set(companyUpdate).where(eq(companiesTable.id, id));
+
+  // When suspending, mark the current active subscription record as suspended too.
+  if (action === "suspend") {
+    await db
+      .update(subscriptionsTable)
+      .set({ status: "suspended", updatedAt: new Date() })
+      .where(
+        and(
+          eq(subscriptionsTable.companyId, id),
+          eq(subscriptionsTable.status, "active"),
+        ),
+      );
+  }
 
   let newSubscription = null;
   if (subscriptionInsert) {

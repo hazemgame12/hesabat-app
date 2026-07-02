@@ -1,6 +1,7 @@
 import { type Request, type Response, type NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { db, companiesTable } from "@workspace/db";
+import { resolveSession, SESSION_COOKIE } from "../lib/session";
 
 /**
  * Routes that a suspended company is still allowed to call.
@@ -13,11 +14,17 @@ const SUBSCRIPTION_WHITELIST = [
   "/plans",
   "/company/select-plan",
   "/company/subscription",
+  "/company/subscription/renewal-request",
   "/payment-requests",
 ];
 
 /**
  * Blocks API calls from companies whose subscription is `suspended`.
+ *
+ * This middleware is mounted BEFORE route-level requireAuth, so it must
+ * resolve the session itself from the cookie rather than relying on
+ * req.auth being populated.
+ *
  * Super admin impersonation sessions bypass this guard so admins can
  * always inspect the data.
  * Companies with status `expired` are NOT blocked at the API level —
@@ -29,14 +36,23 @@ export async function subscriptionGuard(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const auth = (req as any).auth;
-  if (!auth) {
-    // Not authenticated — let the requireAuth middleware handle it.
+  // Resolve auth from cookie because this middleware runs before requireAuth.
+  const token = req.cookies?.[SESSION_COOKIE] as string | undefined;
+  if (!token) {
+    // No session cookie — unauthenticated, let requireAuth handle it.
     next();
     return;
   }
 
-  // Super admin impersonation bypasses subscription guard.
+  const auth = await resolveSession(token);
+  if (!auth) {
+    // Invalid / expired session — let requireAuth handle it.
+    next();
+    return;
+  }
+
+  // Super admin impersonation bypasses subscription guard so admins can
+  // always inspect the tenant's data.
   if (auth.isImpersonating) {
     next();
     return;
@@ -44,15 +60,14 @@ export async function subscriptionGuard(
 
   const path = req.path;
 
-  // Check if this path is whitelisted.
+  // Check if this path is whitelisted (always allowed even when suspended).
   const isWhitelisted = SUBSCRIPTION_WHITELIST.some((w) => path.startsWith(w));
   if (isWhitelisted) {
     next();
     return;
   }
 
-  // Fetch subscription status from DB (already available via session but
-  // we double-check here to avoid stale session data).
+  // Fetch subscription status from DB to avoid stale session data.
   const rows = await db
     .select({ subscriptionStatus: companiesTable.subscriptionStatus })
     .from(companiesTable)
