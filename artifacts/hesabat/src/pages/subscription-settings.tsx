@@ -73,8 +73,6 @@ export function SubscriptionSettings() {
   const queryClient = useQueryClient();
   const { data: user } = useGetCurrentUser();
 
-  const country = user?.country ?? "EG";
-
   const [selectedPlanId, setSelectedPlanId] = React.useState("");
   const [billingCycle, setBillingCycle] = React.useState<"monthly" | "quarterly" | "yearly">("monthly");
   const [notes, setNotes] = React.useState("");
@@ -88,6 +86,9 @@ export function SubscriptionSettings() {
       return res.json();
     },
   });
+
+  // Use fresh DB-sourced country from subscription endpoint; fall back to session country
+  const country = subData?.company?.country ?? user?.country ?? "EG";
 
   const { data: plans = [] } = useQuery<Plan[]>({
     queryKey: ["plans", country],
