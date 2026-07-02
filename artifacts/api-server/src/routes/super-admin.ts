@@ -149,67 +149,72 @@ const CompaniesQuery = z.object({
 });
 
 router.get("/super-admin/companies", async (req, res) => {
-  const query = CompaniesQuery.parse(req.query);
-  const conditions = [];
+  try {
+    const query = CompaniesQuery.parse(req.query);
+    const conditions = [];
 
-  if (query.q) {
-    conditions.push(
-      ilike(companiesTable.name, `%${query.q}%`),
-    );
+    if (query.q) {
+      conditions.push(
+        ilike(companiesTable.name, `%${query.q}%`),
+      );
+    }
+    if (query.country) {
+      conditions.push(eq(companiesTable.country, query.country));
+    }
+    if (query.status) {
+      conditions.push(eq(companiesTable.subscriptionStatus, query.status as any));
+    }
+    if (query.isActive === "true") {
+      conditions.push(eq(companiesTable.isActive, true));
+    } else if (query.isActive === "false") {
+      conditions.push(eq(companiesTable.isActive, false));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const companies = await db
+      .select({
+        id: companiesTable.id,
+        name: companiesTable.name,
+        country: companiesTable.country,
+        baseCurrency: companiesTable.baseCurrency,
+        planId: companiesTable.planId,
+        subscriptionStatus: companiesTable.subscriptionStatus,
+        trialEndsAt: companiesTable.trialEndsAt,
+        isActive: companiesTable.isActive,
+        phone: companiesTable.phone,
+        createdAt: companiesTable.createdAt,
+        updatedAt: companiesTable.updatedAt,
+      })
+      .from(companiesTable)
+      .where(whereClause)
+      .limit(query.limit)
+      .offset(query.offset)
+      .orderBy(desc(companiesTable.createdAt));
+
+    // Count user per company
+    const companyIds = companies.map((c) => c.id);
+    const userCounts = companyIds.length > 0
+      ? await db
+          .select({ companyId: usersTable.companyId, count: count() })
+          .from(usersTable)
+          .where(inArray(usersTable.companyId, companyIds))
+          .groupBy(usersTable.companyId)
+      : [];
+
+    const countMap = new Map(userCounts.map((u) => [u.companyId, u.count]));
+
+    res.json({
+      companies: companies.map((c) => ({
+        ...c,
+        userCount: countMap.get(c.id) ?? 0,
+      })),
+      total: companies.length,
+    });
+  } catch (err) {
+    req.log.error({ err }, "SA companies list failed");
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
-  if (query.country) {
-    conditions.push(eq(companiesTable.country, query.country));
-  }
-  if (query.status) {
-    conditions.push(eq(companiesTable.subscriptionStatus, query.status as any));
-  }
-  if (query.isActive === "true") {
-    conditions.push(eq(companiesTable.isActive, true));
-  } else if (query.isActive === "false") {
-    conditions.push(eq(companiesTable.isActive, false));
-  }
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  const companies = await db
-    .select({
-      id: companiesTable.id,
-      name: companiesTable.name,
-      country: companiesTable.country,
-      baseCurrency: companiesTable.baseCurrency,
-      planId: companiesTable.planId,
-      subscriptionStatus: companiesTable.subscriptionStatus,
-      trialEndsAt: companiesTable.trialEndsAt,
-      isActive: companiesTable.isActive,
-      phone: companiesTable.phone,
-      createdAt: companiesTable.createdAt,
-      updatedAt: companiesTable.updatedAt,
-    })
-    .from(companiesTable)
-    .where(whereClause)
-    .limit(query.limit)
-    .offset(query.offset)
-    .orderBy(desc(companiesTable.createdAt));
-
-  // Count user per company
-  const companyIds = companies.map((c) => c.id);
-  const userCounts = companyIds.length > 0
-    ? await db
-        .select({ companyId: usersTable.companyId, count: count() })
-        .from(usersTable)
-        .where(inArray(usersTable.companyId, companyIds))
-        .groupBy(usersTable.companyId)
-    : [];
-
-  const countMap = new Map(userCounts.map((u) => [u.companyId, u.count]));
-
-  res.json({
-    companies: companies.map((c) => ({
-      ...c,
-      userCount: countMap.get(c.id) ?? 0,
-    })),
-    total: companies.length,
-  });
 });
 
 // GET /super-admin/companies/:id
