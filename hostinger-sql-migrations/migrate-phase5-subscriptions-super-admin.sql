@@ -74,10 +74,17 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
--- If the table was already created without country_code / country_name, add them safely.
+-- If the table was already created without some columns, add them safely.
 ALTER TABLE subscription_plans
-  ADD COLUMN IF NOT EXISTS country_code text DEFAULT 'EG',
-  ADD COLUMN IF NOT EXISTS country_name text;
+  ADD COLUMN IF NOT EXISTS country_code              text DEFAULT 'EG',
+  ADD COLUMN IF NOT EXISTS country_name              text,
+  ADD COLUMN IF NOT EXISTS currency_code             text,
+  ADD COLUMN IF NOT EXISTS monthly_price             numeric(12,2),
+  ADD COLUMN IF NOT EXISTS yearly_price              numeric(12,2),
+  ADD COLUMN IF NOT EXISTS trial_days                integer NOT NULL DEFAULT 14,
+  ADD COLUMN IF NOT EXISTS max_companies_or_branches integer,
+  ADD COLUMN IF NOT EXISTS storage_limit             integer,
+  ADD COLUMN IF NOT EXISTS feature_limits            jsonb NOT NULL DEFAULT '{}';
 
 CREATE INDEX IF NOT EXISTS subscription_plans_country_idx  ON subscription_plans(country);
 CREATE INDEX IF NOT EXISTS subscription_plans_active_idx   ON subscription_plans(is_active);
