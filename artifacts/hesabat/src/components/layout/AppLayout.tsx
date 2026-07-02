@@ -99,15 +99,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       setLocation("/login");
       return;
     }
-    if (user) {
+    if (user && !user.isImpersonating) {
       const isExpired = user.subscriptionStatus === "expired";
       const isTrialWithoutPlan = user.subscriptionStatus === "trial" && !user.planId;
       const isSuspended = user.subscriptionStatus === "suspended";
-      // Suspended users go to choose-plan for self-service recovery
-      if ((isExpired || isTrialWithoutPlan || isSuspended) && !user.isImpersonating) {
+      // Expired / no-plan-trial → choose-plan (self-service)
+      if (isExpired || isTrialWithoutPlan) {
         setLocation("/choose-plan");
         return;
       }
+      // Suspended → subscription settings so user can submit payment request
       if (isSuspended && !location.startsWith("/settings/subscription")) {
         setLocation("/settings/subscription");
       }
@@ -132,15 +133,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const isImpersonating: boolean = !!user.isImpersonating;
   const impersonatedByName: string | null = user.impersonatedByName ?? null;
 
-  // Prevent showing the app layout when the user needs to choose a plan
-  // (unless we are in an impersonation session, where the admin can see all states)
+  // Expired / no-plan-trial users must choose a plan (unless impersonating)
   const isExpired = user.subscriptionStatus === "expired";
   const isTrialWithoutPlan = user.subscriptionStatus === "trial" && !user.planId;
-  const isSuspended = user.subscriptionStatus === "suspended";
-  if ((isExpired || isTrialWithoutPlan || isSuspended) && !isImpersonating) {
+  if ((isExpired || isTrialWithoutPlan) && !isImpersonating) {
     return null;
   }
 
+  const isSuspended = user.subscriptionStatus === "suspended";
   const hasBanner = isImpersonating || isSuspended || isExpired;
 
   return (
