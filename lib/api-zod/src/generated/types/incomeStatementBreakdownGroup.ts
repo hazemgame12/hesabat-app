@@ -5,17 +5,16 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { PnlLine } from './pnlLine';
 
-export interface GeneralLedgerEntry {
-  entryId: string;
-  date: string;
-  entryNo: number;
-  /** @nullable */
-  ref?: string | null;
-  description: string;
-  debit: number;
-  credit: number;
-  balance: number;
+export interface IncomeStatementBreakdownGroup {
+  dimensionId: string | null;
+  dimensionName: string;
+  revenue: PnlLine[];
+  expenses: PnlLine[];
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
   costCenterId?: string | null;
   costCenterName?: string | null;
   projectId?: string | null;

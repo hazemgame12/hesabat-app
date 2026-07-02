@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CurrencyInfo } from './currencyInfo';
+import type { IncomeStatementBreakdownGroup } from './incomeStatementBreakdownGroup';
 import type { PnlLine } from './pnlLine';
 
 export interface IncomeStatement {
@@ -19,4 +20,5 @@ export interface IncomeStatement {
   totalExpenses: number;
   netProfit: number;
   currencyInfo?: CurrencyInfo;
+  breakdownGroups?: IncomeStatementBreakdownGroup[];
 }

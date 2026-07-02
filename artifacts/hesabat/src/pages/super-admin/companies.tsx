@@ -58,6 +58,7 @@ async function updateCompanyStatus(id: string, status: string) {
 
 const statusColors: Record<string, string> = {
   trial: "bg-yellow-100 text-yellow-800",
+  pending_payment: "bg-blue-100 text-blue-800",
   active: "bg-green-100 text-green-800",
   expired: "bg-red-100 text-red-800",
   cancelled: "bg-gray-100 text-gray-800",
@@ -66,10 +67,17 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   trial: "تجريبي",
+  pending_payment: "في انتظار التفعيل",
   active: "نشط",
   expired: "منتهي",
   cancelled: "ملغي",
   suspended: "معلق",
+};
+
+const paymentRequestStatusColors: Record<string, string> = {
+  pending: "bg-yellow-100 text-yellow-800",
+  approved: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-800",
 };
 
 export function SuperAdminCompanies() {
@@ -140,6 +148,44 @@ export function SuperAdminCompanies() {
       toast({ title: t("common.success") });
     },
     onError: () => toast({ title: t("common.error"), variant: "destructive" }),
+  });
+
+  const reviewPaymentRequest = useMutation({
+    mutationFn: async ({
+      companyId,
+      requestId,
+      action,
+    }: {
+      companyId: string;
+      requestId: string;
+      action: "approve" | "reject";
+    }) => {
+      const res = await fetch(
+        `/api/super-admin/companies/${companyId}/payment-requests/${requestId}/${action}`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(body || `Failed to ${action} payment request`);
+      }
+      return res.json();
+    },
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ["super-admin-companies"] });
+      if (expandedId) {
+        const res = await fetch(`/api/super-admin/companies/${expandedId}`, { credentials: "include" });
+        if (res.ok) setCompanyDetail(await res.json());
+      }
+      toast({ title: t("common.success") });
+    },
+    onError: (err: Error) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
   });
 
   const handleExpand = async (id: string) => {
@@ -265,6 +311,12 @@ export function SuperAdminCompanies() {
                     <Button size="sm" variant="ghost" onClick={() => handleExpand(company.id)}>
                       {expandedId === company.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => (window.location.href = `/super-admin/companies/${company.id}/subscription`)}>
+                      Subscription
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => (window.location.href = `/super-admin/companies/${company.id}/overview`)}>
+                      Overview
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => remove.mutate(company.id)}>
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
@@ -357,6 +409,64 @@ export function SuperAdminCompanies() {
                           )}
                         </div>
                       </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-muted-foreground mb-2">طلبات الدفع اليدوي</div>
+                      {companyDetail.paymentRequests?.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">لا توجد طلبات دفع</div>
+                      ) : (
+                        <div className="space-y-2">
+                          {companyDetail.paymentRequests?.map((request: any) => (
+                            <div key={request.id} className="flex items-center justify-between gap-3 rounded-md border p-2">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium truncate">
+                                  {getPlanName(request.planId)} · {request.amount} {request.currency}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {request.billingCycle} · {formatDate(request.createdAt)}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge className={paymentRequestStatusColors[request.status] || "bg-gray-100 text-gray-800"}>
+                                  {request.status}
+                                </Badge>
+                                {request.status === "pending" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={reviewPaymentRequest.isPending}
+                                      onClick={() =>
+                                        reviewPaymentRequest.mutate({
+                                          companyId: company.id,
+                                          requestId: request.id,
+                                          action: "approve",
+                                        })
+                                      }
+                                    >
+                                      اعتماد
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      disabled={reviewPaymentRequest.isPending}
+                                      onClick={() =>
+                                        reviewPaymentRequest.mutate({
+                                          companyId: company.id,
+                                          requestId: request.id,
+                                          action: "reject",
+                                        })
+                                      }
+                                    >
+                                      رفض
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

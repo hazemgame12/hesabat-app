@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import path from "path";
 import crypto from "crypto";
 import multer from "multer";
+import { z } from "zod/v4";
 import { eq, and, asc, ne } from "drizzle-orm";
 import {
   db,
@@ -36,14 +37,20 @@ import {
   fiscalYearsTable,
   usersTable,
   type Company,
+  manualPaymentRequestsTable,
 } from "@workspace/db";
 import { isCountry, isCurrency } from "@workspace/locale";
 import { UpdateCompanyBody } from "@workspace/api-zod";
+import { z } from "zod/v4";
 import { requireAuth } from "../middleware/require-auth";
 import { requireCapability } from "../middleware/require-capability";
 import { isWriteBlocked, WRITE_BLOCK_MSG } from "../lib/fiscal-year";
 import { uploadsDir } from "./uploads";
-import { subscriptionPlansTable } from "@workspace/db";
+import { subscriptionPlansTable,
+subscriptionsTable,
+manualPaymentRequestsTable,
+countryPaymentMethodsTable } from "@workspace/db";
+import { safeAudit } from "../lib/audit";
 
 const router = Router();
 
@@ -402,11 +409,11 @@ router.get("/company/export", requireAuth, async (req, res) => {
 // GET /plans — available subscription plans
 // Public browsing: only showOnLanding=true; authenticated users: all active plans
 router.get("/plans", async (req, res) => {
-  const country = req.query["country"] as string | undefined;
+  const country = (req.query["country"] as string | undefined) ?? (req.query["countryCode"] as string | undefined);
   const isAuthenticated = !!(req as any).auth?.userId;
   const conditions = [];
   if (country) {
-    conditions.push(eq(subscriptionPlansTable.country, country));
+    conditions.push(or(eq(subscriptionPlansTable.country, country), eq(subscriptionPlansTable.countryCode, country)));
   }
   conditions.push(eq(subscriptionPlansTable.isActive, true));
   if (!isAuthenticated) {
@@ -419,7 +426,15 @@ router.get("/plans", async (req, res) => {
     .from(subscriptionPlansTable)
     .where(whereClause)
     .orderBy(asc(subscriptionPlansTable.order));
-  res.json(plans);
+  res.json(
+    plans.map((plan) => ({
+      ...plan,
+      countryCode: plan.countryCode ?? plan.country,
+      currencyCode: plan.currencyCode ?? plan.currency,
+      monthlyPrice: plan.monthlyPrice ?? plan.price,
+      sortOrder: plan.order,
+    })),
+  );
 });
 
 // POST /company/select-plan — user chooses a plan
@@ -438,7 +453,23 @@ router.post("/company/select-plan", requireAuth, async (req, res) => {
     res.status(404).json({ error: "Plan not found" });
     return;
   }
-  const plan = planRows[0];
+  const plan = planRows[0]!;
+
+  // Country validation: plan must belong to the company's country.
+  const companyRows = await db
+    .select({ country: companiesTable.country })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, req.auth!.companyId))
+    .limit(1);
+  const companyCountry = companyRows[0]?.country;
+  if (companyCountry && plan.country !== companyCountry) {
+    res.status(400).json({
+      error: "هذه الباقة غير متاحة لدولتك",
+      code: "PLAN_COUNTRY_MISMATCH",
+    });
+    return;
+  }
+
   const now = new Date();
   const endsAt = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
 
@@ -453,6 +484,123 @@ router.post("/company/select-plan", requireAuth, async (req, res) => {
     .where(eq(companiesTable.id, req.auth!.companyId));
 
   res.json({ ok: true, trialEndsAt: endsAt.toISOString() });
+});
+
+router.get("/company/subscription", requireAuth, async (req, res) => {
+  const companyId = req.auth!.companyId;
+  const [company] = await db
+    .select()
+    .from(companiesTable)
+    .where(eq(companiesTable.id, companyId))
+    .limit(1);
+  if (!company) {
+    res.status(404).json({ error: "الشركة غير موجودة" });
+    return;
+  }
+  const [plan] = company.planId
+    ? await db
+        .select()
+        .from(subscriptionPlansTable)
+        .where(eq(subscriptionPlansTable.id, company.planId))
+        .limit(1)
+    : [];
+  const [latestSubscription] = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.companyId, companyId))
+    .orderBy(desc(subscriptionsTable.createdAt))
+    .limit(1);
+  const [usersCount] = await db
+    .select({ count: count() })
+    .from(usersTable)
+    .where(eq(usersTable.companyId, companyId));
+  const [latestRequest] = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, companyId))
+    .orderBy(desc(manualPaymentRequestsTable.createdAt))
+    .limit(1);
+  const paymentMethods = await db
+    .select()
+    .from(countryPaymentMethodsTable)
+    .where(
+      and(
+        eq(countryPaymentMethodsTable.countryCode, company.country),
+        eq(countryPaymentMethodsTable.enabled, true),
+        eq(countryPaymentMethodsTable.isPublic, true),
+      ),
+    )
+    .orderBy(asc(countryPaymentMethodsTable.methodName));
+
+  const now = Date.now();
+  const endsAt = latestSubscription?.endsAt ?? company.trialEndsAt;
+  const remainingDays = endsAt
+    ? Math.max(0, Math.ceil((new Date(endsAt).getTime() - now) / (24 * 60 * 60 * 1000)))
+    : null;
+  const trialStatus = company.subscriptionStatus === "trial" ? "in_trial" : "not_trial";
+
+  res.json({
+    company,
+    plan,
+    latestSubscription,
+    latestRequest,
+    usersCount: usersCount?.count ?? 0,
+    remainingDays,
+    trialStatus,
+    paymentMethods,
+    manualInstructions: paymentMethods
+      .filter((m) => m.type === "manual" || m.type === "bank_transfer" || m.type === "cash")
+      .map((m) => ({
+        methodName: m.methodName,
+        type: m.type,
+        instructionsAr: m.instructionsAr ?? null,
+        instructionsEn: m.instructionsEn ?? null,
+        accountDetails: m.accountDetails ?? null,
+      })),
+  });
+});
+
+const RenewalRequestBody = z.object({
+  planId: z.string().uuid(),
+  billingCycle: z.enum(["monthly", "quarterly", "yearly"]),
+  amount: z.string().min(1),
+  currency: z.string().min(1),
+  notes: z.string().optional(),
+  proofUrl: z.string().url().optional(),
+});
+
+router.post("/company/subscription/renewal-request", requireAuth, async (req, res) => {
+  const body = RenewalRequestBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const [created] = await db
+    .insert(manualPaymentRequestsTable)
+    .values({
+      companyId: req.auth!.companyId,
+      planId: body.data.planId,
+      billingCycle: body.data.billingCycle,
+      amount: body.data.amount,
+      currency: body.data.currency,
+      notes: body.data.notes,
+      proofUrl: body.data.proofUrl,
+      status: "pending",
+    })
+    .returning();
+  await safeAudit(
+    db,
+    {
+      companyId: req.auth!.companyId,
+      userId: req.auth!.userId,
+      action: "SUBSCRIPTION_RENEWAL_REQUESTED",
+      entity: "subscription",
+      entityId: created.id,
+      newValue: created,
+    },
+    req.log,
+  );
+  res.status(201).json(created);
 });
 
 // PATCH /company/period-lock — set or clear the soft period lock (owner only)
@@ -489,5 +637,71 @@ router.patch(
     }
   },
 );
+
+// POST /payment-requests — company submits a manual payment/renewal request
+
+const PaymentRequestBody = z.object({
+  planId: z.string().uuid(),
+  amount: z.string().min(1),
+  currency: z.string().min(1),
+  billingCycle: z.enum(["monthly", "quarterly", "yearly"]),
+  notes: z.string().optional(),
+  proofUrl: z.string().url().optional(),
+});
+
+router.post("/payment-requests", requireAuth, async (req, res) => {
+  const parsed = PaymentRequestBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.issues });
+    return;
+  }
+  const { planId, amount, currency, billingCycle, notes, proofUrl } = parsed.data;
+
+  // Validate plan belongs to company's country
+  const planRows = await db
+    .select({ country: subscriptionPlansTable.country, isActive: subscriptionPlansTable.isActive })
+    .from(subscriptionPlansTable)
+    .where(eq(subscriptionPlansTable.id, planId))
+    .limit(1);
+  if (planRows.length === 0) {
+    res.status(404).json({ error: "Plan not found" });
+    return;
+  }
+  const companyRows = await db
+    .select({ country: companiesTable.country })
+    .from(companiesTable)
+    .where(eq(companiesTable.id, req.auth!.companyId))
+    .limit(1);
+  const companyCountry = companyRows[0]?.country;
+  if (companyCountry && planRows[0]!.country !== companyCountry) {
+    res.status(400).json({ error: "هذه الباقة غير متاحة لدولتك", code: "PLAN_COUNTRY_MISMATCH" });
+    return;
+  }
+
+  const [row] = await db
+    .insert(manualPaymentRequestsTable)
+    .values({
+      companyId: req.auth!.companyId,
+      planId,
+      amount,
+      currency,
+      billingCycle,
+      notes: notes ?? null,
+      proofUrl: proofUrl ?? null,
+      status: "pending",
+    })
+    .returning();
+
+  res.status(201).json(row);
+});
+
+// GET /payment-requests — company views its own requests
+router.get("/payment-requests", requireAuth, async (req, res) => {
+  const rows = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, req.auth!.companyId));
+  res.json(rows);
+});
 
 export default router;

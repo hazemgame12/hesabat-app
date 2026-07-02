@@ -10,4 +10,8 @@ export type GetIncomeStatementParams = {
 from?: string;
 to?: string;
 reportCurrency?: string;
+breakdownBy?: string | null;
+costCenterId?: string | null;
+projectId?: string | null;
+branchId?: string | null;
 };

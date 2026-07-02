@@ -17,4 +17,6 @@ export interface AuthUser {
   trialEndsAt?: string | null;
   planId?: string | null;
   country?: string | null;
+  isImpersonating?: boolean;
+  impersonatedByName?: string | null;
 }

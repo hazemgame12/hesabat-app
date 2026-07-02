@@ -13,15 +13,44 @@ import {
   articlesTable,
   insertArticleSchema,
   updateArticleSchema,
+  auditLogTable,
+  manualPaymentRequestsTable,
 } from "@workspace/db";
 import { requireSuperAdmin, requireSuperAdminRole } from "../middleware/super-admin";
 import { hashPassword } from "../lib/auth";
+import { createImpersonationSession, setSessionCookie } from "../lib/session";
 import { z } from "zod/v4";
 
 const router = Router();
 
 // All routes require super admin auth
 router.use(requireSuperAdmin);
+
+/** Write an audit log entry for super-admin subscription actions. */
+async function logSubscriptionAudit(
+  companyId: string,
+  action: string,
+  entityId: string,
+  newValue: object,
+) {
+  await db.insert(auditLogTable).values({
+    companyId,
+    userId: null,
+    action,
+    entity: "subscription",
+    entityId,
+    newValue,
+  });
+}
+
+/** Add months/quarters/years to a date based on billing cycle. */
+function addBillingCycle(from: Date, cycle?: string): Date {
+  const d = new Date(from);
+  if (cycle === "yearly") d.setFullYear(d.getFullYear() + 1);
+  else if (cycle === "quarterly") d.setMonth(d.getMonth() + 3);
+  else d.setMonth(d.getMonth() + 1); // monthly default
+  return d;
+}
 
 // GET /super-admin/dashboard — KPIs
 router.get("/super-admin/dashboard", async (req, res) => {
@@ -165,6 +194,24 @@ router.get("/super-admin/companies/:id", async (req, res) => {
     .from(subscriptionsTable)
     .where(eq(subscriptionsTable.companyId, id));
 
+  const paymentRequests = await db
+    .select({
+      id: manualPaymentRequestsTable.id,
+      companyId: manualPaymentRequestsTable.companyId,
+      planId: manualPaymentRequestsTable.planId,
+      amount: manualPaymentRequestsTable.amount,
+      currency: manualPaymentRequestsTable.currency,
+      billingCycle: manualPaymentRequestsTable.billingCycle,
+      status: manualPaymentRequestsTable.status,
+      notes: manualPaymentRequestsTable.notes,
+      reviewerNotes: manualPaymentRequestsTable.reviewerNotes,
+      reviewedAt: manualPaymentRequestsTable.reviewedAt,
+      createdAt: manualPaymentRequestsTable.createdAt,
+    })
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, id))
+    .orderBy(desc(manualPaymentRequestsTable.createdAt));
+
   const tickets = await db
     .select({
       id: supportTicketsTable.id,
@@ -180,6 +227,7 @@ router.get("/super-admin/companies/:id", async (req, res) => {
     company: company[0],
     users,
     subscriptions,
+    paymentRequests,
     tickets,
   });
 });
@@ -187,7 +235,7 @@ router.get("/super-admin/companies/:id", async (req, res) => {
 // PATCH /super-admin/companies/:id
 const UpdateCompany = z.object({
   isActive: z.boolean().optional(),
-  subscriptionStatus: z.enum(["trial", "active", "expired", "cancelled", "suspended"]).optional(),
+  subscriptionStatus: z.enum(["trial", "pending_payment", "active", "expired", "cancelled", "suspended"]).optional(),
   planId: z.string().uuid().optional(),
   maxUsers: z.number().optional(),
   maxTransactions: z.number().optional(),
@@ -223,7 +271,266 @@ router.patch("/super-admin/companies/:id", async (req, res) => {
     return;
   }
 
+  // Audit subscription status changes
+  if (data.subscriptionStatus !== undefined) {
+    const actionMap: Record<string, string> = {
+      active: "SUBSCRIPTION_ACTIVATED",
+      suspended: "SUBSCRIPTION_SUSPENDED",
+      expired: "SUBSCRIPTION_EXPIRED",
+      cancelled: "SUBSCRIPTION_CANCELLED",
+      trial: "SUBSCRIPTION_TRIAL",
+    };
+    const action = actionMap[data.subscriptionStatus] ?? "SUBSCRIPTION_STATUS_CHANGED";
+    await logSubscriptionAudit(id, action, id, {
+      subscriptionStatus: data.subscriptionStatus,
+      changedBy: req.superAdmin?.email,
+    });
+
+    // When suspending, also update the current active subscription record's status
+    if (data.subscriptionStatus === "suspended") {
+      await db
+        .update(subscriptionsTable)
+        .set({ status: "suspended", updatedAt: new Date() })
+        .where(
+          and(
+            eq(subscriptionsTable.companyId, id),
+            eq(subscriptionsTable.status, "active"),
+          ),
+        );
+    }
+  }
+
   res.json(result[0]);
+});
+
+// GET /super-admin/companies/:id/subscription — subscription info + payment requests
+router.get("/super-admin/companies/:id/subscription", async (req, res) => {
+  const { id } = req.params;
+  const companyRows = await db
+    .select()
+    .from(companiesTable)
+    .where(eq(companiesTable.id, id))
+    .limit(1);
+  if (companyRows.length === 0) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+  const company = companyRows[0]!;
+
+  let plan = null;
+  if (company.planId) {
+    const planRows = await db
+      .select()
+      .from(subscriptionPlansTable)
+      .where(eq(subscriptionPlansTable.id, company.planId))
+      .limit(1);
+    plan = planRows[0] ?? null;
+  }
+
+  const subscriptions = await db
+    .select()
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.companyId, id))
+    .orderBy(desc(subscriptionsTable.createdAt))
+    .limit(10);
+
+  const requests = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(eq(manualPaymentRequestsTable.companyId, id))
+    .orderBy(desc(manualPaymentRequestsTable.createdAt))
+    .limit(20);
+
+  res.json({ company, plan, subscriptions, requests });
+});
+
+// POST /super-admin/companies/:id/subscription — activate / renew / extend / change plan / suspend
+const SubscriptionAction = z.object({
+  action: z.enum(["activate", "renew", "extend", "change_plan", "reactivate", "suspend"]),
+  planId: z.string().uuid().optional(),
+  billingCycle: z.enum(["monthly", "quarterly", "yearly"]).optional(),
+  endsAt: z.string().datetime().optional(),
+  amount: z.string().optional(),
+  currency: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+router.post("/super-admin/companies/:id/subscription", async (req, res) => {
+  const { id } = req.params;
+  const body = SubscriptionAction.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.issues });
+    return;
+  }
+
+  const { action, planId, billingCycle, endsAt, amount, currency, notes } = body.data;
+
+  // Fetch company
+  const companyRows = await db
+    .select()
+    .from(companiesTable)
+    .where(eq(companiesTable.id, id))
+    .limit(1);
+  if (companyRows.length === 0) {
+    res.status(404).json({ error: "Company not found" });
+    return;
+  }
+
+  const now = new Date();
+  const resolvedEndsAt = endsAt ? new Date(endsAt) : null;
+
+  const companyUpdate: any = { updatedAt: now };
+  let auditAction = "";
+  let subscriptionInsert: any = null;
+
+  if (action === "activate") {
+    const cycleEnd = resolvedEndsAt ?? addBillingCycle(now, billingCycle);
+    companyUpdate.subscriptionStatus = "active";
+    if (planId) companyUpdate.planId = planId;
+    subscriptionInsert = {
+      companyId: id,
+      planId: planId ?? companyRows[0]!.planId ?? "",
+      status: "active",
+      startedAt: now,
+      endsAt: cycleEnd,
+      billingCycle: billingCycle ?? "monthly",
+      amount: amount ?? null,
+      currency: currency ?? null,
+      paymentProvider: "manual",
+    };
+    auditAction = "SUBSCRIPTION_ACTIVATED";
+  } else if (action === "renew") {
+    const cycleEnd = resolvedEndsAt ?? addBillingCycle(now, billingCycle);
+    companyUpdate.subscriptionStatus = "active";
+    subscriptionInsert = {
+      companyId: id,
+      planId: planId ?? companyRows[0]!.planId ?? "",
+      status: "active",
+      startedAt: now,
+      endsAt: cycleEnd,
+      billingCycle: billingCycle ?? "monthly",
+      amount: amount ?? null,
+      currency: currency ?? null,
+      paymentProvider: "manual",
+    };
+    auditAction = "SUBSCRIPTION_RENEWED";
+  } else if (action === "extend") {
+    if (!resolvedEndsAt) {
+      res.status(400).json({ error: "endsAt required for extend action" });
+      return;
+    }
+    const currentStatus = companyRows[0]!.subscriptionStatus;
+    // For trial extension: update trialEndsAt and keep trial status.
+    // For active subscription extension: update active status and extend subscription record.
+    if (currentStatus === "trial") {
+      companyUpdate.trialEndsAt = resolvedEndsAt;
+      // Keep status as trial
+    } else {
+      companyUpdate.subscriptionStatus = "active";
+    }
+    auditAction = "SUBSCRIPTION_EXTENDED";
+  } else if (action === "change_plan") {
+    if (!planId) {
+      res.status(400).json({ error: "planId required for change_plan action" });
+      return;
+    }
+    companyUpdate.planId = planId;
+    auditAction = "SUBSCRIPTION_PACKAGE_CHANGED";
+  } else if (action === "reactivate") {
+    companyUpdate.subscriptionStatus = "active";
+    auditAction = "SUBSCRIPTION_REACTIVATED";
+  } else if (action === "suspend") {
+    companyUpdate.subscriptionStatus = "suspended";
+    auditAction = "SUBSCRIPTION_SUSPENDED";
+  }
+
+  await db.update(companiesTable).set(companyUpdate).where(eq(companiesTable.id, id));
+
+  // When suspending, mark the current active subscription record as suspended too.
+  if (action === "suspend") {
+    await db
+      .update(subscriptionsTable)
+      .set({ status: "suspended", updatedAt: new Date() })
+      .where(
+        and(
+          eq(subscriptionsTable.companyId, id),
+          eq(subscriptionsTable.status, "active"),
+        ),
+      );
+  }
+
+  let newSubscription = null;
+  if (subscriptionInsert) {
+    const [s] = await db.insert(subscriptionsTable).values(subscriptionInsert).returning();
+    newSubscription = s;
+  }
+
+  // For trial extension: also update the trial subscription record's trialEndsAt
+  if (action === "extend" && companyRows[0]!.subscriptionStatus === "trial" && resolvedEndsAt) {
+    await db
+      .update(subscriptionsTable)
+      .set({ trialEndsAt: resolvedEndsAt, updatedAt: new Date() })
+      .where(
+        and(
+          eq(subscriptionsTable.companyId, id),
+          eq(subscriptionsTable.status, "trial"),
+        ),
+      );
+  }
+
+  await logSubscriptionAudit(id, auditAction, id, {
+    action,
+    planId,
+    billingCycle,
+    endsAt: resolvedEndsAt?.toISOString(),
+    amount,
+    currency,
+    notes,
+    changedBy: req.superAdmin?.email,
+  });
+
+  res.json({ ok: true, subscription: newSubscription });
+});
+
+// POST /super-admin/companies/:id/impersonate — create impersonation session
+router.post("/super-admin/companies/:id/impersonate", async (req, res) => {
+  const { id: companyId } = req.params;
+
+  // Find the owner user for this company
+  const userRows = await db
+    .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name })
+    .from(usersTable)
+    .where(and(eq(usersTable.companyId, companyId), eq(usersTable.role, "owner")))
+    .limit(1);
+
+  if (userRows.length === 0) {
+    // Fallback: any active user in the company
+    const anyUser = await db
+      .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.companyId, companyId))
+      .limit(1);
+    if (anyUser.length === 0) {
+      res.status(404).json({ error: "No users found in company" });
+      return;
+    }
+    userRows.push(anyUser[0]!);
+  }
+
+  const targetUser = userRows[0]!;
+
+  // Create short-lived impersonation session (4 hours)
+  const token = await createImpersonationSession(targetUser.id, req.superAdmin!.superAdminId);
+  setSessionCookie(res, token);
+
+  // Audit log
+  await logSubscriptionAudit(companyId, "SUPER_ADMIN_IMPERSONATE_START", companyId, {
+    targetUserId: targetUser.id,
+    targetUserEmail: targetUser.email,
+    impersonatedBy: req.superAdmin?.email,
+  });
+
+  res.json({ ok: true, targetUserId: targetUser.id, targetUserEmail: targetUser.email });
 });
 
 // GET /super-admin/users — all users
@@ -297,14 +604,25 @@ const CreatePlan = z.object({
   nameEn: z.string().min(1),
   descriptionAr: z.string().optional(),
   descriptionEn: z.string().optional(),
-  country: z.string().min(1),
+  country: z.string().min(1).optional(),
+  countryCode: z.string().min(1).optional(),
+  countryName: z.string().optional(),
   maxUsers: z.number().min(1),
   maxTransactions: z.number().min(1),
-  price: z.string().min(1),
-  currency: z.string().min(1),
-  billingCycle: z.enum(["monthly", "quarterly", "yearly"]),
+  price: z.string().min(1).optional(),
+  currency: z.string().min(1).optional(),
+  currencyCode: z.string().optional(),
+  monthlyPrice: z.string().optional(),
+  yearlyPrice: z.string().optional(),
+  trialDays: z.number().min(0).optional(),
+  maxCompaniesOrBranches: z.number().min(1).optional(),
+  storageLimit: z.number().min(1).optional(),
+  featureLimits: z.record(z.string(), z.unknown()).optional(),
+  billingCycle: z.enum(["monthly", "quarterly", "yearly"]).optional(),
   features: z.array(z.string()).optional(),
   showOnLanding: z.boolean().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().optional(),
   order: z.number().optional(),
 });
 
@@ -317,7 +635,18 @@ router.post("/super-admin/plans", async (req, res) => {
 
   const result = await db
     .insert(subscriptionPlansTable)
-    .values(body.data)
+    .values({
+      ...body.data,
+      country: body.data.country ?? body.data.countryCode ?? "EG",
+      countryCode: body.data.countryCode ?? body.data.country ?? "EG",
+      currency: body.data.currency ?? body.data.currencyCode ?? "EGP",
+      currencyCode: body.data.currencyCode ?? body.data.currency ?? "EGP",
+      monthlyPrice: body.data.monthlyPrice ?? body.data.price ?? "0",
+      price: body.data.price ?? body.data.monthlyPrice ?? "0",
+      billingCycle: body.data.billingCycle ?? "monthly",
+      trialDays: body.data.trialDays ?? 14,
+      order: body.data.order ?? body.data.sortOrder ?? 0,
+    })
     .returning();
   res.status(201).json(result[0]);
 });
@@ -333,7 +662,17 @@ router.patch("/super-admin/plans/:id", async (req, res) => {
 
   const result = await db
     .update(subscriptionPlansTable)
-    .set({ ...body.data, updatedAt: new Date() })
+    .set({
+      ...body.data,
+      ...(body.data.countryCode && !body.data.country ? { country: body.data.countryCode } : {}),
+      ...(body.data.country && !body.data.countryCode ? { countryCode: body.data.country } : {}),
+      ...(body.data.currencyCode && !body.data.currency ? { currency: body.data.currencyCode } : {}),
+      ...(body.data.currency && !body.data.currencyCode ? { currencyCode: body.data.currency } : {}),
+      ...(body.data.monthlyPrice && !body.data.price ? { price: body.data.monthlyPrice } : {}),
+      ...(body.data.price && !body.data.monthlyPrice ? { monthlyPrice: body.data.price } : {}),
+      ...(body.data.sortOrder !== undefined && body.data.order === undefined ? { order: body.data.sortOrder } : {}),
+      updatedAt: new Date(),
+    })
     .where(eq(subscriptionPlansTable.id, id))
     .returning();
 
@@ -352,6 +691,78 @@ router.delete("/super-admin/plans/:id", async (req, res) => {
     .delete(subscriptionPlansTable)
     .where(eq(subscriptionPlansTable.id, id));
   res.json({ ok: true });
+});
+
+router.get("/super-admin/packages", async (req, res) => {
+  const rows = await db.select().from(subscriptionPlansTable).orderBy(asc(subscriptionPlansTable.order));
+  res.json(rows);
+});
+
+router.post("/super-admin/packages", async (req, res) => {
+  const body = CreatePlan.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const [created] = await db
+    .insert(subscriptionPlansTable)
+    .values({
+      ...body.data,
+      country: body.data.country ?? body.data.countryCode ?? "EG",
+      countryCode: body.data.countryCode ?? body.data.country ?? "EG",
+      currency: body.data.currency ?? body.data.currencyCode ?? "EGP",
+      currencyCode: body.data.currencyCode ?? body.data.currency ?? "EGP",
+      monthlyPrice: body.data.monthlyPrice ?? body.data.price ?? "0",
+      price: body.data.price ?? body.data.monthlyPrice ?? "0",
+      billingCycle: body.data.billingCycle ?? "monthly",
+      trialDays: body.data.trialDays ?? 14,
+      order: body.data.order ?? body.data.sortOrder ?? 0,
+    })
+    .returning();
+  res.status(201).json(created);
+});
+
+router.patch("/super-admin/packages/:id", async (req, res) => {
+  const { id } = req.params;
+  const body = CreatePlan.partial().safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid body" });
+    return;
+  }
+  const [updated] = await db
+    .update(subscriptionPlansTable)
+    .set({
+      ...body.data,
+      ...(body.data.countryCode && !body.data.country ? { country: body.data.countryCode } : {}),
+      ...(body.data.country && !body.data.countryCode ? { countryCode: body.data.country } : {}),
+      ...(body.data.currencyCode && !body.data.currency ? { currency: body.data.currencyCode } : {}),
+      ...(body.data.currency && !body.data.currencyCode ? { currencyCode: body.data.currency } : {}),
+      ...(body.data.monthlyPrice && !body.data.price ? { price: body.data.monthlyPrice } : {}),
+      ...(body.data.price && !body.data.monthlyPrice ? { monthlyPrice: body.data.price } : {}),
+      ...(body.data.sortOrder !== undefined && body.data.order === undefined ? { order: body.data.sortOrder } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptionPlansTable.id, id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Package not found" });
+    return;
+  }
+  res.json(updated);
+});
+
+router.delete("/super-admin/packages/:id", async (req, res) => {
+  const { id } = req.params;
+  const [updated] = await db
+    .update(subscriptionPlansTable)
+    .set({ isActive: false, updatedAt: new Date() })
+    .where(eq(subscriptionPlansTable.id, id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "Package not found" });
+    return;
+  }
+  res.json(updated);
 });
 
 // GET /super-admin/subscriptions
@@ -705,6 +1116,292 @@ router.delete("/super-admin/articles/:id", async (req, res) => {
     res.status(204).send();
   } catch (err) {
     req.log.error({ err }, "Failed to delete article");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+/* ══════════════════  Manual Payment Requests  ══════════════════ */
+
+// GET /super-admin/payment-requests — list all payment requests across all companies
+// Query params: status, country, currency, companyId, dateFrom, dateTo
+router.get("/super-admin/payment-requests", async (req, res) => {
+  try {
+    const { status, country, currency, companyId, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
+
+    const reviewerAlias = sql<string>`reviewer.email`.as("reviewerEmail");
+    const reviewerNameAlias = sql<string>`reviewer.name`.as("reviewerName");
+
+    const conditions = [];
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      conditions.push(eq(manualPaymentRequestsTable.status, status as "pending" | "approved" | "rejected"));
+    }
+    if (country) {
+      conditions.push(eq(companiesTable.country, country));
+    }
+    if (currency) {
+      conditions.push(eq(manualPaymentRequestsTable.currency, currency));
+    }
+    if (companyId) {
+      conditions.push(eq(manualPaymentRequestsTable.companyId, companyId));
+    }
+    if (dateFrom) {
+      conditions.push(gte(manualPaymentRequestsTable.createdAt, new Date(dateFrom)));
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      conditions.push(lte(manualPaymentRequestsTable.createdAt, to));
+    }
+
+    const rows = await db
+      .select({
+        id: manualPaymentRequestsTable.id,
+        companyId: manualPaymentRequestsTable.companyId,
+        companyName: companiesTable.name,
+        country: companiesTable.country,
+        planId: manualPaymentRequestsTable.planId,
+        planNameAr: subscriptionPlansTable.nameAr,
+        planNameEn: subscriptionPlansTable.nameEn,
+        amount: manualPaymentRequestsTable.amount,
+        currency: manualPaymentRequestsTable.currency,
+        billingCycle: manualPaymentRequestsTable.billingCycle,
+        status: manualPaymentRequestsTable.status,
+        notes: manualPaymentRequestsTable.notes,
+        proofUrl: manualPaymentRequestsTable.proofUrl,
+        reviewedBySuperAdminId: manualPaymentRequestsTable.reviewedBySuperAdminId,
+        reviewerNotes: manualPaymentRequestsTable.reviewerNotes,
+        reviewedAt: manualPaymentRequestsTable.reviewedAt,
+        createdAt: manualPaymentRequestsTable.createdAt,
+        reviewerEmail: reviewerAlias,
+        reviewerName: reviewerNameAlias,
+      })
+      .from(manualPaymentRequestsTable)
+      .leftJoin(companiesTable, eq(manualPaymentRequestsTable.companyId, companiesTable.id))
+      .leftJoin(subscriptionPlansTable, eq(manualPaymentRequestsTable.planId, subscriptionPlansTable.id))
+      .leftJoin(
+        sql`super_admins reviewer`,
+        sql`reviewer.id = ${manualPaymentRequestsTable.reviewedBySuperAdminId}`,
+      )
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(
+        sql`CASE ${manualPaymentRequestsTable.status} WHEN 'pending' THEN 0 ELSE 1 END`,
+        desc(manualPaymentRequestsTable.createdAt),
+      );
+
+    res.json(rows);
+  } catch (err) {
+    req.log.error({ err }, "Failed to list payment requests");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+async function getPendingManualPaymentRequest(requestId: string, companyId?: string) {
+  const [request] = await db
+    .select()
+    .from(manualPaymentRequestsTable)
+    .where(
+      companyId
+        ? and(
+            eq(manualPaymentRequestsTable.id, requestId),
+            eq(manualPaymentRequestsTable.companyId, companyId),
+          )
+        : eq(manualPaymentRequestsTable.id, requestId),
+    )
+    .limit(1);
+
+  if (!request) {
+    return { error: "Request not found" as const };
+  }
+
+  if (request.status !== "pending") {
+    return { error: "Request already reviewed" as const };
+  }
+
+  return { request };
+}
+
+async function approveManualPaymentRequest(params: {
+  requestId: string;
+  companyId?: string;
+  notes?: string;
+  superAdminId: string;
+  superAdminEmail?: string;
+}) {
+  const lookup = await getPendingManualPaymentRequest(params.requestId, params.companyId);
+  if ("error" in lookup) {
+    return lookup;
+  }
+
+  const { request } = lookup;
+  const now = new Date();
+
+  await db
+    .update(manualPaymentRequestsTable)
+    .set({
+      status: "approved",
+      reviewedBySuperAdminId: params.superAdminId,
+      reviewerNotes: params.notes ?? null,
+      reviewedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(manualPaymentRequestsTable.id, params.requestId));
+
+  const endsAt = addBillingCycle(now, request.billingCycle);
+
+  await db
+    .update(companiesTable)
+    .set({ subscriptionStatus: "active", planId: request.planId, updatedAt: now })
+    .where(eq(companiesTable.id, request.companyId));
+
+  await db.insert(subscriptionsTable).values({
+    companyId: request.companyId,
+    planId: request.planId,
+    status: "active",
+    startedAt: now,
+    endsAt,
+    billingCycle: request.billingCycle,
+    amount: request.amount,
+    currency: request.currency,
+    paymentProvider: "manual",
+  });
+
+  await logSubscriptionAudit(request.companyId, "MANUAL_PAYMENT_APPROVED", params.requestId, {
+    requestId: params.requestId,
+    planId: request.planId,
+    amount: request.amount,
+    currency: request.currency,
+    approvedBy: params.superAdminEmail,
+    notes: params.notes,
+  });
+
+  return { ok: true as const, endsAt };
+}
+
+async function rejectManualPaymentRequest(params: {
+  requestId: string;
+  companyId?: string;
+  notes?: string;
+  superAdminId: string;
+  superAdminEmail?: string;
+}) {
+  const lookup = await getPendingManualPaymentRequest(params.requestId, params.companyId);
+  if ("error" in lookup) {
+    return lookup;
+  }
+
+  const { request } = lookup;
+  const now = new Date();
+
+  await db
+    .update(manualPaymentRequestsTable)
+    .set({
+      status: "rejected",
+      reviewedBySuperAdminId: params.superAdminId,
+      reviewerNotes: params.notes ?? null,
+      reviewedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(manualPaymentRequestsTable.id, params.requestId));
+
+  await logSubscriptionAudit(request.companyId, "MANUAL_PAYMENT_REJECTED", params.requestId, {
+    requestId: params.requestId,
+    rejectedBy: params.superAdminEmail,
+    notes: params.notes,
+  });
+
+  return { ok: true as const };
+}
+
+// POST /super-admin/payment-requests/:id/approve
+router.post("/super-admin/payment-requests/:id/approve", async (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body as { notes?: string };
+
+  try {
+    const result = await approveManualPaymentRequest({
+      requestId: id,
+      notes,
+      superAdminId: req.superAdmin!.superAdminId,
+      superAdminEmail: req.superAdmin?.email,
+    });
+    if ("error" in result) {
+      res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, endsAt: result.endsAt.toISOString() });
+  } catch (err) {
+    req.log.error({ err }, "Failed to approve payment request");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /super-admin/companies/:companyId/payment-requests/:requestId/approve
+router.post("/super-admin/companies/:companyId/payment-requests/:requestId/approve", async (req, res) => {
+  const { companyId, requestId } = req.params;
+  const { notes } = req.body as { notes?: string };
+
+  try {
+    const result = await approveManualPaymentRequest({
+      requestId,
+      companyId,
+      notes,
+      superAdminId: req.superAdmin!.superAdminId,
+      superAdminEmail: req.superAdmin?.email,
+    });
+    if ("error" in result) {
+      res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true, endsAt: result.endsAt.toISOString() });
+  } catch (err) {
+    req.log.error({ err }, "Failed to approve company payment request");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /super-admin/payment-requests/:id/reject
+router.post("/super-admin/payment-requests/:id/reject", async (req, res) => {
+  const { id } = req.params;
+  const { notes } = req.body as { notes?: string };
+
+  try {
+    const result = await rejectManualPaymentRequest({
+      requestId: id,
+      notes,
+      superAdminId: req.superAdmin!.superAdminId,
+      superAdminEmail: req.superAdmin?.email,
+    });
+    if ("error" in result) {
+      res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to reject payment request");
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// POST /super-admin/companies/:companyId/payment-requests/:requestId/reject
+router.post("/super-admin/companies/:companyId/payment-requests/:requestId/reject", async (req, res) => {
+  const { companyId, requestId } = req.params;
+  const { notes } = req.body as { notes?: string };
+
+  try {
+    const result = await rejectManualPaymentRequest({
+      requestId,
+      companyId,
+      notes,
+      superAdminId: req.superAdmin!.superAdminId,
+      superAdminEmail: req.superAdmin?.email,
+    });
+    if ("error" in result) {
+      res.status(result.error === "Request not found" ? 404 : 400).json({ error: result.error });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Failed to reject company payment request");
     res.status(500).json({ error: "Server error" });
   }
 });

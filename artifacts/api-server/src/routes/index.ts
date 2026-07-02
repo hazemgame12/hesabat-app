@@ -46,8 +46,12 @@ import superAdminAuthRouter from "./super-admin-auth";
 import superAdminRouter from "./super-admin";
 import deployWebhookRouter from "./deploy-webhook";
 import emailWebhookRouter from "./email-webhook";
+import { subscriptionGuard } from "../middleware/subscription-guard";
 
 const router: IRouter = Router();
+
+// Subscription enforcement: applied after auth resolves, before tenant routes.
+router.use(subscriptionGuard);
 
 router.use(healthRouter);
 router.use(authRouter);

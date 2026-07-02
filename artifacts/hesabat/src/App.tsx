@@ -56,10 +56,14 @@ import { SuperAdminDashboard } from "@/pages/super-admin/dashboard";
 import { SuperAdminCompanies } from "@/pages/super-admin/companies";
 import { SuperAdminUsers } from "@/pages/super-admin/users";
 import { SuperAdminPlans } from "@/pages/super-admin/plans";
+import { SuperAdminPackages } from "@/pages/super-admin/packages";
 import { SuperAdminSubscriptions } from "@/pages/super-admin/subscriptions";
 import { SuperAdminSupportTickets } from "@/pages/super-admin/support-tickets";
 import { SuperAdminAnalytics } from "@/pages/super-admin/analytics";
 import { SuperAdminLandingPage } from "@/pages/super-admin/landing-page";
+import { SuperAdminPaymentRequests } from "@/pages/super-admin/payment-requests";
+import { SuperAdminCompanySubscription } from "@/pages/super-admin/company-subscription";
+import { SuperAdminCompanyOverview } from "@/pages/super-admin/company-overview";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -158,9 +162,13 @@ function SuperAdminRoutes() {
       <Switch>
         <Route path="/super-admin" component={SuperAdminDashboard} />
         <Route path="/super-admin/companies" component={SuperAdminCompanies} />
+        <Route path="/super-admin/companies/:companyId/subscription" component={SuperAdminCompanySubscription} />
+        <Route path="/super-admin/companies/:companyId/overview" component={SuperAdminCompanyOverview} />
         <Route path="/super-admin/users" component={SuperAdminUsers} />
+        <Route path="/super-admin/packages" component={SuperAdminPackages} />
         <Route path="/super-admin/plans" component={SuperAdminPlans} />
         <Route path="/super-admin/subscriptions" component={SuperAdminSubscriptions} />
+        <Route path="/super-admin/payment-requests" component={SuperAdminPaymentRequests} />
         <Route path="/super-admin/support-tickets" component={SuperAdminSupportTickets} />
         <Route path="/super-admin/analytics" component={SuperAdminAnalytics} />
         <Route path="/super-admin/landing-page" component={SuperAdminLandingPage} />
