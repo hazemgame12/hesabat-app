@@ -961,28 +961,72 @@ router.delete("/super-admin/articles/:id", async (req, res) => {
 
 /* ══════════════════  Manual Payment Requests  ══════════════════ */
 
-// GET /super-admin/payment-requests — list all pending/recent
+// GET /super-admin/payment-requests — list all payment requests across all companies
+// Query params: status, country, currency, companyId, dateFrom, dateTo
 router.get("/super-admin/payment-requests", async (req, res) => {
   try {
+    const { status, country, currency, companyId, dateFrom, dateTo } = req.query as Record<string, string | undefined>;
+
+    const reviewerAlias = sql<string>`reviewer.email`.as("reviewerEmail");
+    const reviewerNameAlias = sql<string>`reviewer.name`.as("reviewerName");
+
+    const conditions = [];
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      conditions.push(eq(manualPaymentRequestsTable.status, status as "pending" | "approved" | "rejected"));
+    }
+    if (country) {
+      conditions.push(eq(companiesTable.country, country));
+    }
+    if (currency) {
+      conditions.push(eq(manualPaymentRequestsTable.currency, currency));
+    }
+    if (companyId) {
+      conditions.push(eq(manualPaymentRequestsTable.companyId, companyId));
+    }
+    if (dateFrom) {
+      conditions.push(gte(manualPaymentRequestsTable.createdAt, new Date(dateFrom)));
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      conditions.push(lte(manualPaymentRequestsTable.createdAt, to));
+    }
+
     const rows = await db
       .select({
         id: manualPaymentRequestsTable.id,
         companyId: manualPaymentRequestsTable.companyId,
+        companyName: companiesTable.name,
+        country: companiesTable.country,
         planId: manualPaymentRequestsTable.planId,
+        planNameAr: subscriptionPlansTable.nameAr,
+        planNameEn: subscriptionPlansTable.nameEn,
         amount: manualPaymentRequestsTable.amount,
         currency: manualPaymentRequestsTable.currency,
         billingCycle: manualPaymentRequestsTable.billingCycle,
+        status: manualPaymentRequestsTable.status,
         notes: manualPaymentRequestsTable.notes,
         proofUrl: manualPaymentRequestsTable.proofUrl,
-        status: manualPaymentRequestsTable.status,
+        reviewedBySuperAdminId: manualPaymentRequestsTable.reviewedBySuperAdminId,
         reviewerNotes: manualPaymentRequestsTable.reviewerNotes,
         reviewedAt: manualPaymentRequestsTable.reviewedAt,
         createdAt: manualPaymentRequestsTable.createdAt,
-        companyName: companiesTable.name,
+        reviewerEmail: reviewerAlias,
+        reviewerName: reviewerNameAlias,
       })
       .from(manualPaymentRequestsTable)
       .leftJoin(companiesTable, eq(manualPaymentRequestsTable.companyId, companiesTable.id))
-      .orderBy(desc(manualPaymentRequestsTable.createdAt));
+      .leftJoin(subscriptionPlansTable, eq(manualPaymentRequestsTable.planId, subscriptionPlansTable.id))
+      .leftJoin(
+        sql`super_admins reviewer`,
+        sql`reviewer.id = ${manualPaymentRequestsTable.reviewedBySuperAdminId}`,
+      )
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(
+        sql`CASE ${manualPaymentRequestsTable.status} WHEN 'pending' THEN 0 ELSE 1 END`,
+        desc(manualPaymentRequestsTable.createdAt),
+      );
+
     res.json(rows);
   } catch (err) {
     req.log.error({ err }, "Failed to list payment requests");

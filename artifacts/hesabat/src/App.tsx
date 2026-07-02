@@ -60,6 +60,7 @@ import { SuperAdminSubscriptions } from "@/pages/super-admin/subscriptions";
 import { SuperAdminSupportTickets } from "@/pages/super-admin/support-tickets";
 import { SuperAdminAnalytics } from "@/pages/super-admin/analytics";
 import { SuperAdminLandingPage } from "@/pages/super-admin/landing-page";
+import { SuperAdminPaymentRequests } from "@/pages/super-admin/payment-requests";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -161,6 +162,7 @@ function SuperAdminRoutes() {
         <Route path="/super-admin/users" component={SuperAdminUsers} />
         <Route path="/super-admin/plans" component={SuperAdminPlans} />
         <Route path="/super-admin/subscriptions" component={SuperAdminSubscriptions} />
+        <Route path="/super-admin/payment-requests" component={SuperAdminPaymentRequests} />
         <Route path="/super-admin/support-tickets" component={SuperAdminSupportTickets} />
         <Route path="/super-admin/analytics" component={SuperAdminAnalytics} />
         <Route path="/super-admin/landing-page" component={SuperAdminLandingPage} />

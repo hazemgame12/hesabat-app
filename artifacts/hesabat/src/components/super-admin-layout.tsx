@@ -13,6 +13,7 @@ import {
   Shield,
   ChevronDown,
   Globe,
+  Inbox,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -23,6 +24,7 @@ const navItems = [
   { labelKey: "superAdmin.nav.users", icon: Users, href: "/super-admin/users" },
   { labelKey: "superAdmin.nav.plans", icon: CreditCard, href: "/super-admin/plans" },
   { labelKey: "superAdmin.nav.subscriptions", icon: Receipt, href: "/super-admin/subscriptions" },
+  { labelKey: "superAdmin.nav.paymentRequests", icon: Inbox, href: "/super-admin/payment-requests" },
   { labelKey: "superAdmin.nav.supportTickets", icon: LifeBuoy, href: "/super-admin/support-tickets" },
   { labelKey: "superAdmin.nav.analytics", icon: BarChart3, href: "/super-admin/analytics" },
   { labelKey: "superAdmin.nav.landingPage", icon: Globe, href: "/super-admin/landing-page" },
