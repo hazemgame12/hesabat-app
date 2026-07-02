@@ -337,6 +337,8 @@ export async function ensurePayrollSchema(): Promise<void> {
     { name: "subscription_plans.max_companies_or_branches ADD", ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS max_companies_or_branches INTEGER` },
     { name: "subscription_plans.storage_limit ADD",             ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS storage_limit INTEGER` },
     { name: "subscription_plans.feature_limits ADD",            ddl: `ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS feature_limits JSONB NOT NULL DEFAULT '{}'` },
+    // Fix stale countryCode='EG' default: sync countryCode to match country where they differ
+    { name: "subscription_plans.fix_country_code",              ddl: `UPDATE subscription_plans SET country_code = country WHERE country_code IS DISTINCT FROM country` },
   );
 
   // subscriptions table
